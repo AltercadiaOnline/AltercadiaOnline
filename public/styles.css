@@ -1,0 +1,155 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --panel: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --accent: #58a6ff;
+  --hp: #3fb950;
+  --hp-bg: #21262d;
+  --danger: #f85149;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header,
+.app-footer {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-footer {
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  opacity: 0.7;
+}
+
+.app-header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.status {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.battle-panel {
+  flex: 1;
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.battle-meta .turn-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.hp-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hp-row {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hp-label {
+  font-size: 0.9rem;
+}
+
+.hp-track {
+  height: 1rem;
+  background: var(--hp-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hp-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--hp);
+  transition: width 0.2s ease;
+}
+
+.battle-log-panel,
+.battle-actions-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.battle-log-panel h2,
+.battle-actions-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.battle-log {
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.battle-log div {
+  padding: 0.15rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.skill-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.skill-palette.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.hud-skill-btn {
+  background: #238636;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.hud-skill-btn:disabled {
+  background: #30363d;
+  cursor: not-allowed;
+}
+
+.hud-skill-btn:not(:disabled):hover {
+  filter: brightness(1.1);
+}

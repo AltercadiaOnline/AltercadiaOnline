@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Altercadia V2 — MVP Combate</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Altercadia V2</h1>
+      <p id="connection-status" class="status">Conectando…</p>
+    </header>
+
+    <main id="battle-layer" class="battle-panel" data-battle-hud>
+      <section class="battle-meta">
+        <p id="battle-turn-hud" class="turn-label">Aguardando servidor…</p>
+      </section>
+
+      <section id="hp-bars" class="hp-bars" aria-label="Vida dos combatentes"></section>
+
+      <section class="battle-log-panel">
+        <h2>Log</h2>
+        <div id="battle-log-window" class="battle-log"></div>
+      </section>
+
+      <section class="battle-actions-panel">
+        <h2>Habilidades</h2>
+        <div id="skill-palette-row" class="skill-palette" data-hud-skill-actions></div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <small>Motor V1.2 autoritativo · Dispatch via WebSocket</small>
+    </footer>
+
+    <script type="module" src="/client/browser/main.js"></script>
+  </body>
+</html>

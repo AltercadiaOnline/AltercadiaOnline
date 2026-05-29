@@ -1,0 +1,32 @@
+{
+  "name": "altercadia-v2",
+  "version": "0.1.0",
+  "description": "Altercadia V2 — Pure TypeScript foundation",
+  "scripts": {
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:client": "tsx watch src/client/index.ts",
+    "build": "tsc",
+    "start": "node dist/server/index.js",
+    "test": "tsx --test src/**/*.test.ts",
+    "sandbox": "tsx sandbox.ts",
+    "typecheck": "tsc --noEmit",
+    "mvp": "npm run build && npm start",
+    "dev:mvp": "npm run build && tsx watch src/server/index.ts",
+    "start:server": "npm start",
+    "start:client": "node dist/client/index.js"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}
