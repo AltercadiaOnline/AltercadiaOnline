@@ -65,9 +65,19 @@ function boot(): void {
     socket.send('combat-join', {});
   });
 
+  socket.onError((message) => setStatus(message));
+  socket.onClose((message) => setStatus(message));
+
   setStatus('Conectando…');
   console.log('[MVP] Cliente V2 pronto', wsUrlFromLocation());
 }
+
+window.addEventListener('error', (event) => {
+  const statusEl = document.getElementById('connection-status');
+  if (statusEl && event.message.includes('import')) {
+    statusEl.textContent = 'Erro ao carregar módulos JS — faça redeploy após npm run build.';
+  }
+});
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot);

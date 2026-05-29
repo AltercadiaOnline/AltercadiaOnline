@@ -58,10 +58,12 @@ export function createStaticServer(options: StaticServerOptions): http.Server {
 
       if (pathname === '/') pathname = '/index.html';
 
-      if (pathname.startsWith('/client/')) {
-        const distFile = safePath(options.distDir, pathname.slice(1));
-        if (distFile && existsSync(distFile) && statSync(distFile).isFile()) {
-          const ext = path.extname(distFile);
+      // Artefatos compilados (client + shared): /client/... e /shared/... → dist/
+      const distRelative = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+      const distFile = safePath(options.distDir, distRelative);
+      if (distFile && existsSync(distFile) && statSync(distFile).isFile()) {
+        const ext = path.extname(distFile);
+        if (ext === '.js' || ext === '.json') {
           res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'application/octet-stream' });
           createReadStream(distFile).pipe(res);
           return;

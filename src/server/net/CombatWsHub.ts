@@ -25,11 +25,12 @@ export class CombatWsHub {
       path: '/ws',
       verifyClient: (info, callback) => {
         const origin = info.origin;
-        if (isOriginAllowed(origin, this.corsOrigins)) {
+        const requestHost = info.req.headers.host;
+        if (isOriginAllowed(origin, this.corsOrigins, requestHost)) {
           callback(true);
           return;
         }
-        console.warn('[WS] Origin bloqueado:', origin);
+        console.warn('[WS] Origin bloqueado:', origin, 'host:', requestHost);
         callback(false, 403, 'Origin not allowed');
       },
     });

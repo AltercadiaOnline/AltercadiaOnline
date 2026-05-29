@@ -2,11 +2,25 @@
  * CORS para HTTP e verificação de Origin no upgrade WebSocket (`ws`).
  * O projeto usa WebSocket nativo (não Socket.io).
  */
-export function isOriginAllowed(origin: string | undefined, allowedOrigins: readonly string[]): boolean {
+function isSameOriginAsHost(origin: string, requestHost: string | undefined): boolean {
+  if (!requestHost) return false;
+  try {
+    return new URL(origin).host === requestHost;
+  } catch {
+    return false;
+  }
+}
+
+export function isOriginAllowed(
+  origin: string | undefined,
+  allowedOrigins: readonly string[],
+  requestHost?: string,
+): boolean {
   if (!origin) return true;
   if (allowedOrigins.includes('*')) return true;
-  if (allowedOrigins.length === 0) return false;
-  return allowedOrigins.includes(origin);
+  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.length === 0 && isSameOriginAsHost(origin, requestHost)) return true;
+  return false;
 }
 
 export function applyHttpCors(
@@ -15,8 +29,9 @@ export function applyHttpCors(
   allowedOrigins: readonly string[],
 ): boolean {
   const origin = req.headers.origin;
+  const requestHost = req.headers.host;
 
-  if (origin && isOriginAllowed(origin, allowedOrigins)) {
+  if (origin && isOriginAllowed(origin, allowedOrigins, requestHost)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Vary', 'Origin');

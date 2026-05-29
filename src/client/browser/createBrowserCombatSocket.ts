@@ -7,6 +7,8 @@ export type BrowserCombatSocket = CombatSocket & {
   send(type: 'combat-action', payload: ActionRequest): void;
   send(type: 'combat-join', payload?: { readonly displayName?: string }): void;
   onOpen(handler: () => void): void;
+  onError(handler: (message: string) => void): void;
+  onClose(handler: (message: string) => void): void;
   removeAllListeners(event?: string): void;
 };
 
@@ -16,9 +18,24 @@ export function createBrowserCombatSocket(wsUrl: string): BrowserCombatSocket {
   const ws = new WebSocket(wsUrl);
   const handlers = new Map<string, Set<(payload: unknown) => void>>();
   const openHandlers = new Set<() => void>();
+  const errorHandlers = new Set<(message: string) => void>();
+  const closeHandlers = new Set<(message: string) => void>();
 
   ws.addEventListener('open', () => {
     openHandlers.forEach((handler) => handler());
+  });
+
+  ws.addEventListener('error', () => {
+    const hint = 'Falha no WebSocket — confira CORS_ORIGIN no Railway e o console (F12).';
+    errorHandlers.forEach((handler) => handler(hint));
+  });
+
+  ws.addEventListener('close', (event) => {
+    const hint =
+      event.code === 1006
+        ? 'Conexão fechada (1006) — servidor inacessível ou módulos JS não carregaram.'
+        : `Conexão fechada (${event.code}).`;
+    closeHandlers.forEach((handler) => handler(hint));
   });
 
   ws.addEventListener('message', (event) => {
@@ -55,6 +72,14 @@ export function createBrowserCombatSocket(wsUrl: string): BrowserCombatSocket {
     onOpen(handler: () => void): void {
       openHandlers.add(handler);
       if (ws.readyState === WS_OPEN) handler();
+    },
+
+    onError(handler: (message: string) => void): void {
+      errorHandlers.add(handler);
+    },
+
+    onClose(handler: (message: string) => void): void {
+      closeHandlers.add(handler);
     },
 
     removeAllListeners(event?: string): void {
