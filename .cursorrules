@@ -1,0 +1,92 @@
+# Altercadia V2 / AltercadiaOnline — Regras Cursor (DevOps + Full-Stack)
+
+## Fluxo de trabalho oficial (sempre respeitar)
+
+```text
+npm run dev          → teste local (build + servidor com reload)
+npm run deploy:check → validação pré-produção (typecheck + test + build)
+npm run deploy       → deploy:check + git add + commit + push origin main
+                     → GitHub → Railway deploy automático (branch main)
+```
+
+O desenvolvedor **não deve precisar** do painel Railway no dia a dia, exceto: primeira configuração de variáveis, ver logs de falha, ou domínio customizado.
+
+---
+
+## Identidade do projeto
+
+- Jogo browser MMO tático (TypeScript strict). Motor autoritativo no servidor; cliente espelha `CombatDispatchPayload`.
+- Pastas: `src/shared/` (contratos), `src/server/` (Engine + Gateway), `src/client/` (Dashboard).
+- Produção: `Dockerfile` + `railway.toml` → `npm run build` → `node dist/server/index.js`.
+- Repo: `AltercadiaOnline/AltercadiaOnline` · URL produção: `altercadiaonline-production.up.railway.app`
+
+---
+
+## Ao editar `src/server/**` (OBRIGATÓRIO)
+
+Antes de concluir qualquer alteração em `src/server/`, **verificar compatibilidade** com deploy:
+
+### Dockerfile (contrato de build)
+
+- Build: `npm ci` → copia `src/`, `public/`, `tsconfig.json` → `npm run build`.
+- Runtime: `CMD ["node", "dist/server/index.js"]` — entrada **deve** permanecer `dist/server/index.js`.
+- Container precisa de: `dist/` (compilado) + `public/` (HTML/CSS).
+- Deps de **runtime** → `dependencies` no `package.json` (não só `devDependencies`).
+- JSON do motor (ex. `combat_balance_v1_2.json`) deve existir em `dist/server/engine/` após build.
+- Listen: `process.env.PORT` + `HOST` default `0.0.0.0` — nunca porta fixa no código.
+- `GET /health` deve responder `{ ok: true }` — alinhado ao `healthcheckPath` do Railway.
+
+### railway.toml
+
+- `builder = "DOCKERFILE"`, `dockerfilePath = "Dockerfile"`.
+- `healthcheckPath = "/health"` — sincronizado com `staticServer.ts`.
+- Mudou health/porta/bind → atualizar **Dockerfile + railway.toml + código**.
+
+### staticServer (front no mesmo deploy)
+
+- `/` → `public/index.html`
+- `/client/**` e `/shared/**` → arquivos em `dist/` (módulos ES do browser).
+- Novos paths estáticos → estender `staticServer.ts` e validar com `npm run build` + teste em `/`.
+
+### Checklist pós-edição (server ou infra)
+
+1. `npm run deploy:check`
+2. Confirmar `dist/server/index.js` existe
+3. Se mudou env: `.env.example` + `README-DEV.md` / `README-DE-DESENVOLVIMENTO.md`
+4. Sugerir `npm run deploy -- "mensagem clara"` — **não** fazer push sem pedido explícito do usuário
+
+---
+
+## Scripts package.json (não quebrar sem atualizar docs)
+
+| Script | Contrato |
+|--------|----------|
+| `dev` | Desenvolvimento local completo (alias `dev:mvp`) |
+| `deploy:check` | `typecheck && test && build` — espelha CI/Docker |
+| `deploy` | `deploy:check` + `scripts/deploy.mjs` → push `main` |
+| `start` | `node dist/server/index.js` — produção |
+| `build` | `tsc` |
+
+Não remover `deploy:check` do fluxo `deploy`. Não commitar `node_modules/`, `dist/`, `data/`.
+
+---
+
+## Arquitetura (não violar)
+
+- Event-driven; gateway autoritativo; cliente não calcula dano nem valida turno (usa `ui` do servidor).
+- `CombatGateway` + `CombatSession`; payload com `events`, `state`, `ui`.
+
+---
+
+## Railway (variáveis estáveis)
+
+- `NODE_ENV=production`
+- `PORT` — injetada pela Railway (não fixar no código)
+- `CORS_ORIGIN=https://altercadiaonline-production.up.railway.app` (ou URL pública atual)
+
+---
+
+## Estilo
+
+- TypeScript strict, diff mínimo, sem over-engineering.
+- Commits com mensagem descritiva em português ou inglês, foco no *porquê*.

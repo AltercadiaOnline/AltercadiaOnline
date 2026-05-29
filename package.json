@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Altercadia V2 — Pure TypeScript foundation",
   "scripts": {
+    "dev": "npm run dev:mvp",
     "dev:server": "tsx watch src/server/index.ts",
     "dev:client": "tsx watch src/client/index.ts",
     "build": "tsc",
@@ -10,6 +11,9 @@
     "test": "tsx --test src/**/*.test.ts",
     "sandbox": "tsx sandbox.ts",
     "typecheck": "tsc --noEmit",
+    "deploy:check": "npm run typecheck && npm test && npm run build",
+    "deploy": "npm run deploy:check && node scripts/deploy.mjs",
+    "railway:dashboard": "powershell -NoProfile -Command Start-Process 'https://railway.com/dashboard'",
     "mvp": "npm run build && npm start",
     "dev:mvp": "npm run build && tsx watch src/server/index.ts",
     "start:server": "npm start",

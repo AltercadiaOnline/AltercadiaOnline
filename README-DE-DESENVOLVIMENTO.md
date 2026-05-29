@@ -86,7 +86,15 @@ O `index.html` aponta para:
 
 ## 4. Checklist antes de cada `git push` (não quebrar produção)
 
-Execute **na pasta do projeto**, na ordem:
+Atalho único (recomendado — espelha o build do Docker na Railway):
+
+```bash
+npm run deploy:check
+```
+
+Isso executa: `typecheck` → `test` → `build`.
+
+Ou passo a passo:
 
 ```bash
 # 1. Dependências (após pull ou clone)
@@ -143,20 +151,53 @@ Acompanhe o deploy em **Railway → Deployments** (build Docker + healthcheck `/
 
 ---
 
-## 6. Scripts úteis (`package.json`)
+## 6. Logs do Railway (terminal Cursor)
+
+### Abrir painel no navegador (Windows)
+
+```bash
+npm run railway:dashboard
+```
+
+Depois: projeto **altercadiaonline-production** → serviço → aba **Deployments** → último deploy → **View Logs**.
+
+### CLI Railway (logs no terminal)
+
+Instalação única:
+
+```bash
+npm install -g @railway/cli
+railway login
+```
+
+Na pasta do projeto (após linkar o projeto):
+
+```bash
+cd "c:\Users\Usuario\Desktop\MMO BROWSER"
+railway link
+railway logs --follow
+```
+
+Sem CLI, use sempre o dashboard: [railway.com/dashboard](https://railway.com/dashboard).
+
+---
+
+## 7. Scripts úteis (`package.json`)
 
 | Script | Quando usar |
 |--------|-------------|
-| `npm run typecheck` | Antes de push — erros de tipo |
-| `npm test` | Antes de push — 32+ testes |
+| `npm run deploy:check` | **Antes de todo push** — valida produção |
+| `npm run typecheck` | Só tipos |
+| `npm test` | Só testes |
 | `npm run build` | Gera `dist/` (obrigatório localmente para `npm start`) |
+| `npm run railway:dashboard` | Abre o painel Railway no browser |
 | `npm start` | Produção local (`node dist/server/index.js`) |
 | `npm run mvp` | `build` + `start` |
 | `npm run dev:mvp` | Desenvolvimento com reload do servidor |
 
 ---
 
-## 7. Problemas comuns
+## 8. Problemas comuns
 
 | Sintoma | Causa provável | Ação |
 |---------|----------------|------|
