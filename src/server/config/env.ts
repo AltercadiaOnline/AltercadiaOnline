@@ -6,6 +6,8 @@ export type ServerEnv = {
   readonly host: string;
   readonly corsOrigins: readonly string[];
   readonly trustProxy: boolean;
+  readonly supabaseUrl: string | null;
+  readonly supabaseAnonKey: string | null;
 };
 
 function parseNodeEnv(raw: string | undefined): NodeEnv {
@@ -42,5 +44,7 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     host: env.HOST?.trim() || '0.0.0.0',
     corsOrigins: parseCorsOrigins(env.CORS_ORIGIN ?? env.CORS_ORIGINS, nodeEnv),
     trustProxy,
+    supabaseUrl: env.SUPABASE_URL?.trim() || null,
+    supabaseAnonKey: env.SUPABASE_ANON_KEY?.trim() || null,
   };
 }

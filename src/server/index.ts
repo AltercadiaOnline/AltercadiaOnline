@@ -1,4 +1,5 @@
 import { loadServerEnv } from './config/env.js';
+import { createPublicClientConfig } from '../shared/publicClientConfig.js';
 import { CombatWsHub } from './net/CombatWsHub.js';
 import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
 
@@ -18,6 +19,10 @@ function main(): void {
   const httpServer = createStaticServer({
     ...dirs,
     corsOrigins: env.corsOrigins,
+    clientPublicConfig: createPublicClientConfig({
+      ...(env.supabaseUrl ? { supabaseUrl: env.supabaseUrl } : {}),
+      ...(env.supabaseAnonKey ? { supabaseAnonKey: env.supabaseAnonKey } : {}),
+    }),
   });
 
   const wsHub = new CombatWsHub(httpServer, { corsOrigins: env.corsOrigins });

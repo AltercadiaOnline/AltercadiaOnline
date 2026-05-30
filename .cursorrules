@@ -78,6 +78,16 @@ Não remover `deploy:check` do fluxo `deploy`. Não commitar `node_modules/`, `d
 
 ---
 
+## Regras de Desenvolvimento do MMO (Server-Authoritative)
+
+1. **Arquitetura:** O Frontend é apenas um espelho visual (Client). O Servidor (`src/server/`) é a única fonte da verdade (Autoridade).
+2. **Segurança:** Nenhuma lógica de negócio (cálculo de dano, ganho de XP, validação de inventário) deve residir no frontend. O cliente apenas envia intenções (eventos) e o servidor responde com o estado.
+3. **Comunicação:** O front-end envia eventos (ex: `emit('move', {x, y})`) e o servidor valida e responde (ex: `emit('update', {pos})`).
+4. **Estado:** O estado do jogo deve ser gerenciado no servidor. O cliente apenas desenha o que o servidor autoriza.
+5. **Simplicidade Visual:** Ao criar novos elementos visuais (telas, UI), mantenha a estrutura de `components` e `services`, garantindo que a lógica de "como" a tela funciona esteja desacoplada do "quê" a tela desenha.
+
+---
+
 ## Railway (variáveis estáveis)
 
 - `NODE_ENV=production`

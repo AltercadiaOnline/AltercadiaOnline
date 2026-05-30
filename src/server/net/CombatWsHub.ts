@@ -98,6 +98,7 @@ export class CombatWsHub {
       playerId,
       battleId: payload.state.battleId,
     });
+    this.send(ws, { type: 'START_COMBAT', payload: { battleId: payload.state.battleId } });
     this.sendCombatEvent(ws, payload);
   }
 

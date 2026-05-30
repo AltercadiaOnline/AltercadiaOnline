@@ -3,6 +3,7 @@ import type { ActionRequest } from './events.js';
 
 /** Mensagens WebSocket do MVP (canal único JSON). */
 export type WsOutboundMessage =
+  | { readonly type: 'START_COMBAT'; readonly payload: { readonly battleId: string } }
   | { readonly type: 'combat-event'; readonly payload: CombatDispatchPayload }
   | { readonly type: 'combat-error'; readonly payload: { readonly reason: string } };
 

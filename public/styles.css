@@ -8,20 +8,423 @@
   --hp: #3fb950;
   --hp-bg: #21262d;
   --danger: #f85149;
-  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--text);
+  background-color: #050a0d;
+  color: #d4b483;
+  font-family: 'Courier New', monospace;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.full-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle, #1a1a2e, #050a0d);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.login-box {
+  width: min(360px, 90vw);
+  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+  text-align: center;
+}
+
+.login-box h1 {
+  letter-spacing: 0.2em;
+  font-size: 1.4rem;
+}
+
+.login-box button,
+#btn-enter-world {
+  padding: 0.75rem 1rem;
+  border: 2px solid #5e4a30;
+  background: rgba(20, 15, 10, 0.95);
+  color: #d4b483;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.auth-form {
+  text-align: left;
+}
+
+.auth-form h1 {
+  text-align: center;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.auth-actions button,
+.auth-google-btn {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.06em;
+}
+
+.auth-google-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid #5e4a30;
+  background: rgba(20, 15, 10, 0.95);
+  color: #d4b483;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.auth-google-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.auth-google-btn:disabled,
+.auth-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.auth-field input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #5e4a30;
+  background: rgba(0, 0, 0, 0.45);
+  color: #d4b483;
+  font-family: inherit;
+}
+
+.auth-field input:focus {
+  outline: 1px solid #58a6ff;
+}
+
+.auth-status {
+  min-height: 1.2rem;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.auth-status.is-error {
+  color: #f85149;
+}
+
+.auth-status.is-success {
+  color: #3fb950;
+}
+
+.auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.auth-form > #btn-google {
+  width: 100%;
+}
+
+.login-box button:hover,
+#btn-enter-world:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+#btn-enter-world:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#char-select-screen {
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+#char-select-screen h1 {
+  letter-spacing: 0.15em;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+#login-screen {
+  justify-content: center;
+  align-items: center;
+}
+
+#login-screen .login-box {
+  width: min(360px, 90vw);
+}
+
+.char-container {
+  display: flex;
+  gap: 20px;
+  padding: 50px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.char-slot {
+  width: 200px;
+  height: 300px;
+  border: 2px solid #5e4a30;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.3s, border-color 0.3s;
+}
+
+.char-slot:hover {
+  transform: scale(1.05);
+  border-color: #00ffcc;
+}
+
+.char-slot.is-selected {
+  transform: scale(1.05);
+  border-color: #00ffcc;
+  box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+}
+
+.char-slot-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.char-name {
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.char-class {
+  color: #00ffcc;
+  font-size: 0.85rem;
+}
+
+.char-trait,
+.char-level {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.char-slot.empty {
+  opacity: 0.75;
+  font-style: italic;
+}
+
+#char-select-screen,
+#game-container {
+  display: none;
+}
+
+#login-screen {
+  display: flex;
+}
+
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scene.hidden {
+  display: none;
+}
+
+/* Grade principal: canvas (1fr) + sidebar (250px) */
+#vortex-app {
+  display: grid;
+  grid-template-columns: 1fr 250px;
+  height: 100vh;
+}
+
+#game-stage {
+  position: relative;
+  background: #0d0f11;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#world-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #1a1410;
+  image-rendering: pixelated;
+}
+
+.exploration-status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 0.35rem 0.6rem;
+  background: rgba(20, 15, 10, 0.85);
+  border: 1px solid #5e4a30;
+}
+
+/* Sidebar persistente */
+#sidebar {
+  grid-column: 2;
+  background-color: #140f0a;
+  border-left: 2px solid #5e4a30;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+}
+
+.minimap,
+.wallet,
+.equip-grid {
+  padding: 0.75rem;
+  border: 1px solid #5e4a30;
+  background: rgba(10, 8, 6, 0.75);
+  font-size: 0.85rem;
+}
+
+.minimap {
+  min-height: 120px;
+}
+
+.equip-grid {
+  flex: 1;
+  min-height: 160px;
+}
+
+/* Módulos genéricos da VORTEX */
+.vortex-panel,
+.panel {
+  border: 2px solid #5e4a30;
+  background: rgba(20, 15, 10, 0.9);
+}
+
+.char-slot.vortex-panel {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* Chat global no canto inferior */
+#chat-box {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  width: 300px;
+  height: 150px;
+  padding: 5px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.chat-header {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chat-content {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+#chat-box input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #5e4a30;
+  background: rgba(10, 8, 6, 0.9);
+  color: #d4b483;
+  font-family: inherit;
+}
+
+#chat-box input::placeholder {
+  color: rgba(212, 180, 131, 0.45);
+}
+.combat-grid {
+  display: grid;
+  grid-template-areas:
+    'header header header'
+    'left-info scene right-info'
+    'commands commands commands'
+    'footer footer footer';
+  grid-template-columns: 250px 1fr 250px;
+  grid-template-rows: auto 1fr auto auto;
+  width: 100%;
+  height: 100%;
+  background: #0d0f11;
+  color: #d4b483;
+}
+
+.combat-grid > .combat-header {
+  grid-area: header;
+}
+
+.combat-grid > .combat-left {
+  grid-area: left-info;
+}
+
+.combat-grid > .combat-scene {
+  grid-area: scene;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+}
+
+.combat-grid > .combat-right {
+  grid-area: right-info;
+}
+
+.combat-grid > .combat-commands {
+  grid-area: commands;
+}
+
+.combat-grid > .combat-footer {
+  grid-area: footer;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.combat-grid .combat-footer .battle-log-panel,
+.combat-grid .combat-footer .combat-chat {
+  border: none;
+  background: transparent;
+  padding: 0;
 }
 
 .app-header,
@@ -43,11 +446,9 @@ body {
 }
 
 .status {
-  margin: 0;
   color: var(--accent);
   font-size: 0.9rem;
 }
-
 .battle-panel {
   flex: 1;
   display: grid;
@@ -152,4 +553,77 @@ body {
 
 .hud-skill-btn:not(:disabled):hover {
   filter: brightness(1.1);
+}
+
+.combat-container {
+  display: grid;
+  grid-template-areas:
+    'header header header'
+    'left-info scene right-info'
+    'commands commands commands'
+    'log chat chat';
+  grid-template-columns: 250px 1fr 250px;
+  grid-template-rows: auto 1fr auto auto;
+  height: 100vh;
+  background: #0d0f11;
+  color: #d4b483;
+}
+
+.combat-container > .combat-header {
+  grid-area: header;
+}
+
+.combat-container > .combat-left {
+  grid-area: left-info;
+}
+
+.combat-container > .combat-scene {
+  grid-area: scene;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+}
+
+.combat-container > .combat-right {
+  grid-area: right-info;
+}
+
+.combat-container > .combat-commands {
+  grid-area: commands;
+}
+
+.combat-container > .combat-log {
+  grid-area: log;
+}
+
+.combat-container > .combat-chat {
+  grid-area: chat;
+}
+
+/* Combate — layout separado da exploração Vortex */.combat-container .panel h2,
+.combat-grid .panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+.combat-container .battle-log,
+.combat-grid .battle-log {
+  max-height: 140px;
+}
+
+.combat-container .chat-placeholder,
+.combat-grid .chat-placeholder {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.combat-side-note {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }

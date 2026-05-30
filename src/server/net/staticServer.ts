@@ -4,6 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyHttpCors } from '../config/cors.js';
+import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -11,6 +12,9 @@ const MIME: Record<string, string> = {
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.ico': 'image/x-icon',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
 };
 
 function projectRootFromModule(metaUrl: string): string {
@@ -21,6 +25,7 @@ export type StaticServerOptions = {
   readonly publicDir: string;
   readonly distDir: string;
   readonly corsOrigins: readonly string[];
+  readonly clientPublicConfig: PublicClientConfig;
 };
 
 export function resolveStaticDirs(moduleUrl: string): Pick<StaticServerOptions, 'publicDir' | 'distDir'> {
@@ -53,6 +58,12 @@ export function createStaticServer(options: StaticServerOptions): http.Server {
       if (pathname === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ ok: true, service: 'altercadia-v2' }));
+        return;
+      }
+
+      if (pathname === '/config/client') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(options.clientPublicConfig));
         return;
       }
 

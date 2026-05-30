@@ -3,37 +3,112 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Altercadia V2 — MVP Combate</title>
+    <title>Altercadia V2</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header class="app-header">
-      <h1>Altercadia V2</h1>
-      <p id="connection-status" class="status">Iniciando cliente…</p>
-    </header>
+    <div id="login-screen" class="screen full-screen">
+      <div class="login-box vortex-panel auth-form">
+        <h1>ALTERCADIA</h1>
+        <label class="auth-field">
+          <span>Email</span>
+          <input id="email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
+        </label>
+        <label class="auth-field">
+          <span>Senha</span>
+          <input id="pass-input" type="password" autocomplete="current-password" placeholder="••••••" />
+        </label>
+        <label class="auth-field">
+          <span>Confirmar senha</span>
+          <input id="confirm-pass-input" type="password" autocomplete="new-password" placeholder="••••••" />
+        </label>
+        <p id="auth-status" class="auth-status" aria-live="polite"></p>
+        <div class="auth-actions">
+          <button id="btn-login" type="button">LOGIN</button>
+          <button id="btn-register" type="button">CADASTRAR</button>
+        </div>
+        <button id="btn-google-register" type="button" class="auth-google-btn">CADASTRAR COM GOOGLE</button>
+      </div>
+    </div>
 
-    <main id="battle-layer" class="battle-panel" data-battle-hud>
-      <section class="battle-meta">
-        <p id="battle-turn-hud" class="turn-label">Aguardando servidor…</p>
-      </section>
+    <div id="char-select-screen" class="screen full-screen">
+      <h1>ESCOLHA SEU PERSONAGEM</h1>
+      <div id="char-slots" class="char-container"></div>
+      <button id="btn-enter-world" type="button" disabled>ENTRAR NO MUNDO</button>
+    </div>
 
-      <section id="hp-bars" class="hp-bars" aria-label="Vida dos combatentes"></section>
+    <div id="game-container" class="screen">
+      <div id="scene-exploration" class="scene hidden">
+        <div id="vortex-app">
+          <main id="game-stage">
+            <canvas id="world-canvas" width="800" height="800" aria-label="Mundo Altercadia"></canvas>
+            <p id="exploration-status" class="status exploration-status">Explorando a dimensão…</p>
 
-      <section class="battle-log-panel">
-        <h2>Log</h2>
-        <div id="battle-log-window" class="battle-log"></div>
-      </section>
+            <div id="chat-box" class="vortex-panel">
+              <div class="chat-header">Chat Global</div>
+              <div class="chat-content">Sistema: Canal global online…</div>
+              <input type="text" placeholder="Digite sua mensagem…" aria-label="Mensagem do chat" />
+            </div>
+          </main>
 
-      <section class="battle-actions-panel">
-        <h2>Habilidades</h2>
-        <div id="skill-palette-row" class="skill-palette" data-hud-skill-actions></div>
-      </section>
-    </main>
+          <aside id="sidebar" class="vortex-panel">
+            <div class="minimap">Minimap 40×40</div>
+            <div class="wallet">425.00 VOLTS</div>
+            <div class="equip-grid">Equipamentos</div>
+          </aside>
+        </div>
+      </div>
 
-    <footer class="app-footer">
-      <small>Motor V1.2 autoritativo · Dispatch via WebSocket</small>
-    </footer>
+      <div id="scene-combat" class="scene hidden">
+        <div class="combat-grid">
+          <header class="panel combat-header app-header">
+            <h1>Altercadia V2</h1>
+            <p id="connection-status" class="status">Iniciando cliente…</p>
+            <p id="battle-turn-hud" class="turn-label">Aguardando servidor…</p>
+          </header>
 
+          <div id="left-panel" class="panel combat-left" aria-label="Info jogador">
+            <h2>Operativo</h2>
+            <p class="combat-side-note">Info Jogador · VORTEX CORP</p>
+          </div>
+
+          <div id="battle-scene" class="panel combat-scene">
+            <main id="battle-layer" data-battle-hud>
+              <section id="hp-bars" class="hp-bars" aria-label="Vida dos combatentes"></section>
+            </main>
+          </div>
+
+          <div id="right-panel" class="panel combat-right" aria-label="Status inimigo">
+            <h2>Alvo</h2>
+            <p class="combat-side-note">Status Rato / Inimigo</p>
+          </div>
+
+          <section class="panel combat-commands battle-actions-panel">
+            <h2>Habilidades</h2>
+            <div id="skill-palette-row" class="skill-palette" data-hud-skill-actions></div>
+          </section>
+
+          <footer class="panel combat-footer">
+            <section class="combat-log battle-log-panel">
+              <h2>Log</h2>
+              <div id="battle-log-window" class="battle-log"></div>
+            </section>
+            <section class="combat-chat" aria-label="Chat">
+              <h2>Chat</h2>
+              <p class="chat-placeholder">Canal global em breve.</p>
+            </section>
+          </footer>
+        </div>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.106.2"
+        }
+      }
+    </script>
     <script type="module" src="/client/browser/main.js"></script>
   </body>
 </html>
