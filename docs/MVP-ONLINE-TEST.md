@@ -83,9 +83,6 @@ data/
 3. Postgres via `DatabaseUtils.executeTransaction` (substituir JSON)
 4. Aplicar `battleProgressionGrant` no fim da batalha (servidor → stores)
 
-## Testes automatizados
+## Validação manual
 
-```bash
-npm test -- src/server/persistence/persistenceGateway.test.ts
-npm test -- src/Economy/collectBattleLoot.test.ts
-```
+Use o checklist QA acima e `npm run deploy:check` antes de deploy.

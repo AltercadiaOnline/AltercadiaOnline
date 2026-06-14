@@ -3,7 +3,7 @@ import { extractCombatActionIntentResult } from '../../shared/combat/combatInten
 import { buildCombatVisualFeedback } from '../../shared/combat/combatVisualFeedback.js';
 import { buildCombatUiHints, type CombatDispatchPayload } from '../../shared/combatWire.js';
 import type { CombatRuleManifest } from '../../shared/combat/combatRuleManifest.js';
-import { CombatEventType, type ActionRequest, type CombatEvent } from '../../shared/events.js';
+import { CombatEventType, type ActionRequest, type CombatEvent, type ResolvedCombatAction } from '../../shared/events.js';
 import type { PlayerCombatLoadout } from '../../shared/character/equipmentState.js';
 import type { CombatState } from '../../shared/types.js';
 import {
@@ -20,6 +20,10 @@ import { computeConsumableHeal } from './buildCombatantFromLoadout.js';
 import { isReactiveConsumableAction } from '../../shared/combat/potionSaturation.js';
 import { loadCombatBalanceConfig } from '../engine/combatBalanceConfig.js';
 import { buildPetBasicAttackRequest } from './buildPetCombatant.js';
+import {
+  sanitizeCombatActionIntent,
+  validateCombatActionAgainstPersistence,
+} from './combatActionIntentGateway.js';
 import { CombatGateway, type DispatchResult } from './CombatGateway.js';
 import { BattleManager } from '../../shared/combat/BattleEngine.js';
 import { isClassMoveId } from '../../shared/combat/classMovesetCatalog.js';
@@ -38,7 +42,8 @@ export type CombatSessionRejectReason =
   | 'INVALID_BATTLE'
   | 'DUPLICATE_REQUEST'
   | 'BATTLE_ENDED'
-  | 'INVALID_CONSUMABLE';
+  | 'INVALID_CONSUMABLE'
+  | 'INVALID_SKILL';
 
 export type CombatSessionResult =
   | { readonly ok: true; readonly payload: CombatDispatchPayload }
@@ -106,25 +111,40 @@ export class CombatSession {
     return this.toPayload(this.gateway.startBattle(this.playerActorId));
   }
 
-  public async dispatchPlayerAction(action: ActionRequest): Promise<CombatSessionResult> {
-    const gate = this.validatePlayerAction(action);
+  public async dispatchPlayerAction(rawAction: ActionRequest): Promise<CombatSessionResult> {
+    const sanitized = sanitizeCombatActionIntent(rawAction, { logRejectedFields: false });
+    if (!sanitized) {
+      return { ok: false, reason: 'INVALID_BATTLE' };
+    }
+    const gate = this.validatePlayerAction(sanitized);
     if (!gate.ok) return gate;
 
-    let resolvedAction = action;
+    const persistenceGate = validateCombatActionAgainstPersistence(
+      this.playerActorId,
+      this.characterId,
+      sanitized,
+      this.gateway.getState(),
+      this.playerActorId,
+    );
+    if (!persistenceGate.ok) {
+      return { ok: false, reason: persistenceGate.reason };
+    }
 
-    if (action.consumableId) {
+    let resolvedAction: ResolvedCombatAction = sanitized;
+
+    if (sanitized.consumableId) {
       const consumed = await consumeConsumableInCombat({
         playerId: this.playerActorId,
         characterId: this.characterId,
-        itemId: action.consumableId,
+        itemId: sanitized.consumableId,
       });
       if (!consumed.ok) {
         return { ok: false, reason: 'INVALID_CONSUMABLE' };
       }
       const actor = this.gateway.getState().combatants[this.playerActorId];
       resolvedAction = {
-        ...action,
-        consumableHeal: actor ? computeConsumableHeal(actor, action.consumableId) : 0,
+        ...sanitized,
+        consumableHeal: actor ? computeConsumableHeal(actor, sanitized.consumableId) : 0,
       };
     }
 
@@ -132,9 +152,9 @@ export class CombatSession {
     const runePatch = this.applyRuneModifiers(resolvedAction);
     resolvedAction = runePatch.action;
 
-    this.rememberRequestId(action.requestId);
-    if (action.skillId && isClassMoveId(action.skillId)) {
-      this.movesUsedInBattle.push(action.skillId);
+    this.rememberRequestId(sanitized.requestId);
+    if (sanitized.skillId && isClassMoveId(sanitized.skillId)) {
+      this.movesUsedInBattle.push(sanitized.skillId);
     }
 
     const mergedEvents: CombatEvent[] = [...runePatch.events];
@@ -169,7 +189,7 @@ export class CombatSession {
    * PvE sem pet: jogador + reação inimiga no mesmo lote (iniciativa).
    * PvE com pet coadjuvante: jogador + inimigo por jogada; pet após 3→4→5→6→8 jogadas do jogador.
    */
-  private resolvePveRound(playerAction: ActionRequest): DispatchResult {
+  private resolvePveRound(playerAction: ResolvedCombatAction): DispatchResult {
     const state = this.gateway.getState();
     if (battleUsesPetTurnQueue(state.combatants)) {
       return this.resolvePveAllianceCycleRound(playerAction);
@@ -177,13 +197,13 @@ export class CombatSession {
     return this.resolvePveClassicRound(playerAction);
   }
 
-  private resolvePveClassicRound(playerAction: ActionRequest): DispatchResult {
+  private resolvePveClassicRound(playerAction: ResolvedCombatAction): DispatchResult {
     if (this.isReactivePotionAction(playerAction)) {
       return this.resolveReactiveConsumableRound(playerAction);
     }
 
     const preEvents: CombatEvent[] = [];
-    const batch: ActionRequest[] = [playerAction];
+    const batch: ResolvedCombatAction[] = [playerAction];
 
     for (const enemyId of this.listEnemyActorIds()) {
       const turnState = this.gateway.getState();
@@ -213,7 +233,7 @@ export class CombatSession {
   /**
    * PvE com pet coadjuvante: jogador + inimigo a cada jogada; pet após 3→4→5→6→8 jogadas do jogador.
    */
-  private resolvePveAllianceCycleRound(playerAction: ActionRequest): DispatchResult {
+  private resolvePveAllianceCycleRound(playerAction: ResolvedCombatAction): DispatchResult {
     if (this.isReactivePotionAction(playerAction)) {
       return this.resolveReactiveConsumableRound(playerAction);
     }
@@ -257,10 +277,10 @@ export class CombatSession {
   }
 
   private resolveAllyEnemyBatch(
-    allyActions: readonly ActionRequest[],
+    allyActions: readonly ResolvedCombatAction[],
     preEvents: CombatEvent[],
   ): DispatchResult {
-    const batch: ActionRequest[] = [...allyActions];
+    const batch: ResolvedCombatAction[] = [...allyActions];
 
     for (const enemyId of this.listEnemyActorIds()) {
       const turnState = this.gateway.getState();
@@ -280,7 +300,7 @@ export class CombatSession {
 
   private resolvePetAlliancePhase(): DispatchResult {
     const preEvents: CombatEvent[] = [];
-    const batch: ActionRequest[] = [];
+    const batch: ResolvedCombatAction[] = [];
     const state = this.gateway.getState();
     const turn = state.turn;
     const petSnapshot = this.loadout?.pet ?? null;
@@ -327,7 +347,7 @@ export class CombatSession {
     }
   }
 
-  private applyRuneModifiers(action: ActionRequest): { action: ActionRequest; events: CombatEvent[] } {
+  private applyRuneModifiers(action: ResolvedCombatAction): { action: ResolvedCombatAction; events: CombatEvent[] } {
     const trigger = resolveSkillRuneTrigger(action.skillId);
     if (!trigger) return { action, events: [] };
 
@@ -357,7 +377,7 @@ export class CombatSession {
       },
     }];
 
-    const patched: ActionRequest = {
+    const patched: ResolvedCombatAction = {
       ...action,
       ...(entry.effectType === 'CRIT_BONUS' ? { runeCritBonus: entry.value } : {}),
       ...(entry.effectType === 'REFLECT_DMG' ? { runeReflectRatio: entry.value } : {}),
@@ -366,12 +386,12 @@ export class CombatSession {
     return { action: patched, events };
   }
 
-  private isReactivePotionAction(action: ActionRequest): boolean {
+  private isReactivePotionAction(action: ResolvedCombatAction): boolean {
     return isReactiveConsumableAction(action, loadCombatBalanceConfig().consumables.potionReactive);
   }
 
   /** Poção/tônico reativo — não avança turno nem dispara round de inimigo. */
-  private resolveReactiveConsumableRound(playerAction: ActionRequest): DispatchResult {
+  private resolveReactiveConsumableRound(playerAction: ResolvedCombatAction): DispatchResult {
     const result = this.gateway.dispatchAction(playerAction);
     if (result.state.phase !== 'ENDED') {
       this.gateway.ensureChoosingActor(this.playerActorId);

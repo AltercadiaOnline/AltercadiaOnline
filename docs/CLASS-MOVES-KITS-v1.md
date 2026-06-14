@@ -308,7 +308,7 @@ Ao alterar stats ou copy de um move:
 
 1. Atualizar `classMovesetCatalog.ts` (stats autoritativos)
 2. Atualizar `classMoveNarrativeTooltips.ts` via `buildOfficialTechnicalLine()`
-3. Rodar `npm test` — suites `classMoveNarrativeTooltips.test.ts` e `moveTooltipContent.catalog.test.ts`
+3. Rodar `npm run typecheck` (ou `npm run deploy:check` antes de push)
 4. Sincronizar este documento e [`GDD-MECANICAS-V2.md`](./GDD-MECANICAS-V2.md) (§17–§19) se loadout padrão ou combos mudarem
 
 **Arquivo de código:** `src/shared/combat/classMoveNarrativeTooltips.ts`  

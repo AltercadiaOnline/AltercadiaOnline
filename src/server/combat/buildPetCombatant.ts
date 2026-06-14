@@ -8,7 +8,7 @@ import {
 import {
   buildPetActorId,
 } from '../../shared/pet/petCombatRules.js';
-import type { ActionRequest } from '../../shared/events.js';
+import type { ActionRequest, ResolvedCombatAction } from '../../shared/events.js';
 import type { Combatant } from '../../shared/types.js';
 
 export function buildPetCombatant(
@@ -64,7 +64,7 @@ export function buildPetBasicAttackRequest(
   petActorId: string,
   pet: PetSnapshot,
   requestIdSeed: string,
-): ActionRequest {
+): ResolvedCombatAction {
   const def = getPetDefinition(pet.kindId);
   return {
     battleId,

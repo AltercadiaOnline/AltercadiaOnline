@@ -117,11 +117,6 @@ class ItemRegistryStore {
 
     return items.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   }
-
-  /** Apenas testes — reinicia o registro. */
-  clearForTests(): void {
-    this.byId.clear();
-  }
 }
 
 export const ItemRegistry = new ItemRegistryStore();

@@ -141,9 +141,3 @@ export function resolveMarketListingComparison(params: {
     marketplaceNetUnitPrice: Math.floor(resolveMarketplaceNetFromGross(grossListingTotal) / quantity),
   };
 }
-
-/** Reseta histórico — testes. */
-export function resetMarketTransactionHistoryForTests(): void {
-  transactions.length = 0;
-  seeded = false;
-}

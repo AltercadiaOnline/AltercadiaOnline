@@ -10,7 +10,3 @@ export function grantPlayerHonor(recipientActorId: string): number {
 export function readPlayerHonorCount(recipientActorId: string): number {
   return honorByActor.get(recipientActorId) ?? 0;
 }
-
-export function resetPlayerHonorStoreForTests(): void {
-  honorByActor.clear();
-}

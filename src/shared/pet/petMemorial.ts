@@ -55,10 +55,6 @@ export const PET_FAREWELL_QUOTES: readonly string[] = [
 
 let memorialSeq = 0;
 
-export function resetMemorialSeqForTests(): void {
-  memorialSeq = 0;
-}
-
 export function nextMemorialId(deathDateMs: number): string {
   memorialSeq += 1;
   return `memorial:${deathDateMs}:${memorialSeq}`;

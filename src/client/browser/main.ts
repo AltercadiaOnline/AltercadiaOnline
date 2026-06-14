@@ -308,6 +308,9 @@ function handleWorldLoginResult(raw: unknown): void {
 function connectSocket(): void {
   if (socket) {
     positionGateway?.bindSocket(socket);
+    if (world && !isWorldSessionReady()) {
+      positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
+    }
     return;
   }
 
@@ -316,6 +319,9 @@ function connectSocket(): void {
   socket = createBrowserCombatSocket(wsUrlFromLocation(), {
     onReconnect: () => {
       synchronizer.onReconnect();
+      if (world && positionGateway) {
+        positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
+      }
     },
   });
   positionGateway?.bindSocket(socket);

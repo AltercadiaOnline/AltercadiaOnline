@@ -2,7 +2,8 @@ import { extractCombatActionIntentResult } from '../../../shared/combat/combatIn
 import { buildCombatVisualFeedback } from '../../../shared/combat/combatVisualFeedback.js';
 import { buildCombatUiHints, type CombatDispatchPayload } from '../../../shared/combatWire.js';
 import type { CombatRuleManifest } from '../../../shared/combat/combatRuleManifest.js';
-import { CombatEventType, type ActionRequest, type CombatEvent } from '../../../shared/events.js';
+import { CombatEventType, type ActionRequest, type CombatEvent, type ResolvedCombatAction } from '../../../shared/events.js';
+import { sanitizeCombatActionIntent } from '../../../shared/combat/combatActionIntent.js';
 import type { PlayerCombatLoadout } from '../../../shared/character/equipmentState.js';
 import type { CombatState } from '../../../shared/types.js';
 import { CombatGateway, type DispatchResult } from '../CombatGateway.js';
@@ -95,32 +96,36 @@ export class PvpCombatSession {
     return this.toPayload(this.gateway.startBattle(this.playerActorId));
   }
 
-  public async dispatchPlayerAction(action: ActionRequest): Promise<PvpCombatSessionResult> {
-    const gate = this.validatePlayerAction(action);
+  public async dispatchPlayerAction(rawAction: ActionRequest): Promise<PvpCombatSessionResult> {
+    const sanitized = sanitizeCombatActionIntent(rawAction, { logRejectedFields: false });
+    if (!sanitized) {
+      return { ok: false, reason: 'INVALID_BATTLE' };
+    }
+    const gate = this.validatePlayerAction(sanitized);
     if (!gate.ok) return gate;
 
-    let resolvedAction = action;
+    let resolvedAction: ResolvedCombatAction = sanitized;
 
-    if (action.consumableId) {
+    if (sanitized.consumableId) {
       const consumed = await consumeConsumableInCombat({
         playerId: this.playerActorId,
         characterId: this.characterId,
-        itemId: action.consumableId,
+        itemId: sanitized.consumableId,
       });
       if (!consumed.ok) {
         return { ok: false, reason: 'INVALID_CONSUMABLE' };
       }
       const actor = this.gateway.getState().combatants[this.playerActorId];
       resolvedAction = {
-        ...action,
-        consumableHeal: actor ? computeConsumableHeal(actor, action.consumableId) : 0,
+        ...sanitized,
+        consumableHeal: actor ? computeConsumableHeal(actor, sanitized.consumableId) : 0,
       };
     }
 
     this.applyPendingRuneSpeedIfDue();
     const runePatch = this.applyRuneModifiers(resolvedAction);
     resolvedAction = runePatch.action;
-    this.rememberRequestId(action.requestId);
+    this.rememberRequestId(sanitized.requestId);
 
     const round = this.resolveAlternatingRound(resolvedAction, this.botActorId);
     return {
@@ -133,7 +138,7 @@ export class PvpCombatSession {
     };
   }
 
-  public async dispatchBotAction(action: ActionRequest): Promise<PvpCombatSessionResult> {
+  public async dispatchBotAction(action: ResolvedCombatAction): Promise<PvpCombatSessionResult> {
     const gate = this.validateBotAction(action);
     if (!gate.ok) return gate;
 
@@ -152,7 +157,7 @@ export class PvpCombatSession {
   }
 
   private resolveAlternatingRound(
-    actingAction: ActionRequest,
+    actingAction: ResolvedCombatAction,
     nextActorId: string,
   ): DispatchResult {
     if (isReactiveConsumableAction(actingAction, loadCombatBalanceConfig().consumables.potionReactive)) {
@@ -193,7 +198,7 @@ export class PvpCombatSession {
     }
   }
 
-  private applyRuneModifiers(action: ActionRequest): { action: ActionRequest; events: CombatEvent[] } {
+  private applyRuneModifiers(action: ResolvedCombatAction): { action: ResolvedCombatAction; events: CombatEvent[] } {
     const trigger = resolveSkillRuneTrigger(action.skillId);
     if (!trigger) return { action, events: [] };
 
@@ -223,7 +228,7 @@ export class PvpCombatSession {
       },
     }];
 
-    const patched: ActionRequest = {
+    const patched: ResolvedCombatAction = {
       ...action,
       ...(entry.effectType === 'CRIT_BONUS' ? { runeCritBonus: entry.value } : {}),
       ...(entry.effectType === 'REFLECT_DMG' ? { runeReflectRatio: entry.value } : {}),

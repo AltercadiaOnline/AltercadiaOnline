@@ -1,4 +1,4 @@
-import type { ActionRequest, CombatEvent } from '../../shared/events.js';
+import type { ActionRequest, CombatEvent, ResolvedCombatAction } from '../../shared/events.js';
 import type { CombatState } from '../../shared/types.js';
 import { CombatEngine } from '../engine/CombatEngine.js';
 import { getCombatBalanceVersion, loadCombatBalanceConfig } from '../engine/combatBalanceConfig.js';
@@ -12,7 +12,8 @@ export type DispatchResult = {
 
 /**
  * Gateway autoritativo de combate no servidor.
- * O cliente envia intenções (Dispatch/ActionRequest); o servidor responde com eventos + snapshot.
+ * Entrada mínima: IDs de intenção (skill/consumível/alvo). Validação de persistence e sessão
+ * ocorre em {@link CombatSession} antes de chamar dispatchAction; o motor só recebe ações já autorizadas.
  */
 export class CombatGateway {
   private readonly engine: CombatEngine;
@@ -37,8 +38,8 @@ export class CombatGateway {
     return this.toDispatchResult(this.engine.startChoosing(activeActorId));
   }
 
-  /** Dispatch de intenção do jogador (protocolo atual). */
-  public dispatchAction(action: ActionRequest): DispatchResult {
+  /** Dispatch de intenção já validada pela sessão — motor aplica regras de turno/PP/cooldown. */
+  public dispatchAction(action: ResolvedCombatAction): DispatchResult {
     return this.toDispatchResult(this.engine.applyAction(action));
   }
 
@@ -46,7 +47,7 @@ export class CombatGateway {
     return this.toDispatchResult(this.engine.forfeitActor(actorId));
   }
 
-  public resolveTurnBatch(actions: readonly ActionRequest[]): DispatchResult {
+  public resolveTurnBatch(actions: readonly ResolvedCombatAction[]): DispatchResult {
     return this.toDispatchResult(this.engine.resolveTurn(actions));
   }
 

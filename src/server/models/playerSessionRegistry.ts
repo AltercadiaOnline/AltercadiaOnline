@@ -48,6 +48,10 @@ export function resetPlayerSessionRegistry(): void {
   sessions.clear();
 }
 
+export function isPlayerInBattle(playerId: string, characterId: number): boolean {
+  return getPlayerSessionStatus(playerId, characterId) === 'BATTLE';
+}
+
 export function setPlayerInBattle(playerId: string, characterId: number, inBattle: boolean): void {
   const player = getOrCreatePlayerSession(playerId, characterId);
   if (inBattle) {

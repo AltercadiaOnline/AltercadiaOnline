@@ -1,7 +1,7 @@
 import type { CombatActionBreakdown } from './combat/combatActionBreakdown.js';
-import type { ActionRequest, Combatant, Skill } from './types.js';
+import type { ActionRequest, Combatant, Skill, ResolvedCombatAction } from './types.js';
 
-export type { ActionRequest };
+export type { ActionRequest, ResolvedCombatAction };
 
 export enum CombatEventType {
   BATTLE_START = 'BATTLE_START',

@@ -178,12 +178,6 @@ export class RefractionBoothService {
     return [...this.leaderboard];
   }
 
-  resetForTests(): void {
-    this.sessions.clear();
-    this.playerState.clear();
-    this.leaderboard.length = 0;
-  }
-
   private getPlayerState(playerId: string, characterId: number, nowMs: number): PlayerRefractionState {
     const key = profileKey(playerId, characterId);
     const currentDay = dayKey(nowMs);
@@ -223,9 +217,4 @@ export function getRefractionBoothService(): RefractionBoothService {
     sharedService = new RefractionBoothService();
   }
   return sharedService;
-}
-
-export function resetRefractionBoothServiceForTests(): void {
-  sharedService?.resetForTests();
-  sharedService = null;
 }

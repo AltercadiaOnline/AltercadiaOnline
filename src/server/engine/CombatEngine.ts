@@ -2,7 +2,7 @@ import { calculateDamage } from '../../shared/combat/calculateDamage.js';
 import { BattleType } from '../../shared/combat/battleType.js';
 import { CombatEventType } from '../../shared/events.js';
 import type { CombatEvent, TurnUpdate } from '../../shared/events.js';
-import type { ActionRequest } from '../../shared/types/combat.js';
+import type { ResolvedCombatAction } from '../../shared/types/combat.js';
 import {
   canExecuteMove,
   computeCooldownTurnsRemaining,
@@ -114,7 +114,7 @@ type DirectDamageOptions = {
 };
 
 type RankedAction = {
-  readonly request: ActionRequest;
+  readonly request: ResolvedCombatAction;
   readonly actorId: string;
   readonly skillPriority: 1 | 2 | 3;
   readonly movesetPriorityScore: number;
@@ -458,16 +458,16 @@ export class CombatEngine {
     };
   }
 
-  public resolveTurnOrder(requests: readonly ActionRequest[]): readonly ActionRequest[] {
+  public resolveTurnOrder(requests: readonly ResolvedCombatAction[]): readonly ResolvedCombatAction[] {
     return this.resolveTurnOrderV12(requests);
   }
 
   /** Ordem de turno V1.2 (score_based). */
-  public resolveTurnOrderV12(requests: readonly ActionRequest[]): readonly ActionRequest[] {
+  public resolveTurnOrderV12(requests: readonly ResolvedCombatAction[]): readonly ResolvedCombatAction[] {
     return this.rankActionsInternal(requests).map((r) => r.request);
   }
 
-  public applyAction(request: ActionRequest): CombatEvent[] {
+  public applyAction(request: ResolvedCombatAction): CombatEvent[] {
     if (this.isBattleClosed()) {
       return [{
         type: CombatEventType.ACTION_REJECTED,
@@ -499,7 +499,7 @@ export class CombatEngine {
     return events;
   }
 
-  public resolveTurn(requests: readonly ActionRequest[]): CombatEvent[] {
+  public resolveTurn(requests: readonly ResolvedCombatAction[]): CombatEvent[] {
     if (this.isBattleClosed()) {
       return requests.map((request) => ({
         type: CombatEventType.ACTION_REJECTED,
@@ -581,7 +581,7 @@ export class CombatEngine {
     return events;
   }
 
-  private validateAction(request: ActionRequest, ignoreTurnOwner = false): string | null {
+  private validateAction(request: ResolvedCombatAction, ignoreTurnOwner = false): string | null {
     if (this.isBattleClosed()) return 'BATTLE_ENDED';
     if (request.battleId !== this.state.battleId) return 'INVALID_BATTLE';
     if (!ignoreTurnOwner && (this.state.phase !== 'CHOOSING' || this.state.activeActorId !== request.actorId)) {
@@ -740,11 +740,11 @@ export class CombatEngine {
     return multiplier;
   }
 
-  public applyPotionReactiveAndExhaustion(request: ActionRequest, events: CombatEvent[]): void {
+  public applyPotionReactiveAndExhaustion(request: ResolvedCombatAction, events: CombatEvent[]): void {
     this.applyPotionReactive(request, events);
   }
 
-  private isReactiveConsumableOnly(request: ActionRequest): boolean {
+  private isReactiveConsumableOnly(request: ResolvedCombatAction): boolean {
     return isReactiveConsumableAction(request, this.balance.consumables.potionReactive);
   }
 
@@ -771,7 +771,7 @@ export class CombatEngine {
     return this.potionUsesInBattle.get(actorId) ?? 0;
   }
 
-  private applyPotionReactive(request: ActionRequest, events: CombatEvent[]): void {
+  private applyPotionReactive(request: ResolvedCombatAction, events: CombatEvent[]): void {
     if (!request.consumableId || !this.balance.consumables.potionReactive.enabled) return;
     if (!this.canUseConsumable(request.actorId)) return;
 
@@ -1187,7 +1187,7 @@ export class CombatEngine {
   }
 
   private damageOptionsFromRequest(
-    request: ActionRequest,
+    request: ResolvedCombatAction,
     extra?: DirectDamageOptions,
   ): DirectDamageOptions {
     const skillId = request.skillId ?? undefined;
@@ -1473,7 +1473,7 @@ export class CombatEngine {
     }));
   }
 
-  private buildActionRejectedEvents(request: ActionRequest, reason: string): CombatEvent[] {
+  private buildActionRejectedEvents(request: ResolvedCombatAction, reason: string): CombatEvent[] {
     const events: CombatEvent[] = [{
       type: CombatEventType.ACTION_REJECTED,
       payload: { ...request, reason },
@@ -1573,7 +1573,7 @@ export class CombatEngine {
     return Object.keys(this.state.combatants)[0] ?? '';
   }
 
-  private executeAcceptedAction(request: ActionRequest): CombatEvent[] {
+  private executeAcceptedAction(request: ResolvedCombatAction): CombatEvent[] {
     const events: CombatEvent[] = [{ type: CombatEventType.ACTION_ACCEPTED, payload: request }];
     events.push({
       type: CombatEventType.COMBAT_LOG,
@@ -1680,7 +1680,7 @@ export class CombatEngine {
   }
 
   private applySkillEffects(ctx: {
-    readonly request: ActionRequest;
+    readonly request: ResolvedCombatAction;
     readonly actor: Combatant;
     readonly selectedSkill: SkillData;
     readonly targetId: string;
@@ -2180,7 +2180,7 @@ export class CombatEngine {
     });
   }
 
-  private rankPetQueueActions(requests: readonly ActionRequest[]): RankedAction[] {
+  private rankPetQueueActions(requests: readonly ResolvedCombatAction[]): RankedAction[] {
     if (!this.playerActorId) return this.rankActionsInternal(requests);
 
     const ordered = orderPetTurnQueue(requests, this.state.combatants, this.playerActorId);
@@ -2208,7 +2208,7 @@ export class CombatEngine {
     return ranked;
   }
 
-  private rankActionsInternal(requests: readonly ActionRequest[]): RankedAction[] {
+  private rankActionsInternal(requests: readonly ResolvedCombatAction[]): RankedAction[] {
     const ranked: RankedAction[] = [];
     for (const request of requests) {
       if (request.battleId !== this.state.battleId || request.turn !== this.state.turn) continue;

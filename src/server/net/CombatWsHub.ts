@@ -22,6 +22,7 @@ import { buildCombatUiHints, withTurnTimerConfig } from '../../shared/combatWire
 import type { BattleEndReason } from '../../shared/combat/battleEnded.js';
 import { BattleType } from '../../shared/combat/battleType.js';
 import { BATTLE_TURN_TIMER_SEC } from '../../shared/combat/battleScreenConstants.js';
+import { BATTLE_SESSION_LEASE_SWEEP_MS } from '../../shared/combat/battleSessionLeaseConstants.js';
 import { combatReactionStaggerDelay } from '../../shared/combat/combatReactionDelay.js';
 import {
   shouldStaggerMonsterReaction,
@@ -41,6 +42,13 @@ import {
 } from '../../shared/items/combatCreatureRegistry.js';
 import { parseWsInbound, serializeWsOutbound, type WsOutboundMessage } from '../../shared/wsProtocol.js';
 import { CombatSession } from '../combat/CombatSession.js';
+import {
+  clearBattleSessionLease,
+  listExpiredBattleSessionLeases,
+  registerBattleSessionLease,
+  touchBattleSessionLease,
+  getBattleSessionLease,
+} from '../combat/battleSessionLease.js';
 import { createPveBattleBootstrap } from '../combat/buildPveBattle.js';
 import { grantPlayerHonor } from '../combat/playerHonorStore.js';
 import { resolveAuthoritativeCombatLoadout } from '../persistence/authoritativeCombatLoadout.js';
@@ -54,7 +62,7 @@ import {
 } from '../network/intentReplayGuard.js';
 import { getActionDispatcher } from '../network/ActionDispatcher.js';
 import type { Player } from '../models/Player.js';
-import { getOrCreatePlayerSession } from '../models/playerSessionRegistry.js';
+import { getOrCreatePlayerSession, isPlayerInBattle } from '../models/playerSessionRegistry.js';
 import { PositionGateway } from '../world/PositionGateway.js';
 import {
   clearPlayerSessionFlags,
@@ -130,6 +138,7 @@ export class CombatWsHub {
   private readonly worldTickScheduler = new WorldTickScheduler(WORLD_TICK_MS, () => {
     this.onWorldTick();
   });
+  private lastBattleLeaseSweepMs = 0;
 
   constructor(server: import('node:http').Server, options: CombatWsHubOptions) {
     this.positionGateway = new PositionGateway(this);
@@ -186,6 +195,7 @@ export class CombatWsHub {
       this.socketsByConnectionId.delete(connectionId);
       const session = this.sessions.get(connectionId);
       if (session) {
+        clearBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
         setPlayerInBattle(session.getPlayerActorId(), session.getCharacterId(), false);
         this.socketsByPlayerId.delete(session.getPlayerActorId());
       }
@@ -208,6 +218,17 @@ export class CombatWsHub {
   }
 
   private async onMessage(ws: LiveSocket, connectionId: string, raw: string): Promise<void> {
+    try {
+      await this.dispatchInboundMessage(ws, connectionId, raw);
+    } catch (error) {
+      console.error('[WS] Erro ao processar mensagem', { connectionId, error });
+      this.send(ws, { type: 'combat-error', payload: { reason: 'SERVER_ERROR' } });
+    }
+  }
+
+  private async dispatchInboundMessage(ws: LiveSocket, connectionId: string, raw: string): Promise<void> {
+    this.touchBattleSessionActivity(connectionId);
+
     const message = parseWsInbound(raw);
     if (!message) {
       this.send(ws, { type: 'combat-error', payload: { reason: 'INVALID_MESSAGE' } });
@@ -617,8 +638,61 @@ export class CombatWsHub {
 
   /** Libera a sessão de combate; loot pendente permanece no economyGateway até coleta. */
   private cleanupBattleSession(connectionId: string, session: CombatSession): void {
+    clearBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
     setPlayerInBattle(session.getPlayerActorId(), session.getCharacterId(), false);
     this.sessions.delete(connectionId);
+  }
+
+  private touchBattleSessionActivity(connectionId: string): void {
+    const session = this.sessions.get(connectionId);
+    if (!session) return;
+    touchBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
+  }
+
+  private expireStaleBattleSessionLeases(): void {
+    const nowMs = Date.now();
+    if (nowMs - this.lastBattleLeaseSweepMs < BATTLE_SESSION_LEASE_SWEEP_MS) return;
+    this.lastBattleLeaseSweepMs = nowMs;
+
+    for (const { lease, reason } of listExpiredBattleSessionLeases(nowMs)) {
+      console.warn('[WS] Battle session lease expirado — liberando flag BATTLE', {
+        reason,
+        playerId: lease.playerId,
+        characterId: lease.characterId,
+        connectionId: lease.connectionId,
+        idleMs: nowMs - lease.lastActivityMs,
+        ageMs: nowMs - lease.startedAtMs,
+      });
+
+      const session = this.sessions.get(lease.connectionId);
+      if (session) {
+        this.clearTurnTimer(lease.connectionId);
+        this.choiceWindows.delete(lease.connectionId);
+        this.cleanupBattleSession(lease.connectionId, session);
+        const ws = this.socketsByConnectionId.get(lease.connectionId);
+        if (ws) {
+          this.send(ws, {
+            type: 'combat-error',
+            payload: { reason: 'BATTLE_SESSION_EXPIRED' },
+          });
+        }
+      } else {
+        clearBattleSessionLease(lease.playerId, lease.characterId);
+        setPlayerInBattle(lease.playerId, lease.characterId, false);
+      }
+    }
+  }
+
+  private releaseOrphanBattleFlag(playerId: string, characterId: number): void {
+    if (!isPlayerInBattle(playerId, characterId)) return;
+
+    const lease = getBattleSessionLease(playerId, characterId);
+    const hasLiveSession = lease !== undefined && this.sessions.has(lease.connectionId);
+    if (hasLiveSession) return;
+
+    console.warn('[WS] Flag BATTLE órfã liberada', { playerId, characterId });
+    clearBattleSessionLease(playerId, characterId);
+    setPlayerInBattle(playerId, characterId, false);
   }
 
   private sendBattleEnded(
@@ -874,6 +948,8 @@ export class CombatWsHub {
   }
 
   private onWorldTick(): void {
+    this.expireStaleBattleSessionLeases();
+
     const tick = this.syncAuthority.advanceTick();
     const envelope = this.syncAuthority.nextEnvelope('delta');
     const timeAnchor = this.timeManager.advance(WORLD_TICK_MS, envelope.serverTimeMs);
@@ -984,58 +1060,72 @@ export class CombatWsHub {
       readonly clientPosition?: { readonly x: number; readonly y: number };
     },
   ): Promise<void> {
-    if (payload.clientMapId !== undefined || payload.clientPosition !== undefined) {
-      console.log('[WS] world-login: posição do cliente descartada', {
+    try {
+      if (payload.clientMapId !== undefined || payload.clientPosition !== undefined) {
+        console.log('[WS] world-login: posição do cliente descartada', {
+          connectionId,
+          clientMapId: payload.clientMapId ?? null,
+        });
+      }
+
+      const loginRequest = {
+        playerId: payload.playerId,
+        characterId: payload.characterId,
+        ...(payload.displayName !== undefined ? { displayName: payload.displayName } : {}),
+        ...(payload.clientMapId !== undefined ? { clientMapId: payload.clientMapId } : {}),
+        ...(payload.clientPosition !== undefined ? { clientPosition: payload.clientPosition } : {}),
+      };
+
+      const hadPersistedSave = await hydrateCharacterSession(payload.playerId, payload.characterId);
+      if (payload.displayName?.trim()) {
+        patchAuthoritativeProgression(payload.playerId, payload.characterId, {
+          characterProfile: { displayName: payload.displayName.trim() },
+        });
+      }
+      const result = this.positionGateway.handleWorldLogin(loginRequest);
+
+      this.worldLoreLog.onPlayerLogin(payload.playerId, payload.characterId);
+
+      getOrCreatePlayerSession(payload.playerId, payload.characterId).enterExploration();
+      this.releaseOrphanBattleFlag(payload.playerId, payload.characterId);
+
+      this.worldConnections.set(connectionId, {
+        playerId: payload.playerId,
+        characterId: payload.characterId,
+        displayName: payload.displayName?.trim() || 'Jogador',
+      });
+      this.socketsByPlayerId.set(payload.playerId, ws);
+
+      if (!hadPersistedSave) {
+        seedPlayerWalletIfEmpty(payload.playerId, { dollarVolt: 1200, alterCoins: 50 });
+        seedDemoProfileIfEmpty(payload.playerId, payload.characterId);
+        syncDemoProfileInventoryIfIncomplete(payload.playerId, payload.characterId);
+      }
+
+      this.send(ws, {
+        type: 'world-login-result',
+        payload: {
+          ok: true,
+          currentMapId: result.currentMapId,
+          lastPosition: result.lastPosition,
+          facing: result.facing,
+        },
+      });
+
+      if (!hadPersistedSave) {
+        await persistCharacterSession(payload.playerId, payload.characterId);
+      }
+
+      this.sendFullStateSync(ws, payload.playerId, payload.characterId, true);
+    } catch (error) {
+      console.error('[WS] world-login falhou', {
         connectionId,
-        clientMapId: payload.clientMapId ?? null,
+        playerId: payload.playerId,
+        characterId: payload.characterId,
+        error,
       });
+      this.send(ws, { type: 'combat-error', payload: { reason: 'WORLD_LOGIN_FAILED' } });
     }
-
-    const loginRequest = {
-      playerId: payload.playerId,
-      characterId: payload.characterId,
-      ...(payload.displayName !== undefined ? { displayName: payload.displayName } : {}),
-      ...(payload.clientMapId !== undefined ? { clientMapId: payload.clientMapId } : {}),
-      ...(payload.clientPosition !== undefined ? { clientPosition: payload.clientPosition } : {}),
-    };
-
-    const hadPersistedSave = await hydrateCharacterSession(payload.playerId, payload.characterId);
-    if (payload.displayName?.trim()) {
-      patchAuthoritativeProgression(payload.playerId, payload.characterId, {
-        characterProfile: { displayName: payload.displayName.trim() },
-      });
-    }
-    const result = this.positionGateway.handleWorldLogin(loginRequest);
-
-    this.worldLoreLog.onPlayerLogin(payload.playerId, payload.characterId);
-
-    getOrCreatePlayerSession(payload.playerId, payload.characterId).enterExploration();
-
-    this.worldConnections.set(connectionId, {
-      playerId: payload.playerId,
-      characterId: payload.characterId,
-      displayName: payload.displayName?.trim() || 'Jogador',
-    });
-    this.socketsByPlayerId.set(payload.playerId, ws);
-
-    if (!hadPersistedSave) {
-      seedPlayerWalletIfEmpty(payload.playerId, { dollarVolt: 1200, alterCoins: 50 });
-      seedDemoProfileIfEmpty(payload.playerId, payload.characterId);
-      syncDemoProfileInventoryIfIncomplete(payload.playerId, payload.characterId);
-      await persistCharacterSession(payload.playerId, payload.characterId);
-    }
-
-    this.send(ws, {
-      type: 'world-login-result',
-      payload: {
-        ok: true,
-        currentMapId: result.currentMapId,
-        lastPosition: result.lastPosition,
-        facing: result.facing,
-      },
-    });
-
-    this.sendFullStateSync(ws, payload.playerId, payload.characterId, true);
   }
 
   private handlePortalTransitionRequest(
@@ -1229,35 +1319,47 @@ export class CombatWsHub {
     characterId = 1,
     worldPlayerId?: string,
   ): Promise<void> {
-    const playerId = worldPlayerId ?? `player_${connectionId.slice(0, 8)}`;
-    seedPlayerWalletIfEmpty(playerId, { dollarVolt: 500, alterCoins: 25 });
-    seedDemoProfileIfEmpty(playerId, characterId);
-    syncDemoProfileInventoryIfIncomplete(playerId, characterId);
+    try {
+      const playerId = worldPlayerId ?? `player_${connectionId.slice(0, 8)}`;
+      seedPlayerWalletIfEmpty(playerId, { dollarVolt: 500, alterCoins: 25 });
+      seedDemoProfileIfEmpty(playerId, characterId);
+      syncDemoProfileInventoryIfIncomplete(playerId, characterId);
 
-    await consumeChargedEquipmentBattleParticipation(playerId, characterId);
+      await consumeChargedEquipmentBattleParticipation(playerId, characterId);
 
-    const loadout = resolveAuthoritativeCombatLoadout(playerId, characterId);
+      const loadout = resolveAuthoritativeCombatLoadout(playerId, characterId);
 
-    const bootstrap = createPveBattleBootstrap(loadout, monsterInstanceId);
-    const session = new CombatSession(playerId, bootstrap.state, {
-      characterId,
-      ruleManifest: bootstrap.ruleManifest,
-      loadout: bootstrap.loadout,
-      ...(monsterInstanceId !== undefined ? { monsterInstanceId } : {}),
-    });
-    this.sessions.set(connectionId, session);
-    this.socketsByPlayerId.set(playerId, ws);
-    this.movementIntentHandler.clearConnection(connectionId);
-    setPlayerInBattle(playerId, characterId, true);
-    const payload = session.start();
-    console.log('[WS] Batalha iniciada', {
-      connectionId,
-      playerId,
-      battleId: payload.state.battleId,
-      monsterInstanceId: monsterInstanceId ?? null,
-    });
-    this.send(ws, { type: 'START_COMBAT', payload: { battleId: payload.state.battleId } });
-    void this.deliverCombatPayload(ws, connectionId, session, payload);
+      const bootstrap = createPveBattleBootstrap(loadout, monsterInstanceId);
+      const session = new CombatSession(playerId, bootstrap.state, {
+        characterId,
+        ruleManifest: bootstrap.ruleManifest,
+        loadout: bootstrap.loadout,
+        ...(monsterInstanceId !== undefined ? { monsterInstanceId } : {}),
+      });
+      this.sessions.set(connectionId, session);
+      this.socketsByPlayerId.set(playerId, ws);
+      this.movementIntentHandler.clearConnection(connectionId);
+      setPlayerInBattle(playerId, characterId, true);
+      registerBattleSessionLease(connectionId, playerId, characterId);
+      const payload = session.start();
+      console.log('[WS] Batalha iniciada', {
+        connectionId,
+        playerId,
+        battleId: payload.state.battleId,
+        monsterInstanceId: monsterInstanceId ?? null,
+      });
+      this.send(ws, { type: 'START_COMBAT', payload: { battleId: payload.state.battleId } });
+      void this.deliverCombatPayload(ws, connectionId, session, payload);
+    } catch (error) {
+      console.error('[WS] bootstrapJoinBattle falhou', {
+        connectionId,
+        characterId,
+        worldPlayerId: worldPlayerId ?? null,
+        monsterInstanceId: monsterInstanceId ?? null,
+        error,
+      });
+      this.send(ws, { type: 'combat-error', payload: { reason: 'JOIN_BATTLE_FAILED' } });
+    }
   }
 
   private async handleActivateBook(ws: LiveSocket, connectionId: string, bookId: string): Promise<void> {

@@ -4,6 +4,7 @@ import type { CombatDispatchPayload } from './combatWire.js';
 import type { BattleEndedPayload } from './combat/battleEnded.js';
 
 import type { ActionRequest } from './events.js';
+import { sanitizeCombatActionIntent } from './combat/combatActionIntent.js';
 
 import type { AuthoritativePlayerSnapshot } from './playerDataSnapshots.js';
 
@@ -503,14 +504,16 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
 
     }
 
-    if (type === 'combat-action' && isActionRequest(record.payload)) {
-
-      return { type: 'combat-action', payload: record.payload };
-
+    if (type === 'combat-action') {
+      const payload = sanitizeCombatActionIntent(record.payload);
+      if (!payload) return null;
+      return { type: 'combat-action', payload };
     }
 
-    if (type === 'mirror-combat-action' && isActionRequest(record.payload)) {
-      return { type: 'mirror-combat-action', payload: record.payload };
+    if (type === 'mirror-combat-action') {
+      const payload = sanitizeCombatActionIntent(record.payload);
+      if (!payload) return null;
+      return { type: 'mirror-combat-action', payload };
     }
 
     if (type === 'dev-spawn-mirror-player') {
@@ -790,46 +793,11 @@ export function serializeWsOutbound(message: WsOutboundMessage): string {
 
 
 export function isActionRequest(value: unknown): value is ActionRequest {
+  return sanitizeCombatActionIntent(value) !== null;
+}
 
-  if (!value || typeof value !== 'object') return false;
-
-  const r = value as Record<string, unknown>;
-
-  if (typeof r.battleId !== 'string' || typeof r.actorId !== 'string') return false;
-
-  if (typeof r.turn !== 'number' || !Number.isFinite(r.turn)) return false;
-
-  if (r.skillId !== null && typeof r.skillId !== 'string') return false;
-
-  if (typeof r.requestId !== 'string' || r.requestId.length === 0) return false;
-
-  if (r.requestId.length > 128) return false;
-
-  if (r.priorityHint !== undefined && r.priorityHint !== 1 && r.priorityHint !== 2 && r.priorityHint !== 3) {
-
-    return false;
-
-  }
-
-  if (r.consumableId !== undefined && r.consumableId !== null && typeof r.consumableId !== 'string') {
-
-    return false;
-
-  }
-
-  if (r.consumableHeal !== undefined && typeof r.consumableHeal !== 'number') return false;
-
-  if (r.targetTile !== undefined) {
-    if (typeof r.targetTile !== 'object' || r.targetTile === null) return false;
-    const tile = r.targetTile as Record<string, unknown>;
-    if (typeof tile.x !== 'number' || typeof tile.y !== 'number') return false;
-    if (!Number.isInteger(tile.x) || !Number.isInteger(tile.y)) return false;
-  }
-
-  if (r.targetId !== undefined && typeof r.targetId !== 'string') return false;
-
-  return true;
-
+export function parseCombatActionIntent(value: unknown): ActionRequest | null {
+  return sanitizeCombatActionIntent(value);
 }
 
 

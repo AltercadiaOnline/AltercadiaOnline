@@ -50,10 +50,6 @@ function nextInstanceId(prefix: string, itemId: string): string {
   return `${prefix}:${itemId}:${instanceSeq}`;
 }
 
-export function resetItemInstanceSeqForTests(): void {
-  instanceSeq = 0;
-}
-
 function cloneItems(items: readonly PlayerItemRecord[]): PlayerItemRecord[] {
   return items.map((row) => ({ ...row }));
 }

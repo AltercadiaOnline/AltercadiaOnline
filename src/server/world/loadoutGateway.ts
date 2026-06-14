@@ -20,6 +20,7 @@ import {
 } from '../../Economy/economyStore.js';
 import { globalEventBus } from '../../Economy/EventBus.js';
 import { getWorldProfile, saveWorldProfile } from './worldProfileStore.js';
+import { rejectLoadoutMutationIfInBattle } from './loadoutMutationGuard.js';
 
 export type SyncLoadoutResult =
   | { readonly ok: true }
@@ -66,6 +67,9 @@ export async function handleSyncLoadout(
   loadoutData: PlayerLoadoutData,
   intentId?: string,
 ): Promise<SyncLoadoutResult> {
+  const blocked = rejectLoadoutMutationIfInBattle(playerId, characterId);
+  if (blocked) return blocked;
+
   const profile = getCharacterProfile(playerId, characterId);
   const currentGrid = profile.equipmentUiGrid ?? equippedToEquipmentUiGrid(profile.equipped);
   const normalized = normalizePlayerLoadoutData({
@@ -133,7 +137,10 @@ export async function handleSyncLoadout(
 export function mirrorEconomyLoadoutToWorld(
   playerId: string,
   characterId: number,
-): PlayerLoadoutData {
+): PlayerLoadoutData | SyncLoadoutResult {
+  const blocked = rejectLoadoutMutationIfInBattle(playerId, characterId);
+  if (blocked) return blocked;
+
   const loadout = syncAuthoritativeLoadoutFromEconomyProfile(playerId, characterId);
   return persistAuthoritativeLoadout(playerId, characterId, loadout);
 }

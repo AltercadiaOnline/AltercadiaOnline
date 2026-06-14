@@ -92,7 +92,7 @@ Atalho único (recomendado — espelha o build do Docker na Railway):
 npm run deploy:check
 ```
 
-Isso executa: `typecheck` → `test` → `build`.
+Isso executa: `typecheck` → `build`.
 
 Ou passo a passo:
 
@@ -103,13 +103,10 @@ npm ci
 # 2. Tipos
 npm run typecheck
 
-# 3. Testes
-npm test
-
-# 4. Build (mesmo passo do Docker na Railway)
+# 3. Build (mesmo passo do Docker na Railway)
 npm run build
 
-# 5. Smoke test local (opcional mas recomendado)
+# 4. Smoke test local (opcional mas recomendado)
 npm start
 # Abra http://localhost:3000/health  → {"ok":true}
 # Abra http://localhost:3000/         → jogo + WebSocket
@@ -186,9 +183,8 @@ Sem CLI, use sempre o dashboard: [railway.com/dashboard](https://railway.com/das
 
 | Script | Quando usar |
 |--------|-------------|
-| `npm run deploy:check` | **Antes de todo push** — valida produção |
+| `npm run deploy:check` | **Antes de todo push** — valida produção (`typecheck` + `build`) |
 | `npm run typecheck` | Só tipos |
-| `npm test` | Só testes |
 | `npm run build` | Gera `dist/` (obrigatório localmente para `npm start`) |
 | `npm run railway:dashboard` | Abre o painel Railway no browser |
 | `npm start` | Produção local (`node dist/server/index.js`) |

@@ -124,6 +124,7 @@ const INTENT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   INTENT_REJECTED: 'Intenção rejeitada pelo servidor.',
   REPLAY_DETECTED: 'Intenção já processada.',
   STALE_INTENT: 'Intenção expirada — tente novamente.',
+  ERR_ACTION_FORBIDDEN: 'Ação indisponível durante combate.',
 };
 
 export function resolveIntentErrorCode(source: {
@@ -137,6 +138,9 @@ export function resolveIntentErrorCode(source: {
   }
   if (message.includes('Handler não registrado')) return 'HANDLER_NOT_FOUND';
   if (message.startsWith('UNKNOWN_ACTION_TYPE')) return 'UNKNOWN_ACTION';
+  if (message === 'ERR_ACTION_FORBIDDEN' || message.includes('ERR_ACTION_FORBIDDEN')) {
+    return 'ERR_ACTION_FORBIDDEN';
+  }
   if (source.code && source.code.length > 0) return source.code;
   return 'INTENT_REJECTED';
 }

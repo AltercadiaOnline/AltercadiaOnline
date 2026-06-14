@@ -6,6 +6,7 @@ import {
   unequipToInventorySlot,
 } from '../../../Economy/economyGateway.js';
 import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
+import { ERR_ACTION_FORBIDDEN, rejectLoadoutMutationIfInBattle } from '../../world/loadoutMutationGuard.js';
 
 type SyncLoadoutPayload = {
   readonly equipmentUiGrid: EquipmentUiGridState;
@@ -21,9 +22,20 @@ type UnequipPayload = {
   readonly slotId: EquipmentUiSlotId;
 };
 
-async function mirrorLoadout(playerId: string, characterId: number): Promise<void> {
+function resolveLoadoutIntentError(message: string): string {
+  return message === ERR_ACTION_FORBIDDEN ? ERR_ACTION_FORBIDDEN : message;
+}
+
+async function mirrorLoadout(
+  playerId: string,
+  characterId: number,
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
   const { mirrorEconomyLoadoutToWorld } = await import('../../world/loadoutGateway.js');
-  mirrorEconomyLoadoutToWorld(playerId, characterId);
+  const result = mirrorEconomyLoadoutToWorld(playerId, characterId);
+  if ('ok' in result && result.ok === false) {
+    return result;
+  }
+  return { ok: true };
 }
 
 export class SyncLoadoutHandler extends BaseIntentHandler<SyncLoadoutPayload> {
@@ -33,7 +45,7 @@ export class SyncLoadoutHandler extends BaseIntentHandler<SyncLoadoutPayload> {
     const { handleSyncLoadout } = await import('../../world/loadoutGateway.js');
     const result = await handleSyncLoadout(playerId, this.characterId, payload, intentId);
     if (!result.ok) {
-      this.sendResponse(playerId, intentId, false, 'SYNC_LOADOUT_FAILED');
+      this.sendResponse(playerId, intentId, false, resolveLoadoutIntentError(result.message));
       return;
     }
     this.sendResponse(playerId, intentId, true);
@@ -44,6 +56,12 @@ export class EquipFromInventoryHandler extends BaseIntentHandler<EquipPayload> {
   readonly actionType = 'EQUIP_FROM_INVENTORY';
 
   async execute(playerId: string, payload: EquipPayload, intentId: string): Promise<void> {
+    const blocked = rejectLoadoutMutationIfInBattle(playerId, this.characterId);
+    if (blocked) {
+      this.sendResponse(playerId, intentId, false, ERR_ACTION_FORBIDDEN);
+      return;
+    }
+
     const result = await equipFromInventoryItem(
       playerId,
       this.characterId,
@@ -55,7 +73,11 @@ export class EquipFromInventoryHandler extends BaseIntentHandler<EquipPayload> {
       this.sendResponse(playerId, intentId, false, 'EQUIP_FAILED');
       return;
     }
-    await mirrorLoadout(playerId, this.characterId);
+    const mirrored = await mirrorLoadout(playerId, this.characterId);
+    if (!mirrored.ok) {
+      this.sendResponse(playerId, intentId, false, resolveLoadoutIntentError(mirrored.message));
+      return;
+    }
     this.sendResponse(playerId, intentId, true);
   }
 }
@@ -64,6 +86,12 @@ export class UnequipToInventoryHandler extends BaseIntentHandler<UnequipPayload>
   readonly actionType = 'UNEQUIP_TO_INVENTORY';
 
   async execute(playerId: string, payload: UnequipPayload, intentId: string): Promise<void> {
+    const blocked = rejectLoadoutMutationIfInBattle(playerId, this.characterId);
+    if (blocked) {
+      this.sendResponse(playerId, intentId, false, ERR_ACTION_FORBIDDEN);
+      return;
+    }
+
     const result = await unequipToInventorySlot(
       playerId,
       this.characterId,
@@ -74,7 +102,11 @@ export class UnequipToInventoryHandler extends BaseIntentHandler<UnequipPayload>
       this.sendResponse(playerId, intentId, false, 'UNEQUIP_FAILED');
       return;
     }
-    await mirrorLoadout(playerId, this.characterId);
+    const mirrored = await mirrorLoadout(playerId, this.characterId);
+    if (!mirrored.ok) {
+      this.sendResponse(playerId, intentId, false, resolveLoadoutIntentError(mirrored.message));
+      return;
+    }
     this.sendResponse(playerId, intentId, true);
   }
 }

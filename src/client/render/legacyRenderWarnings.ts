@@ -7,7 +7,3 @@ export function warnLegacyRenderCall(symbol: string, replacement?: string): void
   const hint = replacement ? ` Use ${replacement} instead.` : '';
   console.warn(`[RenderAudit] Legacy render path "${symbol}" was called.${hint}`);
 }
-
-export function resetLegacyRenderWarningsForTests(): void {
-  warned.clear();
-}

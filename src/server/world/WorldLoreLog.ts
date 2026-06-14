@@ -50,12 +50,6 @@ export class WorldLoreLog {
     recordPlayerLastSeen(playerId, characterId);
   }
 
-  resetForTests(): void {
-    this.seeded = false;
-    this.store.clear();
-    this.ensureSeeded();
-  }
-
   private ensureSeeded(): void {
     if (this.seeded) return;
     this.store.seed(createSeedWorldLoreEntries());
@@ -70,11 +64,6 @@ export function getWorldLoreLog(): WorldLoreLog {
     activeLog = new WorldLoreLog();
   }
   return activeLog;
-}
-
-export function resetWorldLoreLog(): void {
-  activeLog?.resetForTests();
-  activeLog = null;
 }
 
 export type { WorldChroniclesSnapshot };

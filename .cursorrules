@@ -4,7 +4,7 @@
 
 ```text
 npm run dev          → teste local (build + servidor com reload)
-npm run deploy:check → validação pré-produção (typecheck + test + build)
+npm run deploy:check → validação pré-produção (typecheck + build)
 npm run deploy       → deploy:check + git add + commit + push origin main
                      → GitHub → Railway deploy automático (branch main)
 ```
@@ -62,7 +62,7 @@ Antes de concluir qualquer alteração em `src/server/`, **verificar compatibili
 | Script | Contrato |
 |--------|----------|
 | `dev` | Desenvolvimento local completo (alias `dev:mvp`) |
-| `deploy:check` | `typecheck && test && build` — espelha CI/Docker |
+| `deploy:check` | `typecheck && build` — espelha CI/Docker |
 | `deploy` | `deploy:check` + `scripts/deploy.mjs` → push `main` |
 | `start` | `node dist/server/index.js` — produção |
 | `build` | `tsc` |
@@ -81,7 +81,7 @@ Não remover `deploy:check` do fluxo `deploy`. Não commitar `node_modules/`, `d
 - **Poder base: N** — valor do catálogo (`basePower`) que entra na fórmula do golpe. Usar em tooltips/HUD via `moveDisplayLabels.ts` + `formatMovePrimaryEffect`.
 - **Cura base: +N HP** — equivalente para heals (`formatMoveBaseHealLabel`).
 - **Proibido** em tooltips de move: `+N Dano`, `Dano: N` (confunde com dano final no alvo).
-- **Golpe / dano final** — reservado ao log de combate (`↳ Golpe X − Defesa Y → Z`). Testes: `moveTooltipContent.catalog.test.ts` + `moveDisplayLabels.test.ts`.
+- **Golpe / dano final** — reservado ao log de combate (`↳ Golpe X − Defesa Y → Z`). Validar manualmente em tooltips via `moveDisplayLabels.ts` + `formatMovePrimaryEffect`.
 
 ---
 

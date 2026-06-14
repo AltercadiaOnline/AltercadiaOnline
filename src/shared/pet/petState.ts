@@ -49,10 +49,6 @@ export const PET_CARE_STATUS_LABELS: Readonly<Record<PetCareStatus, string>> = {
 
 let petInstanceSeq = 0;
 
-export function resetPetInstanceSeqForTests(): void {
-  petInstanceSeq = 0;
-}
-
 export function nextPetInstanceId(kindId: string, now = Date.now()): string {
   petInstanceSeq += 1;
   return `pet:${kindId}:${now}:${petInstanceSeq}`;

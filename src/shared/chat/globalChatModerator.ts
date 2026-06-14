@@ -90,8 +90,3 @@ export function getGlobalChatModerator(): GlobalChatModerator {
   }
   return sharedModerator;
 }
-
-/** Testes — reinicia singleton. */
-export function resetGlobalChatModeratorForTests(): void {
-  sharedModerator = null;
-}

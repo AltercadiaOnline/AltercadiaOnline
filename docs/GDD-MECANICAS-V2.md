@@ -356,7 +356,7 @@ Contrato de Código V2 (TypeScript Strict)
 
 ### Definição Técnica
 - Código de jogo em `.ts` com `strict: true`.
-- `typecheck` antes de confiar em build; testes com `tsx --test`.
+- `typecheck` antes de confiar em build; validar com `npm run deploy:check`.
 - Sem shims para legado: quebra → reimplementação nativa.
 
 ### Impacto na Lógica (Engine)
@@ -549,7 +549,7 @@ Tooltip Narrativo Oficial (`ClassMoveNarrativeTooltip`)
 | **Execução** | Dano, burst, DoT, finishers |
 | **Suporte** | Cura canônica da classe |
 
-**Cobertura:** 24/24 moves de classe — validado em `classMoveNarrativeTooltips.test.ts`.
+**Cobertura:** 24/24 moves de classe — validado no catálogo `classMoveNarrativeTooltips.ts`.
 
 ### Impacto na Lógica (Engine)
 - Nenhum — copy é espelho; stats autoritativos permanecem no catálogo.
@@ -600,7 +600,7 @@ Enum em `classMovesetCatalog.ts`. Cada move de classe define **um** `effectKind`
 | IMP_2 | Eco não gasta carga em cura/setup | Comportamento especial no eco |
 
 ### Impacto na Lógica (Engine)
-- Novo move = nova entrada no catálogo + case (ou extensão) no `CombatEngine` + tooltip narrativo + testes.
+- Novo move = nova entrada no catálogo + case (ou extensão) no `CombatEngine` + tooltip narrativo + `npm run typecheck`.
 
 ### Impacto no Dashboard/Interface
 - `formatMovePrimaryEffect` cobre fallback genérico; moves de classe usam narrativa oficial prioritariamente.

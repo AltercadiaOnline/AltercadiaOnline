@@ -12,10 +12,6 @@ import {
 
 let diarySeq = 0;
 
-export function resetDiarySeqForTests(): void {
-  diarySeq = 0;
-}
-
 export function nextDiaryEntryId(type: DiaryEntry['type'], timestampMs: number): string {
   diarySeq += 1;
   return `diary:${type}:${timestampMs}:${diarySeq}`;

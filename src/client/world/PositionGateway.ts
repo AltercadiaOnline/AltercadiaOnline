@@ -88,7 +88,13 @@ export class PositionGateway {
 
     const creds = this.getCredentials();
 
-    if (!creds || !this.socket) return;
+    if (!creds || !this.socket) {
+      console.warn('[PositionGateway] world-login ignorado — credenciais ou socket indisponíveis', {
+        hasCredentials: Boolean(creds),
+        hasSocket: Boolean(this.socket),
+      });
+      return;
+    }
 
 
 

@@ -1,4 +1,4 @@
-import type { ActionRequest } from '../events.js';
+import type { ResolvedCombatAction } from '../events.js';
 import type { Combatant } from '../types.js';
 import {
   getCombatRole,
@@ -46,16 +46,16 @@ export function listEnemyActorIds(
 }
 
 export function orderPetTurnQueue(
-  requests: readonly ActionRequest[],
+  requests: readonly ResolvedCombatAction[],
   combatants: Readonly<Record<string, Combatant>>,
   playerActorId: string,
-): readonly ActionRequest[] {
-  const byActor = new Map<string, ActionRequest>();
+): readonly ResolvedCombatAction[] {
+  const byActor = new Map<string, ResolvedCombatAction>();
   for (const request of requests) {
     byActor.set(request.actorId, request);
   }
 
-  const ordered: ActionRequest[] = [];
+  const ordered: ResolvedCombatAction[] = [];
   const placed = new Set<string>();
 
   const playerRequest = byActor.get(playerActorId);

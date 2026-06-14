@@ -2,6 +2,7 @@ export {
   clearPlayerSession,
   getOrCreatePlayerSession,
   getPlayerSessionStatus,
+  isPlayerInBattle,
   resetPlayerSessionRegistry,
   setPlayerInBattle,
   setPlayerLoggingOut,

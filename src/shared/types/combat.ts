@@ -211,19 +211,26 @@ export interface CombatState {
   readonly battleWinnerId?: string | null;
 }
 
-/** Intenção de ação validada pelo CombatEngine — única entrada de turno. */
+/**
+ * DTO mínimo do wire — somente IDs de intenção enviados pelo cliente.
+ * Propriedades extras são ignoradas por {@link sanitizeCombatActionIntent}.
+ */
 export interface ActionRequest {
   readonly battleId: string;
   readonly actorId: string;
   readonly turn: number;
   readonly skillId: string | null;
   readonly requestId: string;
-  readonly priorityHint?: 1 | 2 | 3;
   readonly consumableId?: string | null;
-  readonly consumableHeal?: number;
-  readonly runeCritBonus?: number;
-  readonly runeReflectRatio?: number;
   readonly targetTile?: GridCell;
   /** Alvo de suporte (ex.: TUT_3 cura em aliado/pet). */
   readonly targetId?: string;
 }
+
+/** Enriquecimento exclusivo do servidor após validação — nunca aceito do cliente. */
+export type ResolvedCombatAction = ActionRequest & {
+  readonly consumableHeal?: number;
+  readonly runeCritBonus?: number;
+  readonly runeReflectRatio?: number;
+  readonly priorityHint?: 1 | 2 | 3;
+};
