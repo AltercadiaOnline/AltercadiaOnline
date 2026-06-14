@@ -1,6 +1,8 @@
 import type { AuthService } from '../../shared/authService.js';
-import { getSupabaseClient } from './supabaseAuth.js';
+import { getSupabaseClient, getUser } from './supabaseAuth.js';
 import { signInWithEmail, signUpWithEmail } from '../auth.js';
+import { resolveAccountKey } from '../services/localSessionStore.js';
+import { loginLocalDevAccount } from './localDevAuth.js';
 import { mockAuth } from '../services/mockAuth.js';
 
 function createSupabaseAuthService(): AuthService {
@@ -11,15 +13,22 @@ function createSupabaseAuthService(): AuthService {
         return { success: false, message: result.message };
       }
 
+      const trimmedEmail = email.trim();
+      const supabaseUser = await getUser();
+      const accountKey = supabaseUser?.id ?? resolveAccountKey({ email: trimmedEmail });
+
       return {
         success: true,
-        user: { email: email.trim() },
+        user: {
+          email: trimmedEmail,
+          id: accountKey,
+        },
         message: result.message,
       };
     },
 
-    async register(email, pass) {
-      const result = await signUpWithEmail(email, pass);
+    async register(payload) {
+      const result = await signUpWithEmail(payload.email, payload.password);
       return {
         success: result.ok,
         message: result.message,
@@ -35,16 +44,24 @@ export function createAuthService(): AuthService {
   return {
     async login(email, pass) {
       if (!getSupabaseClient()) {
-        return mockAuth.login(email, pass);
+        const result = await loginLocalDevAccount(email, pass);
+        if (!result.ok || !result.user) {
+          return { success: false, message: result.message };
+        }
+        return {
+          success: true,
+          user: result.user,
+          message: result.message,
+        };
       }
       return supabaseAuth.login(email, pass);
     },
 
-    async register(email, pass) {
+    async register(payload) {
       if (!getSupabaseClient()) {
-        return mockAuth.register(email, pass);
+        return mockAuth.register(payload);
       }
-      return supabaseAuth.register(email, pass);
+      return supabaseAuth.register(payload);
     },
   };
 }

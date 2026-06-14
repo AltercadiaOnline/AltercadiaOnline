@@ -1,74 +1,76 @@
-export const TILE_SIZE = 32;
-export const MAP_TILES = 40;
+export { TILE_SIZE, MAP_TILES, ZONE_TILES } from './mapConstants.js';
 
-/** 0: Chão · 1: Escada/Arena · 2: Parede · 3: Cerejeira */
-export const TileType = {
-  Floor: 0,
-  Stairs: 1,
-  Wall: 2,
-  Obstacle: 3,
-} as const;
+export { TileType, type TileId, isTileBlocking } from './tileTypes.js';
 
-export type TileId = (typeof TileType)[keyof typeof TileType];
+export {
+  CITY_01_ID,
+  CITY_01_TILE_SIZE,
+  CITY_01_MAP_TILES,
+  CITY_01_PORTALS,
+  generateCity01MapData,
+  city01PixelWidth,
+  city01PixelHeight,
+} from './maps/city01.js';
 
-const ARENA_MIN = 12;
-const ARENA_MAX = 28;
+export {
+  FARM_ZONE_01_ID,
+  FARM_ZONE_01_TILES_WIDE,
+  FARM_ZONE_01_TILES_HIGH,
+  FARM_ZONE_01_PORTALS,
+  generateFarmZone01MapData,
+  farmZone01PixelWidth,
+  farmZone01PixelHeight,
+} from './maps/farm_zone_01.js';
 
-const CHERRY_TREE_CORNERS: ReadonlyArray<readonly [number, number]> = [
-  [ARENA_MIN, ARENA_MIN],
-  [ARENA_MIN, ARENA_MAX],
-  [ARENA_MAX, ARENA_MIN],
-  [ARENA_MAX, ARENA_MAX],
-];
+export {
+  DEFAULT_MAP_ID,
+  MAP_REGISTRY,
+  getMapDefinition,
+  isMapId,
+  type MapDefinition,
+  type MapId,
+} from './mapRegistry.js';
 
-function paintBorderWalls(mapData: number[][]): void {
-  for (let x = 0; x < MAP_TILES; x++) {
-    mapData[0]![x] = TileType.Wall;
-    mapData[MAP_TILES - 1]![x] = TileType.Wall;
-  }
+export {
+  findPortalAtTile,
+  checkPortal,
+  buildPortalTransitionPayload,
+  portalCenterTile,
+  portalInteractionContains,
+  portalZoneContains,
+  tileCenterToWorldPixel,
+  worldPixelToTile,
+  portalTargetSpawn,
+  toMapPortalTrigger,
+  type Portal,
+  type PortalZone,
+  type MapPortalTrigger,
+  type PortalTargetSpawn,
+} from './portals.js';
 
-  for (let y = 0; y < MAP_TILES; y++) {
-    mapData[y]![0] = TileType.Wall;
-    mapData[y]![MAP_TILES - 1] = TileType.Wall;
-  }
-}
+import { getActiveMapTileSize } from './activeMapTileSize.js';
+import { MAP_TILES, TILE_SIZE } from './mapConstants.js';
+import { isTileBlocking, TileType } from './tileTypes.js';
+import { DEFAULT_MAP_ID, getMapDefinition } from './mapRegistry.js';
+import { generateCity01MapData, city01PixelHeight, city01PixelWidth } from './maps/city01.js';
 
-function paintCentralArena(mapData: number[][]): void {
-  for (let y = ARENA_MIN; y <= ARENA_MAX; y++) {
-    for (let x = ARENA_MIN; x <= ARENA_MAX; x++) {
-      mapData[y]![x] = TileType.Stairs;
-    }
-  }
-}
-
-function paintCherryTrees(mapData: number[][]): void {
-  for (const [x, y] of CHERRY_TREE_CORNERS) {
-    mapData[y]![x] = TileType.Obstacle;
-  }
-}
-
-/** Matriz 40×40 da cidade: chão, moldura, arena central e cerejeiras nos cantos da praça. */
+/** Mapa padrão do overworld: Cidade 01. */
 export function generateMapData(): number[][] {
-  const mapData: number[][] = Array.from({ length: MAP_TILES }, () =>
-    Array<number>(MAP_TILES).fill(TileType.Floor),
-  );
-
-  paintBorderWalls(mapData);
-  paintCentralArena(mapData);
-  paintCherryTrees(mapData);
-
-  return mapData;
+  return generateCity01MapData();
 }
 
-export function isTileBlocking(tile: number): boolean {
-  return tile === TileType.Wall || tile === TileType.Obstacle;
-}
+export function tileAt(
+  mapData: number[][],
+  worldX: number,
+  worldY: number,
+  tileSize = getActiveMapTileSize(),
+): number {
+  const col = Math.floor(worldX / tileSize);
+  const row = Math.floor(worldY / tileSize);
+  const mapHeight = mapData.length;
+  const mapWidth = mapData[0]?.length ?? 0;
 
-export function tileAt(mapData: number[][], worldX: number, worldY: number): number {
-  const col = Math.floor(worldX / TILE_SIZE);
-  const row = Math.floor(worldY / TILE_SIZE);
-
-  if (col < 0 || row < 0 || col >= MAP_TILES || row >= MAP_TILES) {
+  if (col < 0 || row < 0 || col >= mapWidth || row >= mapHeight) {
     return TileType.Wall;
   }
 
@@ -80,9 +82,9 @@ export function canWalkAt(mapData: number[][], worldX: number, worldY: number): 
 }
 
 export function mapPixelWidth(): number {
-  return MAP_TILES * TILE_SIZE;
+  return city01PixelWidth();
 }
 
 export function mapPixelHeight(): number {
-  return MAP_TILES * TILE_SIZE;
+  return city01PixelHeight();
 }

@@ -1,7 +1,7 @@
 import type { ActionRequest, CombatEvent } from '../../shared/events.js';
 import type { CombatState } from '../../shared/types.js';
 import { CombatEngine } from '../engine/CombatEngine.js';
-import { getCombatBalanceVersion } from '../engine/combatBalanceConfig.js';
+import { getCombatBalanceVersion, loadCombatBalanceConfig } from '../engine/combatBalanceConfig.js';
 import { mapEventsForClient } from '../engine/combatEventCompat.js';
 
 export type DispatchResult = {
@@ -17,12 +17,12 @@ export type DispatchResult = {
 export class CombatGateway {
   private readonly engine: CombatEngine;
 
-  constructor(initial: CombatState) {
-    this.engine = new CombatEngine(initial);
+  constructor(initial: CombatState, playerActorId: string) {
+    this.engine = new CombatEngine(initial, loadCombatBalanceConfig(), playerActorId);
   }
 
-  public static create(initial: CombatState): CombatGateway {
-    return new CombatGateway(initial);
+  public static create(initial: CombatState, playerActorId: string): CombatGateway {
+    return new CombatGateway(initial, playerActorId);
   }
 
   public getBalanceVersion(): string {
@@ -42,8 +42,32 @@ export class CombatGateway {
     return this.toDispatchResult(this.engine.applyAction(action));
   }
 
+  public forfeit(actorId: string): DispatchResult {
+    return this.toDispatchResult(this.engine.forfeitActor(actorId));
+  }
+
   public resolveTurnBatch(actions: readonly ActionRequest[]): DispatchResult {
     return this.toDispatchResult(this.engine.resolveTurn(actions));
+  }
+
+  public setRuneSpeedFlatConditional(actorId: string, amount: number): void {
+    this.engine.setRuneSpeedFlatConditional(actorId, amount);
+  }
+
+  public updateRuneCharges(actorId: string, chargesRemaining: number): void {
+    this.engine.updateRuneCharges(actorId, chargesRemaining);
+  }
+
+  /** PvE — jogador permanece em CHOOSING após round simultâneo resolvido por iniciativa. */
+  public ensureChoosingActor(actorId: string): void {
+    this.engine.ensureChoosingActor(actorId);
+  }
+
+  public setPetAllianceProgress(progress: {
+    readonly alliancePlayerTurnsSincePet: number;
+    readonly petAssistCycleIndex: number;
+  }): void {
+    this.engine.setPetAllianceProgress(progress);
   }
 
   private toDispatchResult(rawEvents: readonly CombatEvent[]): DispatchResult {

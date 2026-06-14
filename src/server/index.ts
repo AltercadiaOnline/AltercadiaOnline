@@ -1,7 +1,9 @@
 import { loadServerEnv } from './config/env.js';
 import { createPublicClientConfig } from '../shared/publicClientConfig.js';
-import { CombatWsHub } from './net/CombatWsHub.js';
+import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
+import { CombatWsHub } from './network/CombatWsHub.js';
 import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
+import { flushAllPersistence, initializePersistence } from './persistence/initializePersistence.js';
 
 function logCorsWarning(corsOrigins: readonly string[], nodeEnv: string): void {
   if (nodeEnv === 'production' && corsOrigins.length === 0) {
@@ -11,9 +13,11 @@ function logCorsWarning(corsOrigins: readonly string[], nodeEnv: string): void {
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const env = loadServerEnv();
   logCorsWarning(env.corsOrigins, env.nodeEnv);
+
+  const persistence = await initializePersistence();
 
   const dirs = resolveStaticDirs(import.meta.url);
   const httpServer = createStaticServer({
@@ -25,24 +29,31 @@ function main(): void {
     }),
   });
 
+  bootstrapIntentHandlers();
   const wsHub = new CombatWsHub(httpServer, { corsOrigins: env.corsOrigins });
 
   const shutdown = (signal: string) => {
     console.log(`[server] ${signal} — encerrando…`);
-    void wsHub
-      .close()
-      .then(() => {
-        httpServer.close((error) => {
-          if (error) {
-            console.error('[server] Erro ao fechar HTTP:', error);
-            process.exit(1);
-          }
-          process.exit(0);
-        });
-      })
+    void flushAllPersistence()
       .catch((error) => {
-        console.error('[server] Erro ao fechar WebSocket:', error);
-        process.exit(1);
+        console.error('[persistence] Falha no flush final:', error);
+      })
+      .finally(() => {
+        void wsHub
+          .close()
+          .then(() => {
+            httpServer.close((error) => {
+              if (error) {
+                console.error('[server] Erro ao fechar HTTP:', error);
+                process.exit(1);
+              }
+              process.exit(0);
+            });
+          })
+          .catch((error) => {
+            console.error('[server] Erro ao fechar WebSocket:', error);
+            process.exit(1);
+          });
       });
   };
 
@@ -53,6 +64,7 @@ function main(): void {
     const scheme = env.nodeEnv === 'production' ? 'https/wss (via proxy)' : 'http';
     console.log('[Altercadia V2] Servidor online');
     console.log(`  NODE_ENV     → ${env.nodeEnv}`);
+    console.log(`  Persistência → ${persistence.mode} (${persistence.dataDir})`);
     console.log(`  Bind         → ${env.host}:${env.port}`);
     console.log(`  HTTP         → ${scheme}://<host>:${env.port}`);
     console.log(`  WebSocket    → ws(s)://<host>:${env.port}/ws`);
@@ -62,4 +74,7 @@ function main(): void {
   });
 }
 
-main();
+void main().catch((error) => {
+  console.error('[server] Falha fatal no bootstrap:', error);
+  process.exit(1);
+});

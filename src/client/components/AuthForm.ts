@@ -139,10 +139,12 @@ export class AuthForm {
     this.setBusy(true);
     this.setStatus('Enviando cadastro…', false);
 
-    const result = await this.options.authService.register(
-      this.emailInput.value,
-      this.passwordInput.value,
-    );
+    const result = await this.options.authService.register({
+      fullName: '',
+      birthDate: '',
+      email: this.emailInput.value,
+      password: this.passwordInput.value,
+    });
     this.setBusy(false);
 
     if (!result.success) {

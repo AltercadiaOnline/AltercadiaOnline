@@ -21,19 +21,43 @@ function projectRootFromModule(metaUrl: string): string {
   return path.join(fileURLToPath(metaUrl), '..', '..', '..');
 }
 
+/** Pacotes npm expostos ao browser via import map (ex.: gsap). */
+const VENDOR_PACKAGE_ROOTS: Readonly<Record<string, string>> = {
+  gsap: 'gsap',
+};
+
 export type StaticServerOptions = {
   readonly publicDir: string;
   readonly distDir: string;
+  readonly projectRoot: string;
   readonly corsOrigins: readonly string[];
   readonly clientPublicConfig: PublicClientConfig;
 };
 
-export function resolveStaticDirs(moduleUrl: string): Pick<StaticServerOptions, 'publicDir' | 'distDir'> {
+export function resolveStaticDirs(moduleUrl: string): Pick<StaticServerOptions, 'publicDir' | 'distDir' | 'projectRoot'> {
   const root = projectRootFromModule(moduleUrl);
   return {
+    projectRoot: root,
     publicDir: path.join(root, 'public'),
     distDir: path.join(root, 'dist'),
   };
+}
+
+function resolveVendorFile(projectRoot: string, pathname: string): string | null {
+  const prefix = '/vendor/';
+  if (!pathname.startsWith(prefix)) return null;
+
+  const remainder = pathname.slice(prefix.length);
+  const slash = remainder.indexOf('/');
+  if (slash <= 0) return null;
+
+  const packageName = remainder.slice(0, slash);
+  const packageDirName = VENDOR_PACKAGE_ROOTS[packageName];
+  if (!packageDirName) return null;
+
+  const relativeFile = remainder.slice(slash + 1);
+  const vendorBase = path.join(projectRoot, 'node_modules', packageDirName);
+  return safePath(vendorBase, relativeFile);
 }
 
 function safePath(base: string, requestPath: string): string | null {
@@ -69,13 +93,28 @@ export function createStaticServer(options: StaticServerOptions): http.Server {
 
       if (pathname === '/') pathname = '/index.html';
 
+      const vendorFile = resolveVendorFile(options.projectRoot, pathname);
+      if (vendorFile && existsSync(vendorFile) && statSync(vendorFile).isFile()) {
+        const ext = path.extname(vendorFile);
+        res.writeHead(200, {
+          'Content-Type': MIME[ext] ?? 'application/octet-stream',
+          'Cache-Control': 'no-store',
+        });
+        createReadStream(vendorFile).pipe(res);
+        return;
+      }
+
       // Artefatos compilados (client + shared): /client/... e /shared/... → dist/
       const distRelative = pathname.startsWith('/') ? pathname.slice(1) : pathname;
       const distFile = safePath(options.distDir, distRelative);
       if (distFile && existsSync(distFile) && statSync(distFile).isFile()) {
         const ext = path.extname(distFile);
         if (ext === '.js' || ext === '.json') {
-          res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'application/octet-stream' });
+          const cacheControl = ext === '.js' ? 'no-store' : undefined;
+          res.writeHead(200, {
+            'Content-Type': MIME[ext] ?? 'application/octet-stream',
+            ...(cacheControl ? { 'Cache-Control': cacheControl } : {}),
+          });
           createReadStream(distFile).pipe(res);
           return;
         }

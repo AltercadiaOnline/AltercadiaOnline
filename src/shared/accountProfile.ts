@@ -1,10 +1,10 @@
 import type { AccountProfile } from './types/account.js';
+import { createEmptyCharacterHub } from './characterHub.js';
 
-/** Perfil mock até o gateway enviar snapshot autoritativo. */
-export const DEV_ACCOUNT_PROFILE: AccountProfile = {
-  userId: '123',
-  characters: [
-    { id: 1, name: 'CaelMartins', class: 'IMPETUS', level: 1 },
-    { id: 2, name: 'Mirela', class: 'COGITOR', level: 5 },
-  ],
-};
+/** Perfil vazio — cada conta carrega seu hub próprio no cliente/servidor. */
+export function createEmptyAccountProfile(userId: string): AccountProfile {
+  return {
+    userId,
+    characters: createEmptyCharacterHub(userId).slots.filter((slot) => slot !== null),
+  };
+}

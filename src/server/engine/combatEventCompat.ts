@@ -20,6 +20,7 @@ export const CLIENT_EXTENDED_EVENT_TYPES = new Set<string>([
   CombatEventType.ELASTICITY_APPLIED,
   CombatEventType.HEALING_DECAY_APPLIED,
   CombatEventType.SUDDEN_DEATH_SCALING_APPLIED,
+  CombatEventType.COMBAT_FINISHED,
 ]);
 
 function toBattleStateUpdate(turn: TurnUpdate): CombatEvent {

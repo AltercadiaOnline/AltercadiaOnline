@@ -1,8 +1,9 @@
 # Altercadia V2 — Game Design Document (Base)
 
-**Versão:** 0.3 (alinhado ao motor único V1.2 + `CombatGateway` + protocolo cliente)  
-**Escopo:** mecânicas tipadas e implementadas em `src/` — `CombatEngine` (balance `1.2.0`), `CombatGateway`, `mapEventsForClient`, Dashboard  
-**Nomenclatura oficial:** **Engine** (motor autoritativo), **Dashboard** (interface do jogador), **Dispatch** (envio de intenções via `ActionRequest` / `GameAPI.dispatchAction`)
+**Versão:** 0.4 (motor V1.2 + catálogo de moves de classe + tooltips narrativos oficiais)  
+**Escopo:** mecânicas tipadas e implementadas em `src/` — `CombatEngine` (balance `1.2.0`), `classMovesetCatalog`, `classMoveNarrativeTooltips`, `CombatGateway`, Dashboard  
+**Nomenclatura oficial:** **Engine** (motor autoritativo), **Dashboard** (interface do jogador), **Dispatch** (envio de intenções via `ActionRequest` / `GameAPI.dispatchAction`)  
+**Documento complementar (kits por classe):** [`CLASS-MOVES-KITS-v1.md`](./CLASS-MOVES-KITS-v1.md)
 
 ---
 
@@ -60,7 +61,7 @@ Entidade participante da batalha:
 
 - `id`, `name`
 - `hp`, `maxHp` (vida atual e teto)
-- `skills: SkillData[]` (catálogo autoritativo de ações disponíveis)
+- `skills: SkillData[]` — **4 moves** do loadout confirmado, enriquecidos com `effectKind`, PP e cooldown runtime
 
 ### Impacto na Lógica (Engine)
 - Validação `INVALID_ACTOR` se `actorId` ∉ `combatants`.
@@ -73,25 +74,41 @@ Entidade participante da batalha:
 
 ---
 
-## 4. Habilidade (`SkillData`)
+## 4. Habilidade (`SkillData` / `MoveDefinition`)
 
 ### Nome da Mecânica
-Habilidade de Combate
+Habilidade de Combate (Move)
 
 ### Definição Técnica
-Ação ofensiva (contrato atual):
+Contrato autoritativo em `src/shared/types/combat.ts` (`SkillData`) e catálogo em `classMovesetCatalog.ts`:
 
-- `id`, `name`
-- `damage: number` — valor aplicado na resolução
-- `cooldown: number` — **campo de contrato** (ver mecânica pendente §P2)
+| Campo | Papel |
+|-------|--------|
+| `id`, `name` | Identidade do move |
+| `damage` / `basePower` | Poder base (0 em setups puros) |
+| `effectKind` | Identidade mecânica — `MoveEffectKind` (motor faz `switch`) |
+| `effectParams` | Números fechados por move (burn %, escudo %, eco %, etc.) |
+| `priority` | 1 \| 2 \| 3 — camada tática na iniciativa (§16) |
+| `cooldown` | Turnos bloqueados após uso — resolvido via catálogo |
+| `ppMax` / `ppCurrent` | Orçamento de uso por batalha |
+| `target` / `moveTarget` | `SELF`, `ENEMY`, `ALL_ENEMIES`, `ALLY_OR_SELF` |
+| `scalingStat` | Rótulo de escala (STR / AGI / DEF / CRIT) — tooltip e estilo |
+| `category` | `ATTACK` \| `DEFENSE` \| `SUPPORT` \| `UTILITY` |
+
+**SSOT de stats de classe:** `classMovesetCatalog.ts` (`isDefined: true`).  
+**SSOT de copy/UI:** `classMoveNarrativeTooltips.ts` (tooltips oficiais de 4 linhas — §18).
+
+Moves de monstro usam `monsterSkillCatalog.ts` com o mesmo contrato reduzido.
 
 ### Impacto na Lógica (Engine)
-- Dano efetivo: `selectedSkill.damage` (ou `0` se `skillId === null` / passar).
-- Fórmula atual: `hpAfter = max(0, target.hp - damage)`.
+- `CombatEngine` resolve por `effectKind`, não por `damage` isolado.
+- Cooldown e PP são debitados após ação aceita (`resolveMoveCooldownFromCatalog`, `ppCurrent--`).
+- Dano/cura/buff passam por `calculateDamage` / handlers de status e modificadores runtime.
 
 ### Impacto no Dashboard/Interface
-- Slots / botões de habilidade mapeados por `skill.id`.
-- Rótulo e feedback de uso via `COMBAT_LOG` e `DAMAGE_DEALT`.
+- Slots mapeados por `skill.id` do loadout confirmado (4 ativos).
+- Tooltip: `buildMoveTooltipLines` → narrativa oficial quando `resolveClassMoveNarrativeTooltip(id)` existe.
+- Título HUD: `{Nome} | {Preparação \| Execução \| Suporte}`.
 
 ---
 
@@ -184,23 +201,36 @@ API exportada em `src/game.ts`:
 
 ---
 
-## 9. Resolução de Dano
+## 9. Resolução de Ação (Dano, Cura, Status)
 
 ### Nome da Mecânica
-Resolução de Dano por Habilidade
+Resolução por `MoveEffectKind`
 
 ### Definição Técnica
-1. Identifica alvo: **próximo combatente na ordem circular** após o ator (não seleção manual pelo jogador).
-2. `amount` base = `skill.damage` (ou `0` se passar); V1.2 aplica **elasticidade de HP**, **decay de cura** e **sudden death** (turno 9+) antes do valor final.
-3. Atualiza `target.hp`; emite `DAMAGE_DEALT` com `hpAfter` e eventos de auditoria (`ELASTICITY_APPLIED`, etc.).
+Pipeline após `ACTION_ACCEPTED`:
+
+1. **Validação** — fase, turno, PP, cooldown, alvo (`battleTargeting`).
+2. **Ordem concorrente** — `priority` → `effectiveSpeed` → seed (§16).
+3. **Switch mecânico** — `CombatEngine` despacha por `effectKind`:
+   - Dano direto: `PureDamage`, `DebuffScalingDamage`, `HighRiskBurst`, `IgnoreBarrier`, …
+   - DoT / delayed: `ApplyBurn`, `DelayedDetonation`, `Confuse` (residual)
+   - Setup / controle: `AttackEcho`, `ApplyParalyze`, `MovesetWeaken`, `LockEnemyMoves`, `Thorns`, …
+   - Sustain / defesa: `Heal`, `SelfShield`, `StatusImmunity`, …
+4. **Fórmula** — `calculateDamage` + modificadores runtime (`RuntimeModifierKind`, status, escudo, barreira).
+5. **Regras V1.2 globais** — elasticidade de HP, decay de cura, sudden death (turno 9+) quando aplicável.
+6. **Eventos** — `DAMAGE_DEALT`, `HEAL_APPLIED`, status, modificadores; auditoria estendida.
+
+`skillId: null` → passar (dano 0, sem efeito).
+
+Alvo: derivado de `moveTarget` do catálogo (inimigo, si, aliado, área). Seleção manual pelo jogador permanece pendência de produto (§P1).
 
 ### Impacto na Lógica (Engine)
-- Evento: `DAMAGE_DEALT { sourceId, targetId, amount, hpAfter }`.
-- Pode encadear `ENDED` se `hp <= 0`.
+- Nenhum move calcula resultado no cliente.
+- Efeitos empilham via estado runtime (escudo, thorns, eco de ataque, debuffs contáveis para `DebuffScalingDamage`).
 
 ### Impacto no Dashboard/Interface
-- Atualizar barra de HP do `targetId`.
-- Log: `source -> target (amount)`.
+- Barras de HP, escudo, status e log reagem aos eventos emitidos.
+- Tooltip descreve intenção; números finais vêm do snapshot pós-resolução.
 
 ---
 
@@ -449,23 +479,176 @@ Cap condicional de runa: `runeSpeedFlatConditional <= 7`.
 
 ---
 
+## 17. Catálogo de Moves de Classe (4 classes × 6 moves)
+
+### Nome da Mecânica
+Pool de Classe + Loadout Ativo (4 de 6)
+
+### Definição Técnica
+Cada classe (`IMPETUS`, `COGITOR`, `TUTATOR`, `DISSOLUTUS`) possui **6 moves** no catálogo (`CLASS_MOVE_POOL_SIZE`) e equipa **4** antes da batalha (`CLASS_ACTIVE_LOADOUT_SIZE`).
+
+| Regra | Detalhe |
+|-------|---------|
+| Pool | 6 IDs únicos por classe em `classMovesetCatalog.ts` |
+| Loadout ativo | 4 moves confirmados no painel de moveset (`globalPlayerStore`) |
+| Loadout padrão | `CLASS_DEFAULT_ACTIVE_LOADOUT` em `moveGameplayRole.ts` |
+| Cura canônica | 1 por classe (`CLASS_HEAL_MOVE_ID`) — **fora** dos 4 iniciais |
+| Orçamento PP | Soma de `basePp` dos 4 slots (`loadoutPpBudget.ts`) |
+| Validação | `normalizeClassActiveLoadout` — 4 IDs únicos, todos ∈ pool da classe |
+
+#### Loadouts padrão (v1)
+
+| Classe | 4 slots ativos | Reserva no pool (6) |
+|--------|----------------|---------------------|
+| **IMPETUS** | IMP_1 · IMP_2 · IMP_4 · IMP_6 | IMP_3 (cura) · IMP_5 (AOE) |
+| **COGITOR** | COG_1 · COG_3 · COG_2 · COG_4 | COG_5 (cura) · COG_6 |
+| **TUTATOR** | TUT_1 · TUT_6 · TUT_5 · TUT_2 | TUT_3 (cura) · TUT_4 |
+| **DISSOLUTUS** | DIS_1 · DIS_5 · DIS_3 · DIS_2 | DIS_6 (cura) · DIS_4 |
+
+Detalhe move a move, combos e tooltips completos: **[`CLASS-MOVES-KITS-v1.md`](./CLASS-MOVES-KITS-v1.md)**.
+
+### Impacto na Lógica (Engine)
+- Batalha recebe `equippedSkillIds` (4) → `moveIdsToSkillData` → `SkillData[]` enriquecido com `effectKind` + `effectParams`.
+- `mergeLoadoutSkillsWithRuntime` preserva os 4 slots mesmo antes do snapshot do servidor.
+
+### Impacto no Dashboard/Interface
+- `MovesetLoadoutHUD` — deck building 6 → 4, confirmação antes do combate.
+- Espelho de PP no sidebar (`resolveLoadoutPpBudget`).
+
+---
+
+## 18. Tooltips Oficiais de Move (4 linhas)
+
+### Nome da Mecânica
+Tooltip Narrativo Oficial (`ClassMoveNarrativeTooltip`)
+
+### Definição Técnica
+**SSOT de copy:** `src/shared/combat/classMoveNarrativeTooltips.ts`  
+**Montagem UI:** `buildMoveTooltipLines` → `buildClassMoveNarrativeTooltipLines`
+
+| Camada | Formato |
+|--------|---------|
+| **Título** | `{Nome} \| {Preparação \| Execução \| Suporte}` |
+| **Narrativa** | 2 frases — identidade + efeito (sem números) |
+| **Técnico** | `{base} \| {efeitos…} \| PP N \| Cooldown M.` |
+| **Finalização** | 2 frases — timing + sinergia do kit |
+
+#### Regras do técnico (obrigatórias)
+
+- Sempre termina com `| PP N | Cooldown M.`
+- Base: `Dano base X`, `Cura base X` ou `Dano base 0`
+- Efeitos secundários **antes** de PP/Cooldown
+- `Prioridade N` e `Alvo: …` só quando aplicável
+- Helper canônico: `buildOfficialTechnicalLine(base, pp, cooldown, …effects)`
+
+#### Categorias de tooltip (≠ `MoveCategory` do motor)
+
+| Categoria UI | Uso |
+|--------------|-----|
+| **Preparação** | Setup, debuff, escudo, controle |
+| **Execução** | Dano, burst, DoT, finishers |
+| **Suporte** | Cura canônica da classe |
+
+**Cobertura:** 24/24 moves de classe — validado em `classMoveNarrativeTooltips.test.ts`.
+
+### Impacto na Lógica (Engine)
+- Nenhum — copy é espelho; stats autoritativos permanecem no catálogo.
+
+### Impacto no Dashboard/Interface
+- `tooltipContent.ts` usa `formatClassMoveNarrativeTitle` + linhas narrativas.
+- Cliente **nunca** inventa números; técnico espelha catálogo fechado na conversa de design.
+
+---
+
+## 19. `MoveEffectKind` — Identidade Mecânica
+
+### Nome da Mecânica
+Kind de Efeito (switch do motor)
+
+### Definição Técnica
+Enum em `classMovesetCatalog.ts`. Cada move de classe define **um** `effectKind` + `effectParams` opcionais.
+
+| Kind | Papel resumido | Exemplo |
+|------|----------------|---------|
+| `PureDamage` | Dano direto | IMP_1 Golpe Direto |
+| `AttackEcho` | Setup + eco % + crítico | IMP_2 Impulso Crescente |
+| `ApplyBurn` | Dano + queimadura | IMP_4, TUT_6 |
+| `AoeDamage` | Área + buff ATK | IMP_5 Varredura |
+| `HighRiskBurst` | Burst + autodano | IMP_6 Fúria Suicida |
+| `DebuffScalingDamage` | Dano × debuffs | COG_1 Execução Geométrica |
+| `ApplyParalyze` | Paralisia + weaken buffs | COG_2 |
+| `DelayedDetonation` | Chip + detonação ×N | COG_3 Mina |
+| `MovesetWeaken` | −% dano/cura inimiga + marca | COG_4 Dreno |
+| `LockEnemyMoves` | Bloqueia slots + debuff | COG_6 |
+| `Heal` | Cura (+ eco/proc no catálogo) | IMP_3, COG_5, TUT_3, DIS_6 |
+| `SelfShield` | Escudo % HP | TUT_2 Égide |
+| `StatusImmunity` | Anti-debuff + DR | TUT_4 |
+| `Thorns` | Reflect + buff ATK | TUT_5 |
+| `RetaliationStrike` | Dano × dano recebido acumulado | TUT_1 |
+| `IgnoreBarrier` | Ignora escudo/barreira | DIS_1 |
+| `InvertDebuff` | −% dano inimigo | DIS_2 Paradoxo |
+| `OutOfTurn` | Golpe prio alta | DIS_3 Dobra Temporal |
+| `CopyLastMove` | Copia último move inimigo | DIS_4 Mímica |
+| `Confuse` | Chip + confusão + residual | DIS_5 |
+
+#### Lacunas motor × tooltip (v1 — documentar, não esconder)
+
+| Move | Design (tooltip/catálogo) | Motor |
+|------|---------------------------|-------|
+| DIS_6 | 30% proc +40% cura extra | Proc ainda não wired no case `Heal` |
+| DIS_2 | `swapDebuffCount` no catálogo | Só debuff −30% dano implementado |
+| IMP_2 | Eco não gasta carga em cura/setup | Comportamento especial no eco |
+
+### Impacto na Lógica (Engine)
+- Novo move = nova entrada no catálogo + case (ou extensão) no `CombatEngine` + tooltip narrativo + testes.
+
+### Impacto no Dashboard/Interface
+- `formatMovePrimaryEffect` cobre fallback genérico; moves de classe usam narrativa oficial prioritariamente.
+
+---
+
+## 20. Contrato de duração — Tick por Ator (v0.4)
+
+### Nome da Mecânica
+Vida de status/modificadores/escudo medida pelo turno do **portador**, não pelo decremento global.
+
+### Definição Técnica
+- Cada `RuntimeStatus`, `RuntimeModifier` e `RuntimeShield` armazena `appliedAtTurn` (turno global na aplicação) e `turnsRemaining` como **duração fixa**.
+- **Expiração:** no início do turno do portador, antes da ação, se `currentTurn >= appliedAtTurn + duration` (efeitos de janela) ou `currentTurn > appliedAtTurn + duration` (DoT: burn, confusão residual, eco de cura).
+- **Ticks:** burn/residual/eco disparam em `prepareActorTurnStart` quando `currentTurn > appliedAtTurn` — nunca no turno da aplicação.
+- **Detonação atrasada:** dispara no início do turno do portador quando `currentTurn >= appliedAtTurn + duration`.
+- Removido: `decrementRuntimeDurations` global e hack `lockTurns + 1`.
+
+Implementação: `runtimeActorTiming.ts`, `CombatEngine.prepareActorTurnStart`.
+
+### Impacto na Lógica (Engine)
+- COG_2 paralisia (1t) cobre o turno do alvo na aplicação; expira no início do turno seguinte dele.
+- TUT_4 −50% dano: modifier de 1t cobre o turno inimigo após o cast defensivo.
+- IMP_4/TUT_6 burn: ticks nos turnos seguintes do portador, não no cast.
+
+### Impacto no Dashboard/Interface
+- HUD exibe turnos restantes via `formatRuntimeStatusDisplayTurns(status, currentTurn)`.
+
+---
+
 # Mecânicas mencionadas superficialmente — confirmação necessária
 
 As entradas abaixo **não** estão consolidadas o suficiente para constar como mecânica fechada neste GDD. Confirme se deseja que eu expanda cada uma em seção completa na v0.2.
 
 | ID | Mecânica | Contexto no histórico | Status no código V2 |
 |----|----------|----------------------|---------------------|
-| **P1** | Seleção manual de alvo | Discussão implícita; Engine usa próximo na rota | Alvo automático apenas |
-| **P2** | Cooldown de habilidades | Campo `cooldown` em `SkillData` | Não processado pela Engine |
+| **P1** | Seleção manual de alvo | Discussão implícita; Engine usa alvo por `moveTarget` | Alvo automático por kind; seleção manual pendente |
+| **P2** | Cooldown de habilidades | Campo `cooldown` em `SkillData` | **Implementado** — catálogo + `skillCooldownUntilTurn` |
 | **P3** | Idempotência por `requestId` | Comentário em `GameClient` | Sem deduplicação na Engine |
 | **P4** | Passar turno (UI dedicada) | `skillId: null` suportado | Sem botão/fluxo UX definido |
-| **P5** | Itens de combate | HUD legado (HABILIDADES / ITENS / PASSAR) | Ausente na V2 |
+| **P5** | Itens de combate | HUD legado (HABILIDADES / ITENS / PASSAR) | Poções reativas parciais V1.2; resto ausente |
 | **P6** | `BATTLE_STATE_UPDATE` + paleta de skills | Protocolo cliente | **Implementado** via `mapEventsForClient` no `CombatGateway` |
 | **P7** | Economia / Gateway / `WALLET_UPDATE` | Regras de arquitetura Altercadia | Fora do `src/` V2 atual |
 | **P8** | Overworld / grid / dash 15×15 | Diretrizes de produto | Não implementado neste chat |
 | **P9** | Áudio (master volume) | Ajuste em sessão anterior | Expurgado na migração |
-| **P10** | Tipos de skill (heal/buff/debuff) | Substituídos por `damage` + `cooldown` | Confirmar se haverá retorno |
-| **P11** | Pipeline de iniciativa V1.2 no runtime | Baseline §16 | **Implementado** no `CombatEngine` (sem motor legado / sem feature flag) |
+| **P10** | Tipos de skill (heal/buff/debuff) | Histórico legado `damage` flat | **Resolvido** — `MoveEffectKind` + 24 moves + tooltips §18 |
+| **P11** | Pipeline de iniciativa V1.2 no runtime | Baseline §16 | **Implementado** no `CombatEngine` |
+| **P12** | Procs parciais (DIS_6, DIS_2 swap) | Tooltips vs motor | Parcial — ver tabela §19 |
 
 ---
 
@@ -479,7 +662,10 @@ As entradas abaixo **não** estão consolidadas o suficiente para constar como m
 | **Dispatch** | Envio de `ActionRequest` (`GameAPI.dispatchAction` / `sendAction`) |
 | **Snapshot** | `CombatState` retornado por `getState()` |
 | **SSOT** | `src/shared/` — tipos e eventos compartilhados |
+| **MoveEffectKind** | Identidade mecânica do move — switch no motor (§19) |
+| **Loadout ativo** | 4 moves equipados de um pool de 6 por classe (§17) |
+| **Tooltip oficial** | Copy de 4 linhas em `classMoveNarrativeTooltips.ts` (§18) |
 
 ---
 
-*Documento alinhado ao repositório V2 (motor de combate único V1.2). Pendências de produto: P1–P5, P7–P10 (ver tabela acima). Dados de runtime não são versionados (`data/` ignorado no `.gitignore`).*
+*Documento v0.4 — alinhado ao catálogo de moves de classe, tooltips narrativos e motor V1.2. Kits detalhados: [`CLASS-MOVES-KITS-v1.md`](./CLASS-MOVES-KITS-v1.md). Pendências: P1, P3–P5, P7–P9, P12.*

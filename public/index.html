@@ -10,94 +10,254 @@
     <div id="login-screen" class="screen full-screen">
       <div class="login-box vortex-panel auth-form">
         <h1>ALTERCADIA</h1>
-        <label class="auth-field">
-          <span>Email</span>
-          <input id="email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
-        </label>
-        <label class="auth-field">
-          <span>Senha</span>
-          <input id="pass-input" type="password" autocomplete="current-password" placeholder="••••••" />
-        </label>
-        <label class="auth-field">
-          <span>Confirmar senha</span>
-          <input id="confirm-pass-input" type="password" autocomplete="new-password" placeholder="••••••" />
-        </label>
+
+        <section id="auth-login-panel" class="auth-panel">
+          <label class="auth-field">
+            <span>Email</span>
+            <input id="email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
+          </label>
+          <label class="auth-field">
+            <span>Senha</span>
+            <input id="pass-input" type="password" autocomplete="current-password" placeholder="••••••" />
+          </label>
+          <div class="auth-actions">
+            <button id="btn-login" type="button">LOGIN</button>
+            <button id="btn-show-register" type="button">CADASTRAR</button>
+          </div>
+          <button id="btn-google-register" type="button" class="auth-google-btn">CADASTRAR COM GOOGLE</button>
+        </section>
+
+        <section id="auth-register-panel" class="auth-panel hidden">
+          <h2 class="auth-panel-title">CRIAR CONTA</h2>
+          <label class="auth-field">
+            <span>Nome</span>
+            <input id="reg-name-input" type="text" autocomplete="name" placeholder="Seu nome" />
+          </label>
+          <label class="auth-field">
+            <span>Data de nascimento</span>
+            <input id="reg-birth-input" type="date" />
+          </label>
+          <label class="auth-field">
+            <span>Email</span>
+            <input id="reg-email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
+          </label>
+          <label class="auth-field">
+            <span>Senha</span>
+            <input id="reg-pass-input" type="password" autocomplete="new-password" placeholder="••••••" />
+          </label>
+          <label class="auth-field">
+            <span>Confirmar senha</span>
+            <input id="reg-confirm-input" type="password" autocomplete="new-password" placeholder="••••••" />
+          </label>
+          <div class="auth-actions">
+            <button id="btn-create-account" type="button">CRIAR CONTA</button>
+            <button id="btn-back-login" type="button">VOLTAR</button>
+          </div>
+        </section>
+
         <p id="auth-status" class="auth-status" aria-live="polite"></p>
-        <div class="auth-actions">
-          <button id="btn-login" type="button">LOGIN</button>
-          <button id="btn-register" type="button">CADASTRAR</button>
-        </div>
-        <button id="btn-google-register" type="button" class="auth-google-btn">CADASTRAR COM GOOGLE</button>
       </div>
     </div>
 
     <div id="char-select-screen" class="screen full-screen">
       <h1>ESCOLHA SEU PERSONAGEM</h1>
+      <p id="char-select-account" class="char-select-account"></p>
       <div id="char-slots" class="char-container"></div>
-      <button id="btn-enter-world" type="button" disabled>ENTRAR NO MUNDO</button>
+      <div class="char-select-actions">
+        <button id="btn-back-to-login" type="button">VOLTAR AO LOGIN</button>
+        <button id="btn-enter-world" type="button" disabled>ENTRAR NO MUNDO</button>
+      </div>
+
+      <div id="char-create-panel" class="char-create-overlay hidden" aria-hidden="true">
+        <div class="char-create-box vortex-panel auth-form">
+          <h2 class="auth-panel-title">CRIAR PERSONAGEM</h2>
+          <p id="char-create-slot-label" class="char-create-slot-label"></p>
+          <label class="auth-field">
+            <span>Nome do personagem</span>
+            <input
+              id="char-create-name-input"
+              type="text"
+              maxlength="16"
+              autocomplete="off"
+              placeholder="Ex: CaelMartins"
+            />
+          </label>
+          <fieldset class="char-class-field">
+            <legend>Classe</legend>
+            <div id="char-class-picker" class="char-class-picker"></div>
+          </fieldset>
+          <p id="char-create-status" class="auth-status" aria-live="polite"></p>
+          <div class="auth-actions">
+            <button id="btn-char-create-confirm" type="button">CRIAR</button>
+            <button id="btn-char-create-cancel" type="button">CANCELAR</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="game-container" class="screen">
       <div id="scene-exploration" class="scene hidden">
-        <div id="vortex-app">
-          <main id="game-stage">
-            <canvas id="world-canvas" width="800" height="800" aria-label="Mundo Altercadia"></canvas>
-            <p id="exploration-status" class="status exploration-status">Explorando a dimensão…</p>
-
-            <div id="chat-box" class="vortex-panel">
-              <div class="chat-header">Chat Global</div>
-              <div class="chat-content">Sistema: Canal global online…</div>
-              <input type="text" placeholder="Digite sua mensagem…" aria-label="Mensagem do chat" />
+        <div id="vortex-app" class="app-wrapper game-layout">
+          <div id="game-viewport" class="game-viewport-container game-layout__viewport" aria-label="Viewport do jogo">
+            <div id="game-stage-frame" class="game-stage-frame">
+              <!-- Core de layout: container 640×360 — escala CSS aplicada aqui (spec: #game-container) -->
+              <div id="game-stage-scale" class="game-stage-scale">
+                <main id="game-stage">
+                  <canvas id="game-canvas" class="game-canvas" width="640" height="360" aria-label="Mundo Altercadia"></canvas>
+                </main>
+              </div>
+              <div id="npc-names-layer" class="npc-names-layer" aria-hidden="true"></div>
+              <div id="speech-bubbles-layer" class="speech-bubbles-layer" aria-hidden="true"></div>
+              <div id="game-ui-overlay" class="game-ui-overlay" aria-label="HUD do mundo">
+                <div id="ui-layer" class="ui-layer" aria-label="Camada de interface"></div>
+                <div id="exploration-comms-stack" class="exploration-comms-stack">
+                  <div id="log-service-panel" class="log-service-panel">
+                    <div class="log-service-panel__header">
+                      <span class="log-service-panel__title">Log do Sistema</span>
+                      <button type="button" id="log-service-toggle" class="log-service-panel__toggle" aria-expanded="true" aria-controls="log-service">−</button>
+                    </div>
+                    <div id="log-service" class="log-service__feed" role="log" aria-live="polite" aria-label="Mensagens do sistema"></div>
+                  </div>
+                  <div id="chat-box" class="vortex-panel">
+                    <div class="chat-header">Chat Global</div>
+                    <div class="chat-content"></div>
+                    <input
+                      type="text"
+                      placeholder="Digite sua mensagem… (máx. 72)"
+                      aria-label="Mensagem do chat"
+                      maxlength="72"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </main>
+          </div>
 
-          <aside id="sidebar" class="vortex-panel">
-            <div class="minimap">Minimap 40×40</div>
-            <div class="wallet">425.00 VOLTS</div>
-            <div class="equip-grid">Equipamentos</div>
+          <aside id="sidebar" class="sidebar game-layout__sidebar hud-sidebar equipment-sidebar-host" aria-label="HUD lateral">
+            <div id="sidebar-minimap" class="sidebar-minimap" aria-label="Minimapa"></div>
+            <div id="sidebar-wallet" class="sidebar-wallet" aria-label="Carteira"></div>
+            <div id="equipment-sidebar" class="equipment-sidebar__mount"></div>
           </aside>
         </div>
       </div>
 
       <div id="scene-combat" class="scene hidden">
-        <div class="combat-grid">
-          <header class="panel combat-header app-header">
-            <h1>Altercadia V2</h1>
-            <p id="connection-status" class="status">Iniciando cliente…</p>
-            <p id="battle-turn-hud" class="turn-label">Aguardando servidor…</p>
-          </header>
+        <div id="battle-fade-overlay" class="battle-fade-overlay hidden" aria-hidden="true"></div>
 
-          <div id="left-panel" class="panel combat-left" aria-label="Info jogador">
-            <h2>Operativo</h2>
-            <p class="combat-side-note">Info Jogador · VORTEX CORP</p>
-          </div>
+        <div class="battle-screen battle-screen--terminal battle-screen--side-view" data-battle-hud>
+          <!-- TOP: Área de combate Side-View -->
+          <section class="battle-combat-top" aria-label="Área de combate">
+            <div class="battle-status-row">
+              <header class="battle-sprite-hud battle-sprite-hud--ally" aria-label="Jogador">
+                <p id="battle-player-name" class="battle-fighter-name">—</p>
+                <p id="battle-player-class" class="battle-fighter-class">—</p>
+                <div class="battle-hp-bar" role="progressbar" aria-label="HP do jogador">
+                  <div id="battle-player-hp-fill" class="battle-hp-bar__fill"></div>
+                </div>
+                <p id="battle-player-hp-text" class="battle-hp-text">— / —</p>
+                <div id="battle-player-status" class="battle-status-row status-container status-container--ally" aria-label="Status do jogador"></div>
+              </header>
 
-          <div id="battle-scene" class="panel combat-scene">
-            <main id="battle-layer" data-battle-hud>
-              <section id="hp-bars" class="hp-bars" aria-label="Vida dos combatentes"></section>
-            </main>
-          </div>
+              <div class="battle-turn-hub" aria-live="polite">
+                <p id="battle-turn-phase" class="battle-turn-phase battle-turn-phase--waiting">Aguardando…</p>
+                <p id="battle-turn-waiting" class="battle-turn-waiting hidden">Aguardando ação do oponente…</p>
+                <div class="battle-turn-timer-track" role="progressbar" aria-label="Tempo restante do turno">
+                  <div id="battle-turn-timer-bar-fill" class="battle-turn-timer-bar__fill"></div>
+                </div>
+                <div class="battle-timer-ring">
+                  <span id="battle-turn-timer" class="battle-turn-timer">10</span>
+                </div>
+              </div>
 
-          <div id="right-panel" class="panel combat-right" aria-label="Status inimigo">
-            <h2>Alvo</h2>
-            <p class="combat-side-note">Status Rato / Inimigo</p>
-          </div>
+              <header class="battle-sprite-hud battle-sprite-hud--foe" aria-label="Oponente">
+                <p id="battle-opponent-name" class="battle-fighter-name">—</p>
+                <p id="battle-opponent-class" class="battle-fighter-class">—</p>
+                <div class="battle-hp-bar battle-hp-bar--enemy" role="progressbar" aria-label="HP do oponente">
+                  <div id="battle-opponent-hp-fill" class="battle-hp-bar__fill"></div>
+                </div>
+                <p id="battle-opponent-hp-text" class="battle-hp-text">— / —</p>
+                <div id="battle-opponent-status" class="battle-status-row status-container" aria-label="Status do oponente"></div>
+              </header>
+            </div>
 
-          <section class="panel combat-commands battle-actions-panel">
-            <h2>Habilidades</h2>
-            <div id="skill-palette-row" class="skill-palette" data-hud-skill-actions></div>
+            <div class="battle-arena" aria-label="Cenário de combate">
+              <div class="battle-arena__floor" aria-hidden="true"></div>
+              <div class="battle-arena__effects" data-battle-effects-layer aria-hidden="true"></div>
+              <div class="battle-arena__stage">
+                <div class="battle-platform battle-platform--ally" data-battle-platform="ally">
+                  <div class="battle-arena__ally-group">
+                    <div class="battle-ally-formation">
+                      <div id="battle-player-portrait" class="battle-portrait battle-portrait--player battle-fighter" data-side="player">
+                        <span class="battle-portrait__silhouette" aria-hidden="true"></span>
+                      </div>
+                      <div id="battle-pet-panel" class="battle-pet-fighter hidden" data-side="pet" aria-label="Companheiro">
+                        <div class="battle-pet-fighter__body">
+                          <canvas id="battle-pet-portrait" class="battle-pet-fighter__sprite" width="96" height="96" aria-hidden="true"></canvas>
+                        </div>
+                        <div class="battle-pet-fighter__vitals">
+                          <p id="battle-pet-name" class="battle-pet-fighter__name">—</p>
+                          <div class="battle-hp-bar battle-hp-bar--pet" role="progressbar" aria-label="HP do pet">
+                            <div id="battle-pet-hp-fill" class="battle-hp-bar__fill"></div>
+                          </div>
+                          <p id="battle-pet-hp-text" class="battle-hp-text battle-pet-fighter__hp">— / —</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p class="battle-vs-label" aria-hidden="true">VS</p>
+                <div class="battle-platform battle-platform--foe" data-battle-platform="foe">
+                  <div id="battle-opponent-portrait" class="battle-portrait battle-portrait--opponent battle-fighter" data-side="opponent">
+                    <span class="battle-portrait__silhouette" aria-hidden="true"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
 
-          <footer class="panel combat-footer">
-            <section class="combat-log battle-log-panel">
-              <h2>Log</h2>
-              <div id="battle-log-window" class="battle-log"></div>
+          <!-- MIDDLE: Barra de comandos -->
+          <section class="battle-command-middle" aria-label="Comandos">
+            <nav class="battle-command-bar">
+              <button type="button" class="battle-cmd-btn" data-battle-cmd="moveset">Moveset</button>
+              <button type="button" class="battle-cmd-btn" data-battle-cmd="items">Itens</button>
+              <button type="button" class="battle-cmd-btn" data-battle-cmd="skip">Pular</button>
+              <button type="button" class="battle-cmd-btn battle-cmd-btn--danger" data-battle-cmd="surrender" title="Fugir da batalha — penalidade −20 VOLTS">Render-se</button>
+            </nav>
+            <div id="skill-palette-row" class="skill-palette battle-skill-slots battle-moveset-drawer hidden" data-hud-skill-actions aria-label="Moveset"></div>
+            <div id="battle-items-row" class="skill-palette battle-items-drawer hidden" data-hud-battle-items aria-label="Consumíveis de combate"></div>
+          </section>
+
+          <!-- BOTTOM: BattleLog | BattleChat -->
+          <footer class="battle-terminal-footer">
+            <section class="battle-log-panel terminal-panel" aria-label="Battle Log">
+              <h2 class="battle-panel-title"><span class="terminal-prompt">&gt;</span> BATTLE_LOG</h2>
+              <div id="battle-log" class="battle-log battle-log--mono"></div>
             </section>
-            <section class="combat-chat" aria-label="Chat">
-              <h2>Chat</h2>
-              <p class="chat-placeholder">Canal global em breve.</p>
+            <section id="battle-chat" class="battle-chat-panel terminal-panel" aria-label="Battle Chat">
+              <h2 class="battle-panel-title"><span class="terminal-prompt">&gt;</span> BATTLE_CHAT</h2>
+              <div id="battle-chat-content" class="battle-chat-content"></div>
+              <form id="battle-chat-form" class="battle-chat-form">
+                <span class="terminal-prompt" aria-hidden="true">&gt;</span>
+                <input id="battle-chat-input" type="text" placeholder="msg..." maxlength="120" autocomplete="off" aria-label="Mensagem de batalha" />
+                <button type="submit" class="battle-chat-send">SEND</button>
+              </form>
             </section>
           </footer>
+        </div>
+      </div>
+
+      <div id="scene-transition" class="scene scene-transition loading-overlay hidden" aria-hidden="true" aria-label="Carregando">
+        <div class="scene-transition__inner">
+          <div class="scene-transition__spinner" aria-hidden="true"></div>
+          <p class="scene-transition__label">Carregando…</p>
+        </div>
+      </div>
+
+      <div id="pause-menu" class="hidden" aria-hidden="true">
+        <div class="pause-menu-panel vortex-panel">
+          <h2>PAUSA</h2>
+          <button id="btn-pause-settings" type="button">Configurações</button>
+          <button id="btn-pause-exit" type="button">Sair do Jogo</button>
         </div>
       </div>
     </div>
@@ -105,7 +265,8 @@
     <script type="importmap">
       {
         "imports": {
-          "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.106.2"
+          "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.106.2",
+          "gsap": "/vendor/gsap/index.js"
         }
       }
     </script>

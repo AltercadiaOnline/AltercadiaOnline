@@ -76,6 +76,129 @@ Não remover `deploy:check` do fluxo `deploy`. Não commitar `node_modules/`, `d
 - Event-driven; gateway autoritativo; cliente não calcula dano nem valida turno (usa `ui` do servidor).
 - `CombatGateway` + `CombatSession`; payload com `events`, `state`, `ui`.
 
+### Nomenclatura de moves na UI (padrão)
+
+- **Poder base: N** — valor do catálogo (`basePower`) que entra na fórmula do golpe. Usar em tooltips/HUD via `moveDisplayLabels.ts` + `formatMovePrimaryEffect`.
+- **Cura base: +N HP** — equivalente para heals (`formatMoveBaseHealLabel`).
+- **Proibido** em tooltips de move: `+N Dano`, `Dano: N` (confunde com dano final no alvo).
+- **Golpe / dano final** — reservado ao log de combate (`↳ Golpe X − Defesa Y → Z`). Testes: `moveTooltipContent.catalog.test.ts` + `moveDisplayLabels.test.ts`.
+
+---
+
+## Regra de ouro — WorldMap × BattleScreen
+
+**"A Estética é Contextual, a Estrutura é Global."**
+
+Esta regra governa toda lógica que cruza exploração (`WorldMap` / `ExplorationScene`) e combate (`BattleScreen`). Nunca violar ao implementar HUD, buffs, marcos, equip ou transições de cena.
+
+### Diferenciação visual (Frontend)
+
+- `WorldMap` e `BattleScreen` são **componentes de visualização distintos**.
+- Cada tela possui **sua própria** camada de estilo (CSS/Canvas), HUD, tema e disposição de elementos.
+- **WorldMap:** priorizar exploração e fluxo de movimentação.
+- **BattleScreen:** priorizar clareza de status e uso do Moveset.
+
+### Unificação estrutural (Backend / Model)
+
+- Embora a estética seja diferente, o **Model** (estado do jogador, coordenadas, buffs, passivas ativas, marcos, equip) é **único e persistente**.
+- O Model deve ser **agnóstico à View**: não sabe se o jogador está em WorldMap ou BattleScreen.
+- Toda ação em qualquer tela (ex.: ativar buff **Postura de Ferro**) **atualiza o estado central** para ficar disponível em qualquer tela ativa — nunca só na view que disparou a ação.
+
+### Protocolo de linkagem
+
+- Linkagem entre telas **somente** via **Events** ou **Service Handlers** (camada de back-end / stores autoritativos).
+- **Proibido:** componente visual de uma tela depender diretamente de outro (ex.: `BattleScreen` importar DOM/canvas do `WorldMap`, ou vice-versa).
+- Comunicação = **enviar e receber dados do estado global** (`GameStateManager`, stores, `EventBus`, WebSocket / gateway) — não acoplar views entre si.
+
+**Checklist rápido antes de merge:**
+
+1. A mudança altera estado central (servidor ou store compartilhado), não só a UI local?
+2. WorldMap e BattleScreen continuam independentes visualmente?
+3. Não há import direto entre componentes das duas telas?
+
+---
+
+## Design oficial — constantes inalteráveis (UI, mapa, renderização)
+
+**Fonte canônica:** `src/config/designConstants.ts` (`DESIGN_CONFIG`)
+
+```ts
+VIEWPORT: { WIDTH: 640, HEIGHT: 360 }
+TILE: { SIZE: 40 }
+PLAYER: { WIDTH: 35, HEIGHT: 54 }
+MAP: { MAX_TILES_WIDTH: 38, MAX_TILES_HEIGHT: 60 }
+```
+
+### Regras de ouro (design)
+
+1. **Renderização:** Qualquer cálculo de posição `(x, y)` deve considerar que o sprite do Player (**35×54**) é ancorado na **base** do tile (**40×40**).
+2. **Câmera:** `CameraManager` / `Camera` deve travar o limite exatamente em `MAP.MAX_TILES_WIDTH × TILE.SIZE` (**1520 px**) e `MAP.MAX_TILES_HEIGHT × TILE.SIZE` (**2400 px**).
+3. **Proporção:** **Nunca** alterar a resolução da tela (**640×360**) sem aprovação explícita — grid de combate e exploração estão ancorados nesses valores.
+
+**Antes de sugerir ou implementar mudança visual/mapa:** importar `DESIGN_CONFIG` (ou derivados `DESIGN_MAP_PIXEL_*`) e verificar conformidade. Não duplicar magic numbers fora de `designConstants.ts`.
+
+**Proibido:** alterar `VIEWPORT`, `TILE.SIZE`, `PLAYER` ou `MAP.MAX_TILES_*` em CSS/canvas/handlers sem atualizar `designConstants.ts` e obter aprovação explícita.
+
+### Refatoração de legado — estratégia "Fachada" (OBRIGATÓRIO)
+
+**Não converter o legado inteiro de uma vez** — migração em massa é proibida sem pedido explícito (alto risco de bugs).
+
+**Regra incremental:** ao tocar em qualquer arquivo que ainda use constantes antigas (ex.: `TILE_SIZE = 64` em `mapConstants.ts`, viewport/câmera legados), migrar **somente o escopo da alteração atual** para `DESIGN_CONFIG` importado de `src/config/designConstants.ts`.
+
+| Legado (evitar em código novo) | Canônico |
+|--------------------------------|----------|
+| `TILE_SIZE` / `64` hardcoded | `DESIGN_CONFIG.TILE.SIZE` |
+| limites de mapa ad-hoc | `DESIGN_MAP_PIXEL_WIDTH` / `DESIGN_MAP_PIXEL_HEIGHT` |
+| dimensões de player ad-hoc | `DESIGN_CONFIG.PLAYER` |
+| viewport ad-hoc | `DESIGN_CONFIG.VIEWPORT` |
+
+**Checklist ao editar arquivo legado:**
+
+1. A mudança exige alterar posição, tile, câmera ou viewport?
+2. Se sim → substituir imports locais/legados pelo equivalente em `designConstants.ts` **naquele arquivo**, sem refatorar módulos não relacionados.
+3. Não abrir PRs só de "limpeza total" de constantes — migração orgânica, arquivo por arquivo, quando houver motivo real.
+
+**Estado atual do projeto (âncoras estáveis):**
+
+- **Arquitetura:** Gateways e Transações estáveis.
+- **Design:** `designConstants.ts` + regras neste arquivo — fonte da verdade visual.
+- **Estado:** `GlobalStateSynchronizer` unificado — cliente autoritativo espelha servidor.
+
+---
+
+## Recompensas PVE — XP automático vs Loot opt-in
+
+**Decisão fechada (produto):**
+
+| Canal | Quando aplica | Perde se sair sem ação? |
+|-------|---------------|-------------------------|
+| **XP / progressão** | Automático na vitória PVE | Não — já entrou no perfil |
+| **Loot (cassino)** | Só após Coletar | Sim — `dismissBattleLootOnServer` |
+| **Loot vazio (4 slots)** | Botão **Recompensas** sempre visível na vitória PVE | Abre cassino mesmo vazio — animação + “Nenhum drop desta vez” |
+
+**Módulo canônico:** `src/shared/progression/battleProgressionGrant.ts`
+
+- Pool total PVE: `resolveBattleXpGain` (`battleXpRewards.ts`)
+- Split automático: ~60% nível do personagem, ~40% domínio de moves usados na luta
+- `milestoneTotalProgress`: +1 por vitória PVE (desbloqueio lento da árvore)
+- **Marcos (habilidades):** trilha separada via triggers de combate (`marcoProgressEngine`) — não misturar com loot
+- **Nunca** calcular XP no cliente; espelhar payload do servidor
+- **Nunca** passar progressão pelo `economyGateway` (economia = itens/moeda)
+
+Implementação pendente: aplicar grant no fim da batalha (servidor → stores cliente), separado do fluxo `BATTLE_LOOT_PACKAGE`.
+
+---
+
+## Persistência MVP Online
+
+**Modo file (`PERSISTENCE_MODE=file`):** `src/server/persistence/` + schema `src/shared/persistence/characterPersistenceRecord.ts`
+
+- Gateway único: `PersistenceGateway.ts` (load/save personagem + loot pendente)
+- I/O atômico: `DatabaseUtils.ts` (temp + rename — substituível por SQL)
+- Login: `hydrateCharacterSession` → seed só se personagem novo → `full-state-sync`
+- Mutar economia: continua só via `economyGateway`; persistência grava após eventos
+- Guia QA: `docs/MVP-ONLINE-TEST.md`
+
 ---
 
 ## Regras de Desenvolvimento do MMO (Server-Authoritative)
@@ -85,6 +208,75 @@ Não remover `deploy:check` do fluxo `deploy`. Não commitar `node_modules/`, `d
 3. **Comunicação:** O front-end envia eventos (ex: `emit('move', {x, y})`) e o servidor valida e responde (ex: `emit('update', {pos})`).
 4. **Estado:** O estado do jogo deve ser gerenciado no servidor. O cliente apenas desenha o que o servidor autoriza.
 5. **Simplicidade Visual:** Ao criar novos elementos visuais (telas, UI), mantenha a estrutura de `components` e `services`, garantindo que a lógica de "como" a tela funciona esteja desacoplada do "quê" a tela desenha.
+
+---
+
+## Regra de Tempo (TimeManager / ciclo dia-noite)
+
+**Regra de Tempo:** O ciclo de dia/noite é um estado global gerido pelo servidor. O servidor deve enviar o `gameTime` como parte de todo `initialState` ou snapshot. O cliente é proibido de possuir uma lógica de tempo própria; ele deve sempre derivar a iluminação visual baseada no `gameTime` recebido do servidor para garantir que todos os jogadores estejam no mesmo fuso horário do jogo.
+
+- Autoridade: `src/server/TimeManager.ts` — única fonte do relógio do mundo.
+- Sync: `gameTime` + âncora temporal (`serverTimeMs` / `gameTimeServerMs`) em `full-state-sync` e ticks `state-sync`.
+- Cliente: `gameTimeStore` + `AmbientOverlay` apenas interpolam/exibem o valor recebido — **nunca** avançam o relógio localmente.
+- **Proibido:** timers próprios de dia/noite no front, `Date.now()` como relógio de mundo, ou canal WebSocket dedicado só para tempo (usar o sync de estado existente).
+
+---
+
+## Regra de Economia Autoritativa
+
+**Regra de Economia Autoritativa:** O preço de qualquer item deve ser calculado estritamente no servidor. O cliente nunca calcula o valor da transação, ele apenas exibe o valor retornado pelo servidor em um `price-check-response`. Se o valor for inconsistente, o `ActionGatewayButton` deve disparar um erro de integridade.
+
+- Autoridade: cálculo de preços no servidor (`ShopManager`, handlers de intent/transação, `economyGateway`) — margens, taxas e totais **nunca** no front.
+- Cliente: UI de loja/marketplace só renderiza cotações do `price-check-response` ou snapshot autoritativo — **proibido** `calculateTradePrice`, multiplicadores ou totais locais para confirmar compra/venda.
+- Integridade: antes de confirmar transação, comparar preço exibido com o `price-check-response`; divergência → bloquear ação + erro de integridade via `ActionGatewayButton` / `alertSystem` (não prosseguir com intent).
+- **Proibido:** `VendorShopPanel`, `LaboratoryShopPanel`, `MarketPanel` ou helpers do cliente derivarem preço final; usar apenas para formatação/labels do valor já autorizado.
+
+---
+
+## Gateway Online Ready (OBRIGATÓRIO)
+
+Toda nova funcionalidade que envolver interação cliente ↔ servidor (mensagens, ações, inventário, economia, mundo, pets, combate, etc.) **deve** seguir este padrão. Não criar atalhos locais, handlers inline no Hub, nem mutação de estado no cliente.
+
+### 1. Protocolo de comunicação (Intent)
+
+- Toda ação iniciada pelo usuário usa o padrão **Intent** com **`intentId` único** por disparo.
+- Contratos canônicos: `src/shared/intent/clientIntent.ts` (`ClientIntent<T>`) e `src/shared/intent/intentProtocol.ts` (`IntentResult`).
+- Cliente envia via `ActionDispatcher` (`src/client/ActionDispatcher.ts`) → WebSocket `player-intent`.
+- Servidor responde com mensagem única **`intent-result`**: `{ intentId, success, error? }`.
+- Anti-replay: `timestamp` obrigatório; validado em `src/server/network/intentReplayGuard.ts`.
+- **Proibido:** mensagens ad-hoc sem `intentId`, reutilizar `intentId`, ou confirmar ação só no cliente.
+
+### 2. Estrutura de handlers (servidor)
+
+- Toda nova funcionalidade = **classe `IntentHandler` isolada** em `src/server/handlers/` (subpastas: `economy/`, `world/`, `pets/`, `combat/`, …).
+- Herdar de **`BaseIntentHandler`** (`src/server/network/BaseIntentHandler.ts`).
+- Registrar em `src/server/handlers/bootstrapHandlers.ts` / `intentHandlerRegistry`.
+- Roteamento central: `src/server/network/ActionDispatcher.ts` + `intentOrchestrator.ts`.
+- Handlers legados em `src/server/transactions/` só como ponte temporária — novas features **não** vão para lá.
+- Economia (itens, moedas, inventário): mutação **somente** via `economyGateway` dentro do handler, em transação atômica (`DatabaseUtils.executeTransaction`).
+
+### 3. Estado de UI (cliente — pending / loading)
+
+- Enquanto `intentId` estiver pendente em **`PendingIntentRegistry`** (`src/client/sync/pendingIntentRegistry.ts`), o botão de disparo **deve** ficar **disabled** com feedback visual de loading (`aria-busy`, label de aguardo).
+- Usar **`ActionGatewayButton`** / **`ActionGatewayButtonController`** (`src/client/ui/components/ActionGatewayButton.ts`) — não reinventar flags manuais (`healPending`, `setActionButtonsLocked`, etc.).
+- Consulta de estado: `isPending(intentId)` no registry (ou `getUIIntentStore().isPending()`).
+- Painéis com `innerHTML`: vincular em `afterRender()` com `ActionGatewayButtonController.attach()`.
+- Timeout de liberação: `PENDING_INTENT_TIMEOUT_MS` no `ActionDispatcher` — a UI deve reabilitar quando o registry resolver/rejeitar.
+
+### 4. Segurança e autoridade
+
+- **Nunca** processar lógica de jogo no cliente: posições finais, moedas, itens, XP, loot, validação de inventário, preços, cooldowns.
+- Cliente = espelho: exibe snapshots do servidor (`full-state-sync`, economy ack, `state-sync` tick) e emite **apenas intenções**.
+- Cliente **não** acessa banco de dados nem stores autoritativos do servidor.
+- Movimento em exploração online: fast-lane `MOVE_INTENT` (sem pending de botão), mas ainda com validação server-side — exceção documentada, não modelo para ações econômicas/sociais.
+
+### Checklist antes de merge (Gateway)
+
+1. Ação nova tem `intentId` + handler em `src/server/handlers/` herdando `BaseIntentHandler`?
+2. Resposta do servidor passa por `intent-result` com o mesmo `intentId`?
+3. Botão/ação de UI usa `ActionGatewayButton` + `PendingIntentRegistry`?
+4. Nenhuma mutação de item/moeda/posição no cliente além de espelhar snapshot?
+5. Economia passou por `economyGateway` em transação atômica?
 
 ---
 

@@ -1,59 +1,186 @@
-import type { CombatUiHints } from '../../shared/combatWire.js';
 import type { CombatState } from '../../shared/types.js';
 import { createCombatSocketHandler } from '../hud/combatSocketHandler.js';
-import { configureCombatClient, GameClient, initBattleHud } from '../hud/index.js';
-import { generateMapData, MapManager } from '../MapManager.js';
-import { createMockWorldSocket } from '../services/mockWorldSocket.js';
+import { InputHandler } from '../inputHandler.js';
+import { applyEconomyEventToHud, isEconomyEvent } from '../hud/economyHud.js';
+import { configureSpawnMirrorPlayer } from '../dev/spawnMirrorPlayer.js';
+import {
+  configureMirrorPlayerClient,
+  notifyMirrorPlayerDispatch,
+} from '../combat/MirrorPlayerController.js';
+import { configureCombatClient, GameClient, initBattleHud, registerActiveBattleId } from '../hud/index.js';
+import { configureBattleLootClient } from '../game/battleLootClient.js';
+import { resolveClientCombatEquipmentSnapshot } from '../combat/resolveClientCombatEquipment.js';
+import { initCombatEquipmentBridge } from '../combat/combatEquipmentBridge.js';
+import { registerPlayerHonorSender } from '../ui/battle/playerHonorClient.js';
+import { applyPlayerHonorResult } from '../ui/battle/PlayerHonorCard.js';
+import { setOpponentHonorCount } from '../ui/battle/postBattleHonorContext.js';
+import { isPlayerHonorResultPayload } from '../../shared/combat/playerHonorTypes.js';
+import { isBattleEndedPayload } from '../../shared/combat/battleEnded.js';
+import { isBattleLootPackagePayload } from '../../shared/combat/battleLootPackage.js';
+import { captureBattleLootPackage } from '../hud/battleLootPackageBuffer.js';
+import { getPlayerPetStore, initPlayerPetStore } from '../ui/pet/playerPetStore.js';
+import { canPetEnterBattle } from '../../shared/pet/petModel.js';
+import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
+import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
+import { bootstrapEmptyPlayerItems, bootstrapMvpPlayerItems } from '../game/PlayerItemSession.js';
+import { attachOnlineEconomyLayer, attachOfflineEconomyLayer, getDataStore } from '../economy/economyLayer.js';
+import { requestReturnToExploration } from '../game/battleReturnToWorld.js';
+import {
+  initGameStateProvider,
+  startBattle,
+  enterBattleFromServer,
+  getGameStateManager,
+  resetGameStateManager,
+} from '../game/GameStateProvider.js';
+import { MapManager } from '../managers/mapManager.js';
+import { type MockWorldSocket } from '../services/mockWorldSocket.js';
 import type { WorldSocket } from '../world/WorldSocket.js';
+import {
+  createAuthoritativeWorldSocket,
+  isAuthoritativeWorldSocket,
+} from '../world/authoritativeWorldSocket.js';
+import { DEFAULT_MAP_ID } from '../../shared/world/mapRegistry.js';
+import { getZoneTransitionController } from '../world/zoneTransitionController.js';
+import { getGameRenderLoop, resetGameRenderLoop } from '../render/GameRenderLoop.js';
+import { resetWorldMovementAuthority } from '../world/worldMovementAuthority.js';
 import { showScreen } from '../navigation.js';
 import { ExplorationScene } from '../scenes/Exploration.js';
 import { setupLoginScreen } from '../services/loginScreen.js';
+import {
+  hidePauseMenu,
+  setWorldSessionActive,
+  setupPauseMenu,
+} from '../components/pauseMenu.js';
+import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
 import { AppScreens } from './appScreens.js';
-import { createBrowserCombatSocket, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
-import { SceneManager } from './sceneManager.js';
+import { createBrowserCombatSocket, connectionPhaseLabel, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
+import { mountWorldMapScene, SceneManager, resetWorldMapSceneMount } from './sceneManager.js';
+import { initGameRoot } from './GameRoot.js';
+import {
+  destroyUiLayer,
+  getPlayerEquipmentStore,
+  getPlayerInventoryStore,
+  getPlayerProfileStore,
+  getPlayerWalletStore,
+  getUiManager,
+  initEquipmentSidebar,
+  initPlayerWalletStore,
+  initSidebarMinimap,
+  initSidebarWallet,
+  initUiLayer,
+  removeLegacyTopLogOverlay,
+} from '../ui/index.js';
+import { handleInboundLogService, initLogServiceUi } from '../ui/logService.js';
+import {
+  bindBankTransactionSocket,
+  setBankTransactionCharacterId,
+  setBankTransactionPositionProvider,
+} from '../economy/bankTransactionClient.js';
+import {
+  bindRefractionBoothSocket,
+  setRefractionBoothCredentials,
+} from '../cityMinigames/refractionBoothClient.js';
+import { bindEconomyExchangeSocket } from '../economy/walletExchangeClient.js';
+import { getActionDispatcher } from '../ActionDispatcher.js';
+import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
+import { getMutableDataStore, initDataStore } from '../PlayerDataStore.js';
+import {
+  handleIntentFailedPayload,
+  handleIntentResultPayload,
+  handleIntentSuccessPayload,
+} from '../intent/intentAckClient.js';
+import { pendingIntentToWire } from '../../shared/intent/clientIntent.js';
+import { PositionGateway } from '../world/PositionGateway.js';
+import { initGlobalChatController } from '../world/globalChatController.js';
+import { resetSpeechBubbleManager } from '../world/speech/SpeechBubbleManager.js';
+import {
+  isWorldSessionReady,
+  resetWorldSessionGate,
+  setWorldSessionReady,
+} from '../world/worldSessionGate.js';
+import {
+  beginWorldChroniclesSession,
+  bindWorldLoreWsTransport,
+  clearWorldLoreWsTransport,
+  markWorldChroniclesSessionEnd,
+} from '../services/worldLoreClient.js';
+import type { WorldChroniclesRequest } from '../../shared/world/worldLoreTypes.js';
+import type { WorldLoginResult } from '../../shared/world/playerWorldProfile.js';
+import type { AuthUser } from '../../shared/authService.js';
+import { mountAmbientOverlay } from '../ui/ambient/AmbientOverlay.js';
+import { isLocalDevHost } from '../auth/localDevAuth.js';
+import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
+import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 
-let mapManager: MapManager;
-let worldSocket: WorldSocket;
-let world: ExplorationScene;
+/** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
+export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
+
+let mapManager: MapManager | null = null;
+let worldSocket: WorldSocket | null = null;
+let world: ExplorationScene | null = null;
 let socket: BrowserCombatSocket | null = null;
+let positionGateway: PositionGateway | null = null;
+let teardownGlobalChat: (() => void) | null = null;
 let worldStarted = false;
 let gameLoopStarted = false;
+let onWorldResize: (() => void) | null = null;
+let teardownGameState: (() => void) | null = null;
+let teardownGameRoot: (() => void) | null = null;
+let teardownLightOverlay: (() => void) | null = null;
 
-function gameLoop(): void {
-  if (worldStarted && !document.getElementById('scene-exploration')?.classList.contains('hidden')) {
-    world.update();
-    world.prepareFrame();
-    mapManager.render(world.ctx, world.camera.x, world.camera.y);
-    world.drawPlayer();
-  }
-  requestAnimationFrame(gameLoop);
+type ViewportProbe = {
+  readonly state: () => Record<string, unknown> | null;
+  readonly loadFarmZone: () => void;
+  readonly teleportTile: (tileX: number, tileY: number) => void;
+  readonly resizeProbe: () => void;
+};
+
+function mountLocalViewportProbe(activeWorld: ExplorationScene): void {
+  if (!isLocalDevHost() || !mapManager) return;
+
+  const probe: ViewportProbe = {
+    state: () => {
+      if (!mapManager) return null;
+      const snap = activeWorld.captureExplorationSnapshot();
+      const maxX = DESIGN_CONFIG.MAP.MAX_TILES_WIDTH * DESIGN_CONFIG.TILE.SIZE - DESIGN_CONFIG.VIEWPORT.WIDTH;
+      const maxY = DESIGN_CONFIG.MAP.MAX_TILES_HEIGHT * DESIGN_CONFIG.TILE.SIZE - DESIGN_CONFIG.VIEWPORT.HEIGHT;
+      return {
+        mapId: snap.mapId,
+        player: { x: snap.x, y: snap.y },
+        camera: {
+          x: activeWorld.camera.x,
+          y: activeWorld.camera.y,
+          viewW: activeWorld.camera.visibleWorldWidth,
+          viewH: activeWorld.camera.visibleWorldHeight,
+        },
+        clampLimits: { maxX, maxY },
+      };
+    },
+    loadFarmZone: () => {
+      if (!mapManager) return;
+      const spawn = tileCenterToWorldPixel(18, 30);
+      mapManager.loadMap(FARM_ZONE_01_ID, { x: spawn.x, y: spawn.y, facing: 'south' });
+      activeWorld.prepareFrame(0);
+      activeWorld.renderWorld(performance.now());
+    },
+    teleportTile: (tileX, tileY) => {
+      if (!mapManager) return;
+      const pos = tileCenterToWorldPixel(tileX, tileY);
+      mapManager.loadMap(mapManager.currentMapId, { x: pos.x, y: pos.y, facing: 'south' });
+      activeWorld.prepareFrame(0);
+      activeWorld.renderWorld(performance.now());
+    },
+    resizeProbe: () => {
+      activeWorld.applyFixedViewport();
+    },
+  };
+
+  (globalThis as typeof globalThis & { __altercadiaViewportProbe?: ViewportProbe }).__altercadiaViewportProbe = probe;
 }
 
-function bootstrapHpBars(state: CombatState): void {
-  const container = document.getElementById('hp-bars');
-  if (!container) return;
-
-  for (const [id, combatant] of Object.entries(state.combatants)) {
-    if (container.querySelector(`[data-hp-for="${id}"]`)) continue;
-
-    const row = document.createElement('div');
-    row.className = 'hp-row';
-
-    const label = document.createElement('span');
-    label.className = 'hp-label';
-    label.textContent = combatant.name;
-
-    const track = document.createElement('div');
-    track.className = 'hp-track';
-
-    const fill = document.createElement('div');
-    fill.className = 'hp-fill';
-    fill.setAttribute('data-hp-for', id);
-
-    track.appendChild(fill);
-    row.append(label, track);
-    container.appendChild(row);
-  }
+function bootstrapHpBars(_state: CombatState): void {
+  /* HP renderizado pela BattleScreen (Fire Emblem HUD). */
 }
 
 function wsUrlFromLocation(): string {
@@ -63,43 +190,312 @@ function wsUrlFromLocation(): string {
 
 function setStatus(text: string): void {
   const statusEl = document.getElementById('connection-status');
-  const explorationStatusEl = document.getElementById('exploration-status');
   if (statusEl) statusEl.textContent = text;
-  if (explorationStatusEl) explorationStatusEl.textContent = text;
+}
+
+function isWorldLoginResult(raw: unknown): raw is WorldLoginResult {
+  if (!raw || typeof raw !== 'object') return false;
+  const record = raw as Record<string, unknown>;
+  if (record.ok !== true) return false;
+  if (typeof record.currentMapId !== 'string') return false;
+  const pos = record.lastPosition;
+  if (!pos || typeof pos !== 'object') return false;
+  const position = pos as Record<string, unknown>;
+  if (typeof position.x !== 'number' || typeof position.y !== 'number') return false;
+  return typeof record.facing === 'string';
+}
+
+function setExplorationOnlineMode(enabled: boolean): void {
+  if (!isAuthoritativeWorldSocket(worldSocket)) return;
+  if (enabled) {
+    worldSocket.setOnlineMode(true, {
+      onMove: (movePayload) => {
+        getActionDispatcher().dispatchMoveIntent(movePayload);
+      },
+      onRotate: (rotatePayload) => {
+        getActionDispatcher().dispatchRotateIntent(rotatePayload);
+      },
+    });
+    return;
+  }
+  worldSocket.setOnlineMode(false);
+}
+
+function wirePortalTransitionBridge(): void {
+  if (!world) return;
+
+  world.setPositionFlushBeforePortal(() => {
+    if (getGameStateManager().isExploration()) {
+      positionGateway?.flush('heartbeat');
+    }
+  });
+
+  const useRemote = socket !== null && socket.readyState === 1;
+  world.configurePortalTransitionRemote(
+    useRemote
+      ? (request) => {
+          socket?.send('portal-transition-request', request);
+        }
+      : undefined,
+  );
+}
+
+function bootstrapLocalWorldSession(): void {
+  if (isWorldSessionReady() || !worldStarted || !world || !worldSocket) return;
+
+  const mock = worldSocket as MockWorldSocket;
+  if (typeof mock.getPlayerSnapshot !== 'function') return;
+
+  const snap = mock.getPlayerSnapshot();
+  handleWorldLoginResult({
+    ok: true,
+    currentMapId: snap.mapId,
+    lastPosition: { x: snap.x, y: snap.y },
+    facing: snap.facing,
+  });
+  setStatus('Explorando (sessão local)');
+}
+
+function syncRefractionBoothCredentials(): void {
+  const session = AppScreens.currentSession;
+  const character = AppScreens.getSelectedCharacter();
+  if (!session || !character) {
+    setRefractionBoothCredentials(null);
+    return;
+  }
+  setRefractionBoothCredentials({
+    playerId: session.id,
+    characterId: character.id,
+    displayName: character.name,
+  });
+}
+
+function handleWorldLoginResult(raw: unknown): void {
+  if (!isWorldLoginResult(raw)) {
+    setStatus('Falha ao sincronizar posição do mundo.');
+    bootstrapLocalWorldSession();
+    return;
+  }
+
+  initDataStore();
+  getMutableDataStore().applyWorldSpawnFromServer({
+    currentMapId: raw.currentMapId,
+    lastPosition: raw.lastPosition,
+    facing: raw.facing,
+  });
+
+  if (isAuthoritativeWorldSocket(worldSocket)) {
+    worldSocket.seedPredictedPosition(raw.lastPosition);
+    worldSocket.applyServerWorldState({
+      currentMapId: raw.currentMapId,
+      lastPosition: raw.lastPosition,
+      facing: raw.facing,
+    });
+  }
+
+  world?.applyServerWorldSpawn(raw);
+  const character = AppScreens.getSelectedCharacter();
+  if (character) {
+    setBankTransactionCharacterId(character.id);
+  }
+  syncRefractionBoothCredentials();
+  setWorldSessionReady(true);
+  world?.setPaused(false);
+  positionGateway?.startHeartbeat();
+  setStatus('Conectado');
 }
 
 function connectSocket(): void {
-  if (socket) return;
+  if (socket) {
+    positionGateway?.bindSocket(socket);
+    return;
+  }
 
-  socket = createBrowserCombatSocket(wsUrlFromLocation());
+  const synchronizer = getGlobalStateSynchronizer();
+
+  socket = createBrowserCombatSocket(wsUrlFromLocation(), {
+    onReconnect: () => {
+      synchronizer.onReconnect();
+    },
+  });
+  positionGateway?.bindSocket(socket);
+  bindEconomyExchangeSocket(socket);
+  bindBankTransactionSocket(socket);
+  bindRefractionBoothSocket(socket);
+
+  synchronizer.bindSocket(socket);
+  synchronizer.setRequestTransport(() => {
+    const selected = AppScreens.getSelectedCharacter();
+    const characterId = selected?.id ?? 1;
+    synchronizer.setCharacterId(characterId);
+    socket?.send('request-full-state', { characterId });
+  });
+
+  socket.onPhaseChange((phase) => {
+    if (phase === 'connected') {
+      setStatus('Conectado — sincronizando…');
+      return;
+    }
+    setStatus(connectionPhaseLabel(phase));
+  });
+  const dispatcher = getActionDispatcher();
+  dispatcher.setIntentTransport((intent) => {
+    socket?.send('player-intent', pendingIntentToWire(intent));
+  });
 
   configureCombatClient({
     emitAction: (action) => socket?.send('combat-action', action),
+    emitForfeit: (battleId) => {
+      socket?.send('combat-forfeit', { battleId });
+    },
+    onBattleEnded: () => {
+      void requestReturnToExploration({ victory: false });
+    },
+  });
+  configureSpawnMirrorPlayer(() => {
+    socket?.send('dev-spawn-mirror-player', {});
+  });
+  configureMirrorPlayerClient((action) => {
+    socket?.send('mirror-combat-action', action);
+  });
+  configureBattleLootClient(socket);
+  registerPlayerHonorSender((payload) => {
+    socket?.send('player-honor-given', payload);
   });
 
-  const bridge = {
-    consumeCombatEvents: GameClient.consumeCombatEvents.bind(GameClient),
-    renderState: (state: CombatState, ui: CombatUiHints) => {
-      bootstrapHpBars(state);
-      GameClient.renderState(state, ui);
+  socket.on('player-honor-result', (raw) => {
+    if (!isPlayerHonorResultPayload(raw) || !raw.ok) return;
+    setOpponentHonorCount(raw.honorCount);
+    applyPlayerHonorResult(raw.battleId, raw.recipientActorId, raw.honorCount);
+  });
+
+  socket.on('combat-event', createCombatSocketHandler({
+    handleCombatDispatch: (payload) => {
+      bootstrapHpBars(payload.state);
+      GameClient.handleCombatDispatch(payload);
+      notifyMirrorPlayerDispatch(payload);
     },
-  };
+  }));
 
-  socket.on('combat-event', createCombatSocketHandler(bridge));
+  socket.on('BATTLE_ENDED', (raw) => {
+    console.log('DEBUG: Evento recebido em main.ts (WebSocket BATTLE_ENDED)');
+    InputHandler.resetKeys();
+    if (isBattleEndedPayload(raw)) {
+      GameClient.handleBattleEnded(raw);
+    }
+  });
 
-  socket.on('START_COMBAT', () => {
-    SceneManager.showCombat();
-    setStatus('Combate iniciado…');
+  socket.on('BATTLE_LOOT_PACKAGE', (raw) => {
+    if (isBattleLootPackagePayload(raw)) {
+      captureBattleLootPackage(raw);
+    }
+  });
+
+  socket.on('log-service', (raw) => {
+    handleInboundLogService(raw);
+  });
+
+  socket.on('START_COMBAT', (raw) => {
+    if (raw && typeof raw === 'object' && typeof (raw as { battleId?: unknown }).battleId === 'string') {
+      registerActiveBattleId((raw as { battleId: string }).battleId);
+    }
+    positionGateway?.stopHeartbeat();
+    InputHandler.resetKeys();
+    void enterBattleFromServer().then(() => setStatus('Combate iniciado…'));
+  });
+
+  socket.on('world-login-result', handleWorldLoginResult);
+
+  socket.on('portal-transition-ready', (raw) => {
+    if (!raw || typeof raw !== 'object') return;
+    const payload = raw as import('../../shared/world/zoneTransition.js').PortalTransitionReadyPayload;
+    if (typeof payload.requestId !== 'string' || typeof payload.mapId !== 'string') return;
+    getZoneTransitionController()?.handleServerReady(payload);
+  });
+
+  socket.on('portal-transition-failed', (raw) => {
+    if (!raw || typeof raw !== 'object') return;
+    const payload = raw as import('../../shared/world/zoneTransition.js').PortalTransitionFailedPayload;
+    if (typeof payload.requestId !== 'string') return;
+    getZoneTransitionController()?.handleServerFailed(payload);
+  });
+
+  socket.on('world-chronicles-result', (raw) => {
+    if (raw && typeof raw === 'object') {
+      window.dispatchEvent(new CustomEvent('altercadia:world-chronicles-result', { detail: raw }));
+    }
+  });
+
+  bindWorldLoreWsTransport(
+    (request: WorldChroniclesRequest) => {
+      socket?.send('world-chronicles-request', request);
+    },
+    (handler) => {
+      const listener = (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        if (detail && typeof detail === 'object') {
+          handler(detail as import('../../shared/world/worldLoreTypes.js').WorldChroniclesSnapshot);
+        }
+      };
+      window.addEventListener('altercadia:world-chronicles-result', listener);
+      return () => window.removeEventListener('altercadia:world-chronicles-result', listener);
+    },
+  );
+
+  socket.on('economy-event', (raw) => {
+    if (isEconomyEvent(raw)) {
+      applyEconomyEventToHud(raw);
+    }
+  });
+
+  socket.on('intent-result', handleIntentResultPayload);
+  socket.on('intent-failed', handleIntentFailedPayload);
+  socket.on('intent-success', handleIntentSuccessPayload);
+
+  socket.on('state-sync', (raw) => {
+    const result = synchronizer.applyStateSync(raw);
+    if (result === 'discard_stale') {
+      console.debug('[Sync] Pacote SYNC descartado (atrasado).');
+    }
+  });
+
+  socket.on('full-state-sync', (raw) => {
+    synchronizer.applyLegacyFullState(raw);
   });
 
   socket.onOpen(() => {
-    setStatus('Conectado — explorando Altercadia…');
+    attachOnlineEconomyLayer();
+    setExplorationOnlineMode(true);
+    setStatus('Conectado — sincronizando posição…');
+    if (!world) return;
+    world.setCombatJoinHandler((monsterId) => {
+      void startBattle(monsterId);
+    });
+    wirePortalTransitionBridge();
+    positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
   });
 
-  socket.onError((message) => setStatus(message));
+  socket.onError((message) => {
+    if (socket?.getConnectionPhase() === 'reconnecting') {
+      setStatus('Reconectando…');
+      return;
+    }
+    attachOfflineEconomyLayer();
+    setExplorationOnlineMode(false);
+    setStatus(message);
+    bootstrapLocalWorldSession();
+  });
   socket.onClose((message) => {
+    if (socket?.getConnectionPhase() === 'reconnecting') {
+      setStatus('Reconectando…');
+      return;
+    }
+    attachOfflineEconomyLayer();
+    setExplorationOnlineMode(false);
     setStatus(message);
     SceneManager.showExploration();
+    wirePortalTransitionBridge();
+    bootstrapLocalWorldSession();
   });
 
   setStatus('Conectando…');
@@ -107,39 +503,288 @@ function connectSocket(): void {
 
 function enterWorld(): void {
   if (worldStarted) return;
-  worldStarted = true;
 
+  resetWorldSessionGate();
+  mountWorldMapScene();
   AppScreens.showGameWorld();
 
-  const mapData = generateMapData();
-  mapManager = new MapManager(mapData);
-  worldSocket = createMockWorldSocket(mapData);
+  try {
+  initUiLayer(document);
+  teardownLightOverlay?.();
+  teardownLightOverlay = mountAmbientOverlay().destroy;
+  removeLegacyTopLogOverlay();
+  initLogServiceUi();
+  initEquipmentSidebar();
+  initSidebarMinimap();
+  initSidebarWallet();
+  initGlobalPlayerStore();
+  initPlayerWalletStore();
+  initPlayerPetStore();
+
+  const selected = AppScreens.getSelectedCharacter();
+  const equipmentStore = getPlayerEquipmentStore();
+  const profileStore = getPlayerProfileStore();
+  if (selected) {
+    profileStore.setProfile(selected.name, selected.level);
+    equipmentStore.setPlayerInfo(selected.name, selected.level, {
+      resetVitals: true,
+      classId: selected.class,
+    });
+    loadSelectedCharacterAppearance();
+  } else {
+    profileStore.setProfile('Operative', 1);
+    equipmentStore.setPlayerInfo('Operative', 1, { resetVitals: true });
+  }
+  if (AppScreens.currentSession) {
+    bootstrapEmptyPlayerItems();
+  } else {
+    bootstrapMvpPlayerItems();
+  }
+  getGlobalPlayerStore().applyClassMoveset(equipmentStore.getSnapshot().classId);
+  initPlayerHudHpMaxSync();
+  initCombatEquipmentBridge();
+
+  mapManager = new MapManager(DEFAULT_MAP_ID);
+  worldSocket = createAuthoritativeWorldSocket(DEFAULT_MAP_ID);
   world = new ExplorationScene(mapManager, worldSocket);
-  window.addEventListener('resize', () => world.resize());
+  const activeWorld = world;
+  activeWorld.resize();
+  setBankTransactionPositionProvider(() => {
+    const snap = activeWorld.captureExplorationSnapshot();
+    return { x: snap.x, y: snap.y };
+  });
+  if (selected) {
+    activeWorld.setPlayerDisplayName(selected.name);
+    activeWorld.setPlayerLevel(selected.level);
+    activeWorld.setWorldIdentity(
+      AppScreens.currentSession?.id ?? 'local-player',
+      selected.id,
+    );
+    setBankTransactionCharacterId(selected.id);
+  } else {
+    activeWorld.setWorldIdentity('local-player', 1);
+  }
+  syncRefractionBoothCredentials();
+
+  teardownGlobalChat?.();
+  teardownGlobalChat = initGlobalChatController({
+    getSocket: () => socket,
+    getCredentials: () => {
+      const session = AppScreens.currentSession;
+      const character = AppScreens.getSelectedCharacter();
+      if (!session || !character) return null;
+      return {
+        playerId: session.id,
+        characterId: character.id,
+        displayName: character.name,
+      };
+    },
+    getWorld: () => activeWorld,
+  });
+
+  positionGateway = new PositionGateway({
+    socket: null,
+    getCredentials: () => {
+      const session = AppScreens.currentSession;
+      const character = AppScreens.getSelectedCharacter();
+      if (!session || !character) return null;
+      return {
+        playerId: session.id,
+        characterId: character.id,
+        displayName: character.name,
+      };
+    },
+    captureSnapshot: () => activeWorld.captureExplorationSnapshot(),
+    isExploration: () => getGameStateManager().isExploration(),
+  });
+
+  teardownGameState?.();
+  teardownGameState = initGameStateProvider({
+    onPauseExploration: () => {
+      positionGateway?.stopHeartbeat();
+      activeWorld.setPaused(true);
+    },
+    onResumeExploration: (snapshot) => {
+      if (snapshot) {
+        activeWorld.restoreExplorationSnapshot(snapshot);
+      }
+      activeWorld.setPaused(false);
+    },
+    onEnterExplorationVisual: () => {
+      activeWorld?.setPaused(false);
+    },
+    captureExplorationSnapshot: () => activeWorld.captureExplorationSnapshot(),
+    requestCombatJoin: (encounter) => {
+      const selected = AppScreens.getSelectedCharacter();
+      const vitals = getGlobalPlayerStore().getWorldVitals();
+      const marcos = getDataStore().getMarcosState();
+      const pet = getPlayerPetStore().getSnapshot();
+      const equipmentSnapshot = resolveClientCombatEquipmentSnapshot();
+      socket?.send('combat-join', {
+        displayName: selected?.name,
+        classId: selected?.class ?? getPlayerEquipmentStore().getSnapshot().classId,
+        activeMovesets: [...getGlobalPlayerStore().getConfirmedLoadout()],
+        monsterInstanceId: encounter.monsterId,
+        worldVitals: vitals,
+        equipmentSnapshot: { ...equipmentSnapshot },
+        marcoDominance: {
+          activeMarcos: [...marcos.activeMarcos],
+          nodeProgression: marcos.nodeProgression,
+        },
+        ...(pet && canPetEnterBattle(pet) ? { pet } : {}),
+      });
+    },
+  });
+
+  teardownGameRoot?.();
+  teardownGameRoot = initGameRoot(document.getElementById('game-container') ?? document);
+
+
+  onWorldResize = () => activeWorld.applyFixedViewport();
+  window.addEventListener('resize', onWorldResize);
 
   if (!gameLoopStarted) {
     gameLoopStarted = true;
-    gameLoop();
+    getGameRenderLoop().start({
+      shouldRun: () => worldStarted && world !== null && getGameStateManager().isExploration(),
+      onUpdate: (deltaMs) => {
+        world?.update(deltaMs);
+      },
+      onPrepare: (deltaMs) => {
+        world?.prepareFrame(deltaMs);
+      },
+      onRender: (timestampMs) => {
+        world?.renderWorld(timestampMs);
+      },
+    });
   }
 
   connectSocket();
+  wirePortalTransitionBridge();
 
-  const selected = AppScreens.getSelectedCharacter();
+  // Renderiza o mapa local enquanto aguarda world-login (mock ou servidor).
+  activeWorld.prepareFrame(0);
+  activeWorld.renderWorld(performance.now());
+  bootstrapLocalWorldSession();
+
+  worldStarted = true;
+  setWorldSessionActive(true);
+  mountLocalViewportProbe(activeWorld);
+
   console.log('[Altercadia] Entrou no mundo', {
-    userId: AppScreens.accountProfile?.userId,
+    userId: AppScreens.currentSession?.id,
     character: selected,
   });
 
   if (selected) {
     setStatus(`Conectando como ${selected.name}…`);
   }
+
+  const loreCreds = AppScreens.currentSession && selected
+    ? { playerId: AppScreens.currentSession.id, characterId: selected.id }
+    : { playerId: 'local-player', characterId: 1 };
+  beginWorldChroniclesSession(loreCreds.playerId, loreCreds.characterId);
+  } catch (error) {
+    console.error('[Altercadia] Falha ao entrar no mundo:', error);
+    setStatus('Erro ao carregar o mundo — recarregue a página (F5).');
+    teardownGameRoot?.();
+    teardownGameRoot = null;
+    teardownGameState?.();
+    teardownGameState = null;
+    teardownGlobalChat?.();
+    teardownGlobalChat = null;
+    destroyUiLayer();
+    world = null;
+    worldSocket = null;
+    mapManager = null;
+    worldStarted = false;
+    setWorldSessionActive(false);
+    hidePauseMenu();
+    mountWorldMapScene();
+    SceneManager.showExploration();
+  }
 }
 
-function onLoginSuccess(): void {
-  showScreen('char-select-screen');
-  AppScreens.loadAccountProfile();
-  AppScreens.renderCharacterSlots();
-  AppScreens.syncCharacterSelectionUi();
+function onLoginSuccess(user: AuthUser): void {
+  AppScreens.setAuthenticatedUser(user);
+  AppScreens.showCharSelect();
+}
+
+function clearGameState(): void {
+  hidePauseMenu();
+
+  teardownGlobalChat?.();
+  teardownGlobalChat = null;
+  resetSpeechBubbleManager();
+
+  setExplorationOnlineMode(false);
+  positionGateway?.stopHeartbeat();
+  positionGateway?.destroy();
+  positionGateway = null;
+  clearWorldLoreWsTransport();
+
+  const session = AppScreens.currentSession;
+  const character = AppScreens.getSelectedCharacter();
+  if (session && character) {
+    markWorldChroniclesSessionEnd(session.id, character.id);
+  }
+
+  resetWorldSessionGate();
+  setBankTransactionPositionProvider(null);
+
+  if (socket) {
+    socket.removeAllListeners();
+    socket.close(1000, 'player_exit');
+    socket = null;
+  }
+
+  teardownGameRoot?.();
+  teardownGameRoot = null;
+  teardownGameState?.();
+  teardownGameState = null;
+  resetGameStateManager();
+  resetWorldMapSceneMount();
+  configureCombatClient({});
+
+  if (onWorldResize) {
+    window.removeEventListener('resize', onWorldResize);
+    onWorldResize = null;
+  }
+
+  InputHandler.detach();
+  InputHandler.resetKeys();
+
+  world?.dispose();
+  world = null;
+
+  if (worldSocket && isAuthoritativeWorldSocket(worldSocket)) {
+    worldSocket.removeAllListeners();
+  }
+  worldSocket = null;
+  mapManager = null;
+
+  resetWorldMovementAuthority();
+  resetGameRenderLoop();
+  gameLoopStarted = false;
+  worldStarted = false;
+  setWorldSessionActive(false);
+  hidePauseMenu();
+  destroyUiLayer();
+  AppScreens.selectedCharacterId = null;
+  SceneManager.showExploration();
+  setStatus('Sessão encerrada.');
+}
+
+function exitToLoginScreen(): void {
+  clearGameState();
+  AppScreens.signOut();
+  showScreen('login-screen');
+}
+
+function setupPauseControls(): void {
+  setupPauseMenu({
+    onExit: exitToLoginScreen,
+  });
 }
 
 function setupLogin(): void {
@@ -151,10 +796,11 @@ function setupLogin(): void {
 
 function boot(): void {
   try {
-    initBattleHud(document);
     setupLogin();
+    initBattleHud(document);
+    setupPauseControls();
     void AppScreens.init(enterWorld);
-    console.log('[MVP] Cliente V2 pronto');
+    console.log('[MVP] Cliente V2 pronto', CLIENT_RUNTIME_VERSION);
   } catch (error) {
     console.error('[MVP] Falha ao iniciar cliente:', error);
     const statusEl = document.getElementById('auth-status');

@@ -1,0 +1,9 @@
+{
+  "projectile_basic": "projectile_basic.png",
+  "slash": "slash.png",
+  "fireball": "fireball.png",
+  "ice_shard": "ice_shard.png",
+  "shock": "shock.png",
+  "heal_glow": "heal_glow.png",
+  "block_impact": "block_impact.png"
+}

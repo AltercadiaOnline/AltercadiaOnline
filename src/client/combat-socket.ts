@@ -1,6 +1,7 @@
 import { GameClient, configureCombatClient } from './hud/index.js';
 import {
   createCombatSocketHandler,
+  gameClientCombatBridge,
   type CombatSocket,
 } from './hud/combatSocketHandler.js';
 
@@ -25,7 +26,7 @@ export type CombatSocketClient = CombatSocket & {
 export function initCombatSocket(socket: CombatSocketClient): void {
   socket.removeAllListeners?.('combat-event');
 
-  socket.on('combat-event', createCombatSocketHandler(GameClient));
+  socket.on('combat-event', createCombatSocketHandler(gameClientCombatBridge(GameClient)));
 
   console.log('--- Sistema de Rede V2 Ativado ---');
 }

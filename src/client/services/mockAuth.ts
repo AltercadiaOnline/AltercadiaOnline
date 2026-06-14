@@ -15,8 +15,8 @@ export const mockAuth: AuthService = {
     };
   },
 
-  async register(email, pass) {
-    const result = registerLocalUser(email, pass);
+  async register(payload) {
+    const result = registerLocalUser(payload);
     return {
       success: result.ok,
       message: result.message,

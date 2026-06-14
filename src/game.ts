@@ -38,7 +38,7 @@ function createDefaultBattleState(): CombatState {
   };
 }
 
-const gateway = CombatGateway.create(createDefaultBattleState());
+const gateway = CombatGateway.create(createDefaultBattleState(), 'hero');
 gateway.startBattle('hero');
 
 export type DispatchResult = {

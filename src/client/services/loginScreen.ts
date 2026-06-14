@@ -1,8 +1,14 @@
-import type { AuthService } from '../../shared/authService.js';
+import type { AuthService, AuthUser } from '../../shared/authService.js';
+import {
+  bindAuthNavigation,
+  copyLoginCredentialsToRegisterForm,
+  copyRegisterCredentialsToLoginForm,
+  showAuthView,
+} from './authFlow.js';
 
 export type LoginScreenOptions = {
   authService: AuthService;
-  onAuthenticated: () => void;
+  onAuthenticated: (user: AuthUser) => void;
 };
 
 function requireInput(id: string): HTMLInputElement | null {
@@ -10,29 +16,52 @@ function requireInput(id: string): HTMLInputElement | null {
   return element instanceof HTMLInputElement ? element : null;
 }
 
+function requireStatusEl(): HTMLElement | null {
+  return document.getElementById('auth-status');
+}
+
 export function setupLoginScreen(options: LoginScreenOptions): void {
   const root = document.getElementById('login-screen');
-  const emailInput = requireInput('email-input');
-  const passInput = requireInput('pass-input');
-  const confirmInput = requireInput('confirm-pass-input');
-  const statusEl = document.getElementById('auth-status');
+  const emailField = requireInput('email-input');
+  const passField = requireInput('pass-input');
+  const nameField = requireInput('reg-name-input');
+  const birthField = requireInput('reg-birth-input');
+  const regEmailField = requireInput('reg-email-input');
+  const regPassField = requireInput('reg-pass-input');
+  const regConfirmField = requireInput('reg-confirm-input');
+  const statusEl = requireStatusEl();
 
-  if (!root || !emailInput || !passInput || !confirmInput || !statusEl) {
+  if (
+    !root
+    || !emailField
+    || !passField
+    || !nameField
+    || !birthField
+    || !regEmailField
+    || !regPassField
+    || !regConfirmField
+    || !statusEl
+  ) {
     console.error('[LoginScreen] Elementos da HUD de login ausentes.');
     return;
   }
 
-  const emailField = emailInput;
-  const passField = passInput;
-  const confirmField = confirmInput;
-  const statusBox = statusEl;
+  const fields = {
+    email: emailField,
+    pass: passField,
+    name: nameField,
+    birth: birthField,
+    regEmail: regEmailField,
+    regPass: regPassField,
+    regConfirm: regConfirmField,
+  };
 
   let busy = false;
 
   const setStatus = (message: string, isError: boolean): void => {
-    statusBox.textContent = message;
-    statusBox.classList.toggle('is-error', isError);
-    statusBox.classList.toggle('is-success', !isError && message.length > 0);
+    statusEl.textContent = message;
+    statusEl.classList.toggle('is-error', isError);
+    statusEl.classList.toggle('is-success', !isError && message.length > 0);
   };
 
   const setBusy = (next: boolean): void => {
@@ -42,24 +71,20 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     });
   };
 
-  root.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) return;
+  const goToRegister = (): void => {
+    if (busy) return;
+    showAuthView('register');
+    copyLoginCredentialsToRegisterForm();
+    setStatus('Preencha seus dados para criar a conta.', false);
+    fields.name.focus();
+  };
 
-    if (target.id === 'btn-login') {
-      void handleLogin();
-      return;
-    }
-
-    if (target.id === 'btn-register') {
-      void handleRegister();
-      return;
-    }
-
-    if (target.id === 'btn-google-register') {
-      void handleGoogleRegister();
-    }
-  });
+  const goToLogin = (): void => {
+    if (busy) return;
+    showAuthView('login');
+    setStatus('', false);
+    fields.email.focus();
+  };
 
   async function handleLogin(): Promise<void> {
     if (busy) return;
@@ -68,14 +93,18 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     setStatus('Validando credenciais…', false);
 
     try {
-      const result = await options.authService.login(emailField.value, passField.value);
+      const result = await options.authService.login(fields.email.value, fields.pass.value);
       if (!result.success) {
         setStatus(result.message ?? 'Credenciais inválidas.', true);
         return;
       }
 
       setStatus(result.message ?? 'Login autorizado!', false);
-      options.onAuthenticated();
+      if (!result.user) {
+        setStatus('Login sem dados de usuário.', true);
+        return;
+      }
+      options.onAuthenticated(result.user);
     } catch (error) {
       console.error('[LoginScreen] Erro no login:', error);
       setStatus('Erro inesperado ao fazer login.', true);
@@ -87,7 +116,7 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   async function handleRegister(): Promise<void> {
     if (busy) return;
 
-    if (passField.value !== confirmField.value) {
+    if (fields.regPass.value !== fields.regConfirm.value) {
       setStatus('As senhas não coincidem.', true);
       return;
     }
@@ -96,14 +125,21 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     setStatus('Criando conta…', false);
 
     try {
-      const result = await options.authService.register(emailField.value, passField.value);
+      const result = await options.authService.register({
+        fullName: fields.name.value,
+        birthDate: fields.birth.value,
+        email: fields.regEmail.value,
+        password: fields.regPass.value,
+      });
+
       if (!result.success) {
         setStatus(result.message ?? 'Falha no cadastro.', true);
         return;
       }
 
+      copyRegisterCredentialsToLoginForm();
       setStatus(result.message ?? 'Conta criada!', false);
-      confirmField.value = '';
+      showAuthView('login');
     } catch (error) {
       console.error('[LoginScreen] Erro no cadastro:', error);
       setStatus('Erro inesperado ao cadastrar.', true);
@@ -134,5 +170,25 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     }
   }
 
-  console.log('[LoginScreen] HUD de login pronta.');
+  const navigationReady = bindAuthNavigation({
+    onLogin: () => {
+      void handleLogin();
+    },
+    onShowRegister: goToRegister,
+    onCreateAccount: () => {
+      void handleRegister();
+    },
+    onBackToLogin: goToLogin,
+    onGoogleRegister: () => {
+      void handleGoogleRegister();
+    },
+  });
+
+  if (!navigationReady) {
+    console.error('[LoginScreen] Falha ao ligar botões de navegação.');
+    return;
+  }
+
+  showAuthView('login');
+  console.log('[LoginScreen] HUD de login pronta (login ↔ cadastro).');
 }

@@ -1,12 +1,20 @@
 export type AuthUser = {
   email: string;
   id?: string;
+  fullName?: string;
 };
 
 export type AuthLoginResult = {
   success: boolean;
   user?: AuthUser;
   message?: string;
+};
+
+export type AuthRegisterPayload = {
+  email: string;
+  password: string;
+  fullName: string;
+  birthDate: string;
 };
 
 export type AuthRegisterResult = {
@@ -17,5 +25,5 @@ export type AuthRegisterResult = {
 /** Contrato de autenticação usado pelo cliente e futuros módulos do jogo. */
 export interface AuthService {
   login(email: string, pass: string): Promise<AuthLoginResult>;
-  register(email: string, pass: string): Promise<AuthRegisterResult>;
+  register(payload: AuthRegisterPayload): Promise<AuthRegisterResult>;
 }

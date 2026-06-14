@@ -1,16 +1,18 @@
 {
   "version": "1.2.0",
   "initiative": {
-    "mode": "score_based",
-    "formula": "initiativeScore = movesetPriorityScore + (speedBonusTotal * 2)",
-    "weights": {
-      "movesetPriorityWeight": 1,
-      "speedBonusWeight": 2
-    },
+    "mode": "moveset_primary_speed_percent",
+    "formula": "1) skill.priority DESC; 2) effectiveSpeedRaw * speedAttributePercent; 3) seed",
+    "speedAttributePercent": 35,
+    "movesetTierScale": 100,
     "movesetPriorityScoreBySkillPriority": {
       "1": 1,
       "2": 2,
       "3": 3
+    },
+    "weights": {
+      "movesetPriorityWeight": 1,
+      "speedBonusWeight": 0
     },
     "speedBonusTotal": {
       "formula": "itemSpeed + marcoSpeed + buffSpeed + runeSpeedConditional + potionExhaustionPenalty",
@@ -80,12 +82,14 @@
       "enabled": true,
       "consumesMainAction": false,
       "maxUsesPerTurn": 1,
-      "globalCooldownTurns": 2,
-      "disallowConsecutiveTurns": true,
+      "globalCooldownTurns": 0,
+      "disallowConsecutiveTurns": false,
+      "saturationStepPercent": 10,
+      "saturationCapPercent": 100,
       "exhaustionDebuff": {
-        "durationTurns": 1,
-        "speedFlat": -4,
-        "healReceivedMultiplier": 0.9
+        "durationTurns": 0,
+        "speedFlat": 0,
+        "healReceivedMultiplier": 1
       }
     },
     "examples": {

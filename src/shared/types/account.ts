@@ -1,10 +1,15 @@
+import { isPlayerSkinRecord } from '../character/playerSkin.js';
 import type { ClassType } from './classes.js';
+import type { PlayerSkin } from '../character/playerSkin.js';
 
 export interface AccountCharacter {
   readonly id: number;
   readonly name: string;
   readonly class: ClassType;
   readonly level: number;
+  readonly slotIndex: number;
+  /** Aparência top-down — atualizada ao trocar skin no mundo. */
+  readonly skin: PlayerSkin;
 }
 
 export interface AccountProfile {
@@ -22,11 +27,14 @@ export function isAccountProfile(value: unknown): value is AccountProfile {
     if (!entry || typeof entry !== 'object') return false;
     const character = entry as Record<string, unknown>;
     const classId = character.class;
+    const hasValidSkin = character.skin === undefined || isPlayerSkinRecord(character.skin);
     return (
       typeof character.id === 'number'
       && typeof character.name === 'string'
       && typeof character.level === 'number'
+      && typeof character.slotIndex === 'number'
       && typeof classId === 'string'
+      && hasValidSkin
       && (classId === 'IMPETUS'
         || classId === 'COGITOR'
         || classId === 'TUTATOR'
