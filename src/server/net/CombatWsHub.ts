@@ -160,6 +160,7 @@ export class CombatWsHub {
     this.wss.on('connection', (ws) => this.onConnection(ws as LiveSocket));
     this.bindEconomyEventForwarding();
     this.worldTickScheduler.start();
+    console.log('[WS] CombatWsHub ativo — path=/ws');
   }
 
   getPlayer(playerId: string, characterId: number): Player | null {

@@ -1,9 +1,23 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { loadServerEnv } from './config/env.js';
 import { createPublicClientConfig } from '../shared/publicClientConfig.js';
 import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
 import { CombatWsHub } from './network/CombatWsHub.js';
 import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
 import { flushAllPersistence, initializePersistence } from './persistence/initializePersistence.js';
+
+const CLIENT_DIST_ARTIFACTS = [
+  'client/browser/main.js',
+  'server/index.js',
+] as const;
+
+function verifyClientDistArtifacts(distDir: string): { readonly ok: boolean; readonly missing: readonly string[] } {
+  const missing = CLIENT_DIST_ARTIFACTS.filter(
+    (relative) => !existsSync(path.join(distDir, relative)),
+  );
+  return { ok: missing.length === 0, missing };
+}
 
 function logCorsWarning(corsOrigins: readonly string[], nodeEnv: string): void {
   if (nodeEnv === 'production' && corsOrigins.length === 0) {
@@ -59,6 +73,25 @@ async function main(): Promise<void> {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
+
+  const distCheck = verifyClientDistArtifacts(dirs.distDir);
+  console.log('[bootstrap] Pronto para escutar', {
+    port: env.port,
+    host: env.host,
+    nodeEnv: env.nodeEnv,
+    persistence: persistence.mode,
+    dataDir: persistence.dataDir,
+    clientDistOk: distCheck.ok,
+    ...(distCheck.ok
+      ? { clientArtifacts: [...CLIENT_DIST_ARTIFACTS] }
+      : { missingClientArtifacts: distCheck.missing }),
+  });
+  if (!distCheck.ok) {
+    console.warn(
+      '[bootstrap] dist/ incompleto — rode npm run build antes de npm start. Ausentes:',
+      distCheck.missing.join(', '),
+    );
+  }
 
   httpServer.listen(env.port, env.host, () => {
     const scheme = env.nodeEnv === 'production' ? 'https/wss (via proxy)' : 'http';

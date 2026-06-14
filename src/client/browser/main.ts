@@ -112,6 +112,7 @@ import { isLocalDevHost } from '../auth/localDevAuth.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
+import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
 export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
@@ -181,11 +182,6 @@ function mountLocalViewportProbe(activeWorld: ExplorationScene): void {
 
 function bootstrapHpBars(_state: CombatState): void {
   /* HP renderizado pela BattleScreen (Fire Emblem HUD). */
-}
-
-function wsUrlFromLocation(): string {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:' ;
-  return `${protocol}//${window.location.host}/ws`;
 }
 
 function setStatus(text: string): void {
@@ -316,7 +312,7 @@ function connectSocket(): void {
 
   const synchronizer = getGlobalStateSynchronizer();
 
-  socket = createBrowserCombatSocket(wsUrlFromLocation(), {
+  socket = createBrowserCombatSocket(resolveGameWsUrl(), {
     onReconnect: () => {
       synchronizer.onReconnect();
       if (world && positionGateway) {
