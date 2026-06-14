@@ -2,12 +2,13 @@ import type { CombatState } from '../../shared/types.js';
 import { createCombatSocketHandler } from '../hud/combatSocketHandler.js';
 import { InputHandler } from '../inputHandler.js';
 import { applyEconomyEventToHud, isEconomyEvent } from '../hud/economyHud.js';
-import { configureSpawnMirrorPlayer } from '../dev/spawnMirrorPlayer.js';
 import {
-  configureMirrorPlayerClient,
-  notifyMirrorPlayerDispatch,
-} from '../combat/MirrorPlayerController.js';
+  registerCombatDevTransportResolver,
+  refreshCombatDevBindings,
+} from '../dev/combatDevBindings.js';
+import { notifyMirrorPlayerDispatch } from '../combat/MirrorPlayerController.js';
 import { configureCombatClient, GameClient, initBattleHud, registerActiveBattleId } from '../hud/index.js';
+import { getBattleStore } from '../hud/battleStore.js';
 import { configureBattleLootClient } from '../game/battleLootClient.js';
 import { resolveClientCombatEquipmentSnapshot } from '../combat/resolveClientCombatEquipment.js';
 import { initCombatEquipmentBridge } from '../combat/combatEquipmentBridge.js';
@@ -113,6 +114,7 @@ import {
   hidePlayerInitLoading,
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
+import { getSupabaseClient } from '../auth/supabaseAuth.js';
 import { mountAmbientOverlay } from '../ui/ambient/AmbientOverlay.js';
 import { isLocalDevHost } from '../auth/localDevAuth.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
@@ -135,6 +137,39 @@ let onWorldResize: (() => void) | null = null;
 let teardownGameState: (() => void) | null = null;
 let teardownGameRoot: (() => void) | null = null;
 let teardownLightOverlay: (() => void) | null = null;
+
+const BOOTSTRAP_FATAL_OVERLAY_ID = 'bootstrap-fatal-overlay';
+const BOOTSTRAP_LOADING_MESSAGE = 'Conectando ao Altercadia…';
+const BOOTSTRAP_SUPABASE_INFRA_MESSAGE =
+  'Erro de infraestrutura: Configurações do Supabase ausentes';
+
+let loginUiBound = false;
+let bootstrapInFlight = false;
+
+function isSupabaseInfrastructureError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const needles = [
+    'Supabase não configurado',
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY',
+    'variáveis de ambiente',
+    '/config/client',
+    'Supabase Auth não foi inicializado',
+    'Falha ao inicializar Supabase Auth',
+    'Falha ao inicializar autenticação',
+  ];
+  return needles.some((fragment) => message.includes(fragment));
+}
+
+function resolveBootstrapFatalMessage(error: unknown): string {
+  if (isSupabaseInfrastructureError(error)) {
+    return BOOTSTRAP_SUPABASE_INFRA_MESSAGE;
+  }
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+  return 'Não foi possível conectar ao Altercadia. Verifique sua conexão e tente novamente.';
+}
 
 type ViewportProbe = {
   readonly state: () => Record<string, unknown> | null;
@@ -310,6 +345,7 @@ function handleWorldLoginResult(raw: unknown): void {
 function connectSocket(): void {
   if (socket) {
     positionGateway?.bindSocket(socket);
+    refreshCombatDevBindings();
     if (world && !isWorldSessionReady()) {
       void positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
     }
@@ -360,12 +396,7 @@ function connectSocket(): void {
       void requestReturnToExploration({ victory: false });
     },
   });
-  configureSpawnMirrorPlayer(() => {
-    socket?.send('dev-spawn-mirror-player', {});
-  });
-  configureMirrorPlayerClient((action) => {
-    socket?.send('mirror-combat-action', action);
-  });
+  refreshCombatDevBindings();
   configureBattleLootClient(socket);
   registerPlayerHonorSender((payload) => {
     socket?.send('player-honor-given', payload);
@@ -549,6 +580,7 @@ function enterWorld(): void {
     bootstrapMvpPlayerItems();
   }
   getGlobalPlayerStore().applyClassMoveset(equipmentStore.getSnapshot().classId);
+  getBattleStore().resyncLoadout();
   initPlayerHudHpMaxSync();
   initCombatEquipmentBridge();
 
@@ -772,6 +804,7 @@ function clearGameState(): void {
     socket.close(1000, 'player_exit');
     socket = null;
   }
+  refreshCombatDevBindings();
 
   teardownGameRoot?.();
   teardownGameRoot = null;
@@ -822,21 +855,80 @@ function setupPauseControls(): void {
   });
 }
 
+function hideBootstrapFatalError(): void {
+  document.getElementById(BOOTSTRAP_FATAL_OVERLAY_ID)?.remove();
+}
+
+function showBootstrapFatalError(message: string): void {
+  hideBootstrapFatalError();
+  showScreen('login-screen');
+
+  const statusEl = document.getElementById('auth-status');
+  if (statusEl) {
+    statusEl.textContent = message;
+    statusEl.classList.add('is-error');
+    statusEl.classList.remove('is-success');
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = BOOTSTRAP_FATAL_OVERLAY_ID;
+  overlay.className = 'player-init-loading bootstrap-fatal-overlay';
+  overlay.setAttribute('role', 'alertdialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'bootstrap-fatal-title');
+  overlay.innerHTML = `
+    <div class="player-init-loading__panel bootstrap-fatal-overlay__panel">
+      <h2 id="bootstrap-fatal-title" class="bootstrap-fatal-overlay__title">Falha ao iniciar</h2>
+      <p class="bootstrap-fatal-overlay__message"></p>
+      <button type="button" class="auth-google-btn bootstrap-fatal-overlay__retry">Tentar Novamente</button>
+    </div>
+  `;
+
+  const messageEl = overlay.querySelector('.bootstrap-fatal-overlay__message');
+  if (messageEl) messageEl.textContent = message;
+
+  overlay.querySelector('.bootstrap-fatal-overlay__retry')?.addEventListener('click', () => {
+    void bootstrap();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function assertAuthReadyForLogin(): void {
+  if (!AppScreens.authService) {
+    throw new Error('Serviço de autenticação indisponível.');
+  }
+  if (!getSupabaseClient()) {
+    throw new Error('Supabase Auth não foi inicializado — login bloqueado por segurança.');
+  }
+}
+
 function setupLogin(): void {
+  assertAuthReadyForLogin();
+  if (loginUiBound) return;
+
   setupLoginScreen({
     authService: AppScreens.authService,
     onAuthenticated: onLoginSuccess,
   });
+  loginUiBound = true;
+  console.log('[Bootstrap] Login HUD ligada — Supabase pronto.');
 }
 
-function boot(): void {
+async function bootstrap(): Promise<void> {
+  if (bootstrapInFlight) return;
+  bootstrapInFlight = true;
+
+  hideBootstrapFatalError();
+  showPlayerInitLoading(BOOTSTRAP_LOADING_MESSAGE);
+
   try {
-    setupLogin();
-    initBattleHud(document);
-    setupPauseControls();
-    void AppScreens.init(enterWorld, {
+    showScreen('login-screen');
+
+    await AppScreens.init(enterWorld, {
       onAuthenticated: onLoginSuccess,
       onAuthError: (message) => {
+        hidePlayerInitLoading();
         const statusEl = document.getElementById('auth-status');
         if (!statusEl) return;
         statusEl.textContent = message;
@@ -844,15 +936,35 @@ function boot(): void {
         statusEl.classList.remove('is-success');
       },
     });
+
+    assertAuthReadyForLogin();
+    if (!getSupabaseClient()) {
+      throw new Error('Supabase Auth não foi inicializado — login bloqueado por segurança.');
+    }
+
+    registerCombatDevTransportResolver(() => {
+      if (!socket) return null;
+      return (type, payload) => socket?.send(type, payload);
+    });
+
+    initBattleHud(document);
+    setupPauseControls();
+
+    hidePlayerInitLoading();
+    setupLogin();
+
     console.log('[MVP] Cliente V2 pronto', CLIENT_RUNTIME_VERSION);
   } catch (error) {
-    console.error('[MVP] Falha ao iniciar cliente:', error);
-    const statusEl = document.getElementById('auth-status');
-    if (statusEl) {
-      statusEl.textContent = 'Erro ao iniciar o cliente. Recarregue a página (F5).';
-      statusEl.classList.add('is-error');
-    }
+    console.error('[MVP] Bootstrap falhou:', error);
+    hidePlayerInitLoading();
+    showBootstrapFatalError(resolveBootstrapFatalMessage(error));
+  } finally {
+    bootstrapInFlight = false;
   }
+}
+
+function boot(): void {
+  void bootstrap();
 }
 
 window.addEventListener('error', (event) => {

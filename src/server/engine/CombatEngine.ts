@@ -258,6 +258,11 @@ export class CombatEngine {
     };
   }
 
+  /** Substitui snapshot autoritativo (ex.: injeção de bot espelho em PVE). */
+  public replaceState(next: CombatState): void {
+    this.state = { ...next, combatants: cloneCombatants(next.combatants) };
+  }
+
   private skillCooldownKey(actorId: string, skillId: string): string {
     return `${actorId}:${skillId}`;
   }

@@ -34,6 +34,10 @@ export class CombatGateway {
     return this.engine.getState();
   }
 
+  public replaceState(next: CombatState): void {
+    this.engine.replaceState(next);
+  }
+
   public startBattle(activeActorId: string): DispatchResult {
     return this.toDispatchResult(this.engine.startChoosing(activeActorId));
   }

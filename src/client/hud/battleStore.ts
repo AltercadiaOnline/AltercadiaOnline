@@ -36,6 +36,11 @@ class BattleStore {
     });
   }
 
+  /** Re-sincroniza após troca de classe / applyClassMoveset no enterWorld. */
+  resyncLoadout(): void {
+    this.syncFromConfirmed();
+  }
+
   detach(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;

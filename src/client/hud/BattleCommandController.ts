@@ -121,25 +121,25 @@ export class BattleCommandController {
       return;
     }
 
-    if (this.phase !== 'COMMAND_MENU' || !this.menuEnabled || !this.actorId) return;
+    if (this.phase !== 'COMMAND_MENU' || !this.menuEnabled || !this.actorId) {
+      console.warn('[BattleCommand] Clique ignorado — paleta bloqueada.', {
+        phase: this.phase,
+        menuEnabled: this.menuEnabled,
+        actorId: this.actorId,
+      });
+      return;
+    }
 
     const skill = this.skills.find((entry) => entry.id === moveId);
 
-    if (!skill || !canExecuteMove(skill, this.currentTurn)) return;
+    if (!skill || !canExecuteMove(skill, this.currentTurn)) {
+      console.warn('[BattleCommand] Movimento indisponível:', moveId);
+      return;
+    }
 
 
 
-    const actorId = this.actorId;
-
-    this.phase = 'EXECUTING';
-
-    this.renderMenu();
-
-    this.phase = 'LOCKED';
-
-    this.renderMenu();
-
-    this.onExecuteMove(moveId, actorId);
+    this.onExecuteMove(moveId, this.actorId);
 
   }
 

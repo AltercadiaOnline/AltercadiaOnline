@@ -7,6 +7,7 @@ import { isLocalDevHost } from '../auth/localDevAuth.js';
 import {
   fetchPublicClientConfig,
   getUser,
+  getSupabaseClient,
   initSupabaseAuth,
   signOutSupabase,
 } from '../auth/supabaseAuth.js';
@@ -41,6 +42,21 @@ import {
 } from '../auth/playerInitLoading.js';
 
 let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
+let appShellListenersBound = false;
+
+function bindAppShellListeners(onEnterWorld: () => void): void {
+  if (appShellListenersBound) return;
+  appShellListenersBound = true;
+
+  document.getElementById('btn-enter-world')?.addEventListener('click', () => {
+    if (AppScreens.selectedCharacterId === null) return;
+    onEnterWorld();
+  });
+
+  document.getElementById('btn-back-to-login')?.addEventListener('click', () => {
+    AppScreens.returnToLogin();
+  });
+}
 
 export const AppScreens = {
   characterHub: null as AccountCharacterHub | null,
@@ -320,7 +336,18 @@ export const AppScreens = {
     try {
       const config = await fetchPublicClientConfig();
       supabaseConfigured = isSupabaseConfigured(config);
-      await initSupabaseAuth(config);
+      if (!supabaseConfigured) {
+        throw new Error(
+          'Supabase não configurado no servidor. Defina SUPABASE_URL e SUPABASE_ANON_KEY na Vercel.',
+        );
+      }
+
+      const supabaseReady = await initSupabaseAuth(config);
+      if (!supabaseReady || !getSupabaseClient()) {
+        throw new Error(
+          'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client e as variáveis de ambiente.',
+        );
+      }
 
       if (authCallbacks) {
         initAuthSessionBridge(authCallbacks);
@@ -366,24 +393,13 @@ export const AppScreens = {
         }
       }
     } catch (error) {
-      console.warn('[Auth] Falha ao inicializar Supabase:', error);
-
-      if (this.restoreSessionFromStorage()) {
-        this.showCharSelect();
-      } else {
-        this.showLogin();
-        this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
-      }
+      console.error('[Auth] Falha ao inicializar Supabase:', error);
+      throw error instanceof Error
+        ? error
+        : new Error('Falha crítica ao inicializar autenticação.');
     }
 
-    document.getElementById('btn-enter-world')?.addEventListener('click', () => {
-      if (this.selectedCharacterId === null) return;
-      onEnterWorld();
-    });
-
-    document.getElementById('btn-back-to-login')?.addEventListener('click', () => {
-      this.returnToLogin();
-    });
+    bindAppShellListeners(onEnterWorld);
 
     this.setupCharacterCreation();
     initCharacterAppearancePersistence();

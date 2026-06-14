@@ -1,0 +1,64 @@
+# Altercadia V2 — stack local / staging com Postgres containerizado.
+#
+# Uso:
+#   cp docker-compose.env.example .env.docker   # ajuste Supabase se necessário
+#   cp .env.governance.example .env.governance  # credenciais reais (gitignored)
+#   docker compose up --build
+#
+# App:      http://localhost:3000
+# Postgres: localhost:5432 (user/db: altercadia)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-altercadia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-altercadia}
+      POSTGRES_DB: ${POSTGRES_DB:-altercadia}
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-altercadia} -d ${POSTGRES_DB:-altercadia}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_PUBLISH_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      HOST: 0.0.0.0
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}
+      PERSISTENCE_MODE: ${PERSISTENCE_MODE:-file}
+      DATA_DIR: /app/data
+      DATABASE_URL: postgresql://${POSTGRES_USER:-altercadia}:${POSTGRES_PASSWORD:-altercadia}@postgres:5432/${POSTGRES_DB:-altercadia}
+      DEV_AUTH_BYPASS: ${DEV_AUTH_BYPASS:-false}
+    env_file:
+      - path: .env.docker
+        required: false
+      - path: .env.governance
+        required: false
+    volumes:
+      - app_data:/app/data
+
+volumes:
+  postgres_data:
+  app_data:

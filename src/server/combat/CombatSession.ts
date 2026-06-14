@@ -27,6 +27,11 @@ import {
 import { CombatGateway, type DispatchResult } from './CombatGateway.js';
 import { BattleManager } from '../../shared/combat/BattleEngine.js';
 import { isClassMoveId } from '../../shared/combat/classMovesetCatalog.js';
+import { isMirrorBotActorId } from '../../shared/combat/mirrorPlayerConfig.js';
+import {
+  buildMirrorInjectedState,
+  buildMirrorPlayerCombatant,
+} from './buildMirrorPlayerCombatant.js';
 import {
   cloneManifest,
   remainingRuneCharges,
@@ -70,6 +75,7 @@ export class CombatSession {
   private readonly processedRequestIds = new Set<string>();
   /** Cada push = um uso do move na batalha (XP de domínio proporcional). */
   private readonly movesUsedInBattle: string[] = [];
+  private mirrorActorId: string | null = null;
   private pendingRuneSpeed: { readonly amount: number; readonly appliesOnTurn: number } | null = null;
   private runeSpeedAppliedTurn: number | null = null;
 
@@ -105,6 +111,66 @@ export class CombatSession {
 
   public getState(): CombatState {
     return this.gateway.getState();
+  }
+
+  public getMirrorActorId(): string | null {
+    return this.mirrorActorId;
+  }
+
+  /** Dev — substitui inimigo PVE por jogador espelho (duelo PVP de teste). */
+  public injectMirrorPlayer(): CombatSessionResult {
+    const state = this.gateway.getState();
+    if (state.phase === 'ENDED') {
+      return { ok: false, reason: 'BATTLE_ENDED' };
+    }
+    if (this.mirrorActorId) {
+      return { ok: false, reason: 'INVALID_BATTLE' };
+    }
+
+    const mirror = buildMirrorPlayerCombatant();
+    const nextState = buildMirrorInjectedState(state, mirror, this.playerActorId);
+    this.mirrorActorId = mirror.id;
+    this.gateway.replaceState(nextState);
+    this.gateway.ensureChoosingActor(this.playerActorId);
+
+    const events: CombatEvent[] = [{
+      type: CombatEventType.BATTLE_START,
+      payload: {
+        battleId: nextState.battleId,
+        combatants: this.gateway.getState().combatants,
+      },
+    }];
+
+    return {
+      ok: true,
+      payload: this.toPayload({
+        events,
+        state: this.gateway.getState(),
+        balanceVersion: this.gateway.getBalanceVersion(),
+      }),
+    };
+  }
+
+  public async dispatchMirrorAction(rawAction: ActionRequest): Promise<CombatSessionResult> {
+    const mirrorActorId = this.mirrorActorId;
+    if (!mirrorActorId) {
+      return { ok: false, reason: 'INVALID_BATTLE' };
+    }
+
+    const sanitized = sanitizeCombatActionIntent(rawAction, { logRejectedFields: false });
+    if (!sanitized) {
+      return { ok: false, reason: 'INVALID_BATTLE' };
+    }
+
+    const gate = this.validateMirrorAction(sanitized, mirrorActorId);
+    if (!gate.ok) return gate;
+
+    this.rememberRequestId(sanitized.requestId);
+    const round = this.resolveMirrorDuelRound(sanitized, this.playerActorId);
+    return {
+      ok: true,
+      payload: this.toPayload(round),
+    };
   }
 
   public start(): CombatDispatchPayload {
@@ -160,7 +226,9 @@ export class CombatSession {
     const mergedEvents: CombatEvent[] = [...runePatch.events];
     this.battleManager.markPlayerTurnComplete();
 
-    const round = this.resolvePveRound(resolvedAction);
+    const round = this.mirrorActorId
+      ? this.resolveMirrorDuelRound(resolvedAction, this.mirrorActorId)
+      : this.resolvePveRound(resolvedAction);
     mergedEvents.push(...round.events);
 
     this.battleManager.markMonsterTurnComplete();
@@ -173,6 +241,55 @@ export class CombatSession {
         balanceVersion: round.balanceVersion,
       }),
     };
+  }
+
+  private resolveMirrorDuelRound(
+    actingAction: ResolvedCombatAction,
+    nextActorId: string,
+  ): DispatchResult {
+    if (this.isReactivePotionAction(actingAction)) {
+      let result = this.gateway.dispatchAction(actingAction);
+      if (result.state.phase !== 'ENDED') {
+        this.gateway.ensureChoosingActor(actingAction.actorId);
+        result = { ...result, state: this.gateway.getState() };
+      }
+      return result;
+    }
+
+    let result = this.gateway.resolveTurnBatch([actingAction]);
+
+    if (result.state.phase !== 'ENDED') {
+      this.gateway.ensureChoosingActor(nextActorId);
+      result = {
+        ...result,
+        state: this.gateway.getState(),
+      };
+    }
+
+    return result;
+  }
+
+  private validateMirrorAction(
+    action: ActionRequest,
+    mirrorActorId: string,
+  ): CombatSessionResult | { readonly ok: true } {
+    const state = this.gateway.getState();
+    if (state.phase === 'ENDED') {
+      return { ok: false, reason: 'BATTLE_ENDED' };
+    }
+    if (state.activeActorId !== mirrorActorId) {
+      return { ok: false, reason: 'NOT_YOUR_ACTOR' };
+    }
+    if (action.actorId !== mirrorActorId || !isMirrorBotActorId(action.actorId)) {
+      return { ok: false, reason: 'NOT_YOUR_ACTOR' };
+    }
+    if (action.battleId !== state.battleId) {
+      return { ok: false, reason: 'INVALID_BATTLE' };
+    }
+    if (this.processedRequestIds.has(action.requestId)) {
+      return { ok: false, reason: 'DUPLICATE_REQUEST' };
+    }
+    return { ok: true };
   }
 
   /** Render-se / fugir — derrota imediata tratada como forfeit autoritativo. */

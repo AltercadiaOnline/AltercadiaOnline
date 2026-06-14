@@ -1,7 +1,15 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import pg from 'pg';
+
+const { Pool } = pg;
+
+type PgPool = pg.Pool;
+type PgPoolClient = pg.PoolClient;
 
 const locks = new Map<string, Promise<void>>();
+
+let pgPool: PgPool | null = null;
 
 async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const previous = locks.get(key) ?? Promise.resolve();
@@ -28,20 +36,77 @@ export async function ensureDirectory(dirPath: string): Promise<void> {
 }
 
 /**
- * Transação atômica — ponto único de I/O para persistência MVP (JSON em disco).
- * Quando Postgres estiver ativo, use `getDatabaseConnectionString()` em
- * `databaseConnection.ts` e substitua por SQL dentro deste contrato.
+ * Inicializa pool Postgres — usado por `PostgresStorage` quando `PERSISTENCE_MODE=postgres`.
  */
-export async function executeTransaction<T>(
-  filePath: string,
-  mutate: (current: T | null) => T | Promise<T>,
-  parse?: (raw: string) => T | null,
+export async function initPgPool(connectionString: string): Promise<PgPool> {
+  if (pgPool) return pgPool;
+
+  pgPool = new Pool({
+    connectionString,
+    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+    idleTimeoutMillis: Number(process.env.DATABASE_POOL_IDLE_MS ?? 30_000),
+    connectionTimeoutMillis: Number(process.env.DATABASE_POOL_CONNECT_MS ?? 10_000),
+  });
+
+  const client = await pgPool.connect();
+  try {
+    await client.query('SELECT 1');
+  } finally {
+    client.release();
+  }
+
+  return pgPool;
+}
+
+export function getPgPool(): PgPool | null {
+  return pgPool;
+}
+
+export function isPgPoolReady(): boolean {
+  return pgPool !== null;
+}
+
+export async function closePgPool(): Promise<void> {
+  if (!pgPool) return;
+  const pool = pgPool;
+  pgPool = null;
+  await pool.end();
+}
+
+/** Testes — limpa pool sem fechar conexões externas. */
+export function resetPgPoolForTests(): void {
+  pgPool = null;
+}
+
+/**
+ * Transação SQL atômica — BEGIN → fn(client) → COMMIT / ROLLBACK.
+ * Plug para `PostgresStorage` quando schema estiver pronto.
+ */
+export async function executeSqlTransaction<T>(
+  fn: (client: PgPoolClient) => Promise<T>,
 ): Promise<T> {
-  return executeFileTransaction(filePath, mutate, parse);
+  const pool = getPgPool();
+  if (!pool) {
+    throw new Error('[DatabaseUtils] Pool Postgres não inicializado — use PERSISTENCE_MODE=postgres');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
  * Transação atômica em arquivo — read → mutate → write temp → rename.
+ * Mantido para `FileStorage` / legado JSON.
  */
 export async function executeFileTransaction<T>(
   filePath: string,
@@ -68,6 +133,17 @@ export async function executeFileTransaction<T>(
   });
 }
 
+/**
+ * Transação atômica — delega para arquivo hoje; Postgres usará `executeSqlTransaction`.
+ */
+export async function executeTransaction<T>(
+  filePath: string,
+  mutate: (current: T | null) => T | Promise<T>,
+  parse?: (raw: string) => T | null,
+): Promise<T> {
+  return executeFileTransaction(filePath, mutate, parse);
+}
+
 /** Leitura sem lock prolongado — preferir dentro de executeFileTransaction para escrita. */
 export async function readJsonFile<T>(
   filePath: string,
@@ -92,3 +168,5 @@ export async function writeJsonFileAtomic<T>(filePath: string, value: T): Promis
     await rename(tempPath, filePath);
   });
 }
+
+export type { PgPool, PgPoolClient };

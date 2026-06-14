@@ -8,6 +8,7 @@ import type { CombatState, Skill, SkillData } from '../../shared/types.js';
 
 import { ACTIVE_MOVESET_SLOT_COUNT } from '../../shared/combat/moveTypes.js';
 import { mergeLoadoutSkillsWithRuntime } from '../../shared/combat/mergeLoadoutSkillsWithRuntime.js';
+import { canPlayerIssueCombatChoice } from '../../shared/combat/playerTurnChoice.js';
 
 import { getBattleStore } from './battleStore.js';
 import { setCombatSnapshot } from './useActiveStatuses.js';
@@ -400,11 +401,33 @@ export class HUDManager {
 
     }
 
-    if (this.lastUi) {
+    if (!this.lastUi) return;
 
-      this.syncSkillPalette(payload, this.lastUi);
+    const state: CombatState = {
 
-    }
+      battleId: payload.battleId,
+
+      turn: payload.turn,
+
+      phase: payload.phase,
+
+      activeActorId: payload.activeActorId,
+
+      combatants: payload.combatants,
+
+    };
+
+    const refreshedUi: CombatUiHints = {
+
+      ...this.lastUi,
+
+      actionsEnabled: canPlayerIssueCombatChoice(state, this.lastUi.playerActorId),
+
+      activeActorId: payload.activeActorId,
+
+    };
+
+    this.syncSkillPalette(payload, refreshedUi);
 
   }
 
@@ -574,6 +597,7 @@ export class HUDManager {
       if (enabled) {
 
         this.battleCommand.syncLoadout(ui.playerActorId, skills, true, state.turn);
+        document.querySelector('#skill-palette-row')?.classList.remove('hidden');
 
       } else {
 

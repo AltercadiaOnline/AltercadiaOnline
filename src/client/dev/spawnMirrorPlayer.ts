@@ -9,7 +9,7 @@ export function configureSpawnMirrorPlayer(handler: SpawnMirrorHandler | null): 
 /** Injeta bot espelho na batalha ativa (dev). */
 export function spawnMirrorPlayer(): void {
   if (!spawnHandler) {
-    console.warn('[Altercadia] spawnMirrorPlayer() — conecte-se e entre em combate primeiro.');
+    console.warn('[Altercadia] spawnMirrorPlayer() — conecte-se ao servidor e entre em combate primeiro.');
     return;
   }
   spawnHandler();

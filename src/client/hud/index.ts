@@ -37,6 +37,7 @@ import {
   showBattleFinishDebugPanel,
   traceBattleFinish,
 } from './battleFinishProbe.js';
+import { refreshCombatDevBindings } from '../dev/combatDevBindings.js';
 import { destroyActiveLootCasino } from '../ui/battle/LootCasinoScreen.js';
 import {
   emitBattleVictoryUiReady,
@@ -924,6 +925,9 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
 
   teardownBattleScreenUi?.();
   teardownBattleScreenUi = initBattleScreenUI(root, {
+    onMoveset: () => {
+      root.querySelector('#skill-palette-row')?.classList.remove('hidden');
+    },
     onSkipTurn: () => {
       const dispatch = lastDispatch;
       if (!dispatch) return;
@@ -1072,6 +1076,7 @@ export function registerActiveBattleId(battleId: string): void {
     prepareNextBattle();
   }
   activeBattleId = battleId;
+  refreshCombatDevBindings();
 }
 
 export function prepareNextBattle(): void {
@@ -1292,7 +1297,10 @@ export const GameClient = {
     _actorIdFromClick: string,
     targetTile?: { readonly x: number; readonly y: number },
   ): void {
-    if (battleInputFrozen || isCombatFeedbackBlocking()) return;
+    if (battleInputFrozen || isCombatFeedbackBlocking()) {
+      console.warn('[HUD] sendSkillChoice ignorado — input congelado ou feedback em andamento.');
+      return;
+    }
     if (!getTurnStateGuard().canUseSkill()) {
       getTurnStateGuard().rejectSkillAttempt();
       return;
@@ -1308,6 +1316,7 @@ export const GameClient = {
       return;
     }
     if (ui.turnDeadlineMs !== undefined && Date.now() > ui.turnDeadlineMs) {
+      console.warn('[HUD] sendSkillChoice ignorado — janela de turno expirada.');
       return;
     }
     const player = state.combatants[ui.playerActorId];

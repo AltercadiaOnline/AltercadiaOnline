@@ -96,7 +96,7 @@ import { WorldTickScheduler } from '../world/WorldTickScheduler.js';
 import {
   buildAuthoritativeSnapshotForCharacter,
   hydrateCharacterSession,
-  isFilePersistenceEnabled,
+  isDurablePersistence,
   persistCharacterSession,
   persistPendingLootSnapshot,
 } from '../persistence/PersistenceGateway.js';
@@ -232,7 +232,7 @@ export class CombatWsHub {
       if (worldState) {
         setPlayerLoggingOut(worldState.playerId, worldState.characterId, true);
         this.worldLoreLog.onPlayerDisconnect(worldState.playerId, worldState.characterId);
-        if (isFilePersistenceEnabled()) {
+        if (isDurablePersistence()) {
           void persistCharacterSession(worldState.playerId, worldState.characterId);
           void persistPendingLootSnapshot();
         }
@@ -396,6 +396,36 @@ export class CombatWsHub {
     if (message.type === 'combat-dismiss-loot') {
       dismissBattleLoot(message.payload.lootId);
       void persistPendingLootSnapshot();
+      return;
+    }
+
+    if (message.type === 'dev-spawn-mirror-player') {
+      const session = this.sessions.get(connectionId);
+      if (!session) {
+        this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
+        return;
+      }
+      const result = session.injectMirrorPlayer();
+      if (!result.ok) {
+        this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+        return;
+      }
+      await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
+      return;
+    }
+
+    if (message.type === 'mirror-combat-action') {
+      const session = this.sessions.get(connectionId);
+      if (!session) {
+        this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
+        return;
+      }
+      const result = await session.dispatchMirrorAction(message.payload);
+      if (!result.ok) {
+        this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+        return;
+      }
+      await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
       return;
     }
 
@@ -904,7 +934,7 @@ export class CombatWsHub {
   }
 
   private scheduleCharacterPersist(playerId: string, characterId: number): void {
-    if (!isFilePersistenceEnabled()) return;
+    if (!isDurablePersistence()) return;
     const key = `${playerId}:${characterId}`;
     const existing = this.persistTimers.get(key);
     if (existing) clearTimeout(existing);
@@ -920,7 +950,7 @@ export class CombatWsHub {
   }
 
   private schedulePersistFromEconomyEvent(playerId: string, event: EconomyEvent): void {
-    if (!isFilePersistenceEnabled()) return;
+    if (!isDurablePersistence()) return;
     let characterId: number | undefined;
     if ('characterId' in event.payload && typeof event.payload.characterId === 'number') {
       characterId = event.payload.characterId;

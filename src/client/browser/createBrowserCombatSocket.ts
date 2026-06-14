@@ -220,6 +220,11 @@ export function createBrowserCombatSocket(
     send(type: string, payload?: unknown): void {
       if (!ws || ws.readyState !== WS_OPEN) {
         console.warn('[WS] Socket fechado — mensagem ignorada:', type);
+        if (type === 'combat-action') {
+          releaseCombatActionLock();
+        } else if (type === 'combat-forfeit') {
+          releaseForfeitInFlight();
+        }
         return;
       }
       ws.send(JSON.stringify({ type, payload: payload ?? {} }));

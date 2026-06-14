@@ -6,7 +6,6 @@ export type CombatAnimationGate = {
 };
 
 const BATTLE_COMMAND_SELECTOR = '.battle-command-bar [data-battle-cmd]';
-const MOVESET_SELECTOR = '#skill-palette-row .battle-skill-slot';
 const BATTLE_ITEMS_SELECTOR = '#battle-items-row button';
 
 /**
@@ -68,23 +67,12 @@ export class CombatTurnGatewayController {
       if (blocked) element.setAttribute('aria-busy', 'true');
       else element.removeAttribute('aria-busy');
     }
-
-    if (!this.root) return;
-    const moveset = this.root.querySelector<HTMLElement>('#skill-palette-row');
-    if (moveset) {
-      moveset.classList.toggle('turn-guard--blocked', blocked);
-      moveset.classList.toggle('is-disabled', blocked);
-      moveset.toggleAttribute('aria-disabled', blocked);
-    }
   }
 
   private collectTargets(): HTMLElement[] {
     if (!this.root) return [];
     const list: HTMLElement[] = [];
     for (const element of this.root.querySelectorAll<HTMLElement>(BATTLE_COMMAND_SELECTOR)) {
-      list.push(element);
-    }
-    for (const element of this.root.querySelectorAll<HTMLElement>(MOVESET_SELECTOR)) {
       list.push(element);
     }
     for (const element of this.root.querySelectorAll<HTMLElement>(BATTLE_ITEMS_SELECTOR)) {

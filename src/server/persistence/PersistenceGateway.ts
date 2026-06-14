@@ -1,4 +1,3 @@
-import path from 'node:path';
 import type { AuthoritativePlayerSnapshot } from '../../shared/playerDataSnapshots.js';
 import {
   type CharacterPersistenceRecord,
@@ -21,49 +20,36 @@ import {
   loadAuthoritativeProgression,
 } from '../progression/authoritativeProgressionStore.js';
 import { buildAuthoritativePlayerSnapshot } from './buildAuthoritativeSnapshot.js';
-import { readJsonFile, writeJsonFileAtomic } from './DatabaseUtils.js';
+import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
 
 export type PersistenceRuntimeConfig = {
   readonly mode: PersistenceModeId;
   readonly dataDir: string;
 };
 
-let runtimeConfig: PersistenceRuntimeConfig = {
-  mode: PersistenceMode.Memory,
-  dataDir: path.resolve(process.cwd(), 'data'),
-};
-
 /** Personagens carregados nesta sessão — distingue novo vs retorno. */
 const hydratedFromDisk = new Set<string>();
 
-export function configurePersistenceRuntime(config: PersistenceRuntimeConfig): void {
-  runtimeConfig = config;
+function recordKey(playerId: string, characterId: number): string {
+  return `${playerId}:${characterId}`;
 }
 
 export function getPersistenceRuntimeConfig(): PersistenceRuntimeConfig {
-  return runtimeConfig;
+  const storage = getActivePersistenceStorage();
+  return {
+    mode: storage.mode,
+    dataDir: process.env.DATA_DIR?.trim() || 'data',
+  };
 }
 
+/** true quando a strategy atual persiste entre restarts (file/postgres). */
+export function isDurablePersistence(): boolean {
+  return getActivePersistenceStorage().isDurable();
+}
+
+/** @deprecated Preferir `isDurablePersistence()` — mantido por compatibilidade. */
 export function isFilePersistenceEnabled(): boolean {
-  return runtimeConfig.mode === PersistenceMode.File;
-}
-
-function characterFilePath(playerId: string, characterId: number): string {
-  const safePlayer = encodeURIComponent(playerId);
-  return path.join(
-    runtimeConfig.dataDir,
-    'characters',
-    safePlayer,
-    `${characterId}.json`,
-  );
-}
-
-function pendingLootFilePath(): string {
-  return path.join(runtimeConfig.dataDir, 'pending-loot.json');
-}
-
-function recordKey(playerId: string, characterId: number): string {
-  return `${playerId}:${characterId}`;
+  return getActivePersistenceStorage().mode === PersistenceMode.File;
 }
 
 function buildRecordFromRuntime(
@@ -148,40 +134,41 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
   });
 }
 
-/** Carrega loot pendente do disco (startup). */
+/** Carrega loot pendente (startup) via strategy ativa. */
 export async function loadPendingLootPersistence(): Promise<void> {
-  if (!isFilePersistenceEnabled()) return;
-  const snapshot = await readJsonFile<{ readonly entries: ReturnType<typeof exportPendingLootSnapshot> }>(
-    pendingLootFilePath(),
-  );
-  if (!snapshot?.entries) return;
+  const storage = getActivePersistenceStorage();
+  if (!storage.isDurable()) return;
+
+  const snapshot = await storage.loadPendingLoot();
+  if (!snapshot?.entries?.length) return;
   importPendingLootSnapshot(snapshot.entries);
 }
 
-/** Persiste loot pendente no disco. */
+/** Persiste loot pendente via strategy ativa. */
 export async function persistPendingLootSnapshot(): Promise<void> {
-  if (!isFilePersistenceEnabled()) return;
+  const storage = getActivePersistenceStorage();
+  if (!storage.isDurable()) return;
+
   const entries = exportPendingLootSnapshot();
-  await writeJsonFileAtomic(pendingLootFilePath(), { entries, updatedAt: Date.now() });
+  await storage.savePendingLoot({ entries, updatedAt: Date.now() });
 }
 
 /**
- * Hidrata personagem — file mode lê JSON; memory mode marca como novo.
- * Retorna true se havia save no disco.
+ * Hidrata personagem via strategy — retorna true se havia save persistido.
  */
 export async function hydrateCharacterSession(
   playerId: string,
   characterId: number,
 ): Promise<boolean> {
   const key = recordKey(playerId, characterId);
+  const storage = getActivePersistenceStorage();
 
-  if (!isFilePersistenceEnabled()) {
+  if (!storage.isDurable()) {
     hydratedFromDisk.delete(key);
     return false;
   }
 
-  const filePath = characterFilePath(playerId, characterId);
-  const record = await readJsonFile<CharacterPersistenceRecord>(filePath);
+  const record = await storage.loadCharacter(playerId, characterId);
   if (!record || !isCharacterPersistenceRecord(record)) {
     hydratedFromDisk.delete(key);
     return false;
@@ -196,15 +183,16 @@ export function wasCharacterHydratedFromDisk(playerId: string, characterId: numb
   return hydratedFromDisk.has(recordKey(playerId, characterId));
 }
 
-/** Grava snapshot autoritativo do personagem. */
+/** Grava snapshot autoritativo do personagem via strategy ativa. */
 export async function persistCharacterSession(
   playerId: string,
   characterId: number,
 ): Promise<void> {
-  if (!isFilePersistenceEnabled()) return;
+  const storage = getActivePersistenceStorage();
+  if (!storage.isDurable()) return;
 
   const record = buildRecordFromRuntime(playerId, characterId);
-  await writeJsonFileAtomic(characterFilePath(playerId, characterId), record);
+  await storage.saveCharacter(record);
   hydratedFromDisk.add(recordKey(playerId, characterId));
 }
 
@@ -224,10 +212,16 @@ export {
 
 export { resolveAuthoritativeCombatLoadout } from './authoritativeCombatLoadout.js';
 
-/** Flush global — shutdown Vercel / SIGTERM. */
+/** Flush global — shutdown / SIGTERM (dados pendentes). */
 export async function flushAllPersistence(): Promise<void> {
-  if (!isFilePersistenceEnabled()) return;
+  const storage = getActivePersistenceStorage();
+  if (!storage.isDurable()) return;
   await persistPendingLootSnapshot();
+}
+
+/** Encerra pool/conexões da strategy (SIGTERM). */
+export async function shutdownPersistenceStorage(): Promise<void> {
+  await getActivePersistenceStorage().shutdown();
 }
 
 /** Testes — limpa flags de sessão. */

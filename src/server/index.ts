@@ -6,7 +6,7 @@ import { createPublicClientConfig } from '../shared/publicClientConfig.js';
 import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
 import { CombatWsHub } from './network/CombatWsHub.js';
 import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
-import { flushAllPersistence, initializePersistence } from './persistence/initializePersistence.js';
+import { flushAllPersistence, initializePersistence, shutdownPersistenceStorage } from './persistence/initializePersistence.js';
 import { initSessionAuthGateway } from './auth/SessionAuthGateway.js';
 import { hasDatabaseConnection } from './persistence/databaseConnection.js';
 
@@ -54,6 +54,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     console.log(`[server] ${signal} — encerrando…`);
     void flushAllPersistence()
+      .then(() => shutdownPersistenceStorage())
       .catch((error) => {
         console.error('[persistence] Falha no flush final:', error);
       })
