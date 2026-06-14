@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Altercadia V2 — imagem de produção (Railway, Fly.io, Render, etc.)
+# Altercadia V2 — imagem de produção (Vercel Docker, Fly.io, Render, etc.)
 
 FROM node:22-alpine AS builder
 

@@ -1,5 +1,7 @@
-export type NodeEnv = 'development' | 'production' | 'test';
+import type { DatabaseEnv } from './databaseConfig.js';
+import { loadDatabaseEnv } from './databaseConfig.js';
 
+export type NodeEnv = 'development' | 'production' | 'test';
 export type ServerEnv = {
   readonly nodeEnv: NodeEnv;
   readonly port: number;
@@ -8,6 +10,10 @@ export type ServerEnv = {
   readonly trustProxy: boolean;
   readonly supabaseUrl: string | null;
   readonly supabaseAnonKey: string | null;
+  readonly supabaseServiceRoleKey: string | null;
+  /** Permite world-login sem JWT — apenas desenvolvimento local explícito. */
+  readonly devAuthBypass: boolean;
+  readonly database: DatabaseEnv;
 };
 
 function parseNodeEnv(raw: string | undefined): NodeEnv {
@@ -46,5 +52,11 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     trustProxy,
     supabaseUrl: env.SUPABASE_URL?.trim() || null,
     supabaseAnonKey: env.SUPABASE_ANON_KEY?.trim() || null,
+    supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null,
+    devAuthBypass:
+      env.DEV_AUTH_BYPASS === '1'
+      || env.DEV_AUTH_BYPASS === 'true'
+      || (nodeEnv === 'development' && env.DEV_AUTH_BYPASS !== 'false'),
+    database: loadDatabaseEnv(env),
   };
 }

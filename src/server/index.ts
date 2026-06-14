@@ -1,11 +1,14 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { loadProjectEnv } from './config/loadEnv.js';
 import { loadServerEnv } from './config/env.js';
 import { createPublicClientConfig } from '../shared/publicClientConfig.js';
 import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
 import { CombatWsHub } from './network/CombatWsHub.js';
 import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
 import { flushAllPersistence, initializePersistence } from './persistence/initializePersistence.js';
+import { initSessionAuthGateway } from './auth/SessionAuthGateway.js';
+import { hasDatabaseConnection } from './persistence/databaseConnection.js';
 
 const CLIENT_DIST_ARTIFACTS = [
   'client/browser/main.js',
@@ -28,8 +31,9 @@ function logCorsWarning(corsOrigins: readonly string[], nodeEnv: string): void {
 }
 
 async function main(): Promise<void> {
-  const env = loadServerEnv();
-  logCorsWarning(env.corsOrigins, env.nodeEnv);
+  loadProjectEnv();
+  const env = loadServerEnv();  logCorsWarning(env.corsOrigins, env.nodeEnv);
+  initSessionAuthGateway(env);
 
   const persistence = await initializePersistence();
 
@@ -37,6 +41,7 @@ async function main(): Promise<void> {
   const httpServer = createStaticServer({
     ...dirs,
     corsOrigins: env.corsOrigins,
+    serverEnv: env,
     clientPublicConfig: createPublicClientConfig({
       ...(env.supabaseUrl ? { supabaseUrl: env.supabaseUrl } : {}),
       ...(env.supabaseAnonKey ? { supabaseAnonKey: env.supabaseAnonKey } : {}),
@@ -98,6 +103,7 @@ async function main(): Promise<void> {
     console.log('[Altercadia V2] Servidor online');
     console.log(`  NODE_ENV     → ${env.nodeEnv}`);
     console.log(`  Persistência → ${persistence.mode} (${persistence.dataDir})`);
+    console.log(`  Database     → ${hasDatabaseConnection() ? 'Postgres (env)' : 'não configurado'}`);
     console.log(`  Bind         → ${env.host}:${env.port}`);
     console.log(`  HTTP         → ${scheme}://<host>:${env.port}`);
     console.log(`  WebSocket    → ws(s)://<host>:${env.port}/ws`);

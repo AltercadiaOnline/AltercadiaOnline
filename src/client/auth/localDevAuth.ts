@@ -1,4 +1,4 @@
-import { loginLocalUser, registerLocalUser } from '../services/localAuthStore.js';
+import { loginLocalUser, registerLocalUser, migrateLegacyLocalUsersWithoutPasswords } from '../services/localAuthStore.js';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -10,12 +10,15 @@ export function isLocalDevHost(hostname = window.location.hostname): boolean {
 }
 
 /**
- * Login offline: tenta credenciais salvas; em localhost cria conta local na primeira entrada.
+ * Login offline (somente localhost): conta por email — senha não é armazenada localmente.
+ * Supabase Auth é o caminho de produção.
  */
 export async function loginLocalDevAccount(
   email: string,
   password: string,
 ): Promise<ReturnType<typeof loginLocalUser>> {
+  migrateLegacyLocalUsersWithoutPasswords();
+
   const existing = loginLocalUser(email, password);
   if (existing.ok) return existing;
 

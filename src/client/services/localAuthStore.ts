@@ -5,7 +5,6 @@ const STORAGE_KEY = 'altercadia.local.users';
 type LocalUserRecord = {
   id: string;
   email: string;
-  password: string;
   fullName: string;
   birthDate: string;
 };
@@ -36,14 +35,18 @@ function readUsers(): LocalUserRecord[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (entry): entry is LocalUserRecord =>
-        typeof entry === 'object'
-        && entry !== null
-        && typeof (entry as LocalUserRecord).id === 'string'
-        && typeof (entry as LocalUserRecord).email === 'string'
-        && typeof (entry as LocalUserRecord).password === 'string',
-    );
+    return parsed
+      .filter(
+        (entry): entry is Record<string, unknown> =>
+          typeof entry === 'object' && entry !== null,
+      )
+      .map((entry) => ({
+        id: typeof entry.id === 'string' ? entry.id : crypto.randomUUID(),
+        email: typeof entry.email === 'string' ? entry.email : '',
+        fullName: typeof entry.fullName === 'string' ? entry.fullName : '',
+        birthDate: typeof entry.birthDate === 'string' ? entry.birthDate : '2000-01-01',
+      }))
+      .filter((entry) => entry.email.length > 0);
   } catch {
     return [];
   }
@@ -53,12 +56,13 @@ function writeUsers(users: LocalUserRecord[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
 }
 
+/** Dev-only — não persiste senha; credencial real fica no Supabase Auth. */
 export function registerLocalUser(payload: LocalRegisterPayload): LocalAuthResult {
   const normalizedEmail = normalizeEmail(payload.email);
   const fullName = payload.fullName.trim();
   const birthDate = payload.birthDate.trim();
 
-  if (!fullName || !birthDate || !normalizedEmail || !payload.password) {
+  if (!fullName || !birthDate || !normalizedEmail) {
     return { ok: false, message: 'Preencha todos os campos do cadastro.' };
   }
 
@@ -78,7 +82,6 @@ export function registerLocalUser(payload: LocalRegisterPayload): LocalAuthResul
   const newUser: LocalUserRecord = {
     id: crypto.randomUUID(),
     email: normalizedEmail,
-    password: payload.password,
     fullName,
     birthDate,
   };
@@ -90,24 +93,28 @@ export function registerLocalUser(payload: LocalRegisterPayload): LocalAuthResul
   return { ok: true, message: 'Conta criada! Volte e use LOGIN para entrar.' };
 }
 
-export function loginLocalUser(email: string, password: string): LocalLoginResult {
+/** Dev-only — login por email (sem verificação de senha local). */
+export function loginLocalUser(email: string, _password: string): LocalLoginResult {
   const normalizedEmail = normalizeEmail(email);
 
-  if (!normalizedEmail || !password) {
-    return { ok: false, message: 'Preencha email e senha.' };
+  if (!normalizedEmail) {
+    return { ok: false, message: 'Informe um email válido.' };
   }
 
-  const user = readUsers().find(
-    (entry) => entry.email === normalizedEmail && entry.password === password,
-  );
+  const user = readUsers().find((entry) => entry.email === normalizedEmail);
 
   if (!user) {
-    return { ok: false, message: 'Email ou senha incorretos.' };
+    return { ok: false, message: 'Conta não encontrada neste navegador (modo dev).' };
   }
 
   return {
     ok: true,
-    message: 'Login autorizado.',
+    message: 'Login autorizado (modo dev local).',
     user: { email: user.email, id: user.id, fullName: user.fullName ?? '' },
   };
+}
+
+/** Remove contas legadas que ainda tinham campo password em localStorage. */
+export function migrateLegacyLocalUsersWithoutPasswords(): void {
+  writeUsers(readUsers());
 }

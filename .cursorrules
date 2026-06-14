@@ -6,10 +6,10 @@
 npm run dev          → teste local (build + servidor com reload)
 npm run deploy:check → validação pré-produção (typecheck + build)
 npm run deploy       → deploy:check + git add + commit + push origin main
-                     → GitHub → Railway deploy automático (branch main)
+                     → GitHub → Vercel deploy automático (branch main)
 ```
 
-O desenvolvedor **não deve precisar** do painel Railway no dia a dia, exceto: primeira configuração de variáveis, ver logs de falha, ou domínio customizado.
+O desenvolvedor **não deve precisar** do painel Vercel no dia a dia, exceto: primeira configuração de variáveis, ver logs de falha, ou domínio customizado.
 
 ---
 
@@ -17,8 +17,8 @@ O desenvolvedor **não deve precisar** do painel Railway no dia a dia, exceto: p
 
 - Jogo browser MMO tático (TypeScript strict). Motor autoritativo no servidor; cliente espelha `CombatDispatchPayload`.
 - Pastas: `src/shared/` (contratos), `src/server/` (Engine + Gateway), `src/client/` (Dashboard).
-- Produção: `Dockerfile` + `railway.toml` → `npm run build` → `node dist/server/index.js`.
-- Repo: `AltercadiaOnline/AltercadiaOnline` · URL produção: `altercadiaonline-production.up.railway.app`
+- Produção: `Dockerfile` + `vercel.json` → `npm run build` → `node dist/server/index.js` (container ou compute long-running na Vercel).
+- Repo: `AltercadiaOnline/AltercadiaOnline` · URL produção: projeto Vercel (`*.vercel.app`)
 
 ---
 
@@ -34,13 +34,13 @@ Antes de concluir qualquer alteração em `src/server/`, **verificar compatibili
 - Deps de **runtime** → `dependencies` no `package.json` (não só `devDependencies`).
 - JSON do motor (ex. `combat_balance_v1_2.json`) deve existir em `dist/server/engine/` após build.
 - Listen: `process.env.PORT` + `HOST` default `0.0.0.0` — nunca porta fixa no código.
-- `GET /health` deve responder `{ ok: true }` — alinhado ao `healthcheckPath` do Railway.
+- `GET /health` deve responder `{ ok: true }` — healthcheck de produção.
 
-### railway.toml
+### vercel.json
 
-- `builder = "DOCKERFILE"`, `dockerfilePath = "Dockerfile"`.
-- `healthcheckPath = "/health"` — sincronizado com `staticServer.ts`.
-- Mudou health/porta/bind → atualizar **Dockerfile + railway.toml + código**.
+- `buildCommand`: `npm run build`, `installCommand`: `npm ci`.
+- WebSocket exige deploy **não-serverless** (Docker / Fluid) — ver `README-DE-DESENVOLVIMENTO.md`.
+- Mudou health/porta/bind → atualizar **Dockerfile + vercel.json + código**.
 
 ### staticServer (front no mesmo deploy)
 
@@ -52,7 +52,7 @@ Antes de concluir qualquer alteração em `src/server/`, **verificar compatibili
 
 1. `npm run deploy:check`
 2. Confirmar `dist/server/index.js` existe
-3. Se mudou env: `.env.example` + `README-DEV.md` / `README-DE-DESENVOLVIMENTO.md`
+3. Se mudou env: `.env.example` + `.env.governance.example` + `README-DEV.md` / `README-DE-DESENVOLVIMENTO.md`
 4. Sugerir `npm run deploy -- "mensagem clara"` — **não** fazer push sem pedido explícito do usuário
 
 ---
@@ -68,6 +68,18 @@ Antes de concluir qualquer alteração em `src/server/`, **verificar compatibili
 | `build` | `tsc` |
 
 Não remover `deploy:check` do fluxo `deploy`. Não commitar `node_modules/`, `dist/`, `data/`.
+
+---
+
+## Segredos e `.env.governance` (REGRA ABSOLUTA)
+
+- **`.env.governance`** é a fonte oficial local de credenciais **Supabase** e **Postgres** (`SUPABASE_*`, `DATABASE_*`).
+- O servidor carrega via `loadProjectEnv()` (`src/server/config/loadEnv.ts`) **antes** de `loadServerEnv()`.
+- **JAMAIS, ABSOLUTAMENTE NUNCA** commitar, fazer push, incluir em PR ou anexar `.env.governance` ao Git.
+- O arquivo está no `.gitignore` — antes de `git add` / `npm run deploy`, confirmar que `.env.governance` **não** aparece em `git status`.
+- Versionar apenas **`.env.governance.example`** (template sem segredos reais).
+- **Cliente:** só `SUPABASE_URL` + `SUPABASE_ANON_KEY` via `/config/client`. **Servidor:** `SUPABASE_SERVICE_ROLE_KEY` nunca no browser.
+- **Produção (Vercel):** mesmas chaves no painel Environment Variables (shell tem prioridade sobre arquivos locais).
 
 ---
 
@@ -280,11 +292,13 @@ Toda nova funcionalidade que envolver interação cliente ↔ servidor (mensagen
 
 ---
 
-## Railway (variáveis estáveis)
+## Vercel (variáveis estáveis)
 
 - `NODE_ENV=production`
-- `PORT` — injetada pela Railway (não fixar no código)
-- `CORS_ORIGIN=https://altercadiaonline-production.up.railway.app` (ou URL pública atual)
+- `PORT` — injetada pela Vercel (não fixar no código)
+- `TRUST_PROXY=true` — recomendado atrás do proxy Vercel
+- `CORS_ORIGIN=https://SEU-PROJETO.vercel.app` (URL pública atual)
+- Supabase/Postgres: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` (ou `DATABASE_*`) — espelham `.env.governance`, **não** versionar o arquivo no repo
 
 ---
 

@@ -5,22 +5,6 @@ export type AuthResult = {
   message: string;
 };
 
-export type MockLoginResult = {
-  success: boolean;
-  user: { email: string };
-};
-
-/** Simula o login do Supabase enquanto o backend de auth não está disponível. */
-export async function loginWithEmail(email: string, pass: string): Promise<MockLoginResult> {
-  console.log('Simulando login para:', email);
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ success: true, user: { email: email.trim() } });
-    }, 500);
-  });
-}
-
 export async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
   const trimmedEmail = email.trim();
   if (!trimmedEmail || !password) {
@@ -29,9 +13,10 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 
   const supabase = getSupabaseClient();
   if (!supabase) {
-    console.log('Simulando cadastro para:', trimmedEmail);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return { ok: true, message: 'Cadastro simulado. Use Entrar para continuar.' };
+    return {
+      ok: false,
+      message: 'Cadastro disponível apenas com Supabase Auth configurado.',
+    };
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -64,11 +49,10 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
   const supabase = getSupabaseClient();
   if (!supabase) {
-    const mock = await loginWithEmail(trimmedEmail, password);
-    if (!mock.success) {
-      return { ok: false, message: 'Falha no login simulado.' };
-    }
-    return { ok: true, message: 'Login simulado (dev).' };
+    return {
+      ok: false,
+      message: 'Login com senha requer Supabase Auth. Configure SUPABASE_URL e SUPABASE_ANON_KEY.',
+    };
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({

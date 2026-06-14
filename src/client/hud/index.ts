@@ -43,6 +43,8 @@ import {
   type BattleVictoryUiReadyPayload,
 } from '../combat/battleUiEvents.js';
 import { mirrorBattleProgressionGrant } from '../progression/battleProgressionClient.js';
+import { getGameStore } from '../state/GameStore.js';
+import { createCorrelationId } from '../../shared/sync/pendingActionProtocol.js';
 import {
   BATTLE_RESULT_HUB_SELECTOR,
   ensureBattleHubMountTarget,
@@ -1188,6 +1190,7 @@ export const GameClient = {
     combatDispatchGeneration = dispatchGeneration;
 
     lastDispatch = data;
+    getGameStore().resolveFromCombatEvents(data.events);
     const hudManager = ensureHud();
     const statusBaseline = hudManager.getLastTurn()?.combatants ?? data.state.combatants;
     hudManager.beginStatusPlayback(statusBaseline, data.ui.playerActorId);
@@ -1248,6 +1251,9 @@ export const GameClient = {
   /** Ponto de entrada da HUD para enviar intenções ao motor. */
   sendAction(action: ActionRequest): void {
     if (battleInputFrozen || isCombatFeedbackBlocking()) return;
+    if (!getGameStore().hasPendingAction(action.requestId)) {
+      getGameStore().performServerAction(action.requestId, 'combat-command', () => {});
+    }
     combatActionPending = true;
     battleCommand?.lock();
     battleItems?.lock();
@@ -1316,7 +1322,7 @@ export const GameClient = {
       actorId: ui.playerActorId,
       turn: state.turn,
       skillId,
-      requestId: `client-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      requestId: createCorrelationId(),
       ...(targetTile !== undefined ? { targetTile } : {}),
     };
     GameClient.sendAction(action);
@@ -1353,15 +1359,10 @@ export const GameClient = {
       turn: state.turn,
       skillId: null,
       consumableId,
-      requestId: `client-pot-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      requestId: createCorrelationId(),
     };
 
-    battleItems?.lock();
-    if (emitCombatAction) {
-      emitCombatAction(action);
-      return;
-    }
-    console.log('[HUD] Consumable (sem socket):', action);
+    GameClient.sendAction(action);
   },
 
   /** Aplica eventos do servidor/gateway na paleta e barras. */

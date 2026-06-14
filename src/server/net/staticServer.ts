@@ -1,10 +1,14 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyHttpCors } from '../config/cors.js';
+import type { ServerEnv } from '../config/env.js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
+import { handleGiftTransferRoute } from './giftTransferRoute.js';
+import { handlePlayerSnapshotRoute } from './playerSnapshotRoute.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -12,6 +16,7 @@ const MIME: Record<string, string> = {
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.webp': 'image/webp',
   '.gif': 'image/gif',
@@ -32,7 +37,13 @@ export type StaticServerOptions = {
   readonly projectRoot: string;
   readonly corsOrigins: readonly string[];
   readonly clientPublicConfig: PublicClientConfig;
+  readonly serverEnv: ServerEnv;
 };
+
+export type StaticRequestListener = (
+  req: IncomingMessage,
+  res: ServerResponse,
+) => void | Promise<void>;
 
 export function resolveStaticDirs(moduleUrl: string): Pick<StaticServerOptions, 'publicDir' | 'distDir' | 'projectRoot'> {
   const root = projectRootFromModule(moduleUrl);
@@ -43,7 +54,7 @@ export function resolveStaticDirs(moduleUrl: string): Pick<StaticServerOptions, 
   };
 }
 
-function resolveVendorFile(projectRoot: string, pathname: string): string | null {
+function resolveVendorFile(options: StaticServerOptions, pathname: string): string | null {
   const prefix = '/vendor/';
   if (!pathname.startsWith(prefix)) return null;
 
@@ -56,8 +67,14 @@ function resolveVendorFile(projectRoot: string, pathname: string): string | null
   if (!packageDirName) return null;
 
   const relativeFile = remainder.slice(slash + 1);
-  const vendorBase = path.join(projectRoot, 'node_modules', packageDirName);
-  return safePath(vendorBase, relativeFile);
+
+  const publicVendor = safePath(path.join(options.publicDir, 'vendor', packageDirName), relativeFile);
+  if (publicVendor && existsSync(publicVendor) && statSync(publicVendor).isFile()) {
+    return publicVendor;
+  }
+
+  const nodeVendor = path.join(options.projectRoot, 'node_modules', packageDirName);
+  return safePath(nodeVendor, relativeFile);
 }
 
 function safePath(base: string, requestPath: string): string | null {
@@ -71,8 +88,51 @@ async function readTextFile(filePath: string): Promise<string> {
   return readFile(filePath, 'utf8');
 }
 
-export function createStaticServer(options: StaticServerOptions): http.Server {
-  return http.createServer(async (req, res) => {
+function streamFile(res: ServerResponse, filePath: string, cacheControl?: string): void {
+  const ext = path.extname(filePath);
+  res.writeHead(200, {
+    'Content-Type': MIME[ext] ?? 'application/octet-stream',
+    ...(cacheControl ? { 'Cache-Control': cacheControl } : {}),
+  });
+  createReadStream(filePath).pipe(res);
+}
+
+async function serveStaticFile(
+  options: StaticServerOptions,
+  pathname: string,
+  res: ServerResponse,
+): Promise<boolean> {
+  const relative = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+  const publicFile = safePath(options.publicDir, relative);
+  if (publicFile && existsSync(publicFile) && statSync(publicFile).isFile()) {
+    const ext = path.extname(publicFile);
+    if (ext === '.html') {
+      const html = await readTextFile(publicFile);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+      return true;
+    }
+    const cacheControl = ext === '.js' ? 'public, max-age=0, must-revalidate' : undefined;
+    streamFile(res, publicFile, cacheControl);
+    return true;
+  }
+
+  const distFile = safePath(options.distDir, relative);
+  if (distFile && existsSync(distFile) && statSync(distFile).isFile()) {
+    const ext = path.extname(distFile);
+    if (ext === '.js' || ext === '.json') {
+      streamFile(res, distFile, ext === '.js' ? 'no-store' : undefined);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Handler HTTP reutilizável (Node local + testes). */
+export function createStaticRequestListener(options: StaticServerOptions): StaticRequestListener {
+  return async (req, res) => {
     try {
       if (applyHttpCors(req, res, options.corsOrigins)) return;
 
@@ -91,46 +151,23 @@ export function createStaticServer(options: StaticServerOptions): http.Server {
         return;
       }
 
-      if (pathname === '/') pathname = '/index.html';
-
-      const vendorFile = resolveVendorFile(options.projectRoot, pathname);
-      if (vendorFile && existsSync(vendorFile) && statSync(vendorFile).isFile()) {
-        const ext = path.extname(vendorFile);
-        res.writeHead(200, {
-          'Content-Type': MIME[ext] ?? 'application/octet-stream',
-          'Cache-Control': 'no-store',
-        });
-        createReadStream(vendorFile).pipe(res);
+      if (await handleGiftTransferRoute(req, res, url, options.serverEnv)) {
         return;
       }
 
-      // Artefatos compilados (client + shared): /client/... e /shared/... → dist/
-      const distRelative = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-      const distFile = safePath(options.distDir, distRelative);
-      if (distFile && existsSync(distFile) && statSync(distFile).isFile()) {
-        const ext = path.extname(distFile);
-        if (ext === '.js' || ext === '.json') {
-          const cacheControl = ext === '.js' ? 'no-store' : undefined;
-          res.writeHead(200, {
-            'Content-Type': MIME[ext] ?? 'application/octet-stream',
-            ...(cacheControl ? { 'Cache-Control': cacheControl } : {}),
-          });
-          createReadStream(distFile).pipe(res);
-          return;
-        }
+      if (await handlePlayerSnapshotRoute(req, res, url, options.serverEnv)) {
+        return;
       }
 
-      const publicFile = safePath(options.publicDir, pathname.slice(1));
-      if (publicFile && existsSync(publicFile) && statSync(publicFile).isFile()) {
-        const ext = path.extname(publicFile);
-        if (ext === '.html') {
-          const html = await readTextFile(publicFile);
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(html);
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'application/octet-stream' });
-        createReadStream(publicFile).pipe(res);
+      if (pathname === '/') pathname = '/index.html';
+
+      const vendorFile = resolveVendorFile(options, pathname);
+      if (vendorFile) {
+        streamFile(res, vendorFile, 'public, max-age=86400, immutable');
+        return;
+      }
+
+      if (await serveStaticFile(options, pathname, res)) {
         return;
       }
 
@@ -141,5 +178,9 @@ export function createStaticServer(options: StaticServerOptions): http.Server {
       res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('Internal Server Error');
     }
-  });
+  };
+}
+
+export function createStaticServer(options: StaticServerOptions): http.Server {
+  return http.createServer(createStaticRequestListener(options));
 }

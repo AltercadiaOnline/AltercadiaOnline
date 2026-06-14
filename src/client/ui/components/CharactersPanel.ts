@@ -150,6 +150,7 @@ export class CharactersPanel extends BaseUIComponent {
       };
       this.refreshEquipmentGrid();
       this.syncExplorationSpeedFromEquipment();
+      this.refreshProfileBlock();
     });
 
     this.unsubProfile = getPlayerProfileStore().subscribe((profile) => {

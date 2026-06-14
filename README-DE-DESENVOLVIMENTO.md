@@ -1,63 +1,74 @@
 # Altercadia V2 — Guia de desenvolvimento contínuo
 
 Repositório: [AltercadiaOnline/AltercadiaOnline](https://github.com/AltercadiaOnline/AltercadiaOnline)  
-Produção: `https://altercadiaonline-production.up.railway.app`
+Produção: **Vercel** — substitua pela URL do seu projeto (`https://SEU-PROJETO.vercel.app`)
 
 ---
 
-## 1. Deploy automático (Git → Railway)
+## 1. Deploy automático (Git → Vercel)
 
-O **Git local não controla** o deploy da Railway. O fluxo é:
+O fluxo recomendado:
 
 ```text
-git push origin main  →  GitHub  →  Railway detecta push  →  novo build (Dockerfile)
+git push origin main  →  GitHub  →  Vercel detecta push  →  novo build
 ```
 
-### Conferir no painel Railway (uma vez)
+### Conferir no painel Vercel (uma vez)
 
-1. Abra o projeto **altercadiaonline-production**.
-2. **Settings** → **Source** (ou **GitHub Repo**).
-3. Confirme:
-   - Repositório: `AltercadiaOnline/AltercadiaOnline`
-   - Branch de deploy: **`main`**
-   - **Deploy on push** / **Automatic deploys**: **ativado**
-4. Em **Deployments**, cada `git push` na `main` deve gerar um novo deploy.
+1. [vercel.com/dashboard](https://vercel.com/dashboard) → projeto **AltercadiaOnline**
+2. **Settings** → **Git** — repositório `AltercadiaOnline/AltercadiaOnline`, branch **`main`**
+3. **Settings** → **Environment Variables** — Supabase + CORS (secção 2)
+4. **Deployments** — cada push na `main` gera um novo deploy
 
-### Git local (já verificado)
+### Git local
 
 ```bash
 git remote -v          # origin → github.com/AltercadiaOnline/AltercadiaOnline.git
 git branch -vv         # main rastreia origin/main
-git push origin main   # dispara deploy se Railway estiver ligada ao repo
+git push origin main   # dispara deploy se Vercel estiver ligada ao repo
 ```
+
+### WebSocket + servidor Node
+
+Este jogo usa **HTTP + WebSocket persistente** (`/ws`). Funções serverless puras da Vercel **não** sustentam esse modelo.
+
+Opções na Vercel:
+
+- **Docker** (`Dockerfile` na raiz) — deploy de container com `node dist/server/index.js`
+- **Vercel Fluid / compute long-running** — se disponível no seu plano
+
+O `vercel.json` na raiz define `buildCommand` e `installCommand`; ajuste o tipo de deploy no painel conforme a opção acima.
 
 ---
 
-## 2. Variáveis de ambiente (Railway)
+## 2. Variáveis de ambiente (Vercel)
 
-O servidor lê via `loadServerEnv()` em `src/server/config/env.ts`:
+O servidor lê via `loadProjectEnv()` + `loadServerEnv()` (`src/server/config/`):
 
-| Variável Railway | Uso no código |
-|------------------|---------------|
-| `PORT` | `env.port` — Railway injeta automaticamente |
-| `NODE_ENV` | `production` recomendado |
+| Variável | Uso |
+|----------|-----|
+| `PORT` | `env.port` — Vercel injeta automaticamente |
+| `NODE_ENV` | `production` em produção |
 | `HOST` | opcional; default `0.0.0.0` |
 | `CORS_ORIGIN` | `env.corsOrigins` — HTTP + WebSocket (`/ws`) |
+| `TRUST_PROXY` | `true` em produção (proxy Vercel) |
+| `SUPABASE_URL` | Auth + API Supabase |
+| `SUPABASE_ANON_KEY` | Exposta ao browser via `/config/client` |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Só servidor** — nunca no cliente |
+| `DATABASE_URL` | Postgres direto (opcional; ver secção 9) |
 
 ### Valor recomendado em produção (monólito)
 
 ```env
 NODE_ENV=production
-CORS_ORIGIN=https://altercadiaonline-production.up.railway.app
+TRUST_PROXY=true
+CORS_ORIGIN=https://SEU-PROJETO.vercel.app
+SUPABASE_URL=https://SEU_PROJETO.supabase.co
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 Sem `https://` ou com URL errada, o WebSocket pode falhar no browser.
-
-`src/server/index.ts` usa:
-
-- `loadServerEnv()` → `PORT`, `CORS_ORIGIN` / `CORS_ORIGINS`
-- `httpServer.listen(env.port, env.host)`
-- `createStaticServer({ corsOrigins })` + `CombatWsHub({ corsOrigins })`
 
 ---
 
@@ -69,127 +80,71 @@ Fluxo em `src/server/net/staticServer.ts`:
 |-----|--------|
 | `/` | `public/index.html` |
 | `/styles.css` | `public/styles.css` |
-| `/client/browser/main.js` | `dist/client/browser/main.js` (gerado pelo `npm run build`) |
-| `/shared/*.js` | `dist/shared/*.js` (imports do cliente — obrigatório servir) |
+| `/client/browser/main.js` | `dist/client/browser/main.js` |
+| `/shared/*.js` | `dist/shared/*.js` |
 | `/health` | JSON de saúde |
+| `/api/player-snapshot` | Snapshot autoritativo (Supabase + seed) |
 | `/ws` | WebSocket de combate |
 
-O `Dockerfile` na Railway executa `npm run build` e copia **`public/`** + **`dist/`** para a imagem — não é preciso commitar `dist/` no Git.
-
-O `index.html` aponta para:
-
-```html
-<script type="module" src="/client/browser/main.js"></script>
-```
+O build (`npm run build`) gera **`dist/`**; **`public/`** é estático. Não é preciso commitar `dist/` no Git.
 
 ---
 
-## 4. Checklist antes de cada `git push` (não quebrar produção)
-
-Atalho único (recomendado — espelha o build do Docker na Railway):
+## 4. Checklist antes de cada `git push`
 
 ```bash
 npm run deploy:check
 ```
 
-Isso executa: `typecheck` → `build`.
-
-Ou passo a passo:
+Smoke test local:
 
 ```bash
-# 1. Dependências (após pull ou clone)
-npm ci
-
-# 2. Tipos
-npm run typecheck
-
-# 3. Build (mesmo passo do Docker na Railway)
-npm run build
-
-# 4. Smoke test local (opcional mas recomendado)
 npm start
-# Abra http://localhost:3000/health  → {"ok":true}
-# Abra http://localhost:3000/         → jogo + WebSocket
-# Ctrl+C para parar
-```
-
-### Atalho local (dev)
-
-```bash
-npm run mvp          # build + start (igual produção simplificada)
-npm run dev:mvp      # build + servidor com reload (tsx watch)
+# http://localhost:3000/health
+# http://localhost:3000/
 ```
 
 ### O que **não** commitar
 
-- `node_modules/` — ignorado pelo `.gitignore`
-- `dist/` — gerado no build da Railway
-- `data/` — snapshots locais
-- `.env` com segredos — use só variáveis no painel Railway
-
-### Depois do checklist
-
-```bash
-git add .
-git commit -m "descricao clara da mudanca"
-git push origin main
-```
-
-Acompanhe o deploy em **Railway → Deployments** (build Docker + healthcheck `/health`).
+- `node_modules/`, `dist/`, `data/`
+- `.env`, `.env.governance` (segredos)
 
 ---
 
 ## 5. Validar produção após o push
 
-1. `https://altercadiaonline-production.up.railway.app/health` → `{"ok":true,"service":"altercadia-v2"}`
-2. `https://altercadiaonline-production.up.railway.app/` → HUD de combate
-3. DevTools → Network → WebSocket `wss://.../ws` conectado
-4. Logs Railway: `CORS origins → https://altercadiaonline-production.up.railway.app`
+1. `https://SEU-PROJETO.vercel.app/health` → `{"ok":true,"service":"altercadia-v2"}`
+2. `https://SEU-PROJETO.vercel.app/` → jogo carrega
+3. DevTools → WebSocket `wss://.../ws` conectado
+4. Logs Vercel: `CORS origins → ...`
 
 ---
 
-## 6. Logs do Railway (terminal Cursor)
-
-### Abrir painel no navegador (Windows)
+## 6. Logs (Vercel)
 
 ```bash
-npm run railway:dashboard
+npm run vercel:dashboard
 ```
 
-Depois: projeto **altercadiaonline-production** → serviço → aba **Deployments** → último deploy → **View Logs**.
-
-### CLI Railway (logs no terminal)
-
-Instalação única:
+Ou CLI:
 
 ```bash
-npm install -g @railway/cli
-railway login
+npm i -g vercel
+vercel login
+vercel link
+vercel logs
 ```
-
-Na pasta do projeto (após linkar o projeto):
-
-```bash
-cd "c:\Users\Usuario\Desktop\MMO BROWSER"
-railway link
-railway logs --follow
-```
-
-Sem CLI, use sempre o dashboard: [railway.com/dashboard](https://railway.com/dashboard).
 
 ---
 
-## 7. Scripts úteis (`package.json`)
+## 7. Scripts úteis
 
 | Script | Quando usar |
 |--------|-------------|
-| `npm run deploy:check` | **Antes de todo push** — valida produção (`typecheck` + `build`) |
-| `npm run typecheck` | Só tipos |
-| `npm run build` | Gera `dist/` (obrigatório localmente para `npm start`) |
-| `npm run railway:dashboard` | Abre o painel Railway no browser |
-| `npm start` | Produção local (`node dist/server/index.js`) |
-| `npm run mvp` | `build` + `start` |
-| `npm run dev:mvp` | Desenvolvimento com reload do servidor |
+| `npm run deploy:check` | Antes de todo push |
+| `npm run vercel:dashboard` | Painel Vercel |
+| `npm start` | Produção local |
+| `npm run dev` | Desenvolvimento com reload |
 
 ---
 
@@ -197,12 +152,27 @@ Sem CLI, use sempre o dashboard: [railway.com/dashboard](https://railway.com/das
 
 | Sintoma | Causa provável | Ação |
 |---------|----------------|------|
-| Página em branco / “Conectando” infinito | `dist/shared/*.js` não servidos (404) ou WS bloqueado | `npm run build` + redeploy; `CORS_ORIGIN` com URL exata |
-| Página em branco | `dist/` ausente localmente ou build falhou | `npm run build` |
-| WS não conecta | `CORS_ORIGIN` incorreto | URL exata com `https://` no Railway |
-| 404 em `/client/...` | Build não gerou JS do browser | Verificar `dist/client/browser/main.js` |
-| Deploy não inicia | Railway desligada do GitHub | Reconectar repo + branch `main` |
+| WS não conecta | Deploy serverless sem processo persistente | Usar Docker / compute long-running na Vercel |
+| CORS / WS bloqueado | `CORS_ORIGIN` incorreto | URL exata `https://...vercel.app` |
+| Auth / perfil falha | Supabase env ausente na Vercel | Copiar chaves de `.env.governance.example` |
+| DB não configurado | `DATABASE_URL` vazio | Normal se só usa Supabase JS API; ver secção 9 |
 
 ---
 
-*Última revisão alinhada ao commit em `main` com Dockerfile + `staticServer` + `loadServerEnv`.*
+## 9. Supabase + conexão de banco
+
+**Dois caminhos (independentes da Vercel):**
+
+1. **Supabase HTTP API** (principal) — `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`  
+   Usado em: auth JWT, `player-snapshot`, gifts (`transfer_item` RPC), bootstrap de perfil.
+
+2. **Postgres direto** (opcional) — `DATABASE_URL` ou `DATABASE_HOST` + credenciais  
+   Lido por `databaseConfig.ts` / `databaseConnection.ts`. Hoje o motor MVP usa JSON em disco (`PERSISTENCE_MODE`); Postgres direto fica pronto para migrações futuras.
+
+Prioridade de env: **shell Vercel** → `.env.governance` (local) → `.env`.
+
+Documentação Supabase: [supabase/README.md](./supabase/README.md)
+
+---
+
+*Stack: TypeScript · Node 20+ · Supabase · Vercel · WebSocket nativo.*

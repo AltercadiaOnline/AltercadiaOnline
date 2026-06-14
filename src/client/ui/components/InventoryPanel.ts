@@ -9,19 +9,10 @@ import { DIARIO_MEMORIAS_ITEM_ID } from '../../../shared/items/soulboundItems.js
 import { BaseUIComponent } from '../UIComponent.js';
 import { openDiaryPanel } from '../diary/openDiaryPanel.js';
 import { dispatchEquipFromInventory } from '../equipment/equipItemAction.js';
-import { findCompatibleEquipmentSlot } from '../equipment/inventoryEquip.js';
 import { renderInventorySlot } from '../inventory/renderInventorySlot.js';
 import {
   isWalletBackedCurrencyItemId,
-  resolveWalletCurrencySlotQtyLabel,
-  type WalletCurrencyView,
 } from '../inventory/inventoryCurrencyDisplay.js';
-import { getPlayerItemStore } from '../items/playerItemStore.js';
-import {
-  hasPendingItemMutation,
-  isInventoryItemMutationPending,
-  subscribeItemMutationPending,
-} from '../items/itemMutationPendingUi.js';
 import {
   isMarketplaceListableItem,
   isNpcVendorSellableItem,
@@ -30,7 +21,16 @@ import { NPC_HIGH_VALUE_MARKETPLACE_HINT } from '../../../shared/economy/npcSell
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { isNpcVendorShopOpen, subscribeNpcVendorShopOpen } from '../vendor/npcVendorSession.js';
 import { getContextMenuService } from '../contextMenu/ContextMenuService.js';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { subscribeGameStore } from '../../state/GameStore.js';
+import type { GameStoreGold } from '../../state/GameStore.js';
+import {
+  InventoryService,
+  isSyncPending,
+  selectInventorySlotTooltipLabel,
+  selectInventorySyncIndicatorHtml,
+  selectPlayerGold,
+  selectPlayerInventory,
+} from '../../services/index.js';
 
 export type InventoryItemView = {
   readonly id: string;
@@ -40,12 +40,10 @@ export type InventoryItemView = {
 
 /**
  * Inventário — grade wide MMO (10×4 = 40).
- * Sem cache de itens: createTemplate() lê playerItemStore a cada render.
+ * Sem cache de itens: createTemplate() lê GameStore.player a cada render.
  */
 export class InventoryPanel extends BaseUIComponent {
-  private unsubscribeStore: (() => void) | null = null;
-  private unsubscribeWallet: (() => void) | null = null;
-  private unsubscribePending: (() => void) | null = null;
+  private unsubscribeGameStore: (() => void) | null = null;
   private unsubNpcVendor: (() => void) | null = null;
   private unbindTooltipListeners: (() => void) | null = null;
   private unbindDismissContextMenu: (() => void) | null = null;
@@ -53,16 +51,8 @@ export class InventoryPanel extends BaseUIComponent {
   constructor() {
     super({ id: 'inventory', rootClassName: 'ui-panel ui-panel--inventory ui-panel--movable' });
 
-    const itemStore = getPlayerItemStore();
-    this.unsubscribeStore = itemStore.subscribe(() => {
-      if (this.isOpen()) this.render();
-    });
-
-    this.unsubscribeWallet = getDataStore().subscribe('wallet', () => {
-      if (this.isOpen()) this.render();
-    });
-
-    this.unsubscribePending = subscribeItemMutationPending(() => {
+    this.unsubscribeGameStore = subscribeGameStore((_, slice) => {
+      if (slice !== 'player' && slice !== 'pendingActions' && slice !== '*') return;
       if (this.isOpen()) this.render();
     });
 
@@ -85,14 +75,11 @@ export class InventoryPanel extends BaseUIComponent {
   }
 
   createTemplate(): string {
-    const snapshot = getPlayerItemStore().getInventorySnapshot();
-    const wallet = getDataStore().getWallet();
-    const syncIndicator = hasPendingItemMutation()
-      ? '<span class="inventory-panel__sync" aria-busy="true" title="Sincronizando equipamento…">⟳</span>'
-      : '';
+    const inventory = selectPlayerInventory();
+    const syncIndicator = selectInventorySyncIndicatorHtml();
 
-    const slotsHtml = snapshot.slots
-      .map((slot, index) => this.renderSlot(index, slot, wallet))
+    const slotsHtml = inventory.slots
+      .map((slot, index) => this.renderSlot(index, slot, selectPlayerGold()))
       .join('');
 
     return `
@@ -100,7 +87,7 @@ export class InventoryPanel extends BaseUIComponent {
         <div class="inventory-panel__header-main">
           <h2 class="ui-panel__title">Inventário</h2>
           <p class="inventory-panel__meta" data-hud-fit-secondary>
-            ${snapshot.used} / ${snapshot.capacity} slots
+            ${inventory.used} / ${inventory.capacity} slots
             ${syncIndicator}
           </p>
         </div>
@@ -142,13 +129,12 @@ export class InventoryPanel extends BaseUIComponent {
     });
 
     this.root?.addEventListener('dblclick', (event) => {
-      if (hasPendingItemMutation()) return;
+      if (InventoryService.isInventoryMutationPending()) return;
 
       const slotEl = (event.target as HTMLElement).closest<HTMLElement>('[data-item-id]');
       const itemId = slotEl?.dataset.itemId;
       if (!itemId) return;
-      if (isInventoryItemMutationPending(itemId)) return;
-      if (!findCompatibleEquipmentSlot(itemId)) return;
+      if (!InventoryService.canEquipItem(itemId)) return;
       event.preventDefault();
       dispatchEquipFromInventory(itemId);
     });
@@ -173,12 +159,8 @@ export class InventoryPanel extends BaseUIComponent {
     this.unbindDismissContextMenu = null;
     this.unsubNpcVendor?.();
     this.unsubNpcVendor = null;
-    this.unsubscribePending?.();
-    this.unsubscribePending = null;
-    this.unsubscribeWallet?.();
-    this.unsubscribeWallet = null;
-    this.unsubscribeStore?.();
-    this.unsubscribeStore = null;
+    this.unsubscribeGameStore?.();
+    this.unsubscribeGameStore = null;
     super.destroy();
   }
 
@@ -213,10 +195,7 @@ export class InventoryPanel extends BaseUIComponent {
           return;
         }
 
-        const wallet = getDataStore().getWallet();
-        const heldAmountLabel = isWalletBackedCurrencyItemId(itemId)
-          ? resolveWalletCurrencySlotQtyLabel(itemId, wallet) ?? undefined
-          : undefined;
+        const heldAmountLabel = selectInventorySlotTooltipLabel(itemId);
 
         uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
           data: {
@@ -250,11 +229,9 @@ export class InventoryPanel extends BaseUIComponent {
   private renderSlot(
     index: number,
     slot: InventorySlotState,
-    wallet: WalletCurrencyView,
+    wallet: GameStoreGold,
   ): string {
-    const pending = slot.itemId
-      ? isInventoryItemMutationPending(slot.itemId)
-      : false;
+    const pending = isSyncPending() && Boolean(slot.itemId);
 
     return renderInventorySlot({
       index,

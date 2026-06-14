@@ -15,6 +15,7 @@ import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { cancelScheduledFrame, scheduleNextFrame } from '../sync/frameScheduler.js';
+import { getPlayerStatsGateway } from '../gateway/PlayerStatsGateway.js';
 
 /** @deprecated Use applyServerItemBundle — mantido para mock sync. */
 export function applyAuthoritativeItemState(
@@ -180,6 +181,8 @@ export function applyInventoryUpdatedPayload(
     equipmentUiGrid: grid,
     equipped: payload.equipped ?? {},
   });
+
+  getPlayerStatsGateway().refreshFromAuthoritativeGrid(grid);
 
   const overlap = findInventoryEquipmentOverlap(store.getItems());
   if (overlap.length > 0) {

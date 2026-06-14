@@ -15,6 +15,7 @@ import { BattleTurnTimer } from './battleTurnTimer.js';
 import { getCombatTurnGateway } from './CombatTurnGateway.js';
 
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
+import { getGameStore } from '../state/GameStore.js';
 
 
 
@@ -153,6 +154,13 @@ export class TurnStateGuard {
     this.lastTurnWindowKey = null;
 
     this.lastUiTurnKey = null;
+
+    getGameStore().updateBattleState({
+      status: 'idle',
+      phase: null,
+      timerSeconds: null,
+      isMyTurn: false,
+    });
 
     this.applyTurnUi();
 
@@ -293,6 +301,16 @@ export class TurnStateGuard {
       this.applyTurnUi();
 
     }
+
+    getGameStore().updateBattleState({
+      status: nextTurn ? 'choosing' : 'waiting',
+      phase: nextTurn ? 'CHOOSING' : null,
+      timerSeconds:
+        nextTurn && nextDeadline !== undefined
+          ? Math.max(0, (nextDeadline - Date.now()) / 1000)
+          : null,
+      isMyTurn: nextTurn,
+    });
 
   }
 

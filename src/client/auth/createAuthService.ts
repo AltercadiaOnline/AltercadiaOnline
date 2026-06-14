@@ -3,6 +3,7 @@ import { getSupabaseClient, getUser } from './supabaseAuth.js';
 import { signInWithEmail, signUpWithEmail } from '../auth.js';
 import { resolveAccountKey } from '../services/localSessionStore.js';
 import { loginLocalDevAccount } from './localDevAuth.js';
+import { isLocalDevHost } from './localDevAuth.js';
 import { mockAuth } from '../services/mockAuth.js';
 
 function createSupabaseAuthService(): AuthService {
@@ -44,6 +45,12 @@ export function createAuthService(): AuthService {
   return {
     async login(email, pass) {
       if (!getSupabaseClient()) {
+        if (!isLocalDevHost()) {
+          return {
+            success: false,
+            message: 'Login requer Supabase Auth configurado neste ambiente.',
+          };
+        }
         const result = await loginLocalDevAccount(email, pass);
         if (!result.ok || !result.user) {
           return { success: false, message: result.message };
@@ -59,6 +66,12 @@ export function createAuthService(): AuthService {
 
     async register(payload) {
       if (!getSupabaseClient()) {
+        if (!isLocalDevHost()) {
+          return {
+            success: false,
+            message: 'Cadastro disponível apenas com Supabase Auth configurado.',
+          };
+        }
         return mockAuth.register(payload);
       }
       return supabaseAuth.register(payload);

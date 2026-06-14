@@ -238,6 +238,7 @@ export type WsInboundMessage =
         readonly displayName?: string;
         readonly clientMapId?: string;
         readonly clientPosition?: { readonly x: number; readonly y: number };
+        readonly accessToken?: string;
       };
     }
   | {
@@ -587,9 +588,13 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
         displayName?: string;
         clientMapId?: string;
         clientPosition?: { x: number; y: number };
+        accessToken?: string;
       } = { playerId, characterId };
 
       if (typeof p.displayName === 'string') loginPayload.displayName = p.displayName;
+      if (typeof p.accessToken === 'string' && p.accessToken.length > 0) {
+        loginPayload.accessToken = p.accessToken;
+      }
 
       if (typeof p.clientMapId === 'string') loginPayload.clientMapId = p.clientMapId;
 
@@ -761,10 +766,14 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
       if (typeof p.intentId !== 'string' || typeof p.type !== 'string') return null;
       if (typeof p.timestamp !== 'number' || !Number.isFinite(p.timestamp)) return null;
       if (p.payload === undefined) return null;
+      const correlationId = typeof p.correlationId === 'string' && p.correlationId.length > 0
+        ? p.correlationId
+        : p.intentId;
       return {
         type: 'player-intent',
         payload: {
           intentId: p.intentId,
+          correlationId,
           type: p.type,
           payload: p.payload,
           timestamp: p.timestamp,

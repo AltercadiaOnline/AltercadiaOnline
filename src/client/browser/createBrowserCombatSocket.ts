@@ -9,6 +9,7 @@ import {
   releaseCombatActionLock,
   releaseForfeitInFlight,
 } from '../hud/index.js';
+import { getGameStore } from '../state/GameStore.js';
 import {
   connectionPhaseLabel,
   setConnectionPhase,
@@ -79,7 +80,14 @@ function bindWsEvents(
       if (!data?.type) return;
 
       if (data.type === 'combat-error') {
+        const reason =
+          typeof data.payload === 'object'
+          && data.payload !== null
+          && 'reason' in data.payload
+            ? String((data.payload as { reason?: unknown }).reason ?? 'COMBAT_ERROR')
+            : 'COMBAT_ERROR';
         console.warn('[WS] combat-error:', data.payload);
+        getGameStore().rejectLatestCombatPending(reason);
         abortCombatFeedbackOnDisconnect();
         releaseForfeitInFlight();
         releaseCombatActionLock();
@@ -139,7 +147,7 @@ export function createBrowserCombatSocket(
     });
 
     ws.addEventListener('error', () => {
-      const hint = 'Falha no WebSocket — confira CORS_ORIGIN no Railway e o console (F12).';
+      const hint = 'Falha no WebSocket — confira CORS_ORIGIN na Vercel e o console (F12).';
       for (const handler of store.errorHandlers) handler(hint);
     });
 

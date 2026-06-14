@@ -431,6 +431,29 @@ export function seedPlayerWalletIfEmpty(
   }
 }
 
+/** Snapshot autoritativo externo (Supabase / persistência). */
+export function applyAuthoritativeWalletBalances(
+  playerId: string,
+  dollarVolt: number,
+  alterCoins: number,
+): void {
+  const wallet = getOrCreateWallet(playerId);
+  wallet.dollarVolt = Math.max(0, Math.floor(dollarVolt));
+  wallet.alterCoins = Math.max(0, Math.floor(alterCoins));
+}
+
+export function applyAuthoritativeEquippedSlots(
+  playerId: string,
+  characterId: number,
+  equipped: EquippedSlots,
+): void {
+  const profile = getOrCreateProfile(playerId, characterId);
+  profile.equipped = { ...equipped };
+  profile.equipmentUiGrid = equippedToEquipmentUiGrid(profile.equipped);
+  dedupeProfileInventoryFromEquipment(profile);
+  syncInventoryFromProfile(profileKey(playerId, characterId), profile);
+}
+
 export function getCharacterProfile(playerId: string, characterId: number): CharacterEconomyProfile {
   const profile = getOrCreateProfile(playerId, characterId);
   return {

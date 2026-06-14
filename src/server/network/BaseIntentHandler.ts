@@ -1,4 +1,5 @@
 import type { IntentResult } from '../../shared/intent/intentProtocol.js';
+import { withCorrelationId } from '../../shared/sync/pendingActionProtocol.js';
 import type { IntentWsSender } from './intentOrchestrator.js';
 
 export type IntentHandlerSession = {
@@ -61,16 +62,16 @@ export abstract class BaseIntentHandler<T = unknown> implements IIntentHandler<T
     }
 
     const payload: IntentResult = success
-      ? {
+      ? withCorrelationId({
           intentId,
           success: true,
           ...(data !== undefined ? { data } : {}),
-        }
-      : {
+        })
+      : withCorrelationId({
           intentId,
           success: false,
           error: typeof data === 'string' ? data : 'INTENT_REJECTED',
-        };
+        });
 
     this.wsSender({ type: 'intent-result', payload });
 

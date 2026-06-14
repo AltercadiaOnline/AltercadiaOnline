@@ -1,0 +1,49 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "framework": null,
+  "outputDirectory": "public",
+  "headers": [
+    {
+      "source": "/client/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/shared/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/vendor/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/config/client", "destination": "/api/config/client" },
+    { "source": "/api/player-snapshot", "destination": "/api/player-snapshot" },
+    { "source": "/api/gift/transfer", "destination": "/api/gift/transfer" },
+    {
+      "source": "/((?!api/|client/|shared/|assets/|vendor/|styles\\.css|favicon\\.svg|index\\.html).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}

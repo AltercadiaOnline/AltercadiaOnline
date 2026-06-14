@@ -28,8 +28,20 @@ export async function ensureDirectory(dirPath: string): Promise<void> {
 }
 
 /**
+ * Transação atômica — ponto único de I/O para persistência MVP (JSON em disco).
+ * Quando Postgres estiver ativo, use `getDatabaseConnectionString()` em
+ * `databaseConnection.ts` e substitua por SQL dentro deste contrato.
+ */
+export async function executeTransaction<T>(
+  filePath: string,
+  mutate: (current: T | null) => T | Promise<T>,
+  parse?: (raw: string) => T | null,
+): Promise<T> {
+  return executeFileTransaction(filePath, mutate, parse);
+}
+
+/**
  * Transação atômica em arquivo — read → mutate → write temp → rename.
- * Único ponto de I/O para persistência MVP (substituível por SQL depois).
  */
 export async function executeFileTransaction<T>(
   filePath: string,

@@ -9,7 +9,7 @@ Guia para validar o monólito online (HTTP + WebSocket `/ws`) com **persistênci
 | `memory` (default) | Dev rápido — **reinício zera** economia/mundo/loot pendente |
 | `file` | **MVP online QA** — JSON em `DATA_DIR` (default `./data`) |
 
-Variáveis (`.env` ou Railway):
+Variáveis (`.env` ou Vercel):
 
 ```env
 PERSISTENCE_MODE=file

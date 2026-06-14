@@ -224,7 +224,7 @@ export {
 
 export { resolveAuthoritativeCombatLoadout } from './authoritativeCombatLoadout.js';
 
-/** Flush global — shutdown Railway / SIGTERM. */
+/** Flush global — shutdown Vercel / SIGTERM. */
 export async function flushAllPersistence(): Promise<void> {
   if (!isFilePersistenceEnabled()) return;
   await persistPendingLootSnapshot();

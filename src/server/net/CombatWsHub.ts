@@ -15,7 +15,7 @@ import {
   withdrawBankItem,
 } from '../../Economy/economyGateway.js';
 import { globalEventBus } from '../../Economy/EventBus.js';
-import { seedDemoProfileIfEmpty, seedPlayerWalletIfEmpty, syncDemoProfileInventoryIfIncomplete } from '../../Economy/economyStore.js';
+import { seedAuthoritativePlayerEconomyIfEmpty } from '../economy/seedAuthoritativePlayerEconomy.js';
 import { isOriginAllowed } from '../config/cors.js';
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
 import { buildCombatUiHints, withTurnTimerConfig } from '../../shared/combatWire.js';
@@ -101,6 +101,8 @@ import {
   persistPendingLootSnapshot,
 } from '../persistence/PersistenceGateway.js';
 import { patchAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
+import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
+import { ensureServerPlayerBootstrap } from '../supabase/bootstrapPlayerOnServer.js';
 
 type LiveSocket = WebSocket & { readonly sessionId?: string };
 
@@ -108,7 +110,32 @@ type WorldConnectionState = {
   readonly playerId: string;
   readonly characterId: number;
   readonly displayName: string;
+  readonly authUserId: string;
+  /** JWT Supabase — revalidado antes de cada player-intent (memória, nunca logado). */
+  readonly accessToken: string | null;
 };
+
+const WORLD_AUTH_REQUIRED_MESSAGES = new Set<string>([
+  'request-full-state',
+  'player-intent',
+  'position-sync',
+  'portal-transition-request',
+  'chat-global-send',
+  'activate-book',
+  'economy-exchange-alter',
+  'economy-bank-transaction',
+  'refraction-booth-quote',
+  'refraction-booth-start',
+  'refraction-booth-complete',
+  'world-chronicles-request',
+  'combat-join',
+  'combat-action',
+  'combat-forfeit',
+  'combat-collect-loot',
+  'combat-confirm-loot',
+  'combat-dismiss-loot',
+  'player-honor-given',
+]);
 
 export type CombatWsHubOptions = {
   readonly corsOrigins: readonly string[];
@@ -236,6 +263,16 @@ export class CombatWsHub {
       return;
     }
 
+    if (
+      message.type !== 'world-login'
+      && getSessionAuthGateway().isAuthRequired()
+      && WORLD_AUTH_REQUIRED_MESSAGES.has(message.type)
+      && !this.worldConnections.has(connectionId)
+    ) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'AUTH_REQUIRED' } });
+      return;
+    }
+
     if (message.type === 'combat-join') {
       const world = this.worldConnections.get(connectionId);
       this.handleJoin(
@@ -264,7 +301,7 @@ export class CombatWsHub {
     }
 
     if (message.type === 'world-chronicles-request') {
-      this.handleWorldChroniclesRequest(ws, message.payload);
+      this.handleWorldChroniclesRequest(ws, connectionId, message.payload);
       return;
     }
 
@@ -314,7 +351,7 @@ export class CombatWsHub {
     }
 
     if (message.type === 'player-honor-given') {
-      this.handlePlayerHonorGiven(ws, message.payload);
+      this.handlePlayerHonorGiven(ws, connectionId, message.payload);
       return;
     }
 
@@ -732,8 +769,11 @@ export class CombatWsHub {
 
   private handlePlayerHonorGiven(
     ws: LiveSocket,
+    connectionId: string,
     payload: import('../../shared/combat/playerHonorTypes.js').PlayerHonorGivenPayload,
   ): void {
+    if (!this.requireVerifiedWorldSession(ws, connectionId)) return;
+
     const honorCount = grantPlayerHonor(payload.recipientActorId);
     this.send(ws, {
       type: 'player-honor-result',
@@ -1016,6 +1056,63 @@ export class CombatWsHub {
     this.sendFullStateSync(ws, world.playerId, world.characterId, true);
   }
 
+  private requireVerifiedWorldSession(
+    ws: LiveSocket,
+    connectionId: string,
+    options?: { readonly characterId?: number; readonly playerId?: string },
+  ): WorldConnectionState | null {
+    const world = this.worldConnections.get(connectionId);
+    if (!world) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
+      return null;
+    }
+
+    if (options?.characterId !== undefined && world.characterId !== options.characterId) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'INVALID_CHARACTER' } });
+      return null;
+    }
+
+    if (options?.playerId !== undefined && world.playerId !== options.playerId) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'AUTH_MISMATCH' } });
+      return null;
+    }
+
+    return world;
+  }
+
+  private async ensureConnectionJwtValid(
+    ws: LiveSocket,
+    world: WorldConnectionState,
+    intentId: string,
+  ): Promise<boolean> {
+    const authGateway = getSessionAuthGateway();
+    if (!authGateway.isAuthRequired()) return true;
+
+    const token = world.accessToken?.trim() ?? '';
+    if (!token) {
+      sendIntentFailure(
+        (message) => this.send(ws, message),
+        intentId,
+        'Sessão não autenticada.',
+        'AUTH_REQUIRED',
+      );
+      return false;
+    }
+
+    const verified = await authGateway.verifyAccessToken(token);
+    if (!verified || verified.userId !== world.playerId) {
+      sendIntentFailure(
+        (message) => this.send(ws, message),
+        intentId,
+        'Token inválido ou expirado.',
+        'AUTH_INVALID',
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   private async handlePlayerIntent(
     ws: LiveSocket,
     connectionId: string,
@@ -1027,8 +1124,17 @@ export class CombatWsHub {
       return;
     }
 
+    const intentId = payload.correlationId ?? payload.intentId;
+    if (!intentId) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'INVALID_INTENT' } });
+      return;
+    }
+
+    if (!(await this.ensureConnectionJwtValid(ws, world, intentId))) {
+      return;
+    }
+
     const { playerId, characterId } = world;
-    const intentId = payload.intentId;
     const sendIntentWs: import('../network/intentOrchestrator.js').IntentWsSender = (message) => {
       this.send(ws, message);
     };
@@ -1059,9 +1165,38 @@ export class CombatWsHub {
       readonly displayName?: string;
       readonly clientMapId?: string;
       readonly clientPosition?: { readonly x: number; readonly y: number };
+      readonly accessToken?: string;
     },
   ): Promise<void> {
     try {
+      const authGateway = getSessionAuthGateway();
+      let authUserId = payload.playerId;
+
+      if (authGateway.isAuthRequired()) {
+        const token = payload.accessToken?.trim() ?? '';
+        if (!token) {
+          this.send(ws, { type: 'combat-error', payload: { reason: 'AUTH_REQUIRED' } });
+          return;
+        }
+
+        const verified = await authGateway.verifyAccessToken(token);
+        if (!verified) {
+          this.send(ws, { type: 'combat-error', payload: { reason: 'AUTH_INVALID' } });
+          return;
+        }
+
+        if (payload.playerId !== verified.userId) {
+          console.warn('[WS] world-login: playerId não corresponde ao JWT', {
+            connectionId,
+            characterId: payload.characterId,
+          });
+          this.send(ws, { type: 'combat-error', payload: { reason: 'AUTH_MISMATCH' } });
+          return;
+        }
+
+        authUserId = verified.userId;
+      }
+
       if (payload.clientMapId !== undefined || payload.clientPosition !== undefined) {
         console.log('[WS] world-login: posição do cliente descartada', {
           connectionId,
@@ -1070,37 +1205,47 @@ export class CombatWsHub {
       }
 
       const loginRequest = {
-        playerId: payload.playerId,
+        playerId: authUserId,
         characterId: payload.characterId,
         ...(payload.displayName !== undefined ? { displayName: payload.displayName } : {}),
         ...(payload.clientMapId !== undefined ? { clientMapId: payload.clientMapId } : {}),
         ...(payload.clientPosition !== undefined ? { clientPosition: payload.clientPosition } : {}),
       };
 
-      const hadPersistedSave = await hydrateCharacterSession(payload.playerId, payload.characterId);
+      const hadPersistedSave = await hydrateCharacterSession(authUserId, payload.characterId);
+      const bootstrap = await ensureServerPlayerBootstrap(authUserId, payload.characterId);
+
+      if (bootstrap.supabaseConfigured && !bootstrap.profileReady) {
+        this.send(ws, {
+          type: 'combat-error',
+          payload: { reason: 'PROFILE_NOT_READY' },
+        });
+        return;
+      }
+
       if (payload.displayName?.trim()) {
-        patchAuthoritativeProgression(payload.playerId, payload.characterId, {
+        patchAuthoritativeProgression(authUserId, payload.characterId, {
           characterProfile: { displayName: payload.displayName.trim() },
         });
       }
       const result = this.positionGateway.handleWorldLogin(loginRequest);
 
-      this.worldLoreLog.onPlayerLogin(payload.playerId, payload.characterId);
+      this.worldLoreLog.onPlayerLogin(authUserId, payload.characterId);
 
-      getOrCreatePlayerSession(payload.playerId, payload.characterId).enterExploration();
-      this.releaseOrphanBattleFlag(payload.playerId, payload.characterId);
+      getOrCreatePlayerSession(authUserId, payload.characterId).enterExploration();
+      this.releaseOrphanBattleFlag(authUserId, payload.characterId);
 
       this.worldConnections.set(connectionId, {
-        playerId: payload.playerId,
+        playerId: authUserId,
         characterId: payload.characterId,
         displayName: payload.displayName?.trim() || 'Jogador',
+        authUserId,
+        accessToken: authGateway.isAuthRequired() ? (payload.accessToken?.trim() ?? null) : null,
       });
-      this.socketsByPlayerId.set(payload.playerId, ws);
+      this.socketsByPlayerId.set(authUserId, ws);
 
-      if (!hadPersistedSave) {
-        seedPlayerWalletIfEmpty(payload.playerId, { dollarVolt: 1200, alterCoins: 50 });
-        seedDemoProfileIfEmpty(payload.playerId, payload.characterId);
-        syncDemoProfileInventoryIfIncomplete(payload.playerId, payload.characterId);
+      if (!hadPersistedSave && bootstrap.profileReady) {
+        seedAuthoritativePlayerEconomyIfEmpty(authUserId, payload.characterId);
       }
 
       this.send(ws, {
@@ -1114,14 +1259,13 @@ export class CombatWsHub {
       });
 
       if (!hadPersistedSave) {
-        await persistCharacterSession(payload.playerId, payload.characterId);
+        await persistCharacterSession(authUserId, payload.characterId);
       }
 
-      this.sendFullStateSync(ws, payload.playerId, payload.characterId, true);
+      this.sendFullStateSync(ws, authUserId, payload.characterId, true);
     } catch (error) {
       console.error('[WS] world-login falhou', {
         connectionId,
-        playerId: payload.playerId,
         characterId: payload.characterId,
         error,
       });
@@ -1183,15 +1327,22 @@ export class CombatWsHub {
 
   private handleWorldChroniclesRequest(
     ws: LiveSocket,
+    connectionId: string,
     payload: {
       readonly playerId: string;
       readonly characterId: number;
       readonly prioritizeAbsence?: boolean;
     },
   ): void {
-    const snapshot = this.worldLoreLog.getChronicles({
+    const world = this.requireVerifiedWorldSession(ws, connectionId, {
       playerId: payload.playerId,
       characterId: payload.characterId,
+    });
+    if (!world) return;
+
+    const snapshot = this.worldLoreLog.getChronicles({
+      playerId: world.playerId,
+      characterId: world.characterId,
       ...(payload.prioritizeAbsence !== undefined
         ? { prioritizeAbsence: payload.prioritizeAbsence }
         : {}),
@@ -1322,9 +1473,7 @@ export class CombatWsHub {
   ): Promise<void> {
     try {
       const playerId = worldPlayerId ?? `player_${connectionId.slice(0, 8)}`;
-      seedPlayerWalletIfEmpty(playerId, { dollarVolt: 500, alterCoins: 25 });
-      seedDemoProfileIfEmpty(playerId, characterId);
-      syncDemoProfileInventoryIfIncomplete(playerId, characterId);
+      seedAuthoritativePlayerEconomyIfEmpty(playerId, characterId, { dollarVolt: 500, alterCoins: 25 });
 
       await consumeChargedEquipmentBattleParticipation(playerId, characterId);
 

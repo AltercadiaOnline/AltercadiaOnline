@@ -444,6 +444,71 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
     return 'applied';
   }
 
+  /** Restaura snapshot capturado antes de PendingAction — força revisões à frente do estado atual. */
+  restoreAuthoritativeSnapshot(state: AuthoritativePlayerSnapshot): void {
+    const bumped = this.bumpSnapshotRevisionsForRestore(state);
+    this.applyFullState(bumped);
+  }
+
+  private bumpSnapshotRevisionsForRestore(
+    state: AuthoritativePlayerSnapshot,
+  ): AuthoritativePlayerSnapshot {
+    const nextRevision = (current: number, incoming?: number): number =>
+      Math.max(current + 1, (incoming ?? current) + 1);
+
+    return {
+      ...state,
+      revision: nextRevision(this.globalRevision, state.revision),
+      wallet: {
+        ...state.wallet,
+        revision: nextRevision(this.sliceRevisions.wallet, state.wallet.revision),
+      },
+      inventory: {
+        ...state.inventory,
+        revision: nextRevision(this.sliceRevisions.inventory, state.inventory.revision),
+      },
+      ...(state.bankStorage
+        ? {
+            bankStorage: {
+              ...state.bankStorage,
+              revision: nextRevision(this.sliceRevisions.bankStorage, state.bankStorage.revision),
+            },
+          }
+        : {}),
+      marcosState: {
+        ...state.marcosState,
+        revision: nextRevision(this.sliceRevisions.marcosState, state.marcosState.revision),
+      },
+      ...(state.movesProgression
+        ? {
+            movesProgression: {
+              ...state.movesProgression,
+              revision: nextRevision(
+                this.sliceRevisions.movesProgression,
+                state.movesProgression.revision,
+              ),
+            },
+          }
+        : {}),
+      ...(state.petRoster
+        ? {
+            petRoster: {
+              ...state.petRoster,
+              revision: nextRevision(this.petStateRevision, state.petRoster.revision),
+            },
+          }
+        : {}),
+      ...(state.petAffinity
+        ? {
+            petAffinity: {
+              ...state.petAffinity,
+              revision: nextRevision(this.petStateRevision, state.petAffinity.revision),
+            },
+          }
+        : {}),
+    };
+  }
+
   applyMovesProgressionFromServer(
     data: AuthoritativePlayerSnapshot['movesProgression'],
     revision?: number,

@@ -49,7 +49,6 @@ export function bindAuthNavigation(handlers: {
   onShowRegister: () => void;
   onCreateAccount: () => void;
   onBackToLogin: () => void;
-  onGoogleRegister: () => void;
 }): boolean {
   const root = document.getElementById('login-screen');
   if (!root) {
@@ -62,7 +61,6 @@ export function bindAuthNavigation(handlers: {
     ['btn-show-register', handlers.onShowRegister],
     ['btn-create-account', handlers.onCreateAccount],
     ['btn-back-login', handlers.onBackToLogin],
-    ['btn-google-register', handlers.onGoogleRegister],
   ]);
 
   let bound = 0;

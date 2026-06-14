@@ -8,7 +8,10 @@ import {
   fetchPublicClientConfig,
   getUser,
   initSupabaseAuth,
+  signOutSupabase,
 } from '../auth/supabaseAuth.js';
+import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameStore.js';
+import { initAuthSessionBridge, tryCompleteOAuthReturn } from '../auth/authSessionBridge.js';
 import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
 import { isGameServerReachable } from '../services/serverReachability.js';
 import { ensureCharacterHub, createCharacterInSlot } from '../services/localCharacterHubStore.js';
@@ -31,6 +34,11 @@ import {
   destroyCharacterAppearancePersistence,
   initCharacterAppearancePersistence,
 } from '../services/characterAppearancePersistence.js';
+import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
+import {
+  hidePlayerInitLoading,
+  showPlayerInitLoading,
+} from '../auth/playerInitLoading.js';
 
 let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
 
@@ -65,6 +73,7 @@ export const AppScreens = {
   setAuthenticatedUser(user: AuthUser): void {
     this.currentSession = setLocalSession(user);
     this.selectedCharacterId = null;
+    activateGameStoreAfterAuth();
     this.loadCharacterHub();
   },
 
@@ -87,6 +96,8 @@ export const AppScreens = {
   },
 
   signOut(): void {
+    void signOutSupabase();
+    resetGameStoreState();
     clearLocalSession();
     this.currentSession = null;
     this.characterHub = null;
@@ -245,6 +256,24 @@ export const AppScreens = {
     return true;
   },
 
+  async awaitAuthoritativePlayerReady(
+    onError?: (message: string) => void,
+  ): Promise<boolean> {
+    showPlayerInitLoading('Carregando perfil no servidor…');
+    activateGameStoreAfterAuth();
+
+    const snapshot = await initializeAuthoritativePlayerSnapshot();
+    hidePlayerInitLoading();
+
+    if (!snapshot.ok || !snapshot.ready) {
+      resetGameStoreState();
+      onError?.(snapshot.message ?? 'Não foi possível carregar o perfil do jogador.');
+      return false;
+    }
+
+    return true;
+  },
+
   async restoreSessionFromSupabase(): Promise<boolean> {
     const user = await getUser();
     if (!user?.email) return false;
@@ -253,7 +282,8 @@ export const AppScreens = {
       email: user.email,
       id: user.id ?? resolveAccountKey({ email: user.email }),
     });
-    return true;
+
+    return this.awaitAuthoritativePlayerReady();
   },
 
   showLoginEnvironmentHint(config: { supabase: boolean; serverOk: boolean }): void {
@@ -269,15 +299,21 @@ export const AppScreens = {
 
     if (!config.supabase && isLocalDevHost()) {
       statusEl.textContent =
-        'Modo local: informe email e senha (mín. 6 caracteres) e clique em LOGIN — a conta é criada automaticamente.';
+        'Modo dev local: use email + senha (mín. 6) — conta criada no navegador; produção usa Supabase Auth.';
       statusEl.classList.remove('is-error');
     } else if (!config.supabase) {
-      statusEl.textContent = 'Use CADASTRAR para criar conta ou LOGIN com email já cadastrado neste navegador.';
-      statusEl.classList.remove('is-error');
+      statusEl.textContent = 'Configure Supabase Auth no servidor para login seguro.';
+      statusEl.classList.add('is-error');
     }
   },
 
-  async init(onEnterWorld: () => void): Promise<void> {
+  async init(
+    onEnterWorld: () => void,
+    authCallbacks?: {
+      onAuthenticated: (user: AuthUser) => void;
+      onAuthError?: (message: string) => void;
+    },
+  ): Promise<void> {
     const serverOk = await isGameServerReachable();
     let supabaseConfigured = false;
 
@@ -286,14 +322,48 @@ export const AppScreens = {
       supabaseConfigured = isSupabaseConfigured(config);
       await initSupabaseAuth(config);
 
-      const hasSupabaseSession = await this.restoreSessionFromSupabase();
-      if (hasSupabaseSession) {
-        this.showCharSelect();
-      } else if (this.restoreSessionFromStorage()) {
-        this.showCharSelect();
+      if (authCallbacks) {
+        initAuthSessionBridge(authCallbacks);
+
+        const oauthCompleted = await tryCompleteOAuthReturn({
+          onAuthenticated: authCallbacks.onAuthenticated,
+          onSnapshotInitializing: (message) => {
+            showPlayerInitLoading(message);
+            const statusEl = document.getElementById('auth-status');
+            if (!statusEl) return;
+            statusEl.textContent = message;
+            statusEl.classList.remove('is-error');
+            statusEl.classList.add('is-success');
+          },
+          onAuthError: (message) => {
+            hidePlayerInitLoading();
+            authCallbacks.onAuthError?.(message);
+            this.showLogin();
+            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+          },
+        });
+
+        if (!oauthCompleted) {
+          const hasSupabaseSession = await this.restoreSessionFromSupabase();
+          if (hasSupabaseSession) {
+            this.showCharSelect();
+          } else if (this.restoreSessionFromStorage()) {
+            this.showCharSelect();
+          } else {
+            this.showLogin();
+            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+          }
+        }
       } else {
-        this.showLogin();
-        this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+        const hasSupabaseSession = await this.restoreSessionFromSupabase();
+        if (hasSupabaseSession) {
+          this.showCharSelect();
+        } else if (this.restoreSessionFromStorage()) {
+          this.showCharSelect();
+        } else {
+          this.showLogin();
+          this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+        }
       }
     } catch (error) {
       console.warn('[Auth] Falha ao inicializar Supabase:', error);

@@ -10,15 +10,10 @@ import {
   resolveMaxCarryCapacity,
 } from '../../shared/character/carryCapacity.js';
 import {
-  calculateStatsBonusFromEquipment,
-  computeSpeedBonusTotal,
   createEmptyStatsBonus,
   type PlayerStatsBonus,
 } from '../../shared/character/playerStatsBonus.js';
-import {
-  applyInheritanceStatsBonusPercent,
-  resolvePetInheritanceBonusesFromStacks,
-} from '../../shared/pet/petInheritanceBonuses.js';
+import { getPlayerStatsGateway } from '../gateway/PlayerStatsGateway.js';
 import {
   moveDirectionToFacing,
   type PlayerFacing,
@@ -38,7 +33,6 @@ import {
 import type { MovementKeyState } from '../inputHandler.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
-import { eventBus, HudEvent } from '../../shared/utils/EventBus.js';
 import type { WorldSocket } from '../world/WorldSocket.js';
 import {
   PlayerHybridLocomotion,
@@ -77,7 +71,6 @@ export class Player {
   private _isEncumbered = false;
   public statsBonus: PlayerStatsBonus = createEmptyStatsBonus();
   public speedBonusTotal = 0;
-  private readonly speedBonusBase = 0;
   /** Altura local (torre) — cliente espelha degraus; servidor é autoridade futura. */
   public heightLevel = 0;
   /** Trava de interação com HUD de mundo (ex.: terminal do Ancião Cael). */
@@ -171,19 +164,9 @@ export class Player {
   }
 
   calculateStats(): void {
-    const equipment = getPlayerItemStore().toEquipmentGrid();
-    const baseBonus = calculateStatsBonusFromEquipment(equipment);
-    const inheritance = resolvePetInheritanceBonusesFromStacks(getPlayerItemStore().toInventoryStacks());
-    this.statsBonus = applyInheritanceStatsBonusPercent(baseBonus, inheritance.statsBonusPercent);
-    this.speedBonusTotal = computeSpeedBonusTotal(
-      this.statsBonus.agilidade,
-      this.speedBonusBase,
-    );
-    eventBus.publish(HudEvent.PLAYER_STATS_UPDATED, {
-      statsBonus: { ...this.statsBonus },
-      speedBonusTotal: this.speedBonusTotal,
-      level: this.level,
-    });
+    const snapshot = getPlayerStatsGateway().refreshFromLocalEquipment();
+    this.statsBonus = snapshot.statsBonus;
+    this.speedBonusTotal = snapshot.speedBonusTotal;
   }
 
   getStatsBonus(): PlayerStatsBonus {

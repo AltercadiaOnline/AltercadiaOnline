@@ -8,6 +8,12 @@ import type { IEconomyService } from './IEconomyService.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getMutableDataStore, initDataStore, resetDataStore } from '../PlayerDataStore.js';
 import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
+import {
+  activateGameStoreAfterAuth,
+  initGameStore,
+  resetGameStore,
+  resetGameStoreState,
+} from '../state/GameStore.js';
 import { MockEconomyService } from '../testing/MockEconomyService.js';
 
 export type EconomyBackend = 'mock' | 'local';
@@ -16,6 +22,7 @@ let mockService: MockEconomyService | null = null;
 
 export function initEconomyLayer(mode: EconomyBackend = 'mock'): void {
   initActionDispatcher();
+  initGameStore();
 
   if (mode === 'mock') {
     resetDataStore();
@@ -44,16 +51,18 @@ export function initEconomyLayer(mode: EconomyBackend = 'mock'): void {
 export function attachOnlineEconomyLayer(): void {
   mockService = null;
   initDataStore();
+  activateGameStoreAfterAuth();
   const dispatcher = getActionDispatcher();
   dispatcher.setEconomyService(null);
   dispatcher.setMode('online');
 }
 
 /** WS caiu — volta ao mock local sem apagar playerItemStore (equip na HUD continua). */
-export function attachOfflineEconomyLayer(): void {
+export function   attachOfflineEconomyLayer(): void {
   if (!mockService) {
     mockService = new MockEconomyService();
   }
+  activateGameStoreAfterAuth();
   mockService.syncInventoryStacksFromClient(getPlayerItemStore().toInventoryStacks(), false);
 
   const dispatcher = getActionDispatcher();
@@ -94,5 +103,7 @@ export function resetGame(): void {
 export function resetEconomyLayer(): void {
   mockService = null;
   resetDataStore();
+  resetGameStoreState();
+  resetGameStore();
   resetActionDispatcher();
 }

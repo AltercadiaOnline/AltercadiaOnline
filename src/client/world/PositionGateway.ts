@@ -5,12 +5,9 @@ import type { PositionSyncReason } from '../../shared/world/playerWorldProfile.j
 import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
 
 import { getActionDispatcher } from '../ActionDispatcher.js';
-
-
+import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
 
 const HEARTBEAT_MS = 5000;
-
-
 
 export type PositionGatewayCredentials = {
 
@@ -84,7 +81,7 @@ export class PositionGateway {
 
 
 
-  requestWorldLogin(clientPositionIgnored?: ExplorationSnapshot): void {
+  async requestWorldLogin(clientPositionIgnored?: ExplorationSnapshot): Promise<void> {
 
     const creds = this.getCredentials();
 
@@ -96,7 +93,7 @@ export class PositionGateway {
       return;
     }
 
-
+    const accessToken = await resolveSessionAccessToken();
 
     this.socket.send('world-login', {
 
@@ -105,6 +102,8 @@ export class PositionGateway {
       characterId: creds.characterId,
 
       displayName: creds.displayName,
+
+      ...(accessToken ? { accessToken } : {}),
 
       clientMapId: clientPositionIgnored?.mapId,
 

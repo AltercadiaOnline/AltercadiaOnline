@@ -1,4 +1,6 @@
-/** Config pública exposta ao browser (sem segredos de serviço). */
+/** Config pública exposta ao browser (sem segredos de serviço).
+ * Valores vêm de `.env.governance` → `loadProjectEnv()` → `createPublicClientConfig()` → GET `/config/client`.
+ * Apenas `SUPABASE_URL` + `SUPABASE_ANON_KEY` — nunca `SUPABASE_SERVICE_ROLE_KEY`. */
 export type PublicClientConfig = {
   readonly supabaseUrl: string | null;
   readonly supabaseAnonKey: string | null;

@@ -3,6 +3,8 @@
  */
 export type ClientIntent<T = unknown> = {
   readonly intentId: string;
+  /** Eco obrigatório na resposta — mesmo valor que intentId no wire atual. */
+  readonly correlationId: string;
   readonly type: string;
   readonly payload: T;
   readonly timestamp: number;
@@ -27,8 +29,10 @@ export function createIntentId(): string {
 }
 
 export function createClientIntent<T>(type: string, payload: T, intentId?: string): ClientIntent<T> {
+  const id = intentId ?? createIntentId();
   return {
-    intentId: intentId ?? createIntentId(),
+    intentId: id,
+    correlationId: id,
     type,
     payload,
     timestamp: Date.now(),
@@ -38,8 +42,12 @@ export function createClientIntent<T>(type: string, payload: T, intentId?: strin
 export function isClientIntentRecord(value: unknown): value is ClientIntent {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
-  return typeof record.intentId === 'string'
-    && record.intentId.length > 0
+  const intentId = record.intentId;
+  const correlationId = record.correlationId ?? intentId;
+  return typeof intentId === 'string'
+    && intentId.length > 0
+    && typeof correlationId === 'string'
+    && correlationId.length > 0
     && typeof record.type === 'string'
     && record.type.length > 0
     && record.payload !== undefined
@@ -70,6 +78,7 @@ export function pendingIntentToWire(intent: {
 }): ClientIntent {
   return {
     intentId: intent.intentId,
+    correlationId: intent.intentId,
     type: intent.action.type,
     payload: intent.action.payload,
     timestamp: intent.timestamp,

@@ -17,6 +17,7 @@ import {
 } from '../../shared/sync/syncProtocol.js';
 
 import { getMutableDataStore } from '../PlayerDataStore.js';
+import { getGameStore } from '../state/GameStore.js';
 
 import { getGameTimeStore } from '../world/gameTimeStore.js';
 
@@ -154,7 +155,7 @@ export class GlobalStateSynchronizer {
     applyGameTimeFromPlayerSnapshot(state);
 
     const result = getMutableDataStore().applyFullState(state);
-    const worldPosition = getMutableDataStore().getWorldPosition();
+    getGameStore().bootstrapFromServerSession();
 
     return result;
 

@@ -29,6 +29,7 @@ import { resetMinimapState } from '../world/minimap/minimapState.js';
 import { registerMinimapNavigateHandler } from '../world/minimap/minimapNavigation.js';
 import { clearMinimapTerrainCache } from '../world/minimap/buildMinimapTerrain.js';
 import { initCarryCapacityStore, resetCarryCapacityStore } from './capacity/carryCapacityStore.js';
+import { initPlayerStatsGateway, resetPlayerStatsGateway } from '../gateway/PlayerStatsGateway.js';
 import { resetPlayerEquipmentStore } from './equipment/playerEquipmentStore.js';
 import { resetPlayerInventoryStore } from './inventory/playerInventoryStore.js';
 import { resetPlayerProfileStore } from './character/playerProfileStore.js';
@@ -164,6 +165,7 @@ export class UIManager {
     this.mounted = true;
 
     initCarryCapacityStore();
+    initPlayerStatsGateway();
     initEconomyLayer('mock');
 
     for (const panel of this.panels.values()) {
@@ -309,6 +311,7 @@ export function destroyUiLayer(): void {
   resetPlayerSkinStore();
   resetPlayerProfileStore();
   resetCarryCapacityStore();
+  resetPlayerStatsGateway();
   resetGlobalPlayerStore();
   resetPlayerProgressionStore();
   resetPlayerMarcosStore();

@@ -2,3 +2,16 @@ node_modules/
 dist/
 data/
 *.log
+
+# Artefatos gerados pelo build Vercel (espelho de dist/ em public/)
+public/client/
+public/shared/
+public/vendor/
+
+# Segredos locais — nunca versionar
+.env
+.env.local
+.env.*.local
+
+# Fonte oficial de credenciais Supabase/Postgres — JAMAIS commitar
+.env.governance

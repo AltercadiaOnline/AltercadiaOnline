@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Deploy Altercadia V2 → GitHub (main) → Railway automático.
+ * Deploy Altercadia V2 → GitHub (main) → Vercel automático (se ligado ao repo).
  * Uso:
  *   npm run deploy
  *   npm run deploy -- "feat: nova mecanica de combate"
@@ -38,4 +38,4 @@ try {
 }
 
 run('git push origin main');
-console.log('[deploy] Push concluído → Railway deve iniciar deploy na branch main.');
+console.log('[deploy] Push concluído → Vercel deve iniciar deploy na branch main (se o projeto estiver ligado ao GitHub).');

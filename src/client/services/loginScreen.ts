@@ -5,6 +5,7 @@ import {
   copyRegisterCredentialsToLoginForm,
   showAuthView,
 } from './authFlow.js';
+import { bindGoogleLoginButton } from '../services/auth/GameAuthService.js';
 
 export type LoginScreenOptions = {
   authService: AuthService;
@@ -148,28 +149,6 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     }
   }
 
-  async function handleGoogleRegister(): Promise<void> {
-    if (busy) return;
-
-    try {
-      const { isSupabaseReady, loginWithGoogle } = await import('../auth/supabaseAuth.js');
-
-      if (!isSupabaseReady()) {
-        setStatus('Google OAuth requer Supabase (SUPABASE_URL + SUPABASE_ANON_KEY).', true);
-        return;
-      }
-
-      setBusy(true);
-      setStatus('Redirecionando para Google…', false);
-      await loginWithGoogle();
-    } catch (error) {
-      console.error('[LoginScreen] Erro no Google OAuth:', error);
-      setStatus('Não foi possível iniciar cadastro com Google.', true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const navigationReady = bindAuthNavigation({
     onLogin: () => {
       void handleLogin();
@@ -179,9 +158,20 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
       void handleRegister();
     },
     onBackToLogin: goToLogin,
-    onGoogleRegister: () => {
-      void handleGoogleRegister();
-    },
+  });
+
+  const googleButtons: HTMLButtonElement[] = [];
+  const loginGoogleBtn = document.getElementById('btn-login-google');
+  const registerGoogleBtn = document.getElementById('btn-google-register');
+  if (loginGoogleBtn instanceof HTMLButtonElement) googleButtons.push(loginGoogleBtn);
+  if (registerGoogleBtn instanceof HTMLButtonElement) googleButtons.push(registerGoogleBtn);
+
+  googleButtons.forEach((button) => {
+    bindGoogleLoginButton({
+      button,
+      onStatus: setStatus,
+      setBusy,
+    });
   });
 
   if (!navigationReady) {

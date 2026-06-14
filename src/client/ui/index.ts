@@ -164,6 +164,20 @@ export {
   type CarryCapacitySnapshot,
 } from './capacity/carryCapacityStore.js';
 export {
+  getGameStore,
+  initGameStore,
+  resetGameStore,
+  resetGameStoreState,
+  activateGameStoreAfterAuth,
+  subscribeGameStore,
+  SESSION_BOOTSTRAP_CORRELATION_ID,
+  type GameStoreState,
+  type GameStorePlayerState,
+  type GameStoreBattleState,
+  type GameStoreGold,
+  type GameStoreSlice,
+} from '../state/GameStore.js';
+export {
   getPlayerWalletStore,
   initPlayerWalletStore,
   onBalanceChanged,

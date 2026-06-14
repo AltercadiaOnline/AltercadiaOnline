@@ -53,6 +53,7 @@ import {
 } from '../components/pauseMenu.js';
 import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
 import { AppScreens } from './appScreens.js';
+import { getGameStore } from '../state/GameStore.js';
 import { createBrowserCombatSocket, connectionPhaseLabel, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
 import { mountWorldMapScene, SceneManager, resetWorldMapSceneMount } from './sceneManager.js';
 import { initGameRoot } from './GameRoot.js';
@@ -107,6 +108,11 @@ import {
 import type { WorldChroniclesRequest } from '../../shared/world/worldLoreTypes.js';
 import type { WorldLoginResult } from '../../shared/world/playerWorldProfile.js';
 import type { AuthUser } from '../../shared/authService.js';
+import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
+import {
+  hidePlayerInitLoading,
+  showPlayerInitLoading,
+} from '../auth/playerInitLoading.js';
 import { mountAmbientOverlay } from '../ui/ambient/AmbientOverlay.js';
 import { isLocalDevHost } from '../auth/localDevAuth.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
@@ -305,7 +311,7 @@ function connectSocket(): void {
   if (socket) {
     positionGateway?.bindSocket(socket);
     if (world && !isWorldSessionReady()) {
-      positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
+      void positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
     }
     return;
   }
@@ -316,7 +322,7 @@ function connectSocket(): void {
     onReconnect: () => {
       synchronizer.onReconnect();
       if (world && positionGateway) {
-        positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
+        void positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
       }
     },
   });
@@ -474,7 +480,7 @@ function connectSocket(): void {
       void startBattle(monsterId);
     });
     wirePortalTransitionBridge();
-    positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
+    void positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
   });
 
   socket.onError((message) => {
@@ -707,8 +713,35 @@ function enterWorld(): void {
   }
 }
 
-function onLoginSuccess(user: AuthUser): void {
-  AppScreens.setAuthenticatedUser(user);
+async function onLoginSuccess(user: AuthUser): Promise<void> {
+  if (!AppScreens.currentSession) {
+    AppScreens.setAuthenticatedUser(user);
+  }
+
+  if (!getGameStore().isHydrated()) {
+    const statusEl = document.getElementById('auth-status');
+    if (statusEl) {
+      statusEl.textContent = 'Inicializando perfil no servidor…';
+      statusEl.classList.remove('is-error');
+      statusEl.classList.add('is-success');
+    }
+
+    showPlayerInitLoading('Carregando perfil no servidor…');
+    const snapshot = await initializeAuthoritativePlayerSnapshot();
+    hidePlayerInitLoading();
+
+    if (!snapshot.ok || !snapshot.ready) {
+      AppScreens.signOut();
+      if (statusEl) {
+        statusEl.textContent = snapshot.message ?? 'Falha ao inicializar perfil no servidor.';
+        statusEl.classList.add('is-error');
+        statusEl.classList.remove('is-success');
+      }
+      AppScreens.showLogin();
+      return;
+    }
+  }
+
   AppScreens.showCharSelect();
 }
 
@@ -801,7 +834,16 @@ function boot(): void {
     setupLogin();
     initBattleHud(document);
     setupPauseControls();
-    void AppScreens.init(enterWorld);
+    void AppScreens.init(enterWorld, {
+      onAuthenticated: onLoginSuccess,
+      onAuthError: (message) => {
+        const statusEl = document.getElementById('auth-status');
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.classList.add('is-error');
+        statusEl.classList.remove('is-success');
+      },
+    });
     console.log('[MVP] Cliente V2 pronto', CLIENT_RUNTIME_VERSION);
   } catch (error) {
     console.error('[MVP] Falha ao iniciar cliente:', error);

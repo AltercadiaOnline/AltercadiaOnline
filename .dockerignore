@@ -22,4 +22,3 @@ terminals
 Dockerfile
 .dockerignore
 fly.toml
-railway.toml

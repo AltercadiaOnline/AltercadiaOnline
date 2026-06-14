@@ -1,10 +1,10 @@
-import type { SupabaseClient, User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
 
 let supabase: SupabaseClient | null = null;
 
-/** Inicializa o client — URL e anon key vêm do servidor (SUPABASE_URL / SUPABASE_ANON_KEY). */
+/** Inicializa o client — URL e anon key vêm de `.env.governance` via servidor (`GET /config/client`). */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
   if (!isSupabaseConfigured(config)) {
     console.warn('[Auth] Supabase não configurado — defina SUPABASE_URL e SUPABASE_ANON_KEY.');
@@ -12,7 +12,12 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
   }
 
   const { createClient } = await import('@supabase/supabase-js');
-  supabase = createClient(config.supabaseUrl!, config.supabaseAnonKey!);
+  supabase = createClient(config.supabaseUrl!, config.supabaseAnonKey!, {
+    auth: {
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+    },
+  });
   return true;
 }
 
@@ -24,10 +29,9 @@ export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
   return response.json() as Promise<PublicClientConfig>;
 }
 
-export async function loginWithGoogle(): Promise<void> {
+export async function signInWithGoogleOAuth(): Promise<{ ok: boolean; message?: string }> {
   if (!supabase) {
-    console.error('[Auth] Supabase não configurado.');
-    return;
+    return { ok: false, message: 'Supabase não configurado no cliente.' };
   }
 
   const { error } = await supabase.auth.signInWithOAuth({
@@ -38,20 +42,57 @@ export async function loginWithGoogle(): Promise<void> {
   });
 
   if (error) {
-    console.error('Erro na autenticação:', error.message);
+    console.error('[Auth] Falha na autenticação OAuth:', error.message);
+    return { ok: false, message: 'Não foi possível iniciar login com Google.' };
   }
+
+  return { ok: true };
 }
 
+/** @deprecated Use signInWithGoogleOAuth */
+export async function loginWithGoogle(): Promise<void> {
+  await signInWithGoogleOAuth();
+}
+
+export function subscribeAuthStateChange(
+  callback: (event: AuthChangeEvent, session: Session | null) => void,
+): () => void {
+  if (!supabase) return () => {};
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  return () => subscription.unsubscribe();
+}
+
+/** Valida sessão com o Supabase (getUser) — fonte de verdade antes de entrar no jogo. */
 export async function getUser(): Promise<User | null> {
   if (!supabase) return null;
 
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error) {
-    console.error('[Auth] Erro ao ler usuário:', error);
+    console.warn('[Auth] Sessão inválida ou expirada.');
     return null;
   }
 
   return user;
+}
+
+/** JWT de acesso para handshake world-login — nunca logar este valor. */
+export async function resolveSessionAccessToken(): Promise<string | null> {
+  if (!supabase) return null;
+
+  const user = await getUser();
+  if (!user) return null;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
+
+export async function signOutSupabase(): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.warn('[Auth] Falha ao encerrar sessão Supabase.');
+  }
 }
 
 export function getSupabaseClient(): SupabaseClient | null {

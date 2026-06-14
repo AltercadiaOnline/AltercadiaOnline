@@ -1,14 +1,12 @@
 import { formatAlterCoins } from '../../../shared/economy/premiumCurrency.js';
-import {
-  getPlayerWalletStore,
-  onBalanceChanged,
-  type BalanceChangedPayload,
-} from '../wallet/playerWalletStore.js';
+import { CurrencyService } from '../../services/index.js';
+import { subscribeGameStore } from '../../state/GameStore.js';
+import type { BalanceChangedPayload } from '../../../shared/economy/events.js';
 import { tweenVoltsCounter } from '../wallet/voltsCounterTween.js';
 
 /**
  * Carteira fixa na barra lateral — VOLTS (in-game) e ALTER COINS (premium).
- * Passiva: reflete o PlayerWalletStore via onBalanceChanged (sem refresh manual).
+ * Passiva: reflete o GameStore.player.gold via subscribe reativo.
  */
 export class SidebarWallet {
   private readonly host: HTMLElement;
@@ -40,8 +38,8 @@ export class SidebarWallet {
   }
 
   attach(): void {
-    this.unsubBalance = onBalanceChanged((payload) => {
-      this.applyBalanceChange(payload);
+    this.unsubBalance = subscribeGameStore('player', () => {
+      this.applyBalanceChange(CurrencyService.getBalanceChangedPayload());
     });
   }
 
@@ -111,12 +109,12 @@ export function destroySidebarWallet(): void {
   activeWallet = null;
 }
 
-/** @deprecated Use onBalanceChanged — mantido para testes legados. */
+/** @deprecated Use CurrencyService.getCurrencySnapshot() */
 export function renderSidebarWalletFromStore(): void {
-  const snap = getPlayerWalletStore().getSnapshot();
+  const snap = CurrencyService.getCurrencySnapshot();
   const host = document.getElementById('sidebar-wallet');
   const voltsEl = host?.querySelector('[data-wallet-volts]');
   const alterEl = host?.querySelector('[data-wallet-alter-coins]');
   if (voltsEl instanceof HTMLElement) voltsEl.textContent = snap.voltsFormatted;
-  if (alterEl instanceof HTMLElement) alterEl.textContent = snap.alterFormatted;
+  if (alterEl instanceof HTMLElement) alterEl.textContent = formatAlterCoins(snap.alterCoins);
 }

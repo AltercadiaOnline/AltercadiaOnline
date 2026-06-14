@@ -5,11 +5,6 @@ import {
 } from '../../../shared/character/equipmentUiSlots.js';
 import { getPlayerEquipmentStore, type PlayerEquipmentSnapshot } from '../equipment/playerEquipmentStore.js';
 import { getPlayerItemStore } from '../items/playerItemStore.js';
-import {
-  hasPendingItemMutation,
-  isEquipSlotMutationPending,
-  subscribeItemMutationPending,
-} from '../items/itemMutationPendingUi.js';
 import { dispatchUnequipFromSlot } from '../equipment/equipItemAction.js';
 import {
   getCarryCapacityStore,
@@ -25,6 +20,12 @@ import {
 import { resolveLoadoutPpBudget } from '../../../shared/combat/loadoutPpBudget.js';
 import { getGlobalPlayerStore } from '../moveset/globalPlayerStore.js';
 import { getItemById } from '../../../shared/items/itemCatalog.js';
+import {
+  InventoryService,
+  isSyncPending,
+  selectPlayerEquipment,
+} from '../../services/index.js';
+import { subscribeGameStore } from '../../state/GameStore.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { getContextMenuService } from '../contextMenu/ContextMenuService.js';
 
@@ -46,8 +47,7 @@ export class EquipmentSidebar {
   private readonly gridEl: HTMLElement;
   private readonly setTitleEl: HTMLElement | null;
   private unsubscribe: (() => void) | null = null;
-  private unsubscribeItems: (() => void) | null = null;
-  private unsubscribePending: (() => void) | null = null;
+  private unsubscribeGameStore: (() => void) | null = null;
   private unsubscribeCapacity: (() => void) | null = null;
   private unsubscribeProfile: (() => void) | null = null;
   private unsubscribeLoadout: (() => void) | null = null;
@@ -128,15 +128,11 @@ export class EquipmentSidebar {
   attach(): void {
     const equipmentStore = getPlayerEquipmentStore();
     const profileStore = getPlayerProfileStore();
-    const itemStore = getPlayerItemStore();
 
     this.unsubscribe = equipmentStore.subscribe((snapshot) => this.renderVitals(snapshot));
 
-    this.unsubscribeItems = itemStore.subscribe(() => {
-      this.renderSetGrid();
-    });
-
-    this.unsubscribePending = subscribeItemMutationPending(() => {
+    this.unsubscribeGameStore = subscribeGameStore((_, slice) => {
+      if (slice !== 'player' && slice !== 'pendingActions' && slice !== '*') return;
       this.renderSetGrid();
     });
 
@@ -162,10 +158,8 @@ export class EquipmentSidebar {
   detach(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
-    this.unsubscribeItems?.();
-    this.unsubscribeItems = null;
-    this.unsubscribePending?.();
-    this.unsubscribePending = null;
+    this.unsubscribeGameStore?.();
+    this.unsubscribeGameStore = null;
     this.unsubscribeCapacity?.();
     this.unsubscribeCapacity = null;
     this.unsubscribeProfile?.();
@@ -186,7 +180,7 @@ export class EquipmentSidebar {
     this.gridEl.innerHTML = this.buildSetGridHtml();
 
     if (this.setTitleEl) {
-      const syncMark = hasPendingItemMutation()
+      const syncMark = isSyncPending()
         ? ' <span class="equipment-sidebar__sync" aria-busy="true" title="Sincronizando…">⟳</span>'
         : '';
       this.setTitleEl.innerHTML = `SET${syncMark}`;
@@ -196,14 +190,14 @@ export class EquipmentSidebar {
   }
 
   private buildSetGridHtml(): string {
-    const equippedItems = getPlayerItemStore().getEquippedItems();
+    const equippedItems = selectPlayerEquipment();
     const displayStore = getPlayerEquipmentStore();
 
     return EQUIPMENT_UI_SLOT_ORDER.map((slotId) => {
       const label = EQUIPMENT_UI_SLOT_LABELS[slotId];
       const row = equippedItems.find((item) => item.slot === slotId);
       const itemId = row?.itemId ?? null;
-      const pending = isEquipSlotMutationPending(slotId);
+      const pending = isSyncPending();
       const pendingClass = pending ? ' equip-slot--pending' : '';
       const pendingAttrs = pending ? ' aria-busy="true" disabled' : '';
 
@@ -247,12 +241,12 @@ export class EquipmentSidebar {
 
   private bindSetGridInteraction(): void {
     this.gridEl.addEventListener('dblclick', (event) => {
-      if (hasPendingItemMutation()) return;
+      if (InventoryService.isInventoryMutationPending()) return;
 
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-equip-slot]');
       const slotId = button?.dataset.equipSlot as EquipmentUiSlotId | undefined;
       if (!slotId) return;
-      if (isEquipSlotMutationPending(slotId)) return;
+      if (InventoryService.isInventoryMutationPending()) return;
 
       const row = getPlayerItemStore().getItemInSlot(slotId);
       if (!row) return;

@@ -6,7 +6,8 @@
     "dev": "npm run dev:mvp",
     "dev:server": "tsx watch src/server/index.ts",
     "dev:client": "tsx watch src/client/index.ts",
-    "build": "tsc",
+    "build": "tsc && node scripts/sync-vercel-public.mjs",
+    "vercel-build": "npm run build",
     "start": "node dist/server/index.js",
     "test": "node -e \"console.log('Test suite removed — run npm run typecheck && npm run build')\"",
     "audit:item-icons": "tsx scripts/audit-item-icons.ts",
@@ -22,7 +23,7 @@
     "typecheck": "tsc --noEmit",
     "deploy:check": "npm run typecheck && npm run build",
     "deploy": "npm run deploy:check && node scripts/deploy.mjs",
-    "railway:dashboard": "powershell -NoProfile -Command Start-Process 'https://railway.com/dashboard'",
+    "vercel:dashboard": "powershell -NoProfile -Command Start-Process 'https://vercel.com/dashboard'",
     "mvp": "npm run build && npm start",
     "dev:mvp": "npm run build && node scripts/dev.mjs",
     "start:server": "npm start",
@@ -37,11 +38,13 @@
     "@supabase/supabase-js": "^2.106.2",
     "bad-words": "^4.0.0",
     "gsap": "^3.13.0",
+    "phaser": "^4.1.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@types/ws": "^8.18.1",
+    "@vercel/node": "^5.3.0",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   }

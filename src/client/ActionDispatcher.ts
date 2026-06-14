@@ -16,6 +16,9 @@ import {
   resetPendingIntentRegistry,
   type PendingIntent,
 } from './sync/pendingIntentRegistry.js';
+import { resetPendingActionsStore } from './sync/pendingActionsStore.js';
+import { getGameStore } from './state/GameStore.js';
+import type { PendingActionKind } from '../shared/sync/pendingActionProtocol.js';
 import {
   equipFromInventoryFailureMessage,
   equipInventoryItemToSet,
@@ -39,6 +42,7 @@ import { healPlayer } from '../shared/world/npcHealService.js';
 import { getPlayerEquipmentStore } from './ui/equipment/playerEquipmentStore.js';
 import { getGlobalPlayerStore } from './ui/moveset/globalPlayerStore.js';
 import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
+import { confirmTransaction, rejectTransaction } from './core/GameTransactionCoordinator.js';
 import { alertSystem } from './ui/alertSystem.js';
 import { getPlayerSkinStore } from './ui/character/playerSkinStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
@@ -258,11 +262,17 @@ export class ActionDispatcher {
         return { ok: false, reason: 'Não foi possível sincronizar o SET com o servidor.' };
       }
 
-      // Online: SYNC_LOADOUT — servidor persiste loadout e responde com InventoryUpdated.
-      return this.dispatchPending({
-        type: 'SYNC_LOADOUT',
-        payload: loadoutPayload,
-      });
+      // Online: SYNC_LOADOUT — mutação otimista + snapshot para rollback.
+      return this.dispatchPending(
+        {
+          type: 'SYNC_LOADOUT',
+          payload: loadoutPayload,
+        },
+        () => {
+          this.applyItemMutationLocally(mutationAction);
+          getMutableDataStore().bumpRevision('inventory');
+        },
+      );
     }
 
     if (this.mode === 'online' && this.isBankAction(action)) {
@@ -383,12 +393,29 @@ export class ActionDispatcher {
 
   confirmIntent(intentId: string): void {
     this.clearIntentTimeout(intentId);
+    confirmTransaction(intentId);
     getPendingIntentRegistry().resolve(intentId);
   }
 
-  rejectIntent(intentId: string): void {
+  rejectIntent(intentId: string, error?: unknown, options?: { readonly silent?: boolean }): void {
     this.clearIntentTimeout(intentId);
+    rejectTransaction(intentId, error, 'Ação rejeitada pelo servidor.', options);
     getPendingIntentRegistry().reject(intentId);
+  }
+
+  private resolvePendingKind(action: ClientAction): PendingActionKind {
+    if (action.type === 'SYNC_LOADOUT' || this.isItemMutation(action)) {
+      return 'player-intent';
+    }
+    if (
+      this.isBankAction(action)
+      || isVendorClientAction(action)
+      || action.type === 'CRAFT_ITEM'
+      || action.type === 'EXCHANGE_ALTER_FOR_VOLTS'
+    ) {
+      return 'economy-event';
+    }
+    return 'player-intent';
   }
 
   private dispatchViaEconomyService(action: ClientAction): DispatchResult {
@@ -400,14 +427,26 @@ export class ActionDispatcher {
       || action.type === 'EQUIP_FROM_INVENTORY'
       || action.type === 'UNEQUIP_TO_INVENTORY';
 
-    if (isLocalItemMutation) {
+    let localFailure: DispatchResult | null = null;
+
+    getGameStore().performServerAction(intent.intentId, 'player-intent', () => {
+      if (!isLocalItemMutation) return;
+
       const applied = this.applyItemMutationLocally(action);
       if (!applied.ok) {
-        registry.reject(intent.intentId);
-        return applied;
+        localFailure = applied;
+        return;
       }
       getMutableDataStore().bumpRevision('inventory');
-    } else {
+    });
+
+    if (localFailure) {
+      getGameStore().clearPendingAction(intent.intentId);
+      registry.reject(intent.intentId);
+      return localFailure;
+    }
+
+    if (!isLocalItemMutation) {
       this.intentTransport?.(intent);
     }
 
@@ -415,11 +454,15 @@ export class ActionDispatcher {
     return { ok: true, status: 'pending', intentId: intent.intentId };
   }
 
-  private dispatchPending(action: ClientAction): DispatchResult {
+  private dispatchPending(action: ClientAction, optimisticFn?: () => void): DispatchResult {
     const registry = getPendingIntentRegistry();
     const intent = registry.register(action);
+    const kind = this.resolvePendingKind(action);
+
+    getGameStore().performServerAction(intent.intentId, kind, optimisticFn ?? (() => {}));
 
     if (this.mode === 'online' && !this.intentTransport) {
+      getGameStore().clearPendingAction(intent.intentId);
       registry.reject(intent.intentId);
       return { ok: false, reason: 'Servidor indisponível. Reconecte e tente novamente.' };
     }
@@ -440,7 +483,7 @@ export class ActionDispatcher {
       const stillPending = getPendingIntentRegistry().isIntentPending(intentId);
       if (!stillPending) return;
 
-      this.rejectIntent(intentId);
+      this.rejectIntent(intentId, undefined, { silent: true });
       console.warn('[ActionDispatcher] Intenção expirou sem confirmação do servidor.', {
         intentId,
         actionType: action.type,
@@ -475,6 +518,7 @@ export class ActionDispatcher {
       case 'DEPOSIT_CURRENCY':
       case 'WITHDRAW_CURRENCY':
         if (!requestBankTransaction(action, intentId)) {
+          getGameStore().clearPendingAction(intentId);
           getPendingIntentRegistry().reject(intentId);
           alertSystem('Servidor indisponível para operações bancárias.');
         }
@@ -764,5 +808,6 @@ export function getActionDispatcher(): ActionDispatcher {
 export function resetActionDispatcher(): void {
   activeDispatcher = null;
   resetPendingIntentRegistry();
+  resetPendingActionsStore();
   resetUIIntentStore();
 }

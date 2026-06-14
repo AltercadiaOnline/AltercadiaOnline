@@ -1,5 +1,6 @@
 import { exactOptionalProps } from '../util/exactOptionalProps.js';
 import type { ClientIntent } from './clientIntent.js';
+import { withCorrelationId } from '../sync/pendingActionProtocol.js';
 
 export type { ClientIntent } from './clientIntent.js';
 export {
@@ -41,6 +42,7 @@ export function gatewayIntentFromClient<TPayload>(
     playerId: ctx.playerId,
     characterId: ctx.characterId,
     intentId: intent.intentId,
+    correlationId: intent.correlationId,
     type: intent.type,
     payload: intent.payload,
     timestamp: intent.timestamp,
@@ -56,6 +58,7 @@ export function buildGatewayIntentAction<TPayload>(
     playerId: input.playerId,
     characterId: input.characterId,
     intentId: input.intentId,
+    correlationId: input.intentId,
     type,
     payload: input.payload,
     timestamp: input.timestamp ?? Date.now(),
@@ -98,6 +101,7 @@ export type IntentResponse = {
 /** Payload wire unificado — protocolo de garantia (ack ao cliente). */
 export type IntentResult = {
   readonly intentId: string;
+  readonly correlationId: string;
   readonly success: boolean;
   readonly error?: string;
   readonly data?: unknown;
@@ -172,20 +176,23 @@ export function buildIntentFailureFromMessage(intentId: string, message: string)
 
 export function toIntentResult(response: IntentResponse): IntentResult {
   if (response.status === 'SUCCESS') {
-    return { intentId: response.intentId, success: true };
+    return withCorrelationId({ intentId: response.intentId, success: true });
   }
-  return {
+  return withCorrelationId({
     intentId: response.intentId,
     success: false,
     error: response.error ?? resolveIntentErrorCode(exactOptionalProps({ message: response.message })),
-  };
+  });
 }
 
 export function isIntentResult(value: unknown): value is IntentResult {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
+  const correlationId = record.correlationId ?? record.intentId;
   return typeof record.intentId === 'string'
     && record.intentId.length > 0
+    && typeof correlationId === 'string'
+    && correlationId.length > 0
     && typeof record.success === 'boolean'
     && (record.success === true || typeof record.error === 'string');
 }
@@ -196,17 +203,17 @@ export function buildIntentResultWire(
   data?: unknown,
 ): IntentResult {
   if (success) {
-    return {
+    return withCorrelationId({
       intentId,
       success: true,
       ...(data !== undefined ? { data } : {}),
-    };
+    });
   }
-  return {
+  return withCorrelationId({
     intentId,
     success: false,
     error: typeof data === 'string' ? data : 'INTENT_REJECTED',
-  };
+  });
 }
 
 export function isIntentFailedPayload(value: unknown): value is IntentFailedPayload {

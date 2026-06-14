@@ -3,7 +3,6 @@ import {
   type CombatActionIntentResultData,
 } from '../../shared/combat/combatIntentFeedback.js';
 import {
-  getIntentErrorMessage,
   isIntentFailedPayload,
   isIntentResult,
   isIntentSuccessPayload,
@@ -15,7 +14,6 @@ import {
 } from '../combat/VfxProjectileManager.js';
 import { getVfxProjectileManager } from '../combat/VfxProjectileManager.js';
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
-import { alertSystem } from '../ui/alertSystem.js';
 
 async function playCombatAttackVfx(data: CombatActionIntentResultData): Promise<void> {
   if (!isProjectileCombatAction(data.action)) return;
@@ -44,8 +42,7 @@ export function handleIntentResultPayload(raw: unknown): void {
     return;
   }
 
-  getActionDispatcher().rejectIntent(raw.intentId);
-  alertSystem(getIntentErrorMessage(raw.error ?? 'INTENT_REJECTED'));
+  getActionDispatcher().rejectIntent(raw.intentId, raw.error ?? 'INTENT_REJECTED');
 }
 
 /** @deprecated Compat — converte intent-failed legado para IntentResult. */
@@ -58,6 +55,7 @@ export function handleIntentFailedPayload(raw: unknown): void {
 
   handleIntentResultPayload({
     intentId: raw.intentId,
+    correlationId: raw.intentId,
     success: false,
     error: resolveIntentErrorCode({ message: raw.message }),
   });
@@ -73,6 +71,7 @@ export function handleIntentSuccessPayload(raw: unknown): void {
 
   handleIntentResultPayload({
     intentId: raw.intentId,
+    correlationId: raw.intentId,
     success: true,
   });
 }
