@@ -17,14 +17,24 @@ export async function getSupabaseAdminClient(env: ServerEnv): Promise<SupabaseCl
 
   if (!initPromise) {
     initPromise = (async () => {
-      const { createClient } = await import('@supabase/supabase-js');
-      adminClient = createClient(env.supabaseUrl!, env.supabaseServiceRoleKey!, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      });
-      return adminClient;
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        adminClient = createClient(env.supabaseUrl!, env.supabaseServiceRoleKey!, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        });
+        return adminClient;
+      } catch (error) {
+        initPromise = null;
+        console.error('[Supabase] Erro ao criar cliente admin:', {
+          message: error instanceof Error ? error.message : String(error),
+          urlPresent: Boolean(env.supabaseUrl),
+          serviceRolePresent: Boolean(env.supabaseServiceRoleKey),
+        });
+        return null;
+      }
     })();
   }
 

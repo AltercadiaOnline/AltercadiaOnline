@@ -17,8 +17,14 @@ function parseDatabasePort(raw: string | undefined): number | null {
 
 /** Lê credenciais Postgres/Supabase DB a partir de `process.env`. */
 export function loadDatabaseEnv(env: NodeJS.ProcessEnv = process.env): DatabaseEnv {
+  const url =
+    env.DATABASE_URL?.trim()
+    || env.SUPABASE_DATABASE_URL?.trim()
+    || env.POSTGRES_URL?.trim()
+    || null;
+
   return {
-    url: env.DATABASE_URL?.trim() || null,
+    url,
     host: env.DATABASE_HOST?.trim() || null,
     port: parseDatabasePort(env.DATABASE_PORT),
     user: env.DATABASE_USER?.trim() || null,

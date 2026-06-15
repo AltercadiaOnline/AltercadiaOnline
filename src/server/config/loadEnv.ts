@@ -13,6 +13,16 @@ type LoadEnvFileOptions = {
   readonly onlyKeys?: readonly string[];
   /** Sobrescreve valores já definidos por `.env` (nunca o shell). */
   readonly force?: boolean;
+  /** Ignora valores vazios em arquivos — evita apagar credenciais do Railway com placeholders. */
+  readonly skipEmptyValues?: boolean;
+};
+
+export type ProjectEnvLoadReport = {
+  readonly localEnvLoaded: boolean;
+  readonly governanceEnvLoaded: boolean;
+  readonly localEnvPath: string;
+  readonly governanceEnvPath: string;
+  readonly shellGovernanceKeys: readonly string[];
 };
 
 function parseEnvContent(content: string): ReadonlyMap<string, string> {
@@ -52,6 +62,7 @@ function loadEnvFileAt(filePath: string, options: LoadEnvFileOptions): boolean {
   for (const [key, value] of entries) {
     if (onlyKeys && !onlyKeys.has(key)) continue;
     if (options.skipShellKeys.has(key)) continue;
+    if (options.skipEmptyValues && !value.trim()) continue;
     if (!options.force && process.env[key] !== undefined) continue;
     process.env[key] = value;
   }
@@ -68,16 +79,45 @@ function loadEnvFileAt(filePath: string, options: LoadEnvFileOptions): boolean {
  * Cliente browser: apenas `SUPABASE_URL` + `SUPABASE_ANON_KEY` via `/config/client`.
  * Servidor: `SUPABASE_SERVICE_ROLE_KEY` nunca é exposta ao browser.
  */
-export function loadProjectEnv(cwd: string = process.cwd()): void {
+export function loadProjectEnv(cwd: string = process.cwd()): ProjectEnvLoadReport {
   const shellKeys = new Set(Object.keys(process.env));
+  const localEnvPath = path.join(cwd, LOCAL_ENV_FILENAME);
+  const governanceEnvPath = path.join(cwd, GOVERNANCE_ENV_FILENAME);
 
-  loadEnvFileAt(path.join(cwd, LOCAL_ENV_FILENAME), { skipShellKeys: shellKeys });
+  const localEnvLoaded = loadEnvFileAt(localEnvPath, {
+    skipShellKeys: shellKeys,
+    skipEmptyValues: true,
+  });
 
-  loadEnvFileAt(path.join(cwd, GOVERNANCE_ENV_FILENAME), {
+  const governanceEnvLoaded = loadEnvFileAt(governanceEnvPath, {
     skipShellKeys: shellKeys,
     onlyKeys: GOVERNANCE_ENV_KEYS,
     force: true,
+    skipEmptyValues: true,
   });
+
+  const shellGovernanceKeys = GOVERNANCE_ENV_KEYS.filter((key) => shellKeys.has(key));
+
+  return {
+    localEnvLoaded,
+    governanceEnvLoaded,
+    localEnvPath,
+    governanceEnvPath,
+    shellGovernanceKeys,
+  };
+}
+
+export function logProjectEnvLoadReport(report: ProjectEnvLoadReport): void {
+  console.log('[env] Bootstrap de variáveis — prioridade: shell/Railway > .env.governance > .env');
+  console.log(
+    `  ${LOCAL_ENV_FILENAME} → ${report.localEnvLoaded ? `carregado (${report.localEnvPath})` : 'não encontrado (ok em produção)'}`,
+  );
+  console.log(
+    `  ${GOVERNANCE_ENV_FILENAME} → ${report.governanceEnvLoaded ? `carregado (${report.governanceEnvPath})` : 'não encontrado (ok em produção)'}`,
+  );
+  console.log(
+    `  Chaves de governança no shell: ${report.shellGovernanceKeys.length ? report.shellGovernanceKeys.join(', ') : '(nenhuma — confira Variables no Railway)'}`,
+  );
 }
 
 /** @deprecated Use `loadProjectEnv`. */

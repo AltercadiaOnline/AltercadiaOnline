@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { loadProjectEnv } from './config/loadEnv.js';
+import { loadProjectEnv, logProjectEnvLoadReport } from './config/loadEnv.js';
 import { loadServerEnv } from './config/env.js';
 import { createPublicClientConfig } from '../shared/publicClientConfig.js';
 import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
@@ -9,6 +9,7 @@ import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
 import { flushAllPersistence, initializePersistence, shutdownPersistenceStorage } from './persistence/initializePersistence.js';
 import { initSessionAuthGateway } from './auth/SessionAuthGateway.js';
 import { hasDatabaseConnection } from './persistence/databaseConnection.js';
+import { bootstrapSupabase } from './supabase/initializeSupabase.js';
 
 const CLIENT_DIST_ARTIFACTS = [
   'client/browser/main.js',
@@ -31,9 +32,12 @@ function logCorsWarning(corsOrigins: readonly string[], nodeEnv: string): void {
 }
 
 async function main(): Promise<void> {
-  loadProjectEnv();
-  const env = loadServerEnv();  logCorsWarning(env.corsOrigins, env.nodeEnv);
+  const envLoadReport = loadProjectEnv();
+  logProjectEnvLoadReport(envLoadReport);
+  const env = loadServerEnv();
+  logCorsWarning(env.corsOrigins, env.nodeEnv);
   initSessionAuthGateway(env);
+  const supabaseReport = await bootstrapSupabase(env);
 
   const persistence = await initializePersistence();
 
@@ -104,7 +108,23 @@ async function main(): Promise<void> {
     console.log('[Altercadia V2] Servidor online');
     console.log(`  NODE_ENV     → ${env.nodeEnv}`);
     console.log(`  Persistência → ${persistence.mode} (${persistence.dataDir})`);
-    console.log(`  Database     → ${hasDatabaseConnection() ? 'Postgres (env)' : 'não configurado'}`);
+    console.log(
+      `  Supabase API → ${supabaseReport.adminClientCreated && supabaseReport.apiProbe === 'ok'
+        ? 'conectado'
+        : supabaseReport.adminConfigured
+          ? `parcial (probe: ${supabaseReport.apiProbe}${supabaseReport.apiProbeError ? ` — ${supabaseReport.apiProbeError}` : ''})`
+          : 'não configurado (SUPABASE_URL + SERVICE_ROLE)'}`,
+    );
+    console.log(
+      `  Supabase Auth (browser) → ${supabaseReport.clientPublicConfigured ? 'configurado' : 'não configurado (SUPABASE_URL + ANON_KEY)'}`,
+    );
+    console.log(
+      `  Postgres direto → ${hasDatabaseConnection()
+        ? (supabaseReport.postgresProbe === 'ok' ? 'conectado' : supabaseReport.postgresProbe === 'failed'
+          ? `falhou (${supabaseReport.postgresProbeError ?? 'erro'})`
+          : 'configurado (não testado)')
+        : 'não configurado (opcional — use DATABASE_URL se PERSISTENCE_MODE=postgres)'}`,
+    );
     console.log(`  Bind         → ${env.host}:${env.port}`);
     console.log(`  HTTP         → ${scheme}://<host>:${env.port}`);
     console.log(`  WebSocket    → ws(s)://<host>:${env.port}/ws`);
