@@ -15,6 +15,7 @@ import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameSt
 import { initAuthSessionBridge, tryCompleteOAuthReturn } from '../auth/authSessionBridge.js';
 import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
 import { isGameServerReachable } from '../services/serverReachability.js';
+import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { ensureCharacterHub, createCharacterInSlot } from '../services/localCharacterHubStore.js';
 import {
   clearLocalSession,
@@ -302,13 +303,14 @@ export const AppScreens = {
     return this.awaitAuthoritativePlayerReady();
   },
 
-  showLoginEnvironmentHint(config: { supabase: boolean; serverOk: boolean }): void {
+  showLoginEnvironmentHint(config: { supabase: boolean; serverOk: boolean; gameWsUrl?: boolean }): void {
     const statusEl = document.getElementById('auth-status');
     if (!statusEl || statusEl.textContent.trim().length > 0) return;
 
     if (!config.serverOk) {
-      statusEl.textContent =
-        'Servidor offline. Abra o terminal na pasta do jogo e rode: npm run dev — depois acesse http://localhost:3000';
+      statusEl.textContent = isLocalDevHost()
+        ? 'Servidor offline. Abra o terminal na pasta do jogo e rode: npm run dev — depois acesse http://localhost:3000'
+        : 'Servidor offline. Confira o deploy da Vercel (/health) e do Railway.';
       statusEl.classList.add('is-error');
       return;
     }
@@ -318,7 +320,12 @@ export const AppScreens = {
         'Modo dev local: use email + senha (mín. 6) — conta criada no navegador; produção usa Supabase Auth.';
       statusEl.classList.remove('is-error');
     } else if (!config.supabase) {
-      statusEl.textContent = 'Configure Supabase Auth no servidor para login seguro.';
+      statusEl.textContent =
+        'Supabase ausente no /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel (não só no Railway).';
+      statusEl.classList.add('is-error');
+    } else if (!config.gameWsUrl && !isLocalDevHost()) {
+      statusEl.textContent =
+        'Defina GAME_WS_URL na Vercel (ex.: wss://SEU-APP.railway.app/ws) para conectar ao servidor de jogo.';
       statusEl.classList.add('is-error');
     }
   },
@@ -338,12 +345,20 @@ export const AppScreens = {
         throw new Error(
           isLocalDevHost()
             ? 'Servidor offline. Rode npm run dev na pasta do projeto e acesse http://localhost:3000'
-            : 'Servidor offline. Não foi possível conectar ao Altercadia.',
+            : 'Servidor offline. Não foi possível conectar ao Altercadia (/health na Vercel).',
         );
       }
 
       const config = await fetchPublicClientConfig();
+      setClientRuntimeConfig(config);
       supabaseConfigured = isSupabaseConfigured(config);
+      const hasGameWsUrl = Boolean(config.gameWsUrl);
+
+      if (!config.gameWsUrl && !isLocalDevHost()) {
+        console.warn(
+          '[Net] GAME_WS_URL ausente em /config/client — combate e mundo online não funcionarão até configurar wss://…/ws na Vercel.',
+        );
+      }
 
       if (supabaseConfigured) {
         const supabaseReady = await initSupabaseAuth(config);
@@ -354,7 +369,7 @@ export const AppScreens = {
         }
       } else if (!isLocalDevHost()) {
         throw new Error(
-          'Supabase não configurado no servidor. Defina SUPABASE_URL e SUPABASE_ANON_KEY.',
+          'Supabase não configurado em /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel.',
         );
       } else {
         console.warn('[Auth] localhost sem Supabase — login local (email + senha no navegador).');
@@ -378,7 +393,7 @@ export const AppScreens = {
               hidePlayerInitLoading();
               authCallbacks.onAuthError?.(message);
               this.showLogin();
-              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
             },
           });
 
@@ -390,14 +405,14 @@ export const AppScreens = {
               this.showCharSelect();
             } else {
               this.showLogin();
-              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
             }
           }
         } else if (this.restoreSessionFromStorage()) {
           this.showCharSelect();
         } else {
           this.showLogin();
-          this.showLoginEnvironmentHint({ supabase: false, serverOk });
+          this.showLoginEnvironmentHint({ supabase: false, serverOk, gameWsUrl: hasGameWsUrl });
         }
       } else if (supabaseConfigured) {
         const hasSupabaseSession = await this.restoreSessionFromSupabase();
@@ -407,13 +422,13 @@ export const AppScreens = {
           this.showCharSelect();
         } else {
           this.showLogin();
-          this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+          this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         }
       } else if (this.restoreSessionFromStorage()) {
         this.showCharSelect();
       } else {
         this.showLogin();
-        this.showLoginEnvironmentHint({ supabase: false, serverOk });
+        this.showLoginEnvironmentHint({ supabase: false, serverOk, gameWsUrl: hasGameWsUrl });
       }
     } catch (error) {
       console.error('[Auth] Falha ao inicializar Supabase:', error);

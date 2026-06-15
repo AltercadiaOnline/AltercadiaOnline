@@ -121,6 +121,7 @@ import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
+import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
 export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
@@ -375,7 +376,9 @@ function connectSocket(): void {
 
   const synchronizer = getGlobalStateSynchronizer();
 
-  socket = createBrowserCombatSocket(resolveGameWsUrl(), {
+  socket = createBrowserCombatSocket(
+    resolveGameWsUrl(window.location, getClientRuntimeConfig()?.gameWsUrl),
+    {
     onReconnect: () => {
       synchronizer.onReconnect();
       if (world && positionGateway) {

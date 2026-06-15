@@ -12,6 +12,8 @@ export type ServerEnv = {
   readonly supabaseUrl: string | null;
   readonly supabaseAnonKey: string | null;
   readonly supabaseServiceRoleKey: string | null;
+  /** URL pública do WebSocket — exposta via GET /config/client (ex.: wss://app.railway.app/ws). */
+  readonly gameWsUrl: string | null;
   /** Permite world-login sem JWT — apenas desenvolvimento local explícito. */
   readonly devAuthBypass: boolean;
   readonly database: DatabaseEnv;
@@ -70,6 +72,7 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     supabaseUrl: env.SUPABASE_URL?.trim() || null,
     supabaseAnonKey: env.SUPABASE_ANON_KEY?.trim() || null,
     supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null,
+    gameWsUrl: env.GAME_WS_URL?.trim() || env.PUBLIC_GAME_WS_URL?.trim() || null,
     devAuthBypass:
       env.DEV_AUTH_BYPASS === '1'
       || env.DEV_AUTH_BYPASS === 'true'

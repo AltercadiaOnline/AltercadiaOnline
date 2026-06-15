@@ -49,6 +49,7 @@ async function main(): Promise<void> {
     clientPublicConfig: createPublicClientConfig({
       ...(env.supabaseUrl ? { supabaseUrl: env.supabaseUrl } : {}),
       ...(env.supabaseAnonKey ? { supabaseAnonKey: env.supabaseAnonKey } : {}),
+      ...(env.gameWsUrl ? { gameWsUrl: env.gameWsUrl } : {}),
     }),
   });
 
