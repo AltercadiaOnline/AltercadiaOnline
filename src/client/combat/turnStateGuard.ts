@@ -240,7 +240,9 @@ export class TurnStateGuard {
 
     this.playerActorId = ui.playerActorId;
 
-    const nextTurn = canPlayerIssueCombatChoice(state, ui.playerActorId);
+    const serverChoiceOpen = canPlayerIssueCombatChoice(state, ui.playerActorId);
+    const deadlineOpen = ui.turnDeadlineMs === undefined || Date.now() < ui.turnDeadlineMs;
+    const nextTurn = serverChoiceOpen && deadlineOpen;
 
     const choiceKey = nextTurn
 

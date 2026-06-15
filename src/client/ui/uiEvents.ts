@@ -267,6 +267,8 @@ type ListenerEntry = {
  */
 export class UiEventBus {
   private readonly listeners = new Map<UIEventType, Set<ListenerEntry['handler']>>();
+  private emitDepth = 0;
+  private static readonly MAX_EMIT_DEPTH = 48;
 
   on<T extends UIEventType>(type: T, handler: UiEventHandler<T>): () => void {
     const bucket = this.listeners.get(type) ?? new Set<ListenerEntry['handler']>();
@@ -282,10 +284,21 @@ export class UiEventBus {
   }
 
   emit<T extends UIEventType>(type: T, payload: UiEventMap[T]): void {
+    if (this.emitDepth >= UiEventBus.MAX_EMIT_DEPTH) {
+      console.warn('[UiEventBus] Profundidade de emit excedida — possível loop em', type);
+      return;
+    }
+
     const bucket = this.listeners.get(type);
     if (!bucket) return;
-    for (const handler of bucket) {
-      (handler as UiEventHandler<T>)(payload);
+
+    this.emitDepth += 1;
+    try {
+      for (const handler of [...bucket]) {
+        (handler as UiEventHandler<T>)(payload);
+      }
+    } finally {
+      this.emitDepth -= 1;
     }
   }
 

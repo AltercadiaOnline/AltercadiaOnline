@@ -90,6 +90,8 @@ export class BattleCommandController {
 
   lock(): void {
 
+    if (this.phase === 'LOCKED') return;
+
     this.phase = 'LOCKED';
 
     this.renderMenu();
@@ -126,6 +128,7 @@ export class BattleCommandController {
         phase: this.phase,
         menuEnabled: this.menuEnabled,
         actorId: this.actorId,
+        canUseSkill: getTurnStateGuard().canUseSkill(),
       });
       return;
     }

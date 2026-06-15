@@ -7,6 +7,7 @@ export type CombatAnimationGate = {
 
 const BATTLE_COMMAND_SELECTOR = '.battle-command-bar [data-battle-cmd]';
 const BATTLE_ITEMS_SELECTOR = '#battle-items-row button';
+const BATTLE_MOVESET_SELECTOR = '#skill-palette-row .battle-menu-btn:not(.is-empty)';
 
 /**
  * Espelha ActionGatewayButton — desabilita comandos de turno enquanto `isAnimating` ou pending extra.
@@ -76,6 +77,9 @@ export class CombatTurnGatewayController {
       list.push(element);
     }
     for (const element of this.root.querySelectorAll<HTMLElement>(BATTLE_ITEMS_SELECTOR)) {
+      list.push(element);
+    }
+    for (const element of this.root.querySelectorAll<HTMLElement>(BATTLE_MOVESET_SELECTOR)) {
       list.push(element);
     }
     return list;

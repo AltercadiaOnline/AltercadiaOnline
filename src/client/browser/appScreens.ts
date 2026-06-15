@@ -334,54 +334,72 @@ export const AppScreens = {
     let supabaseConfigured = false;
 
     try {
-      const config = await fetchPublicClientConfig();
-      supabaseConfigured = isSupabaseConfigured(config);
-      if (!supabaseConfigured) {
+      if (!serverOk) {
         throw new Error(
-          'Supabase não configurado no servidor. Defina SUPABASE_URL e SUPABASE_ANON_KEY na Vercel.',
+          isLocalDevHost()
+            ? 'Servidor offline. Rode npm run dev na pasta do projeto e acesse http://localhost:3000'
+            : 'Servidor offline. Não foi possível conectar ao Altercadia.',
         );
       }
 
-      const supabaseReady = await initSupabaseAuth(config);
-      if (!supabaseReady || !getSupabaseClient()) {
+      const config = await fetchPublicClientConfig();
+      supabaseConfigured = isSupabaseConfigured(config);
+
+      if (supabaseConfigured) {
+        const supabaseReady = await initSupabaseAuth(config);
+        if (!supabaseReady || !getSupabaseClient()) {
+          throw new Error(
+            'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client e as variáveis de ambiente.',
+          );
+        }
+      } else if (!isLocalDevHost()) {
         throw new Error(
-          'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client e as variáveis de ambiente.',
+          'Supabase não configurado no servidor. Defina SUPABASE_URL e SUPABASE_ANON_KEY.',
         );
+      } else {
+        console.warn('[Auth] localhost sem Supabase — login local (email + senha no navegador).');
       }
 
       if (authCallbacks) {
-        initAuthSessionBridge(authCallbacks);
+        if (supabaseConfigured) {
+          initAuthSessionBridge(authCallbacks);
 
-        const oauthCompleted = await tryCompleteOAuthReturn({
-          onAuthenticated: authCallbacks.onAuthenticated,
-          onSnapshotInitializing: (message) => {
-            showPlayerInitLoading(message);
-            const statusEl = document.getElementById('auth-status');
-            if (!statusEl) return;
-            statusEl.textContent = message;
-            statusEl.classList.remove('is-error');
-            statusEl.classList.add('is-success');
-          },
-          onAuthError: (message) => {
-            hidePlayerInitLoading();
-            authCallbacks.onAuthError?.(message);
-            this.showLogin();
-            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
-          },
-        });
+          const oauthCompleted = await tryCompleteOAuthReturn({
+            onAuthenticated: authCallbacks.onAuthenticated,
+            onSnapshotInitializing: (message) => {
+              showPlayerInitLoading(message);
+              const statusEl = document.getElementById('auth-status');
+              if (!statusEl) return;
+              statusEl.textContent = message;
+              statusEl.classList.remove('is-error');
+              statusEl.classList.add('is-success');
+            },
+            onAuthError: (message) => {
+              hidePlayerInitLoading();
+              authCallbacks.onAuthError?.(message);
+              this.showLogin();
+              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+            },
+          });
 
-        if (!oauthCompleted) {
-          const hasSupabaseSession = await this.restoreSessionFromSupabase();
-          if (hasSupabaseSession) {
-            this.showCharSelect();
-          } else if (this.restoreSessionFromStorage()) {
-            this.showCharSelect();
-          } else {
-            this.showLogin();
-            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+          if (!oauthCompleted) {
+            const hasSupabaseSession = await this.restoreSessionFromSupabase();
+            if (hasSupabaseSession) {
+              this.showCharSelect();
+            } else if (this.restoreSessionFromStorage()) {
+              this.showCharSelect();
+            } else {
+              this.showLogin();
+              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
+            }
           }
+        } else if (this.restoreSessionFromStorage()) {
+          this.showCharSelect();
+        } else {
+          this.showLogin();
+          this.showLoginEnvironmentHint({ supabase: false, serverOk });
         }
-      } else {
+      } else if (supabaseConfigured) {
         const hasSupabaseSession = await this.restoreSessionFromSupabase();
         if (hasSupabaseSession) {
           this.showCharSelect();
@@ -391,6 +409,11 @@ export const AppScreens = {
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk });
         }
+      } else if (this.restoreSessionFromStorage()) {
+        this.showCharSelect();
+      } else {
+        this.showLogin();
+        this.showLoginEnvironmentHint({ supabase: false, serverOk });
       }
     } catch (error) {
       console.error('[Auth] Falha ao inicializar Supabase:', error);

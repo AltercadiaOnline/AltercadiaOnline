@@ -2,6 +2,7 @@ import type { ActionRequest, CombatEvent } from '../../shared/events.js';
 import { CombatEventType } from '../../shared/events.js';
 import { syncPetStoreFromCombatEvents } from '../pet/petCombatSync.js';
 import type { CombatDispatchPayload, CombatUiHints } from '../../shared/combatWire.js';
+import { canPlayerIssueCombatChoice } from '../../shared/combat/playerTurnChoice.js';
 export type { BattleEndedPayload } from '../../shared/combat/battleEnded.js';
 export { isBattleEndedPayload } from '../../shared/combat/battleEnded.js';
 export type { CombatDispatchPayload, CombatUiHints } from '../../shared/combatWire.js';
@@ -927,6 +928,10 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
   teardownBattleScreenUi = initBattleScreenUI(root, {
     onMoveset: () => {
       root.querySelector('#skill-palette-row')?.classList.remove('hidden');
+      const dispatch = lastDispatch;
+      if (dispatch) {
+        ensureHud().syncSkillPaletteFromCombatState(dispatch.state, dispatch.ui);
+      }
     },
     onSkipTurn: () => {
       const dispatch = lastDispatch;
@@ -958,20 +963,6 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     combatActionPending = true;
     battleCommand?.lock();
     battleItems?.lock();
-    getTurnStateGuard().syncFromDispatch(
-      lastDispatch?.state ?? {
-        battleId: '',
-        turn: 0,
-        phase: 'RESOLVING',
-        activeActorId: null,
-        combatants: {},
-      },
-      lastDispatch?.ui ?? {
-        actionsEnabled: false,
-        activeActorId: null,
-        playerActorId: 'player',
-      },
-    );
   });
 
   battleScreen = new BattleScreen(queryBattleScreenElements(root));
@@ -1210,7 +1201,14 @@ export const GameClient = {
     }
     turnGuard.syncFromDispatch(data.state, data.ui);
 
-    if (data.state.phase === 'RESOLVING' || data.events.some((e) => e.type === CombatEventType.DAMAGE_DEALT)) {
+    const playerCanChoose = canPlayerIssueCombatChoice(data.state, data.ui.playerActorId);
+    if (
+      !playerCanChoose
+      && (
+        data.state.phase === 'RESOLVING'
+        || data.events.some((event) => event.type === CombatEventType.DAMAGE_DEALT)
+      )
+    ) {
       battleCommand?.lock();
       battleItems?.lock();
     }
@@ -1311,7 +1309,7 @@ export const GameClient = {
       return;
     }
     const { state, ui } = dispatch;
-    if (!ui.actionsEnabled || state.phase !== 'CHOOSING') {
+    if (!canPlayerIssueCombatChoice(state, ui.playerActorId)) {
       getTurnStateGuard().rejectSkillAttempt();
       return;
     }
@@ -1321,8 +1319,7 @@ export const GameClient = {
     }
     const player = state.combatants[ui.playerActorId];
     const serverHasSkill = player?.skills.some((entry) => entry.id === skillId) ?? false;
-    const loadoutHasSkill = getBattleStore().getActiveMovesets().includes(skillId);
-    if (!serverHasSkill && !loadoutHasSkill) {
+    if (!serverHasSkill) {
       console.warn('[HUD] Movimento não autorizado pelo servidor:', skillId);
       return;
     }

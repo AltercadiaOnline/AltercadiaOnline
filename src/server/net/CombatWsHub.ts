@@ -50,6 +50,7 @@ import {
   getBattleSessionLease,
 } from '../combat/battleSessionLease.js';
 import { createPveBattleBootstrap } from '../combat/buildPveBattle.js';
+import { applyCombatJoinSessionSync, type CombatJoinSessionSyncInput } from '../combat/applyCombatJoinSessionSync.js';
 import { grantPlayerHonor } from '../combat/playerHonorStore.js';
 import { resolveAuthoritativeCombatLoadout } from '../persistence/authoritativeCombatLoadout.js';
 import { MovementIntentHandler } from '../handlers/world/MovementIntentHandler.js';
@@ -278,7 +279,7 @@ export class CombatWsHub {
       this.handleJoin(
         ws,
         connectionId,
-        message.payload?.monsterInstanceId,
+        message.payload,
         world?.characterId ?? 1,
         world?.playerId,
       );
@@ -441,12 +442,16 @@ export class CombatWsHub {
         return;
       }
       this.clearTurnTimer(connectionId);
-      this.choiceWindows.delete(connectionId);
       const result = await session.dispatchPlayerAction(message.payload);
       if (!result.ok) {
+        const window = this.choiceWindows.get(connectionId);
+        if (window && Date.now() < window.deadlineMs) {
+          this.scheduleTurnTimer(connectionId, session, window.deadlineMs - Date.now());
+        }
         this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
         return;
       }
+      this.choiceWindows.delete(connectionId);
       await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
     }
   }
@@ -1481,14 +1486,14 @@ export class CombatWsHub {
   private handleJoin(
     ws: LiveSocket,
     connectionId: string,
-    monsterInstanceId?: string,
+    joinPayload?: CombatJoinSessionSyncInput & { readonly monsterInstanceId?: string },
     characterId = 1,
     worldPlayerId?: string,
   ): void {
     void this.bootstrapJoinBattle(
       ws,
       connectionId,
-      monsterInstanceId,
+      joinPayload,
       characterId,
       worldPlayerId,
     );
@@ -1497,7 +1502,7 @@ export class CombatWsHub {
   private async bootstrapJoinBattle(
     ws: LiveSocket,
     connectionId: string,
-    monsterInstanceId?: string,
+    joinPayload?: CombatJoinSessionSyncInput & { readonly monsterInstanceId?: string },
     characterId = 1,
     worldPlayerId?: string,
   ): Promise<void> {
@@ -1507,14 +1512,18 @@ export class CombatWsHub {
 
       await consumeChargedEquipmentBattleParticipation(playerId, characterId);
 
+      if (joinPayload) {
+        applyCombatJoinSessionSync(playerId, characterId, joinPayload);
+      }
+
       const loadout = resolveAuthoritativeCombatLoadout(playerId, characterId);
 
-      const bootstrap = createPveBattleBootstrap(loadout, monsterInstanceId);
+      const bootstrap = createPveBattleBootstrap(loadout, joinPayload?.monsterInstanceId);
       const session = new CombatSession(playerId, bootstrap.state, {
         characterId,
         ruleManifest: bootstrap.ruleManifest,
         loadout: bootstrap.loadout,
-        ...(monsterInstanceId !== undefined ? { monsterInstanceId } : {}),
+        ...(joinPayload?.monsterInstanceId !== undefined ? { monsterInstanceId: joinPayload.monsterInstanceId } : {}),
       });
       this.sessions.set(connectionId, session);
       this.socketsByPlayerId.set(playerId, ws);
@@ -1526,7 +1535,7 @@ export class CombatWsHub {
         connectionId,
         playerId,
         battleId: payload.state.battleId,
-        monsterInstanceId: monsterInstanceId ?? null,
+        monsterInstanceId: joinPayload?.monsterInstanceId ?? null,
       });
       this.send(ws, { type: 'START_COMBAT', payload: { battleId: payload.state.battleId } });
       void this.deliverCombatPayload(ws, connectionId, session, payload);
@@ -1535,7 +1544,7 @@ export class CombatWsHub {
         connectionId,
         characterId,
         worldPlayerId: worldPlayerId ?? null,
-        monsterInstanceId: monsterInstanceId ?? null,
+        monsterInstanceId: joinPayload?.monsterInstanceId ?? null,
         error,
       });
       this.send(ws, { type: 'combat-error', payload: { reason: 'JOIN_BATTLE_FAILED' } });

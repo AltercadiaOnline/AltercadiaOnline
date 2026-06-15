@@ -147,28 +147,49 @@ let loginUiBound = false;
 let bootstrapInFlight = false;
 
 function isSupabaseInfrastructureError(error: unknown): boolean {
+  if (isLocalDevHost()) return false;
   const message = error instanceof Error ? error.message : String(error);
   const needles = [
     'Supabase não configurado',
     'SUPABASE_URL',
     'SUPABASE_ANON_KEY',
     'variáveis de ambiente',
-    '/config/client',
     'Supabase Auth não foi inicializado',
     'Falha ao inicializar Supabase Auth',
-    'Falha ao inicializar autenticação',
   ];
   return needles.some((fragment) => message.includes(fragment));
 }
 
 function resolveBootstrapFatalMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes('Servidor offline')) {
+    return message;
+  }
+  if (message.includes('/config/client')) {
+    return isLocalDevHost()
+      ? 'Servidor offline ou /config/client indisponível. Rode npm run dev e acesse http://localhost:3000'
+      : 'Não foi possível carregar a configuração do servidor (/config/client).';
+  }
   if (isSupabaseInfrastructureError(error)) {
     return BOOTSTRAP_SUPABASE_INFRA_MESSAGE;
   }
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
+  if (error instanceof Error && message.trim().length > 0) {
+    return message;
   }
   return 'Não foi possível conectar ao Altercadia. Verifique sua conexão e tente novamente.';
+}
+
+function canUseLocalDevAuthWithoutSupabase(): boolean {
+  return isLocalDevHost() && !getSupabaseClient();
+}
+
+function assertAuthReadyForLogin(): void {
+  if (!AppScreens.authService) {
+    throw new Error('Serviço de autenticação indisponível.');
+  }
+  if (!getSupabaseClient() && !canUseLocalDevAuthWithoutSupabase()) {
+    throw new Error('Supabase Auth não foi inicializado — login bloqueado por segurança.');
+  }
 }
 
 type ViewportProbe = {
@@ -894,15 +915,6 @@ function showBootstrapFatalError(message: string): void {
   document.body.appendChild(overlay);
 }
 
-function assertAuthReadyForLogin(): void {
-  if (!AppScreens.authService) {
-    throw new Error('Serviço de autenticação indisponível.');
-  }
-  if (!getSupabaseClient()) {
-    throw new Error('Supabase Auth não foi inicializado — login bloqueado por segurança.');
-  }
-}
-
 function setupLogin(): void {
   assertAuthReadyForLogin();
   if (loginUiBound) return;
@@ -912,7 +924,7 @@ function setupLogin(): void {
     onAuthenticated: onLoginSuccess,
   });
   loginUiBound = true;
-  console.log('[Bootstrap] Login HUD ligada — Supabase pronto.');
+  console.log('[Bootstrap] Login HUD ligada.');
 }
 
 async function bootstrap(): Promise<void> {
@@ -938,9 +950,6 @@ async function bootstrap(): Promise<void> {
     });
 
     assertAuthReadyForLogin();
-    if (!getSupabaseClient()) {
-      throw new Error('Supabase Auth não foi inicializado — login bloqueado por segurança.');
-    }
 
     registerCombatDevTransportResolver(() => {
       if (!socket) return null;

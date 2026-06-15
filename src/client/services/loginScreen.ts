@@ -6,6 +6,7 @@ import {
   showAuthView,
 } from './authFlow.js';
 import { bindGoogleLoginButton } from '../services/auth/GameAuthService.js';
+import { getSupabaseClient } from '../auth/supabaseAuth.js';
 
 export type LoginScreenOptions = {
   authService: AuthService;
@@ -166,13 +167,19 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   if (loginGoogleBtn instanceof HTMLButtonElement) googleButtons.push(loginGoogleBtn);
   if (registerGoogleBtn instanceof HTMLButtonElement) googleButtons.push(registerGoogleBtn);
 
-  googleButtons.forEach((button) => {
-    bindGoogleLoginButton({
-      button,
-      onStatus: setStatus,
-      setBusy,
+  if (getSupabaseClient()) {
+    googleButtons.forEach((button) => {
+      bindGoogleLoginButton({
+        button,
+        onStatus: setStatus,
+        setBusy,
+      });
     });
-  });
+  } else {
+    googleButtons.forEach((button) => {
+      button.hidden = true;
+    });
+  }
 
   if (!navigationReady) {
     console.error('[LoginScreen] Falha ao ligar botões de navegação.');

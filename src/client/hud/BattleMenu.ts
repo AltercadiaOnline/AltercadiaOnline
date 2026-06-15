@@ -65,7 +65,31 @@ export class BattleMenu {
 
     this.container.classList.add('battle-menu');
 
+    this.container.addEventListener('click', this.handleContainerClick);
+
   }
+
+
+
+  private handleContainerClick = (event: MouseEvent): void => {
+
+    if (!this.options.enabled || !this.onMoveSelected) return;
+
+    const target = event.target;
+
+    if (!(target instanceof Element)) return;
+
+    const button = target.closest<HTMLButtonElement>('.battle-menu-btn:not(.is-empty):not(:disabled)');
+
+    if (!button || !this.container.contains(button)) return;
+
+    const moveId = button.dataset.moveId;
+
+    if (!moveId) return;
+
+    this.onMoveSelected(moveId);
+
+  };
 
 
 
@@ -144,11 +168,7 @@ export class BattleMenu {
 
       if (options.enabled && !blocked) {
 
-        btn.addEventListener('click', () => {
-
-          this.onMoveSelected?.(move.id);
-
-        });
+        btn.classList.add('is-ready');
 
       }
 
@@ -171,6 +191,7 @@ export class BattleMenu {
   destroy(): void {
 
     this.clearTooltipListeners();
+    this.container.removeEventListener('click', this.handleContainerClick);
     this.container.innerHTML = '';
 
     this.onMoveSelected = null;
@@ -225,13 +246,21 @@ export class BattleMenu {
 
 
 
+  private clearingTooltips = false;
+
+
+
   private clearTooltipListeners(): void {
+
+    if (this.clearingTooltips) return;
+
+    this.clearingTooltips = true;
 
     for (const off of this.tooltipCleanups) off();
 
     this.tooltipCleanups.length = 0;
 
-    uiEvents.emit(UIEventType.HIDE_TOOLTIP, {});
+    this.clearingTooltips = false;
 
   }
 

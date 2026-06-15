@@ -401,7 +401,7 @@ export class HUDManager {
 
     }
 
-    if (!this.lastUi) return;
+    const playerActorId = this.lastUi?.playerActorId ?? payload.activeActorId ?? 'player';
 
     const state: CombatState = {
 
@@ -419,11 +419,17 @@ export class HUDManager {
 
     const refreshedUi: CombatUiHints = {
 
-      ...this.lastUi,
+      ...(this.lastUi ?? {
+        actionsEnabled: false,
+        activeActorId: payload.activeActorId,
+        playerActorId,
+      }),
 
-      actionsEnabled: canPlayerIssueCombatChoice(state, this.lastUi.playerActorId),
+      actionsEnabled: canPlayerIssueCombatChoice(state, playerActorId),
 
       activeActorId: payload.activeActorId,
+
+      playerActorId,
 
     };
 
@@ -585,8 +591,15 @@ export class HUDManager {
     const serverSkills = player?.skills ?? [];
 
     const loadoutSkills = getBattleStore().getPlayerBattleSkills();
-
-    const skills = mergeLoadoutSkillsWithRuntime(loadoutSkills, serverSkills);
+    const filteredLoadout = loadoutSkills.filter((skill) =>
+      serverSkills.some((entry) => entry.id === skill.id),
+    );
+    const skills =
+      serverSkills.length > 0
+        ? (filteredLoadout.length > 0
+            ? mergeLoadoutSkillsWithRuntime(filteredLoadout, serverSkills)
+            : [...serverSkills])
+        : mergeLoadoutSkillsWithRuntime(loadoutSkills, serverSkills);
 
     const enabled = ui.actionsEnabled && state.phase === 'CHOOSING';
 

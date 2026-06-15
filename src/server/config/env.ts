@@ -1,5 +1,6 @@
 import type { DatabaseEnv } from './databaseConfig.js';
 import { loadDatabaseEnv } from './databaseConfig.js';
+import { BUILTIN_ALLOWED_ORIGINS } from './cors.js';
 
 export type NodeEnv = 'development' | 'production' | 'test';
 export type ServerEnv = {
@@ -21,14 +22,30 @@ function parseNodeEnv(raw: string | undefined): NodeEnv {
   return 'development';
 }
 
+function mergeUniqueOrigins(...lists: readonly (readonly string[])[]): readonly string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const list of lists) {
+    for (const entry of list) {
+      const normalized = entry.replace(/\/+$/, '');
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        merged.push(normalized);
+      }
+    }
+  }
+  return merged;
+}
+
 function parseCorsOrigins(raw: string | undefined, nodeEnv: NodeEnv): readonly string[] {
   const trimmed = raw?.trim() ?? '';
-  if (!trimmed) {
-    if (nodeEnv === 'production') return [];
-    return ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173'];
-  }
   if (trimmed === '*') return ['*'];
-  return trimmed.split(',').map((entry) => entry.trim()).filter(Boolean);
+  const fromEnv = trimmed
+    ? trimmed.split(',').map((entry) => entry.trim()).filter(Boolean)
+    : nodeEnv === 'production'
+      ? []
+      : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173'];
+  return mergeUniqueOrigins(BUILTIN_ALLOWED_ORIGINS, fromEnv);
 }
 
 /** Lê variáveis de ambiente para HTTP + WebSocket em nuvem. */

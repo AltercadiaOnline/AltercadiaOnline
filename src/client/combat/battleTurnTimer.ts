@@ -79,6 +79,20 @@ export class BattleTurnTimer {
     this.choiceBudgetMs = input.choiceBudgetMs ?? BATTLE_TURN_CHOICE_BUDGET_MS;
     this.playbackGraceMs = Math.max(0, input.playbackGraceMs ?? 0);
 
+    if (this.deadlineMs <= Date.now()) {
+      this.renderProgress(0, 0, 0);
+      if (!this.expiredNotified) {
+        this.expiredNotified = true;
+        const notify = this.onExpired;
+        if (notify) {
+          queueMicrotask(() => {
+            notify();
+          });
+        }
+      }
+      return;
+    }
+
     const tick = () => this.tickFrame();
     tick();
     this.timerHandle = setInterval(tick, BATTLE_TURN_TIMER_TICK_MS);
@@ -119,7 +133,12 @@ export class BattleTurnTimer {
       this.deadlineMs = undefined;
       if (!this.expiredNotified) {
         this.expiredNotified = true;
-        this.onExpired?.();
+        const notify = this.onExpired;
+        if (notify) {
+          queueMicrotask(() => {
+            notify();
+          });
+        }
       }
     }
   }

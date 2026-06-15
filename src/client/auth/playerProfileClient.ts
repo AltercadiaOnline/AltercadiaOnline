@@ -5,7 +5,30 @@ import {
 } from '../../shared/auth/playerSnapshotProtocol.js';
 import { AppScreens } from '../browser/appScreens.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
-import { resolveSessionAccessToken } from './supabaseAuth.js';
+import { getLocalSession } from '../services/localSessionStore.js';
+import { isLocalDevHost } from './localDevAuth.js';
+import { getSupabaseClient, resolveSessionAccessToken } from './supabaseAuth.js';
+
+type AuthoritativePlayerAuth = {
+  readonly token: string | null;
+  readonly devPlayerId: string | null;
+};
+
+async function resolveAuthoritativePlayerAuth(): Promise<AuthoritativePlayerAuth> {
+  const token = await resolveSessionAccessToken();
+  if (token) {
+    return { token, devPlayerId: null };
+  }
+
+  if (isLocalDevHost() && !getSupabaseClient()) {
+    const session = getLocalSession();
+    if (session?.id) {
+      return { token: null, devPlayerId: session.id };
+    }
+  }
+
+  return { token: null, devPlayerId: null };
+}
 
 export function resolveDefaultCharacterIdForProfile(): number {
   const hub = AppScreens.characterHub;
@@ -33,19 +56,22 @@ type SnapshotFetchResult =
 
 async function fetchAuthoritativePlayerSnapshotOnce(
   characterId: number,
-  token: string,
+  auth: AuthoritativePlayerAuth,
 ): Promise<SnapshotFetchResult> {
   const url = new URL('/api/player-snapshot', window.location.origin);
   url.searchParams.set('characterId', String(characterId));
+  if (auth.devPlayerId) {
+    url.searchParams.set('playerId', auth.devPlayerId);
+  }
+
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (auth.token) {
+    headers.Authorization = `Bearer ${auth.token}`;
+  }
 
   let response: Response;
   try {
-    response = await fetch(url.toString(), {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    response = await fetch(url.toString(), { headers });
   } catch {
     return { ok: false, message: 'Servidor indisponível ao carregar perfil.' };
   }
@@ -88,14 +114,14 @@ export async function initializeAuthoritativePlayerSnapshot(
   characterId?: number,
 ): Promise<{ ok: boolean; ready?: boolean; message?: string }> {
   const resolvedCharacterId = characterId ?? resolveDefaultCharacterIdForProfile();
-  const token = await resolveSessionAccessToken();
+  const auth = await resolveAuthoritativePlayerAuth();
 
-  if (!token) {
+  if (!auth.token && !auth.devPlayerId) {
     return { ok: false, message: 'Sessão não autenticada.' };
   }
 
   for (let attempt = 0; attempt < SNAPSHOT_MAX_ATTEMPTS; attempt += 1) {
-    const result = await fetchAuthoritativePlayerSnapshotOnce(resolvedCharacterId, token);
+    const result = await fetchAuthoritativePlayerSnapshotOnce(resolvedCharacterId, auth);
     if (result.ok) {
       return { ok: true, ready: true };
     }

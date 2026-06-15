@@ -2,6 +2,16 @@
  * CORS para HTTP e verificação de Origin no upgrade WebSocket (`ws`).
  * O projeto usa WebSocket nativo (não Socket.io).
  */
+
+/** Front-end em produção — sempre permitido além de `CORS_ORIGIN`. */
+export const BUILTIN_ALLOWED_ORIGINS = [
+  'https://altercadia-online.vercel.app',
+] as const;
+
+function normalizeOrigin(origin: string): string {
+  return origin.replace(/\/+$/, '');
+}
+
 function isSameOriginAsHost(origin: string, requestHost: string | undefined): boolean {
   if (!requestHost) return false;
   try {
@@ -17,8 +27,10 @@ export function isOriginAllowed(
   requestHost?: string,
 ): boolean {
   if (!origin) return true;
+  const normalized = normalizeOrigin(origin);
   if (allowedOrigins.includes('*')) return true;
-  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.some((entry) => normalizeOrigin(entry) === normalized)) return true;
+  if (BUILTIN_ALLOWED_ORIGINS.some((entry) => entry === normalized)) return true;
   if (allowedOrigins.length === 0 && isSameOriginAsHost(origin, requestHost)) return true;
   return false;
 }
