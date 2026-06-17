@@ -2,7 +2,6 @@ import type { CombatClassId } from '../../shared/types.js';
 import type { WorldExplorationSessionSync } from '../../shared/world/zoneTransition.js';
 import { getDefaultClassActiveLoadout, normalizeClassActiveLoadout } from '../../shared/combat/movesetLoadout.js';
 import { inferClassIdFromMovesetMastery } from '../../shared/progression/movesetMasterySeed.js';
-import { mergeVitalsForHealCheck } from '../../shared/world/resolveHealNpcVitals.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getWorldProfile, saveWorldProfile } from '../world/worldProfileStore.js';
 
@@ -21,27 +20,6 @@ export function applyCombatJoinSessionSync(
 ): void {
   const profile = getWorldProfile(playerId, characterId);
   let sessionSync: WorldExplorationSessionSync = { ...(profile.sessionSync ?? {}) };
-
-  if (join.worldVitals) {
-    const { hpCurrent, hpMax, mpCurrent, mpMax } = join.worldVitals;
-    if (
-      Number.isFinite(hpCurrent)
-      && Number.isFinite(hpMax)
-      && Number.isFinite(mpCurrent)
-      && Number.isFinite(mpMax)
-    ) {
-      const serverVitals = sessionSync.worldVitals ?? {
-        hpCurrent,
-        hpMax,
-        mpCurrent,
-        mpMax,
-      };
-      sessionSync = {
-        ...sessionSync,
-        worldVitals: mergeVitalsForHealCheck(serverVitals, join.worldVitals),
-      };
-    }
-  }
 
   if (join.activeMovesets?.length) {
     const progression = getAuthoritativeProgression(playerId, characterId);

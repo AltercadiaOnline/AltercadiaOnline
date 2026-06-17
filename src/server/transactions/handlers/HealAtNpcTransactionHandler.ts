@@ -1,8 +1,8 @@
 import type { PlayerWorldVitals } from '../../../shared/character/equipmentState.js';
 import { EconomyEventType } from '../../../shared/economy/events.js';
 import { healPlayer } from '../../../shared/world/npcHealService.js';
-import { mergeVitalsForHealCheck } from '../../../shared/world/resolveHealNpcVitals.js';
-import { validateHealNpcProximityWithClientMirror } from '../../../shared/world/npcHealAccessPolicy.js';
+import { sanitizeAuthoritativeWorldVitals } from '../../../shared/world/resolveHealNpcVitals.js';
+import { validateHealNpcProximity } from '../../../shared/world/npcHealAccessPolicy.js';
 import type { PlayerProfile } from '../../models/playerProfile.js';
 import { executeEconomyTransaction, getPlayerWallet } from '../../../Economy/economyStore.js';
 import { getAuthoritativeProgression } from '../../progression/authoritativeProgressionStore.js';
@@ -16,11 +16,6 @@ import {
 
 export type HealAtNpcPayload = {
   readonly npcId: string;
-  /** Espelho do cliente — usado com min(server, client) para validar cura pós-batalha. */
-  readonly clientVitals?: PlayerWorldVitals;
-  /** Mapa atual no cliente — fallback de proximidade quando o perfil do servidor está defasado. */
-  readonly clientMapId?: string;
-  readonly clientPosition?: { readonly x: number; readonly y: number };
 };
 
 type HealComputation = {
@@ -72,23 +67,12 @@ export class HealAtNpcTransactionHandler extends BaseTransactionHandler<HealAtNp
     action: TransactionIntentAction<HealAtNpcPayload>,
     profile: PlayerProfile,
   ): void {
-    const proximity = validateHealNpcProximityWithClientMirror(
-      {
-        mapId: profile.currentMapId,
-        worldX: profile.lastPosition.x,
-        worldY: profile.lastPosition.y,
-        npcId: action.payload.npcId,
-      },
-      {
-        ...(action.payload.clientMapId ? { mapId: action.payload.clientMapId } : {}),
-        ...(action.payload.clientPosition
-          ? {
-              worldX: action.payload.clientPosition.x,
-              worldY: action.payload.clientPosition.y,
-            }
-          : {}),
-      },
-    );
+    const proximity = validateHealNpcProximity({
+      mapId: profile.currentMapId,
+      worldX: profile.lastPosition.x,
+      worldY: profile.lastPosition.y,
+      npcId: action.payload.npcId,
+    });
 
     if (!proximity.ok) {
       throw new TransactionValidationError(proximity.code, proximity.message);
@@ -100,7 +84,7 @@ export class HealAtNpcTransactionHandler extends BaseTransactionHandler<HealAtNp
     ).characterProfile.level;
     const wallet = getPlayerWallet(action.playerId);
     const serverVitals = resolveWorldVitals(profile);
-    const vitals = mergeVitalsForHealCheck(serverVitals, action.payload.clientVitals);
+    const vitals = sanitizeAuthoritativeWorldVitals(serverVitals) ?? serverVitals;
 
     const healResult = healPlayer({
       npcId: action.payload.npcId,

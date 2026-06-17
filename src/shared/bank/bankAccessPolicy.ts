@@ -1,4 +1,4 @@
-import { BANK_CLIENT_REPORTED_RADIUS_TILES, BANK_NPC_ID } from './bankConstants.js';
+import { BANK_NPC_ID } from './bankConstants.js';
 import { NPC_INTERACTION_RADIUS_TILES, getResolvedNpcRegistry } from '../world/npcRegistry.js';
 import { TILE_SIZE } from '../world/mapConstants.js';
 import { getMapDefinition } from '../world/mapRegistry.js';
@@ -54,37 +54,12 @@ export function isPlayerNearBankNpc(check: BankAccessCheck): boolean {
   return distance <= radiusTiles;
 }
 
-function parseClientReportedPosition(
-  x: unknown,
-  y: unknown,
-): { readonly x: number; readonly y: number } | null {
-  if (typeof x !== 'number' || !Number.isFinite(x)) return null;
-  if (typeof y !== 'number' || !Number.isFinite(y)) return null;
-  return { x, y };
-}
-
-/**
- * Valida acesso ao banco: posição autoritativa primeiro; se falhar, aceita coordenadas
- * reportadas pelo cliente com raio tolerante (desync MOVE_INTENT vs movimento local).
- */
+/** Valida acesso ao banco somente pela posição autoritativa do servidor. */
 export function validateBankNpcAccess(check: BankAccessValidation): boolean {
-  if (isPlayerNearBankNpc({
+  return isPlayerNearBankNpc({
     mapId: check.mapId,
     worldX: check.serverX,
     worldY: check.serverY,
-    ...(check.npcId !== undefined ? { npcId: check.npcId } : {}),
-  })) {
-    return true;
-  }
-
-  const clientPos = parseClientReportedPosition(check.clientReportedX, check.clientReportedY);
-  if (!clientPos) return false;
-
-  return isPlayerNearBankNpc({
-    mapId: check.mapId,
-    worldX: clientPos.x,
-    worldY: clientPos.y,
-    radiusTiles: BANK_CLIENT_REPORTED_RADIUS_TILES,
     ...(check.npcId !== undefined ? { npcId: check.npcId } : {}),
   });
 }

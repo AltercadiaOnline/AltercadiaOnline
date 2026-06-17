@@ -80,8 +80,7 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     gameWsUrl: normalizeGameWsUrl(env.GAME_WS_URL ?? env.PUBLIC_GAME_WS_URL),
     devAuthBypass:
       env.DEV_AUTH_BYPASS === '1'
-      || env.DEV_AUTH_BYPASS === 'true'
-      || (nodeEnv === 'development' && env.DEV_AUTH_BYPASS !== 'false'),
+      || env.DEV_AUTH_BYPASS === 'true',
     database: loadDatabaseEnv(env),
   };
 }

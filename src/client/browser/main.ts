@@ -25,6 +25,7 @@ import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globa
 import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
 import { bootstrapEmptyPlayerItems, bootstrapMvpPlayerItems } from '../game/PlayerItemSession.js';
 import { attachOnlineEconomyLayer, attachOfflineEconomyLayer, getDataStore } from '../economy/economyLayer.js';
+import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
 import { requestReturnToExploration } from '../game/battleReturnToWorld.js';
 import {
   initGameStateProvider,
@@ -332,7 +333,9 @@ function syncRefractionBoothCredentials(): void {
 function handleWorldLoginResult(raw: unknown): void {
   if (!isWorldLoginResult(raw)) {
     setStatus('Falha ao sincronizar posição do mundo.');
-    bootstrapLocalWorldSession();
+    if (allowsOfflineGameplayFallback()) {
+      bootstrapLocalWorldSession();
+    }
     return;
   }
 
@@ -546,7 +549,9 @@ function connectSocket(): void {
     attachOfflineEconomyLayer();
     setExplorationOnlineMode(false);
     setStatus(message);
-    bootstrapLocalWorldSession();
+    if (allowsOfflineGameplayFallback()) {
+      bootstrapLocalWorldSession();
+    }
   });
   socket.onClose((message) => {
     if (socket?.getConnectionPhase() === 'reconnecting') {
@@ -558,7 +563,9 @@ function connectSocket(): void {
     setStatus(message);
     SceneManager.showExploration();
     wirePortalTransitionBridge();
-    bootstrapLocalWorldSession();
+    if (allowsOfflineGameplayFallback()) {
+      bootstrapLocalWorldSession();
+    }
   });
 
   setStatus('Conectando…');
@@ -729,7 +736,9 @@ function enterWorld(): void {
   // Renderiza o mapa local enquanto aguarda world-login (mock ou servidor).
   activeWorld.prepareFrame(0);
   activeWorld.renderWorld(performance.now());
-  bootstrapLocalWorldSession();
+  if (allowsOfflineGameplayFallback()) {
+    bootstrapLocalWorldSession();
+  }
 
   worldStarted = true;
   setWorldSessionActive(true);

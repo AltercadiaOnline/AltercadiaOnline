@@ -14,6 +14,7 @@ import {
   resetGameStore,
   resetGameStoreState,
 } from '../state/GameStore.js';
+import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
 import { MockEconomyService } from '../testing/MockEconomyService.js';
 
 export type EconomyBackend = 'mock' | 'local';
@@ -57,12 +58,23 @@ export function attachOnlineEconomyLayer(): void {
   dispatcher.setMode('online');
 }
 
-/** WS caiu — volta ao mock local sem apagar playerItemStore (equip na HUD continua). */
-export function   attachOfflineEconomyLayer(): void {
+/** WS caiu — mock local apenas em localhost; produção permanece em modo online. */
+export function attachOfflineEconomyLayer(): void {
+  activateGameStoreAfterAuth();
+
+  if (!allowsOfflineGameplayFallback()) {
+    mockService = null;
+    const dispatcher = getActionDispatcher();
+    dispatcher.setEconomyService(null);
+    dispatcher.setMode('online');
+    getGlobalStateSynchronizer().setRequestTransport(null);
+    console.warn('[Economy] Servidor desconectado — aguardando reconexão (mock desabilitado).');
+    return;
+  }
+
   if (!mockService) {
     mockService = new MockEconomyService();
   }
-  activateGameStoreAfterAuth();
   mockService.syncInventoryStacksFromClient(getPlayerItemStore().toInventoryStacks(), false);
 
   const dispatcher = getActionDispatcher();

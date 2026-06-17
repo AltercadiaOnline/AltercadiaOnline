@@ -1624,8 +1624,6 @@ export class CombatWsHub {
       mapId: profile.currentMapId,
       serverX: profile.lastPosition.x,
       serverY: profile.lastPosition.y,
-      ...(payload.clientReportedX !== undefined ? { clientReportedX: payload.clientReportedX } : {}),
-      ...(payload.clientReportedY !== undefined ? { clientReportedY: payload.clientReportedY } : {}),
     })) {
       this.send(ws, {
         type: 'economy-bank-result',

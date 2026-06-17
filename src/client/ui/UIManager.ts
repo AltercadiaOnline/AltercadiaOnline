@@ -41,7 +41,8 @@ import { destroyTooltip, initTooltip } from './components/Tooltip.js';
 import { resetGlobalPlayerStore } from './moveset/globalPlayerStore.js';
 import { resetPlayerProgressionStore } from '../progression/playerProgressionStore.js';
 import { resetPlayerMarcosStore } from './marcos/playerMarcosStore.js';
-import { initEconomyLayer, resetEconomyLayer } from '../economy/economyLayer.js';
+import { initEconomyLayer, attachOnlineEconomyLayer, resetEconomyLayer } from '../economy/economyLayer.js';
+import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
 import { resetMarketplaceBuyOrderStore } from './market/marketplaceBuyOrderStore.js';
 import { resetPlayerMarketStore } from './market/playerMarketStore.js';
 import { installDevConsoleCommands } from '../dev/consoleCommands.js';
@@ -166,7 +167,11 @@ export class UIManager {
 
     initCarryCapacityStore();
     initPlayerStatsGateway();
-    initEconomyLayer('mock');
+    if (allowsOfflineGameplayFallback()) {
+      initEconomyLayer('mock');
+    } else {
+      attachOnlineEconomyLayer();
+    }
 
     for (const panel of this.panels.values()) {
       panel.mount(this.layer);

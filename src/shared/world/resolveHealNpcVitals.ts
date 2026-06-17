@@ -28,37 +28,9 @@ function sanitizeVitals(vitals: PlayerWorldVitals): PlayerWorldVitals | null {
   };
 }
 
-/**
- * Mescla vitals do servidor com espelho do cliente para validar cura.
- * Usa o menor HP/MP atual — evita rejeitar cura quando o servidor ficou desatualizado pós-batalha.
- */
-export function mergeVitalsForHealCheck(
-  serverVitals: PlayerWorldVitals,
-  clientVitals?: PlayerWorldVitals | null,
-): PlayerWorldVitals {
-  const server = sanitizeVitals(serverVitals);
-  if (!server) {
-    return serverVitals;
-  }
-
-  const client = clientVitals ? sanitizeVitals(clientVitals) : null;
-  if (!client) {
-    return server;
-  }
-
-  const hpMax = Math.max(server.hpMax, client.hpMax);
-  const mpMax = Math.max(server.mpMax, client.mpMax);
-
-  return {
-    hpMax,
-    mpMax,
-    hpCurrent: Math.min(
-      clampPlayerHpCurrent(server.hpCurrent, hpMax),
-      clampPlayerHpCurrent(client.hpCurrent, hpMax),
-    ),
-    mpCurrent: Math.min(
-      clampMpCurrent(server.mpCurrent, mpMax),
-      clampMpCurrent(client.mpCurrent, mpMax),
-    ),
-  };
+/** Vitals autoritativos do servidor — sem espelho do cliente (anti-cheat). */
+export function sanitizeAuthoritativeWorldVitals(
+  vitals: PlayerWorldVitals,
+): PlayerWorldVitals | null {
+  return sanitizeVitals(vitals);
 }
