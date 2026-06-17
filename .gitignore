@@ -6,6 +6,7 @@ data/
 # Artefatos gerados pelo build Vercel (espelho de dist/ em public/)
 public/client/
 public/shared/
+public/config/
 public/vendor/
 
 # Segredos locais — nunca versionar

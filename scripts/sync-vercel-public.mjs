@@ -29,6 +29,14 @@ const gsapSrc = path.join(root, 'node_modules', 'gsap');
 copyDir(clientSrc, path.join(publicDir, 'client'));
 copyDir(sharedSrc, path.join(publicDir, 'shared'));
 
+const configSrc = path.join(distDir, 'config');
+if (existsSync(configSrc)) {
+  copyDir(configSrc, path.join(publicDir, 'config'));
+} else {
+  console.error('[sync-vercel-public] dist/config ausente — verifique imports do cliente');
+  process.exit(1);
+}
+
 if (existsSync(gsapSrc)) {
   copyDir(gsapSrc, path.join(publicDir, 'vendor', 'gsap'));
 } else {
@@ -36,8 +44,13 @@ if (existsSync(gsapSrc)) {
 }
 
 const mainBundle = path.join(publicDir, 'client', 'browser', 'main.js');
+const designConstantsBundle = path.join(publicDir, 'config', 'designConstants.js');
 if (!existsSync(mainBundle)) {
   console.error('[sync-vercel-public] main.js ausente após sync — verifique npm run build');
+  process.exit(1);
+}
+if (!existsSync(designConstantsBundle)) {
+  console.error('[sync-vercel-public] config/designConstants.js ausente — login na Vercel quebrará');
   process.exit(1);
 }
 
