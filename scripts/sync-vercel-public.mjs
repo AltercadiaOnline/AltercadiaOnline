@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Pós-build Vercel — espelha artefatos compilados e vendors em public/
- * para servir como estáticos (evita 404 em /client/*, /shared/*, /vendor/*).
+ * para servir como estáticos (evita 404 em /client/*, /shared/*, /config/*, /assets/*.js).
  */
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,20 +22,48 @@ function copyDir(from, to) {
   console.log(`[sync-vercel-public] ${path.relative(root, from)} → ${path.relative(root, to)}`);
 }
 
+/** Mescla apenas .js compilados — preserva imagens/placeholders já em public/assets. */
+function mergeCompiledJsTree(fromDir, toDir) {
+  if (!existsSync(fromDir)) {
+    console.error(`[sync-vercel-public] Origem ausente: ${fromDir}`);
+    process.exit(1);
+  }
+
+  mkdirSync(toDir, { recursive: true });
+
+  function walk(relativeDir) {
+    const absoluteFrom = path.join(fromDir, relativeDir);
+    for (const entry of readdirSync(absoluteFrom, { withFileTypes: true })) {
+      const childRelative = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
+      const fromPath = path.join(fromDir, childRelative);
+      const toPath = path.join(toDir, childRelative);
+
+      if (entry.isDirectory()) {
+        walk(childRelative);
+        continue;
+      }
+
+      if (!entry.name.endsWith('.js')) continue;
+
+      mkdirSync(path.dirname(toPath), { recursive: true });
+      cpSync(fromPath, toPath);
+    }
+  }
+
+  walk('');
+  console.log(`[sync-vercel-public] ${path.relative(root, fromDir)} → ${path.relative(root, toDir)} (merge .js)`);
+}
+
 const clientSrc = path.join(distDir, 'client');
 const sharedSrc = path.join(distDir, 'shared');
+const configSrc = path.join(distDir, 'config');
+const assetsSrc = path.join(distDir, 'assets');
 const gsapSrc = path.join(root, 'node_modules', 'gsap');
 
 copyDir(clientSrc, path.join(publicDir, 'client'));
 copyDir(sharedSrc, path.join(publicDir, 'shared'));
-
-const configSrc = path.join(distDir, 'config');
-if (existsSync(configSrc)) {
-  copyDir(configSrc, path.join(publicDir, 'config'));
-} else {
-  console.error('[sync-vercel-public] dist/config ausente — verifique imports do cliente');
-  process.exit(1);
-}
+copyDir(configSrc, path.join(publicDir, 'config'));
+mergeCompiledJsTree(assetsSrc, path.join(publicDir, 'assets'));
 
 if (existsSync(gsapSrc)) {
   copyDir(gsapSrc, path.join(publicDir, 'vendor', 'gsap'));
@@ -43,15 +71,17 @@ if (existsSync(gsapSrc)) {
   console.warn('[sync-vercel-public] gsap não encontrado — rode npm ci');
 }
 
-const mainBundle = path.join(publicDir, 'client', 'browser', 'main.js');
-const designConstantsBundle = path.join(publicDir, 'config', 'designConstants.js');
-if (!existsSync(mainBundle)) {
-  console.error('[sync-vercel-public] main.js ausente após sync — verifique npm run build');
-  process.exit(1);
-}
-if (!existsSync(designConstantsBundle)) {
-  console.error('[sync-vercel-public] config/designConstants.js ausente — login na Vercel quebrará');
-  process.exit(1);
+const requiredBundles = [
+  path.join(publicDir, 'client', 'browser', 'main.js'),
+  path.join(publicDir, 'config', 'designConstants.js'),
+  path.join(publicDir, 'assets', 'urban', 'urbanAssetManifest.js'),
+];
+
+for (const bundlePath of requiredBundles) {
+  if (!existsSync(bundlePath)) {
+    console.error(`[sync-vercel-public] Bundle ausente: ${path.relative(root, bundlePath)}`);
+    process.exit(1);
+  }
 }
 
 console.log('[sync-vercel-public] OK');

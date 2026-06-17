@@ -302,6 +302,45 @@ Toda nova funcionalidade que envolver interação cliente ↔ servidor (mensagen
 
 ---
 
+## Online-first — deploy estático (Vercel + Railway)
+
+### Contrato de módulos no browser
+
+Após `npm run build`, estes paths **devem** existir em `public/`:
+
+| Path | Origem |
+|------|--------|
+| `/client/**` | `dist/client` |
+| `/shared/**` | `dist/shared` |
+| `/config/**` | `dist/config` |
+| `/assets/**/*.js` | `dist/assets` (merge — preserva imagens) |
+| `/vendor/gsap/**` | `node_modules/gsap` |
+
+Scripts: `scripts/sync-vercel-public.mjs`, `scripts/audit-static-bundle.mjs`.
+
+### Smoke test pós-deploy
+
+1. `GET /health` → OK
+2. `GET /config/client` → `gameWsUrl` preenchido
+3. `GET /config/designConstants.js` → JavaScript (não HTML)
+4. Login → `GET /api/character-hub` com JWT → slots do Supabase
+
+### Produção vs localhost
+
+| Recurso | Produção | Localhost |
+|---------|----------|-----------|
+| Auth | Supabase obrigatório | Email local opcional |
+| Personagens | `/api/character-hub` | `localCharacterHubStore` |
+| Economia | WS + intents | `MockEconomyService` |
+| Sessão localStorage | não bypassa Supabase | permitido sem Supabase |
+
+### Variáveis split
+
+- **Vercel:** `SUPABASE_*`, `GAME_WS_URL`, `DATABASE_*`
+- **Railway:** `SUPABASE_*`, `CORS_ORIGIN` = URL exata da Vercel
+
+---
+
 ## Estilo
 
 - TypeScript strict, diff mínimo, sem over-engineering.

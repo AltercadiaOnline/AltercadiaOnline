@@ -9,6 +9,7 @@ import type { ServerEnv } from '../config/env.js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { handleGiftTransferRoute } from './giftTransferRoute.js';
 import { handlePlayerSnapshotRoute } from './playerSnapshotRoute.js';
+import { handleCharacterHubRoute } from './characterHubRoute.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -156,6 +157,10 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
       }
 
       if (await handlePlayerSnapshotRoute(req, res, url, options.serverEnv)) {
+        return;
+      }
+
+      if (await handleCharacterHubRoute(req, res, url, options.serverEnv)) {
         return;
       }
 

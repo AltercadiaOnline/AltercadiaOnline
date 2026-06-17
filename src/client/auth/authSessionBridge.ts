@@ -86,7 +86,7 @@ async function completeGoogleOAuthSession(
 
 
 
-  AppScreens.setAuthenticatedUser(authUser);
+  await AppScreens.setAuthenticatedUser(authUser);
   showPlayerInitLoading('Provisionando perfil no servidor…');
   options.onSnapshotInitializing?.('Provisionando perfil no servidor…');
 

@@ -780,7 +780,7 @@ function enterWorld(): void {
 
 async function onLoginSuccess(user: AuthUser): Promise<void> {
   if (!AppScreens.currentSession) {
-    AppScreens.setAuthenticatedUser(user);
+    await AppScreens.setAuthenticatedUser(user);
   }
 
   if (!getGameStore().isHydrated()) {
@@ -807,7 +807,7 @@ async function onLoginSuccess(user: AuthUser): Promise<void> {
     }
   }
 
-  AppScreens.showCharSelect();
+  await AppScreens.showCharSelect();
 }
 
 function clearGameState(): void {

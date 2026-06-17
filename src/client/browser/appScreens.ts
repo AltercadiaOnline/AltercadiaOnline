@@ -18,6 +18,11 @@ import { isGameServerReachable } from '../services/serverReachability.js';
 import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { ensureCharacterHub, createCharacterInSlot } from '../services/localCharacterHubStore.js';
 import {
+  createAuthoritativeCharacter,
+  fetchAuthoritativeCharacterHub,
+  shouldUseAuthoritativeCharacterHub,
+} from '../services/characterHubClient.js';
+import {
   clearLocalSession,
   getLocalSession,
   resolveAccountKey,
@@ -45,6 +50,10 @@ import {
 let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
 let appShellListenersBound = false;
 
+function canRestoreLocalSessionWithoutSupabase(supabaseConfigured: boolean): boolean {
+  return isLocalDevHost() && !supabaseConfigured;
+}
+
 function bindAppShellListeners(onEnterWorld: () => void): void {
   if (appShellListenersBound) return;
   appShellListenersBound = true;
@@ -69,9 +78,9 @@ export const AppScreens = {
     showScreen('login-screen');
   },
 
-  showCharSelect(): void {
+  async showCharSelect(): Promise<void> {
     showScreen('char-select-screen');
-    this.loadCharacterHub();
+    await this.loadCharacterHub();
     this.renderAccountLabel();
     this.renderCharacterSlots();
     this.syncCharacterSelectionUi();
@@ -87,18 +96,27 @@ export const AppScreens = {
     document.getElementById('scene-combat')?.setAttribute('aria-hidden', 'true');
   },
 
-  setAuthenticatedUser(user: AuthUser): void {
+  async setAuthenticatedUser(user: AuthUser): Promise<void> {
     this.currentSession = setLocalSession(user);
     this.selectedCharacterId = null;
     activateGameStoreAfterAuth();
-    this.loadCharacterHub();
+    await this.loadCharacterHub();
   },
 
-  loadCharacterHub(): void {
+  async loadCharacterHub(): Promise<void> {
     const accountKey = this.currentSession?.id;
     if (!accountKey) {
       this.characterHub = null;
       return;
+    }
+
+    if (shouldUseAuthoritativeCharacterHub()) {
+      const result = await fetchAuthoritativeCharacterHub();
+      if (result.ok) {
+        this.characterHub = result.hub;
+        return;
+      }
+      console.warn('[CharHub] Falha ao carregar hub autoritativo:', result.message);
     }
 
     this.characterHub = ensureCharacterHub(accountKey);
@@ -222,6 +240,27 @@ export const AppScreens = {
       return { ok: false, message: 'Sessão inválida. Faça login novamente.' };
     }
 
+    if (shouldUseAuthoritativeCharacterHub()) {
+      const result = await createAuthoritativeCharacter({
+        slotIndex,
+        name,
+        class: classId,
+      });
+
+      if (!result.ok) {
+        return { ok: false, message: result.message };
+      }
+
+      this.characterHub = result.hub;
+      this.renderCharacterSlots();
+      const created = result.hub.slots[slotIndex];
+      if (created) {
+        this.selectCharacter(created.id);
+      }
+
+      return { ok: true, message: `${name} criado com sucesso!` };
+    }
+
     const result = createCharacterInSlot(accountKey, {
       slotIndex,
       name,
@@ -269,7 +308,6 @@ export const AppScreens = {
     if (!session) return false;
 
     this.currentSession = session;
-    this.loadCharacterHub();
     return true;
   },
 
@@ -295,7 +333,7 @@ export const AppScreens = {
     const user = await getUser();
     if (!user?.email) return false;
 
-    this.setAuthenticatedUser({
+    await this.setAuthenticatedUser({
       email: user.email,
       id: user.id ?? resolveAccountKey({ email: user.email }),
     });
@@ -400,16 +438,16 @@ export const AppScreens = {
           if (!oauthCompleted) {
             const hasSupabaseSession = await this.restoreSessionFromSupabase();
             if (hasSupabaseSession) {
-              this.showCharSelect();
-            } else if (this.restoreSessionFromStorage()) {
-              this.showCharSelect();
+              await this.showCharSelect();
+            } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
+              await this.showCharSelect();
             } else {
               this.showLogin();
               this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
             }
           }
-        } else if (this.restoreSessionFromStorage()) {
-          this.showCharSelect();
+        } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
+          await this.showCharSelect();
         } else {
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: false, serverOk, gameWsUrl: hasGameWsUrl });
@@ -417,15 +455,15 @@ export const AppScreens = {
       } else if (supabaseConfigured) {
         const hasSupabaseSession = await this.restoreSessionFromSupabase();
         if (hasSupabaseSession) {
-          this.showCharSelect();
-        } else if (this.restoreSessionFromStorage()) {
-          this.showCharSelect();
+          await this.showCharSelect();
+        } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
+          await this.showCharSelect();
         } else {
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         }
-      } else if (this.restoreSessionFromStorage()) {
-        this.showCharSelect();
+      } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
+        await this.showCharSelect();
       } else {
         this.showLogin();
         this.showLoginEnvironmentHint({ supabase: false, serverOk, gameWsUrl: hasGameWsUrl });

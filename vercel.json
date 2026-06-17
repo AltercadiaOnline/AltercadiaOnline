@@ -41,6 +41,7 @@
     { "source": "/health", "destination": "/api/health" },
     { "source": "/config/client", "destination": "/api/config/client" },
     { "source": "/api/player-snapshot", "destination": "/api/player-snapshot" },
+    { "source": "/api/character-hub", "destination": "/api/character-hub" },
     { "source": "/api/gift/transfer", "destination": "/api/gift/transfer" },
     {
       "source": "/((?!api/|client/|shared/|config/|assets/|vendor/|styles\\.css|favicon\\.svg|index\\.html).*)",
