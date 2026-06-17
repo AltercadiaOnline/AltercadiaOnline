@@ -6,7 +6,7 @@
     "dev": "npm run dev:mvp",
     "dev:server": "tsx watch src/server/index.ts",
     "dev:client": "tsx watch src/client/index.ts",
-    "build:compile": "tsc",
+    "build:compile": "npx tsc",
     "build:sync": "node ./scripts/sync-vercel-public.mjs",
     "build": "npm run build:compile && npm run build:sync",
     "vercel-build": "npm run build",
