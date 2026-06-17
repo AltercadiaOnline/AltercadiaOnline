@@ -71,12 +71,15 @@ export function mountBattleEffectBesideFighter(
 
 /** Camada de VFX dentro da arena — não cortada pelo overflow do cenário. */
 export function resolveBattleEffectsHost(anchor: HTMLElement): HTMLElement {
-  return (
-    anchor.closest('[data-battle-effects-layer]')
-    ?? anchor.closest('.battle-arena')
-    ?? anchor.closest('#scene-combat')
-    ?? anchor.ownerDocument.body
-  );
+  const arena = anchor.closest('.battle-arena');
+  if (arena instanceof HTMLElement) {
+    const layer = arena.querySelector<HTMLElement>('[data-battle-effects-layer]');
+    if (layer) return layer;
+    return arena;
+  }
+  const combat = anchor.closest('#scene-combat');
+  if (combat instanceof HTMLElement) return combat;
+  return anchor.ownerDocument.body;
 }
 
 /** Mantém o overlay visível dentro da camada de efeitos (evita corte por overflow do cenário). */

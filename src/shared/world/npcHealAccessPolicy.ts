@@ -59,3 +59,33 @@ export function validateHealNpcProximity(check: HealNpcAccessCheck): HealNpcAcce
 
   return { ok: true };
 }
+
+/** Valida proximidade no servidor; aceita espelho do cliente se o perfil estiver defasado. */
+export function validateHealNpcProximityWithClientMirror(
+  server: HealNpcAccessCheck,
+  client?: {
+    readonly mapId?: string;
+    readonly worldX?: number;
+    readonly worldY?: number;
+  },
+): HealNpcAccessResult {
+  const authoritative = validateHealNpcProximity(server);
+  if (authoritative.ok) return authoritative;
+
+  if (
+    client?.mapId
+    && typeof client.worldX === 'number'
+    && Number.isFinite(client.worldX)
+    && typeof client.worldY === 'number'
+    && Number.isFinite(client.worldY)
+  ) {
+    return validateHealNpcProximity({
+      mapId: client.mapId,
+      worldX: client.worldX,
+      worldY: client.worldY,
+      npcId: server.npcId,
+    });
+  }
+
+  return authoritative;
+}

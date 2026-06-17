@@ -5,14 +5,16 @@ import {
 } from '../config/databaseConfig.js';
 import { describeEnvKeyPresence, maskEnvSecret } from '../config/envDiagnostics.js';
 import { initPgPool, isPgPoolReady } from '../persistence/DatabaseUtils.js';
-import { getSupabaseAdminClient, isSupabaseAdminConfigured } from './supabaseAdmin.js';
+import {
+  assertSupabaseAdminEnv,
+  getSupabaseAdminClient,
+} from './supabaseAdmin.js';
 
 export type SupabaseBootstrapReport = {
-  readonly adminConfigured: boolean;
+  readonly adminConfigured: true;
   readonly clientPublicConfigured: boolean;
-  readonly adminClientCreated: boolean;
-  readonly apiProbe: 'ok' | 'failed' | 'skipped';
-  readonly apiProbeError?: string;
+  readonly adminClientCreated: true;
+  readonly apiProbe: 'ok';
   readonly postgresConfigured: boolean;
   readonly postgresProbe: 'ok' | 'failed' | 'skipped';
   readonly postgresProbeError?: string;
@@ -29,15 +31,12 @@ function logSupabaseEnvKeys(env: ServerEnv): void {
   console.log(
     `  SUPABASE_SERVICE_ROLE_KEY → ${service.present ? 'OK' : 'AUSENTE'} ${service.preview}`,
   );
+}
 
-  if (!url.present || !service.present) {
+function warnIfBrowserAuthKeysMissing(env: ServerEnv): void {
+  if (!env.supabaseAnonKey?.trim()) {
     console.warn(
-      '[Supabase] Cliente admin indisponível — defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no painel do Railway (Variables).',
-    );
-  }
-  if (!url.present || !anon.present) {
-    console.warn(
-      '[Supabase] Login no browser indisponível — defina SUPABASE_URL e SUPABASE_ANON_KEY (expostas via GET /config/client).',
+      '[Supabase] SUPABASE_ANON_KEY ausente — login no browser via /config/client ficará indisponível.',
     );
   }
 }
@@ -57,38 +56,23 @@ function logPostgresEnvKeys(env: ServerEnv): void {
   if (!isDatabaseConfigured(env.database)) {
     console.log(
       '[Postgres] Não configurado — normal se usar só a API Supabase (service_role). '
-      + 'Para PERSISTENCE_MODE=postgres, defina DATABASE_URL (Supabase → Settings → Database → Connection string).',
+      + 'Para PERSISTENCE_MODE=postgres, defina DATABASE_URL.',
     );
   }
 }
 
-async function probeSupabaseApi(env: ServerEnv): Promise<Pick<SupabaseBootstrapReport, 'apiProbe' | 'apiProbeError'>> {
-  if (!isSupabaseAdminConfigured(env)) {
-    return { apiProbe: 'skipped' };
-  }
-
+async function probeSupabaseApi(env: ServerEnv): Promise<void> {
   const client = await getSupabaseAdminClient(env);
-  if (!client) {
-    return {
-      apiProbe: 'failed',
-      apiProbeError: 'createClient retornou null — verifique URL e SERVICE_ROLE_KEY',
-    };
-  }
 
-  try {
-    const { error } = await client.from('profiles').select('id').limit(1);
-    if (error) {
-      return {
-        apiProbe: 'failed',
-        apiProbeError: `${error.code ?? 'error'}: ${error.message}`,
-      };
-    }
-    return { apiProbe: 'ok' };
-  } catch (error) {
-    return {
-      apiProbe: 'failed',
-      apiProbeError: error instanceof Error ? error.message : String(error),
-    };
+  const { error } = await client.from('profiles').select('id').limit(1);
+  if (error) {
+    const hint =
+      error.message.includes('relation') || error.message.includes('does not exist')
+        ? ' Aplique supabase/migrations/*.sql no projeto Supabase.'
+        : '';
+    throw new Error(
+      `[Supabase] Falha ao validar conexão (public.profiles): ${error.code ?? 'error'}: ${error.message}.${hint}`,
+    );
   }
 }
 
@@ -120,47 +104,35 @@ async function probePostgresConnection(
   }
 }
 
-/** Bootstrap diagnóstico — logs detalhados; nunca expõe segredos completos. */
+/**
+ * Bootstrap obrigatório — falha fatal se variáveis ou probe da API Supabase falharem.
+ * O processo deve encerrar (process.exit(1)) quando este método lançar.
+ */
 export async function bootstrapSupabase(env: ServerEnv): Promise<SupabaseBootstrapReport> {
   logSupabaseEnvKeys(env);
+  const credentials = assertSupabaseAdminEnv(env);
+  warnIfBrowserAuthKeysMissing(env);
   logPostgresEnvKeys(env);
 
-  const adminConfigured = isSupabaseAdminConfigured(env);
-  const clientPublicConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
-  const postgresConfigured = isDatabaseConfigured(env.database);
+  await getSupabaseAdminClient(env);
+  console.log(
+    `[Supabase] Cliente admin instanciado com sucesso — URL ${maskEnvSecret(credentials.url)}`,
+  );
 
-  let adminClientCreated = false;
-  if (adminConfigured) {
-    const client = await getSupabaseAdminClient(env);
-    adminClientCreated = client !== null;
-    if (adminClientCreated) {
-      console.log('[Supabase] Cliente admin criado — URL', maskEnvSecret(env.supabaseUrl));
-    } else {
-      console.error('[Supabase] Falha ao criar cliente admin após variáveis presentes.');
-    }
-  }
-
-  const apiResult = await probeSupabaseApi(env);
-  if (apiResult.apiProbe === 'ok') {
-    console.log('[Supabase] API acessível — tabela public.profiles respondeu.');
-  } else if (apiResult.apiProbe === 'failed') {
-    console.error('[Supabase] Probe da API falhou:', apiResult.apiProbeError);
-    if (apiResult.apiProbeError?.includes('relation') || apiResult.apiProbeError?.includes('does not exist')) {
-      console.warn('[Supabase] Migrações SQL podem estar pendentes — aplique supabase/migrations/*.sql');
-    }
-  }
+  await probeSupabaseApi(env);
+  console.log('[Supabase] Conexão validada — tabela public.profiles respondeu com sucesso.');
 
   const pgResult = await probePostgresConnection(env);
   if (pgResult.postgresProbe === 'failed') {
-    console.error('[Postgres] Conexão direta falhou:', pgResult.postgresProbeError);
+    console.warn('[Postgres] Conexão direta falhou (opcional):', pgResult.postgresProbeError);
   }
 
   return {
-    adminConfigured,
-    clientPublicConfigured,
-    adminClientCreated,
-    postgresConfigured,
-    ...apiResult,
+    adminConfigured: true,
+    clientPublicConfigured: Boolean(env.supabaseUrl && env.supabaseAnonKey),
+    adminClientCreated: true,
+    apiProbe: 'ok',
+    postgresConfigured: isDatabaseConfigured(env.database),
     ...pgResult,
   };
 }

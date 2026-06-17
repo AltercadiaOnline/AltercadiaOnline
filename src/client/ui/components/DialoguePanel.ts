@@ -1,6 +1,7 @@
 import { BaseUIComponent } from '../UIComponent.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { getPlayerEquipmentStore } from '../equipment/playerEquipmentStore.js';
+import { getGlobalPlayerStore } from '../moveset/globalPlayerStore.js';
 import { alertSystem } from '../alertSystem.js';
 import { closeAllNpcModals } from '../npcModalController.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
@@ -20,7 +21,11 @@ import {
   fetchWorldChronicles,
 } from '../../services/worldLoreClient.js';
 import { resolveWorldLoreCredentials } from '../../services/worldLoreCredentials.js';
-import { endWorldHudInteractionSession } from '../../world/worldHudInteractionSession.js';
+import { getMutableDataStore } from '../../PlayerDataStore.js';
+import {
+  endWorldHudInteractionSession,
+  getWorldHudInteractionSession,
+} from '../../world/worldHudInteractionSession.js';
 import { resolveCaelPetRationQuote } from '../../../shared/economy/caelPetService.js';
 import { getPlayerPetStore } from '../pet/playerPetStore.js';
 import { formatVolts } from '../../../shared/economy/premiumCurrency.js';
@@ -415,9 +420,27 @@ export class DialoguePanel extends BaseUIComponent {
              </span>`;
       },
       onClick: () => {
+        const worldPos = getMutableDataStore().getWorldPosition();
+        const hudSession = getWorldHudInteractionSession();
+        const hudPose = hudSession
+          ? { x: hudSession.pose?.x ?? hudSession.x, y: hudSession.pose?.y ?? hudSession.y }
+          : null;
+
         const result = getActionDispatcher().dispatch({
           type: 'HEAL_AT_NPC',
-          payload: { npcId: this.state.npcId },
+          payload: {
+            npcId: this.state.npcId,
+            clientVitals: getGlobalPlayerStore().getWorldVitals(),
+            ...(worldPos
+              ? {
+                  clientMapId: worldPos.mapId,
+                  clientPosition: {
+                    x: hudPose?.x ?? worldPos.x,
+                    y: hudPose?.y ?? worldPos.y,
+                  },
+                }
+              : {}),
+          },
         });
         if (!result.ok) {
           alertSystem(result.reason);
@@ -426,7 +449,6 @@ export class DialoguePanel extends BaseUIComponent {
         if (result.status === 'applied') this.render();
         return result;
       },
-      onResolved: () => this.render(),
     };
   }
 

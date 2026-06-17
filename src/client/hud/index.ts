@@ -1188,6 +1188,7 @@ export const GameClient = {
     lastDispatch = data;
     getGameStore().resolveFromCombatEvents(data.events);
     const hudManager = ensureHud();
+    hudManager.syncCombatantsFromState(data.state.combatants, data.ui.playerActorId, false);
     const statusBaseline = hudManager.getLastTurn()?.combatants ?? data.state.combatants;
     hudManager.beginStatusPlayback(statusBaseline, data.ui.playerActorId);
     rememberEndedDispatch(data);

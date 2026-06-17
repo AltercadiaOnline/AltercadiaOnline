@@ -5,7 +5,7 @@ import {
 } from '../../shared/gift/giftTransferProtocol.js';
 import { setCharacterInventoryStacks } from '../../Economy/economyStore.js';
 import { loadServerEnv } from '../config/env.js';
-import { getSupabaseAdminClient, isSupabaseAdminConfigured } from './supabaseAdmin.js';
+import { getSupabaseAdminClient } from './supabaseAdmin.js';
 
 export type TransferItemResult =
   | { readonly ok: true; readonly data: GiftTransferSuccess }
@@ -16,14 +16,7 @@ export async function executeTransferItem(
   payload: GiftTransferRequest,
 ): Promise<TransferItemResult> {
   const env = loadServerEnv();
-  if (!isSupabaseAdminConfigured(env)) {
-    return { ok: false, message: 'Supabase não configurado no servidor.' };
-  }
-
   const client = await getSupabaseAdminClient(env);
-  if (!client) {
-    return { ok: false, message: 'Cliente Supabase indisponível.' };
-  }
 
   const quantity = Math.max(1, Math.floor(payload.quantity ?? 1));
   const fromCharacterId = Math.max(1, Math.floor(payload.characterId ?? 1));

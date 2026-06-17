@@ -131,8 +131,14 @@ export class ActionGatewayButtonController {
     if (!button) return;
 
     this.button = button;
-    const options = this.resolveOptions();
     const store = getUIIntentStore();
+
+    if (
+      this.trackedIntentId !== null
+      && !store.isPending(this.trackedIntentId)
+    ) {
+      this.trackedIntentId = null;
+    }
 
     const sync = (): void => {
       if (!this.button) return;
@@ -140,7 +146,10 @@ export class ActionGatewayButtonController {
         this.button,
         this.trackedIntentId,
         this.resolveOptions(),
-        () => this.resolveOptions().onResolved?.(),
+        () => {
+          this.trackedIntentId = null;
+          this.resolveOptions().onResolved?.();
+        },
       );
       if (nextId !== this.trackedIntentId) {
         this.trackedIntentId = nextId;
@@ -183,7 +192,10 @@ export class ActionGatewayButtonController {
         this.button,
         this.trackedIntentId,
         this.resolveOptions(),
-        () => this.resolveOptions().onResolved?.(),
+        () => {
+          this.trackedIntentId = null;
+          this.resolveOptions().onResolved?.();
+        },
       );
     }
   }

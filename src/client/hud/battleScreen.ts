@@ -223,6 +223,14 @@ export class BattleScreen {
     if (combatantId.startsWith('pet_')) return 'pet';
     if (this.lastPlayerActorId && combatantId === this.lastPlayerActorId) return 'player';
     if (this.boundOpponentId && combatantId === this.boundOpponentId) return 'opponent';
+    if (
+      this.lastPlayerActorId
+      && combatantId !== this.lastPlayerActorId
+      && !combatantId.startsWith('pet_')
+      && this.combatantVitals.has(combatantId)
+    ) {
+      return 'opponent';
+    }
     return null;
   }
 

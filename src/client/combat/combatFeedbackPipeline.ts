@@ -1,6 +1,6 @@
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import type { CombatActionIntentFeedback } from '../../shared/combat/combatIntentFeedback.js';
-import type { CombatFeedbackStep } from '../../shared/combat/combatVisualFeedback.js';
+import type { CombatFeedbackPipelineStep } from '../../shared/combat/combatVisualFeedback.js';
 import type { DamageDealtEvent } from '../../shared/events.js';
 import type { BattleController } from './BattleController.js';
 import type { BattleScreen } from '../hud/battleScreen.js';
@@ -46,7 +46,7 @@ export type CombatFeedbackPipelineContext = {
   readonly feedback: CombatActionIntentFeedback;
   readonly root?: ParentNode;
   readonly damageEvent?: DamageDealtEvent;
-  readonly visualSteps?: readonly CombatFeedbackStep[];
+  readonly visualSteps?: readonly CombatFeedbackPipelineStep[];
   readonly getBattleController?: () => BattleController;
   readonly getBattleScreen?: () => BattleScreen | null;
   /** Projétil já reproduziu som/hit-stop/flash — segue para HP/shake. */
@@ -137,10 +137,11 @@ export async function runCombatFeedbackPipeline(context: CombatFeedbackPipelineC
 
 async function runDamageAnimationPhase(context: CombatFeedbackPipelineContext): Promise<void> {
   const controller = context.getBattleController?.();
-  const steps = context.visualSteps ?? [];
-  if (!controller || steps.length === 0) return;
+  const entries = context.visualSteps ?? [];
+  if (!controller || entries.length === 0) return;
 
-  for (const step of steps) {
+  for (const entry of entries) {
+    const step = entry.step;
     try {
       if (step.kind === 'wait') {
         await controller.playFeedbackStep(step);
@@ -149,7 +150,11 @@ async function runDamageAnimationPhase(context: CombatFeedbackPipelineContext): 
       if (step.kind === 'portrait_stance' && step.stance === 'attack') {
         continue;
       }
-      await controller.playFeedbackStep(step, exactOptionalProps({ damageEvent: context.damageEvent }));
+      const stepDamageEvent = entry.damageEvent ?? context.damageEvent;
+      await controller.playFeedbackStep(
+        step,
+        stepDamageEvent !== undefined ? { damageEvent: stepDamageEvent } : undefined,
+      );
     } catch (error) {
       logCriticalBattleError('battle-controller', error);
     }

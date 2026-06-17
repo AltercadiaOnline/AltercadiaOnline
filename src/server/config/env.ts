@@ -1,6 +1,11 @@
 import type { DatabaseEnv } from './databaseConfig.js';
 import { loadDatabaseEnv } from './databaseConfig.js';
 import { BUILTIN_ALLOWED_ORIGINS } from './cors.js';
+import {
+  normalizeGameWsUrl,
+  normalizeSupabaseProjectUrl,
+  sanitizeEnvSecret,
+} from '../supabase/normalizeSupabaseUrl.js';
 
 export type NodeEnv = 'development' | 'production' | 'test';
 export type ServerEnv = {
@@ -69,10 +74,10 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     host: env.HOST?.trim() || '0.0.0.0',
     corsOrigins: parseCorsOrigins(env.CORS_ORIGIN ?? env.CORS_ORIGINS, nodeEnv),
     trustProxy,
-    supabaseUrl: env.SUPABASE_URL?.trim() || null,
-    supabaseAnonKey: env.SUPABASE_ANON_KEY?.trim() || null,
-    supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null,
-    gameWsUrl: env.GAME_WS_URL?.trim() || env.PUBLIC_GAME_WS_URL?.trim() || null,
+    supabaseUrl: normalizeSupabaseProjectUrl(env.SUPABASE_URL),
+    supabaseAnonKey: sanitizeEnvSecret(env.SUPABASE_ANON_KEY),
+    supabaseServiceRoleKey: sanitizeEnvSecret(env.SUPABASE_SERVICE_ROLE_KEY),
+    gameWsUrl: normalizeGameWsUrl(env.GAME_WS_URL ?? env.PUBLIC_GAME_WS_URL),
     devAuthBypass:
       env.DEV_AUTH_BYPASS === '1'
       || env.DEV_AUTH_BYPASS === 'true'

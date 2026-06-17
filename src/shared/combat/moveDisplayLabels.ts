@@ -1,3 +1,5 @@
+import { resolveMoveCombatMeta } from './resolveMoveCombatMeta.js';
+
 /**
  * Nomenclatura padrão de moves na UI — fonte única para tooltips e HUD.
  *
@@ -22,6 +24,26 @@ export function formatMoveBasePowerLabel(power: number): string {
 
 export function formatMoveBaseHealLabel(power: number, statLabel: string, targetHint = ''): string {
   return `${MOVE_BASE_HEAL_LABEL}: +${power} HP (escala com ${statLabel})${targetHint}`;
+}
+
+/** Nome exibível do move no hit — catálogo, payload ou skills do combatente. */
+export function resolveHitMoveDisplayName(options: {
+  readonly skillId?: string;
+  readonly skillName?: string;
+  readonly combatantSkills?: readonly { readonly id: string; readonly name: string }[];
+}): string | undefined {
+  const trimmed = options.skillName?.trim();
+  if (trimmed) return trimmed;
+  if (!options.skillId) return undefined;
+
+  const fromCatalog = resolveMoveCombatMeta(options.skillId)?.name?.trim();
+  if (fromCatalog) return fromCatalog;
+
+  const fromCombatant = options.combatantSkills
+    ?.find((skill) => skill.id === options.skillId)
+    ?.name
+    ?.trim();
+  return fromCombatant || undefined;
 }
 
 /** Rótulo compacto do golpe na arena — prioriza nome do move. */

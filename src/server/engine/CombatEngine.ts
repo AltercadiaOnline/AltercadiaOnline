@@ -12,6 +12,8 @@ import {
   skillUsesPpBudget,
 } from '../../shared/combat/skillRuntime.js';
 import { resolveMoveCombatMeta } from '../../shared/combat/resolveMoveCombatMeta.js';
+import { resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels.js';
+import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import { MoveEffectKind, getClassMoveById } from '../../shared/combat/classMovesetCatalog.js';
 import { MoveCategory } from '../../shared/combat/moveTypes.js';
 import {
@@ -1196,13 +1198,13 @@ export class CombatEngine {
     extra?: DirectDamageOptions,
   ): DirectDamageOptions {
     const skillId = request.skillId ?? undefined;
-    let skillName: string | undefined;
-    if (skillId) {
-      const actor = this.state.combatants[request.actorId];
-      skillName =
-        resolveMoveCombatMeta(skillId)?.name
-        ?? actor?.skills.find((skill) => skill.id === skillId)?.name;
-    }
+    const actor = skillId ? this.state.combatants[request.actorId] : undefined;
+    const skillName = skillId
+      ? resolveHitMoveDisplayName(exactOptionalProps({
+          skillId,
+          ...(actor?.skills ? { combatantSkills: actor.skills } : {}),
+        }))
+      : undefined;
 
     return {
       ...(skillId ? { skillId } : {}),
@@ -1210,6 +1212,23 @@ export class CombatEngine {
       ...(request.runeCritBonus !== undefined ? { runeCritBonus: request.runeCritBonus } : {}),
       ...(request.runeReflectRatio !== undefined ? { runeReflectRatio: request.runeReflectRatio } : {}),
       ...extra,
+    };
+  }
+
+  private resolveDamageEventSkillMeta(
+    sourceId: string,
+    options: DirectDamageOptions,
+  ): { readonly skillId?: string; readonly skillName?: string } {
+    if (!options.skillId) return {};
+    const actor = this.state.combatants[sourceId];
+    const skillName = resolveHitMoveDisplayName(exactOptionalProps({
+      skillId: options.skillId,
+      skillName: options.skillName,
+      ...(actor?.skills ? { combatantSkills: actor.skills } : {}),
+    }));
+    return {
+      skillId: options.skillId,
+      ...(skillName ? { skillName } : {}),
     };
   }
 
@@ -1274,6 +1293,8 @@ export class CombatEngine {
     const target = this.state.combatants[targetId];
     if (!actor || !target || power <= 0) return 0;
 
+    const skillMeta = this.resolveDamageEventSkillMeta(sourceId, options);
+
     const forceCritical = actor.marcoCombatFlags?.precisionMasterReady === true;
     const damageResult = calculateDamage(actor, target, { id: 'runtime', power }, {
       turn: this.state.turn,
@@ -1307,8 +1328,7 @@ export class CombatEngine {
           isCritical: damageResult.isCritical,
           attackBreakdown: damageResult.attackBreakdown,
           defenseBreakdown: damageResult.defenseBreakdown,
-          ...(options.skillId ? { skillId: options.skillId } : {}),
-          ...(options.skillName ? { skillName: options.skillName } : {}),
+          ...skillMeta,
         },
       });
       return 0;
@@ -1360,8 +1380,7 @@ export class CombatEngine {
         isCritical: damageResult.isCritical,
         attackBreakdown: damageResult.attackBreakdown,
         defenseBreakdown: damageResult.defenseBreakdown,
-        ...(options.skillId ? { skillId: options.skillId } : {}),
-        ...(options.skillName ? { skillName: options.skillName } : {}),
+        ...skillMeta,
       },
     });
 

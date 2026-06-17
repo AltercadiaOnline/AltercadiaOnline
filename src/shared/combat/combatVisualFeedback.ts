@@ -1,5 +1,7 @@
+import type { CombatActionBreakdown } from './combatActionBreakdown.js';
 import type { CombatEvent } from '../events.js';
 import { CombatEventType } from '../events.js';
+import type { DamageDealtEvent } from '../events.js';
 import {
   MONSTER_ATTACK_WINDUP_MS,
   MONSTER_REACTION_STAGGER_MS,
@@ -29,6 +31,8 @@ export type CombatFeedbackStep =
       readonly amount: number;
       readonly skillId?: string;
       readonly skillName?: string;
+      readonly attackBreakdown?: CombatActionBreakdown;
+      readonly defenseBreakdown?: CombatActionBreakdown;
       readonly hasTechnical: boolean;
     }
   | { readonly kind: 'hp_animate'; readonly combatantId: string; readonly hpAfter: number }
@@ -39,6 +43,12 @@ export type CombatFeedbackSegment = {
   /** Índice do CombatEvent correspondente em `CombatDispatchPayload.events`. */
   readonly eventIndex: number;
   readonly steps: readonly CombatFeedbackStep[];
+};
+
+/** Passo visual + evento de dano pareado (evita reutilizar o último DAMAGE_DEALT do turno). */
+export type CombatFeedbackPipelineStep = {
+  readonly step: CombatFeedbackStep;
+  readonly damageEvent?: DamageDealtEvent;
 };
 
 /** Script visual autoritativo — cliente apenas reproduz. */
@@ -98,6 +108,8 @@ function buildDamageDealtSteps(
     amount,
     ...(skillId ? { skillId } : {}),
     ...(skillName ? { skillName } : {}),
+    ...(attackBreakdown ? { attackBreakdown } : {}),
+    ...(defenseBreakdown ? { defenseBreakdown } : {}),
     hasTechnical: Boolean(attackBreakdown || defenseBreakdown || amount >= 0),
   });
 

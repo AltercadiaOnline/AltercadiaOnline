@@ -1,6 +1,6 @@
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
 import type { CombatActionIntentResultData } from '../../shared/combat/combatIntentFeedback.js';
-import type { CombatFeedbackStep } from '../../shared/combat/combatVisualFeedback.js';
+import type { CombatFeedbackPipelineStep } from '../../shared/combat/combatVisualFeedback.js';
 import type { DamageDealtEvent } from '../../shared/events.js';
 import { AnimationQueue } from './AnimationQueue.js';
 
@@ -9,7 +9,7 @@ export type CombatFeedbackJob = {
   readonly actionResult: CombatActionIntentResultData;
   readonly snapshot: CombatDispatchPayload;
   readonly damageEvent?: DamageDealtEvent;
-  readonly visualSteps?: readonly CombatFeedbackStep[];
+  readonly visualSteps?: readonly CombatFeedbackPipelineStep[];
 };
 
 export type CombatFeedbackJobHandler = (job: CombatFeedbackJob) => Promise<void>;

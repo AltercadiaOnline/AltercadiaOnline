@@ -54,7 +54,7 @@ export async function handlePlayerSnapshotRoute(
   try {
     const bootstrap = await ensureServerPlayerBootstrap(playerId, characterId);
 
-    if (bootstrap.supabaseConfigured && !bootstrap.profileReady) {
+    if (!bootstrap.profileReady) {
       res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({
         ready: false,

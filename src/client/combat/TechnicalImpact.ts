@@ -5,8 +5,7 @@ import {
   formatCombatHitSummary,
   type CombatHitSummaryInput,
 } from '../../shared/combat/combatActionBreakdown.js';
-import { formatCompactHitMoveLabel } from '../../shared/combat/moveDisplayLabels.js';
-import { resolveMoveCombatMeta } from '../../shared/combat/resolveMoveCombatMeta.js';
+import { formatCompactHitMoveLabel, resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels.js';
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import { mountBattleEffectBesideFighter } from './battleEffectsLayer.js';
 
@@ -126,8 +125,10 @@ function resolveMovesetPower(breakdown: CombatActionBreakdown | undefined): numb
 }
 
 function resolveCompactMoveLabel(payload: TechnicalImpactPayload): string | undefined {
-  const fromPayload = payload.moveName?.trim()
-    || (payload.skillId ? resolveMoveCombatMeta(payload.skillId)?.name : undefined);
+  const fromPayload = resolveHitMoveDisplayName(exactOptionalProps({
+    skillId: payload.skillId,
+    skillName: payload.moveName,
+  }));
   return formatCompactHitMoveLabel(exactOptionalProps({
     moveName: fromPayload,
     movesetPower: resolveMovesetPower(payload.attackBreakdown),

@@ -1,3 +1,4 @@
+import type { PlayerWorldVitals } from '../shared/character/equipmentState.js';
 import type { SkinSlotId } from '../shared/character/playerSkin.js';
 import type { BankCurrencyTypeId } from '../shared/bank/bankConstants.js';
 import type { MarcoProgressTriggerId } from '../shared/progression/marcoProgressCatalog.js';
@@ -114,7 +115,15 @@ export type ClientAction =
       readonly type: 'SELL_NPC_ITEM';
       readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
     }
-  | { readonly type: 'HEAL_AT_NPC'; readonly payload: { readonly npcId: string } }
+  | {
+      readonly type: 'HEAL_AT_NPC';
+      readonly payload: {
+        readonly npcId: string;
+        readonly clientVitals?: PlayerWorldVitals;
+        readonly clientMapId?: string;
+        readonly clientPosition?: { readonly x: number; readonly y: number };
+      };
+    }
   | { readonly type: 'CAEL_BUY_PET_RATION'; readonly payload: { readonly npcId: string } }
   | { readonly type: 'PET_FEED_SPECIAL_RATION'; readonly payload: { readonly slotIndex?: number } }
   | {
@@ -635,7 +644,7 @@ export class ActionDispatcher {
         return { ok: false, reason: 'Vendas na loja NPC requerem servidor ou mock economy.' };
 
       case 'HEAL_AT_NPC':
-        return this.dispatchHealAtNpc(action.payload.npcId);
+        return this.dispatchHealAtNpc(action.payload);
 
       case 'CAEL_BUY_PET_RATION': {
         const result = executeCaelBuyPetRation(action.payload.npcId);
@@ -686,15 +695,19 @@ export class ActionDispatcher {
     }
   }
 
-  private dispatchHealAtNpc(npcId: string): DispatchResult {
+  private dispatchHealAtNpc(payload: {
+    readonly npcId: string;
+    readonly clientVitals?: PlayerWorldVitals;
+  }): DispatchResult {
     const equipment = getPlayerEquipmentStore().getSnapshot();
     const wallet = getPlayerWalletStore().getSnapshot();
+    const clientVitals = payload.clientVitals ?? getGlobalPlayerStore().getWorldVitals();
 
     const result = healPlayer({
-      npcId,
+      npcId: payload.npcId,
       playerLevel: equipment.level,
       walletVolts: wallet.dollarVolt,
-      vitals: equipment.vitals,
+      vitals: clientVitals,
     });
 
     if (!result.ok) {

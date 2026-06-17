@@ -6,7 +6,7 @@ import {
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
 import {
   buildCombatVisualFeedback,
-  type CombatFeedbackStep,
+  type CombatFeedbackPipelineStep,
   type CombatVisualFeedback,
 } from '../../shared/combat/combatVisualFeedback.js';
 import { CombatEventType, type CombatEvent, type DamageDealtEvent } from '../../shared/events.js';
@@ -45,24 +45,31 @@ export type CombatFeedbackOrchestratorOptions = {
 function collectPipelineVisualSteps(
   feedback: CombatVisualFeedback,
   events: readonly CombatEvent[],
-): { readonly steps: CombatFeedbackStep[]; readonly damageEvent?: DamageDealtEvent } {
-  const steps: CombatFeedbackStep[] = [];
-  let damageEvent: DamageDealtEvent | undefined;
+): { readonly steps: CombatFeedbackPipelineStep[]; readonly damageEvent?: DamageDealtEvent } {
+  const steps: CombatFeedbackPipelineStep[] = [];
+  let lastDamageEvent: DamageDealtEvent | undefined;
 
   for (const segment of feedback.segments) {
     const event = events[segment.eventIndex];
-    if (event?.type === CombatEventType.DAMAGE_DEALT) {
-      damageEvent = event;
+    const segmentDamageEvent =
+      event?.type === CombatEventType.DAMAGE_DEALT ? event : undefined;
+    if (segmentDamageEvent) {
+      lastDamageEvent = segmentDamageEvent;
     }
 
     for (const step of segment.steps) {
       if (step.kind === 'portrait_stance' && step.stance === 'attack') continue;
       if (step.kind === 'portrait_cue' && step.cue === 'attack') continue;
-      steps.push(step);
+      steps.push({
+        step,
+        ...(step.kind === 'damage_impact' && segmentDamageEvent
+          ? { damageEvent: segmentDamageEvent }
+          : {}),
+      });
     }
   }
 
-  return damageEvent !== undefined ? { steps, damageEvent } : { steps };
+  return lastDamageEvent !== undefined ? { steps, damageEvent: lastDamageEvent } : { steps };
 }
 
 /**
@@ -248,22 +255,33 @@ export class CombatFeedbackOrchestrator {
     const manager = getVfxProjectileManager();
     if (manager.shouldSkipDuplicate(job.actionResult)) return true;
 
+    const hasDamageImpact = (job.visualSteps ?? []).some(
+      (entry) => entry.step.kind === 'damage_impact',
+    );
+
     const played = await manager.playFromGatewayResult(
       job.actionResult,
-      exactOptionalProps({ root: this.root }),
+      exactOptionalProps({
+        root: this.root,
+        skipImpactEffects: hasDamageImpact,
+      }),
     );
     return played;
   }
 
   private async runVisualOnlySteps(
     payload: CombatDispatchPayload,
-    visualSteps: readonly CombatFeedbackStep[],
+    visualSteps: readonly CombatFeedbackPipelineStep[],
     damageEvent?: DamageDealtEvent,
   ): Promise<void> {
     await runCombatSafeVoid('battle-controller', async () => {
       const controller = this.getBattleController();
-      for (const step of visualSteps) {
-        await controller.playFeedbackStep(step, exactOptionalProps({ damageEvent }));
+      for (const entry of visualSteps) {
+        const stepDamageEvent = entry.damageEvent ?? damageEvent;
+        await controller.playFeedbackStep(
+          entry.step,
+          stepDamageEvent !== undefined ? { damageEvent: stepDamageEvent } : undefined,
+        );
       }
 
       const feedback = this.resolveFeedback(payload);

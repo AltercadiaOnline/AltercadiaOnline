@@ -1,4 +1,4 @@
-import type { InventoryStack } from '../../shared/character/equipmentState.js';
+import type { InventoryStack, PlayerWorldVitals } from '../../shared/character/equipmentState.js';
 import type { EquipmentUiSlotId } from '../../shared/character/equipmentUiSlots.js';
 import { DEMO_STARTER_INVENTORY_STACKS } from '../../shared/demo/demoStarterInventory.js';
 import {
@@ -437,7 +437,7 @@ export class MockEconomyService implements IEconomyService {
       case 'PROGRESS_MARCO':
         return this.progressMarco(action.payload.events);
       case 'HEAL_AT_NPC':
-        return this.healAtNpc(action.payload.npcId);
+        return this.healAtNpc(action.payload);
       case 'CAEL_BUY_PET_RATION': {
         const buyResult = executeCaelBuyPetRation(action.payload.npcId);
         if (!buyResult.ok) return buyResult;
@@ -750,13 +750,17 @@ export class MockEconomyService implements IEconomyService {
     }
   }
 
-  private healAtNpc(npcId: string): IntentHandleResult {
+  private healAtNpc(payload: {
+    readonly npcId: string;
+    readonly clientVitals?: PlayerWorldVitals;
+  }): IntentHandleResult {
     const equipment = getPlayerEquipmentStore().getSnapshot();
+    const vitals = payload.clientVitals ?? getGlobalPlayerStore().getWorldVitals();
     const result = healPlayer({
-      npcId,
+      npcId: payload.npcId,
       playerLevel: equipment.level,
       walletVolts: this.state.wallet.dollarVolt,
-      vitals: equipment.vitals,
+      vitals,
     });
 
     if (!result.ok) {

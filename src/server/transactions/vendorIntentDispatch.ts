@@ -27,7 +27,12 @@ export async function handleHealAtNpcIntent(
     playerId: request.playerId,
     characterId: request.characterId,
     intentId: request.intentId,
-    payload: { npcId: request.npcId },
+    payload: {
+      npcId: request.npcId,
+      ...(request.clientVitals ? { clientVitals: request.clientVitals } : {}),
+      ...(request.clientMapId ? { clientMapId: request.clientMapId } : {}),
+      ...(request.clientPosition ? { clientPosition: request.clientPosition } : {}),
+    },
   });
 
   if (result.status === 'SUCCESS') return { ok: true };

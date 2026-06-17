@@ -78,6 +78,7 @@ import type { StagedBattleLootResult } from '../../Economy/economyGateway.js';
 import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
 import { resolveDefeatedCreatureLevel } from '../../shared/combat/battleXpRewards.js';
 import { buildCombatFinishedEvent } from '../combat/buildCombatFinishedEvent.js';
+import { persistWorldVitalsAfterCombat } from '../world/persistWorldVitalsAfterCombat.js';
 import { applyAuthoritativeBattleProgression } from '../combat/applyAuthoritativeBattleProgression.js';
 import { ensureMovesetMasteryForClass } from '../../shared/progression/movesetMasterySeed.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
@@ -696,7 +697,16 @@ export class CombatWsHub {
 
     if (enriched.state.phase === 'ENDED') {
       this.clearTurnTimer(connectionId);
-      const victory = didPlayerWinBattle(enriched.state, session.getPlayerActorId());
+      const playerActorId = session.getPlayerActorId();
+      const playerCombatant = enriched.state.combatants[playerActorId];
+      if (playerCombatant) {
+        persistWorldVitalsAfterCombat(
+          session.getPlayerActorId(),
+          session.getCharacterId(),
+          playerCombatant,
+        );
+      }
+      const victory = didPlayerWinBattle(enriched.state, playerActorId);
       const mayHaveLoot = victory && Boolean(resolveBattleCreatureId(
         enriched.state.combatants,
         session.getPlayerActorId(),
@@ -1250,7 +1260,7 @@ export class CombatWsHub {
       const hadPersistedSave = await hydrateCharacterSession(authUserId, payload.characterId);
       const bootstrap = await ensureServerPlayerBootstrap(authUserId, payload.characterId);
 
-      if (bootstrap.supabaseConfigured && !bootstrap.profileReady) {
+      if (!bootstrap.profileReady) {
         this.send(ws, {
           type: 'combat-error',
           payload: { reason: 'PROFILE_NOT_READY' },

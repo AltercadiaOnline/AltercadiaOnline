@@ -109,15 +109,9 @@ async function main(): Promise<void> {
     console.log('[Altercadia V2] Servidor online');
     console.log(`  NODE_ENV     → ${env.nodeEnv}`);
     console.log(`  Persistência → ${persistence.mode} (${persistence.dataDir})`);
+    console.log('  Supabase API → conectado (service_role validado no bootstrap)');
     console.log(
-      `  Supabase API → ${supabaseReport.adminClientCreated && supabaseReport.apiProbe === 'ok'
-        ? 'conectado'
-        : supabaseReport.adminConfigured
-          ? `parcial (probe: ${supabaseReport.apiProbe}${supabaseReport.apiProbeError ? ` — ${supabaseReport.apiProbeError}` : ''})`
-          : 'não configurado (SUPABASE_URL + SERVICE_ROLE)'}`,
-    );
-    console.log(
-      `  Supabase Auth (browser) → ${supabaseReport.clientPublicConfigured ? 'configurado' : 'não configurado (SUPABASE_URL + ANON_KEY)'}`,
+      `  Supabase Auth (browser) → ${supabaseReport.clientPublicConfigured ? 'configurado' : 'ANON_KEY ausente — login no browser indisponível'}`,
     );
     console.log(
       `  Postgres direto → ${hasDatabaseConnection()

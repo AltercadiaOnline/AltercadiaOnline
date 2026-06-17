@@ -2,6 +2,7 @@ import type { CombatClassId } from '../../shared/types.js';
 import type { WorldExplorationSessionSync } from '../../shared/world/zoneTransition.js';
 import { getDefaultClassActiveLoadout, normalizeClassActiveLoadout } from '../../shared/combat/movesetLoadout.js';
 import { inferClassIdFromMovesetMastery } from '../../shared/progression/movesetMasterySeed.js';
+import { mergeVitalsForHealCheck } from '../../shared/world/resolveHealNpcVitals.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getWorldProfile, saveWorldProfile } from '../world/worldProfileStore.js';
 
@@ -29,7 +30,16 @@ export function applyCombatJoinSessionSync(
       && Number.isFinite(mpCurrent)
       && Number.isFinite(mpMax)
     ) {
-      sessionSync = { ...sessionSync, worldVitals: { hpCurrent, hpMax, mpCurrent, mpMax } };
+      const serverVitals = sessionSync.worldVitals ?? {
+        hpCurrent,
+        hpMax,
+        mpCurrent,
+        mpMax,
+      };
+      sessionSync = {
+        ...sessionSync,
+        worldVitals: mergeVitalsForHealCheck(serverVitals, join.worldVitals),
+      };
     }
   }
 

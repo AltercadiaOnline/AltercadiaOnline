@@ -54,6 +54,8 @@ import { flashStatusPortraitCue } from './statusEventPortraitCue.js';
 
 import { isBattlePlaybackClosing } from './combatPlaybackState.js';
 import type { CombatFeedbackStep } from '../../shared/combat/combatVisualFeedback.js';
+import { resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels.js';
+import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import { logCriticalBattleError } from './combatSafeExecution.js';
 
 function showCombatHitImpactBundle(
@@ -226,6 +228,8 @@ export class BattleController {
 
     const { sourceId, targetId, amount, hpAfter, attackBreakdown, defenseBreakdown, skillId, skillName } = event.payload;
 
+    const moveName = resolveHitMoveDisplayName(exactOptionalProps({ skillId, skillName }));
+
 
 
     if (isBattlePlaybackClosing()) {
@@ -264,11 +268,20 @@ export class BattleController {
 
     const targetPortrait = screen.getPortraitElement(targetId);
 
-    const sourcePortrait = screen.getPortraitElement(sourceId);
-
-    const impactAnchor = targetPortrait ?? sourcePortrait;
-
-
+    if (!targetPortrait) {
+      if (amount > 0) {
+        await screen.playCombatCue(targetId, 'hit');
+      } else if (defenseBreakdown) {
+        await screen.playCombatCue(targetId, 'shield');
+      }
+      const hpTargets = screen.getHpBarTargets(targetId);
+      if (hpTargets) {
+        await this.healthBar.animateTo(hpTargets, hpAfter, COMBAT_HP_ANIM_MS);
+        screen.commitCombatantHp(targetId, hpAfter);
+      }
+      screen.setPortraitStance(sourceId, 'idle');
+      return;
+    }
 
     const attackTotal = attackBreakdown ? sumAttackBreakdownTotal(attackBreakdown) : undefined;
 
@@ -276,7 +289,7 @@ export class BattleController {
 
 
 
-    if (impactAnchor) {
+    if (targetPortrait) {
 
       const mode = amount > 0 ? 'damage' : defenseBreakdown ? 'shield' : 'damage';
 
@@ -288,7 +301,7 @@ export class BattleController {
 
       if (popAmount > 0 || mode !== 'damage' || hasTechnical) {
 
-        showCombatHitImpactBundle(impactAnchor, {
+        showCombatHitImpactBundle(targetPortrait, {
 
           amount: popAmount,
 
@@ -324,7 +337,7 @@ export class BattleController {
 
                     : {}),
 
-                  ...(skillName ? { moveName: skillName } : {}),
+                  ...(moveName ? { moveName } : {}),
 
                   ...(skillId ? { skillId } : {}),
 
@@ -548,13 +561,16 @@ export class BattleController {
         const damageEvent = context?.damageEvent;
         const payload = damageEvent?.payload;
         const targetPortrait = screen?.getPortraitElement(step.targetId);
-        const sourcePortrait = screen?.getPortraitElement(step.sourceId);
-        const impactAnchor = targetPortrait ?? sourcePortrait;
-        if (!impactAnchor) return;
+        if (!targetPortrait) return;
 
-        const amount = payload?.amount ?? step.amount;
-        const attackBreakdown = payload?.attackBreakdown;
-        const defenseBreakdown = payload?.defenseBreakdown;
+        const amount = step.amount;
+        const attackBreakdown = step.attackBreakdown ?? payload?.attackBreakdown;
+        const defenseBreakdown = step.defenseBreakdown ?? payload?.defenseBreakdown;
+        const skillId = step.skillId ?? payload?.skillId;
+        const moveName = resolveHitMoveDisplayName(exactOptionalProps({
+          skillId,
+          skillName: step.skillName ?? payload?.skillName,
+        }));
         const attackTotal = attackBreakdown ? sumAttackBreakdownTotal(attackBreakdown) : undefined;
         const defenseTotal = defenseBreakdown ? sumDefenseBreakdownTotal(defenseBreakdown) : undefined;
         const mode = amount > 0 ? 'damage' : defenseBreakdown ? 'shield' : 'damage';
@@ -562,7 +578,7 @@ export class BattleController {
         const hasTechnical = Boolean(attackBreakdown || defenseBreakdown || amount >= 0);
 
         if (popAmount > 0 || mode !== 'damage' || hasTechnical) {
-          showCombatHitImpactBundle(impactAnchor, {
+          showCombatHitImpactBundle(targetPortrait, {
             amount: popAmount,
             mode,
             ...(hasTechnical
@@ -580,8 +596,8 @@ export class BattleController {
                             : {}),
                         }
                       : {}),
-                    ...(payload?.skillName ? { moveName: payload.skillName } : {}),
-                    ...(payload?.skillId ? { skillId: payload.skillId } : {}),
+                    ...(moveName ? { moveName } : {}),
+                    ...(skillId ? { skillId } : {}),
                   },
                 }
               : {}),
