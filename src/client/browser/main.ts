@@ -111,7 +111,6 @@ import {
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
 import { getSupabaseClient } from '../auth/supabaseAuth.js';
-import { mountAmbientOverlay } from '../ui/ambient/AmbientOverlay.js';
 import { isLocalDevHost } from '../auth/localDevAuth.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
@@ -576,7 +575,13 @@ function enterWorld(): void {
   try {
   initUiLayer(document);
   teardownLightOverlay?.();
-  teardownLightOverlay = mountAmbientOverlay().destroy;
+  void import('../ui/ambient/AmbientOverlay.js')
+    .then(({ mountAmbientOverlay }) => {
+      teardownLightOverlay = mountAmbientOverlay().destroy;
+    })
+    .catch((error) => {
+      console.warn('[Ambient] Overlay indisponível — mundo segue sem atmosfera dinâmica.', error);
+    });
   removeLegacyTopLogOverlay();
   initLogServiceUi();
   initEquipmentSidebar();
