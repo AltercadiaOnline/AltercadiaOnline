@@ -336,8 +336,8 @@ Scripts: `scripts/sync-vercel-public.mjs`, `scripts/audit-static-bundle.mjs`.
 
 ### Variáveis split
 
-- **Vercel:** `SUPABASE_*`, `GAME_WS_URL`, `DATABASE_*`
-- **Railway:** `SUPABASE_*`, `CORS_ORIGIN` = URL exata da Vercel
+- **Vercel:** `SUPABASE_*`, `GAME_WS_URL`, `DATABASE_*`, `SERVER_ID` (mesmo valor do Railway)
+- **Railway:** `SUPABASE_*`, `CORS_ORIGIN`, `SERVER_ID` (ex.: `azul`, `default`)
 
 ---
 

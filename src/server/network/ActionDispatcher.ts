@@ -1,17 +1,11 @@
 import type { ClientIntent } from '../../shared/intent/clientIntent.js';
-import { buildIntentFailureFromMessage } from '../../shared/intent/intentProtocol.js';
 import { isMovePlayerIntentPayload, isRotatePlayerIntentPayload } from '../../shared/world/movementIntent.js';
 import type { Player } from '../models/Player.js';
 import { bootstrapIntentHandlers } from '../handlers/bootstrapHandlers.js';
 import type { MovementIntentHandler } from '../handlers/world/MovementIntentHandler.js';
 import { BaseIntentHandler } from './BaseIntentHandler.js';
 import { resolveIntentHandler } from './intentHandlerRegistry.js';
-import type { ILegacyIntentHandler } from '../transactions/IIntentHandler.js';
-import {
-  sendIntentFailure,
-  sendIntentHandlerResult,
-  type IntentWsSender,
-} from './intentOrchestrator.js';
+import { sendIntentFailure, type IntentWsSender } from './intentOrchestrator.js';
 
 export type ServerIntentContext = {
   readonly connectionId: string;
@@ -50,32 +44,34 @@ export class ActionDispatcher {
       return 'failed';
     }
 
-    try {
-      if (handler instanceof BaseIntentHandler) {
-        handler.attachSession({
-          playerId: ctx.playerId,
-          characterId: ctx.characterId,
-          sendIntent: ctx.sendIntent,
-          onSuccess: ctx.schedulePersist,
-        });
-        await handler.execute(ctx.playerId, intent.payload, intent.intentId);
-        return 'handled';
-      }
-
-      const legacy = handler as ILegacyIntentHandler<unknown>;
-      const result = await legacy.execute(
-        ctx.playerId,
-        ctx.characterId,
-        intent.payload,
+    if (!(handler instanceof BaseIntentHandler)) {
+      sendIntentFailure(
+        ctx.sendIntent,
         intent.intentId,
+        `HANDLER_MISCONFIGURED: ${intent.type}`,
       );
-      sendIntentHandlerResult(ctx.sendIntent, result);
-      if (result.status === 'SUCCESS') {
-        ctx.schedulePersist();
-      }
+      return 'failed';
+    }
+
+    try {
+      handler.attachSession({
+        playerId: ctx.playerId,
+        characterId: ctx.characterId,
+        sendIntent: ctx.sendIntent,
+        onSuccess: ctx.schedulePersist,
+      });
+      await handler.execute(ctx.playerId, intent.payload, intent.intentId);
       return 'handled';
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Intenção rejeitada.';
+      console.warn('[ActionDispatcher] Handler falhou', {
+        intentId: intent.intentId,
+        intentType: intent.type,
+        playerId: ctx.playerId,
+        characterId: ctx.characterId,
+        message,
+        payload: intent.payload,
+      });
       sendIntentFailure(ctx.sendIntent, intent.intentId, message);
       return 'failed';
     }

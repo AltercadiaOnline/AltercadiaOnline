@@ -4,6 +4,8 @@ import type { AuthoritativePlayerSnapshot } from '../playerDataSnapshots.js';
 export type AuthoritativePlayerSnapshotResponse = {
   readonly ready: true;
   readonly snapshot: AuthoritativePlayerSnapshot;
+  /** true quando o servidor acabou de provisionar personagem inicial no shard. */
+  readonly provisioned?: boolean;
 };
 
 export type PlayerSnapshotNotReadyResponse = {

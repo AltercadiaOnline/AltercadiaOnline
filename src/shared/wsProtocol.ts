@@ -81,6 +81,11 @@ export type WsOutboundMessage =
       readonly type: 'state-sync';
       readonly payload: import('./sync/syncProtocol.js').StateSyncPayload;
     }
+  | {
+      /** Peers próximos (AOI) — payload compacto: { t, m, p: [[cid,x,y,f], ...] } */
+      readonly type: 'world-peers';
+      readonly payload: import('./world/worldPeerWire.js').WorldPeersCompactPayload;
+    }
 
   | { readonly type: 'book-activated'; readonly payload: { readonly bookId: string; readonly expiresAt: number } }
 
@@ -235,6 +240,8 @@ export type WsInboundMessage =
       readonly payload: {
         readonly playerId: string;
         readonly characterId: number;
+        /** Shard reportado pelo cliente — validado contra SERVER_ID do processo. */
+        readonly serverId: string;
         readonly displayName?: string;
         readonly clientMapId?: string;
         readonly clientPosition?: { readonly x: number; readonly y: number };
@@ -582,14 +589,18 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
       if (typeof playerId !== 'string' || playerId.length === 0) return null;
       if (typeof characterId !== 'number' || !Number.isFinite(characterId)) return null;
 
+      const serverId = p.serverId;
+      if (typeof serverId !== 'string' || serverId.trim().length === 0) return null;
+
       const loginPayload: {
         playerId: string;
         characterId: number;
+        serverId: string;
         displayName?: string;
         clientMapId?: string;
         clientPosition?: { x: number; y: number };
         accessToken?: string;
-      } = { playerId, characterId };
+      } = { playerId, characterId, serverId: serverId.trim().toLowerCase() };
 
       if (typeof p.displayName === 'string') loginPayload.displayName = p.displayName;
       if (typeof p.accessToken === 'string' && p.accessToken.length > 0) {
@@ -777,6 +788,9 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
           type: p.type,
           payload: p.payload,
           timestamp: p.timestamp,
+          ...(typeof p.serverId === 'string' && p.serverId.trim().length > 0
+            ? { serverId: p.serverId.trim().toLowerCase() }
+            : {}),
         },
       };
     }

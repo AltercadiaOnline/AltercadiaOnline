@@ -1,15 +1,8 @@
 import type http from 'node:http';
-import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
+import { SecurityGuard } from '../middleware/securityGuard.js';
 import type { ServerEnv } from '../config/env.js';
 import type { GiftTransferRequest } from '../../shared/gift/giftTransferProtocol.js';
 import { executeTransferItem } from '../supabase/transferItem.js';
-
-function readBearerToken(req: http.IncomingMessage): string | null {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return null;
-  const token = header.slice(7).trim();
-  return token.length > 0 ? token : null;
-}
 
 async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -38,7 +31,20 @@ function parseGiftTransferRequest(body: unknown): GiftTransferRequest | null {
     ...(typeof record.targetCharacterId === 'number'
       ? { targetCharacterId: record.targetCharacterId }
       : {}),
+    ...(typeof record.serverId === 'string' && record.serverId.trim().length > 0
+      ? { serverId: record.serverId.trim().toLowerCase() }
+      : {}),
   };
+}
+
+function resolveClientServerId(url: URL, body: unknown): string | null {
+  const fromQuery = url.searchParams.get('serverId')?.trim().toLowerCase();
+  if (fromQuery) return fromQuery;
+
+  if (!body || typeof body !== 'object') return null;
+  const record = body as Record<string, unknown>;
+  const fromBody = typeof record.serverId === 'string' ? record.serverId.trim().toLowerCase() : '';
+  return fromBody || null;
 }
 
 export async function handleGiftTransferRoute(
@@ -49,24 +55,6 @@ export async function handleGiftTransferRoute(
 ): Promise<boolean> {
   if (req.method !== 'POST' || url.pathname !== '/api/gift/transfer') {
     return false;
-  }
-
-  const token = readBearerToken(req);
-  let senderUserId: string | null = null;
-
-  if (token) {
-    const verified = await getSessionAuthGateway().verifyAccessToken(token);
-    senderUserId = verified?.userId ?? null;
-  }
-
-  if (!senderUserId && env.devAuthBypass) {
-    senderUserId = url.searchParams.get('playerId')?.trim() ?? null;
-  }
-
-  if (!senderUserId) {
-    res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: false, error: 'Autenticação necessária.' }));
-    return true;
   }
 
   let body: unknown;
@@ -85,7 +73,25 @@ export async function handleGiftTransferRoute(
     return true;
   }
 
-  const result = await executeTransferItem(senderUserId, payload);
+  const auth = await SecurityGuard.enforceHttp(env, req, res, {
+    devBypassPlayerId: env.devAuthBypass ? url.searchParams.get('playerId')?.trim() ?? null : null,
+    clientServerId: resolveClientServerId(url, body),
+    characterId: payload.characterId ?? 1,
+  });
+  if (!auth) {
+    return true;
+  }
+
+  if (!('characterId' in auth)) {
+    res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ ok: false, error: 'Personagem inválido para transferência.' }));
+    return true;
+  }
+
+  const result = await executeTransferItem(auth.userId, auth.serverId, {
+    ...payload,
+    characterId: auth.characterId,
+  });
 
   if (!result.ok) {
     res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -100,6 +106,7 @@ export async function handleGiftTransferRoute(
     quantity: result.data.quantity,
     targetPlayerId: result.data.targetPlayerId,
     senderStacks: result.data.senderStacks,
+    serverId: auth.serverId,
   }));
   return true;
 }

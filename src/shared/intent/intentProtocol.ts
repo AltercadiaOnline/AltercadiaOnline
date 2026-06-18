@@ -19,7 +19,7 @@ export type GatewayIntentContext = {
 
 /**
  * Intenção autoritativa no servidor — espelho de `ClientIntent` + contexto de sessão.
- * Usada por handlers vendor (`BaseTransactionHandler`) e pelo orquestrador.
+ * Usada pelo ActionDispatcher servidor e handlers `BaseIntentHandler`.
  */
 export type GatewayIntentAction<TPayload = unknown> = GatewayIntentContext & ClientIntent<TPayload>;
 

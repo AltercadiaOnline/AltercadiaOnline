@@ -1,6 +1,7 @@
 /**
  * Contrato wire de intenções cliente → servidor (protocolo de garantia).
  */
+import { requireServerId } from '../supabase/characterServerScope.js';
 export type ClientIntent<T = unknown> = {
   readonly intentId: string;
   /** Eco obrigatório na resposta — mesmo valor que intentId no wire atual. */
@@ -8,6 +9,8 @@ export type ClientIntent<T = unknown> = {
   readonly type: string;
   readonly payload: T;
   readonly timestamp: number;
+  /** Shard reportado pelo cliente — validado contra SERVER_ID do deploy. */
+  readonly serverId?: string;
 };
 
 /** Idade máxima aceita — evita replay de intents antigas. */
@@ -71,16 +74,21 @@ export function validateIntentTimestamp(
   return { ok: true };
 }
 
-export function pendingIntentToWire(intent: {
-  readonly intentId: string;
-  readonly action: { readonly type: string; readonly payload: unknown };
-  readonly timestamp: number;
-}): ClientIntent {
+export function pendingIntentToWire(
+  intent: {
+    readonly intentId: string;
+    readonly action: { readonly type: string; readonly payload: unknown };
+    readonly timestamp: number;
+  },
+  serverId?: string,
+): ClientIntent {
+  const scopedServerId = serverId?.trim() ? requireServerId(serverId) : undefined;
   return {
     intentId: intent.intentId,
     correlationId: intent.intentId,
     type: intent.action.type,
     payload: intent.action.payload,
     timestamp: intent.timestamp,
+    ...(scopedServerId ? { serverId: scopedServerId } : {}),
   };
 }

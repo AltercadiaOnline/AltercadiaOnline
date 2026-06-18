@@ -4,12 +4,13 @@ import type { BankCurrencyTypeId } from '../shared/bank/bankConstants.js';
 import type { MarcoProgressTriggerId } from '../shared/progression/marcoProgressCatalog.js';
 import type { RotatePlayerIntentPayload } from '../shared/world/movementIntent.js';
 import type { IEconomyService } from './economy/IEconomyService.js';
-import { requestBankTransaction } from './economy/bankTransactionClient.js';
-import { requestAlterToVoltsExchange } from './economy/walletExchangeClient.js';
+import { requestAlterToVoltsExchangeLocal } from './economy/walletExchangeClient.js';
 import { getMutableDataStore } from './PlayerDataStore.js';
 import {
+  canApplyLocalGameplayMutations,
   isClientAuthoritativeVendorAction,
   isVendorClientAction,
+  SERVER_AUTHORITY_REQUIRED_MESSAGE,
   shouldWaitForServer,
 } from './sync/intentPolicy.js';
 import {
@@ -68,6 +69,7 @@ import { resetUIIntentStore } from './ui/intent/uiIntentStore.js';
 /** Intenções emitidas pela UI — formato único type + payload. */
 export type ClientAction =
   | { readonly type: 'EXCHANGE_ALTER_FOR_VOLTS'; readonly payload: { readonly alterAmount: number } }
+  | { readonly type: 'ACTIVATE_BOOK'; readonly payload: { readonly bookId: string } }
   | { readonly type: 'SELECT_MARCO_BRANCH'; readonly payload: { readonly starterNodeId: string } }
   | { readonly type: 'CHOOSE_MARCO'; readonly payload: { readonly nodeId: string } }
   | { readonly type: 'RESET_MARCO_TRAIL'; readonly payload: Record<string, never> }
@@ -206,7 +208,8 @@ const PENDING_INTENT_TIMEOUT_MESSAGE =
  * Com IEconomyService (mock/supabase): aguarda snapshot autoritativo após delay/rede.
  */
 export class ActionDispatcher {
-  private mode: ActionDispatcherMode = 'local';
+  /** Fail-closed: produção assume online até mock localhost ser ativado. */
+  private mode: ActionDispatcherMode = 'online';
   private intentTransport: IntentTransport | null = null;
   private economyService: IEconomyService | null = null;
   private pendingIntentTimeoutMs = PENDING_INTENT_TIMEOUT_MS;
@@ -296,7 +299,18 @@ export class ActionDispatcher {
       return this.dispatchPending(action);
     }
 
+    if (this.mode === 'online' && action.type === 'ACTIVATE_BOOK') {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && action.type === 'EXCHANGE_ALTER_FOR_VOLTS') {
+      return this.dispatchPending(action);
+    }
+
     if (this.mode === 'mock' && isClientAuthoritativeVendorAction(action, this.mode)) {
+      if (!canApplyLocalGameplayMutations(this.mode)) {
+        return { ok: false, reason: SERVER_AUTHORITY_REQUIRED_MESSAGE };
+      }
       return this.dispatchLocal(action);
     }
 
@@ -306,6 +320,10 @@ export class ActionDispatcher {
 
     if (shouldWaitForServer(action, this.mode)) {
       return this.dispatchPending(action);
+    }
+
+    if (!canApplyLocalGameplayMutations(this.mode)) {
+      return { ok: false, reason: SERVER_AUTHORITY_REQUIRED_MESSAGE };
     }
 
     return this.dispatchLocal(action);
@@ -395,9 +413,9 @@ export class ActionDispatcher {
     }
   }
 
-  /** Canal WS dedicado — não enviar player-intent paralelo (evita UNKNOWN_ACTION_TYPE). */
-  private usesDedicatedWsTransport(action: ClientAction): boolean {
-    return this.isBankAction(action) || action.type === 'EXCHANGE_ALTER_FOR_VOLTS';
+  /** @deprecated Canais WS dedicados removidos — banco/exchange usam player-intent. */
+  private usesDedicatedWsTransport(_action: ClientAction): boolean {
+    return false;
   }
 
   confirmIntent(intentId: string): void {
@@ -517,32 +535,24 @@ export class ActionDispatcher {
     this.intentTimeoutHandles.delete(intentId);
   }
 
-  private routePendingToTransport(action: ClientAction, intentId: string): void {
-    switch (action.type) {
-      case 'EXCHANGE_ALTER_FOR_VOLTS':
-        requestAlterToVoltsExchange(action.payload.alterAmount);
-        break;
-      case 'DEPOSIT_ITEM':
-      case 'WITHDRAW_ITEM':
-      case 'DEPOSIT_CURRENCY':
-      case 'WITHDRAW_CURRENCY':
-        if (!requestBankTransaction(action, intentId)) {
-          getGameStore().clearPendingAction(intentId);
-          getPendingIntentRegistry().reject(intentId);
-          alertSystem('Servidor indisponível para operações bancárias.');
-        }
-        break;
-      default:
-        break;
-    }
+  private routePendingToTransport(_action: ClientAction, _intentId: string): void {
+    // Banco e exchange seguem player-intent via intentTransport.
   }
 
   private dispatchLocal(action: ClientAction): DispatchResult {
+    if (!canApplyLocalGameplayMutations(this.mode)) {
+      console.warn('[ActionDispatcher] dispatchLocal bloqueado em modo online-first.', {
+        actionType: action.type,
+        mode: this.mode,
+      });
+      return { ok: false, reason: SERVER_AUTHORITY_REQUIRED_MESSAGE };
+    }
+
     const dataStore = getMutableDataStore();
 
     switch (action.type) {
       case 'EXCHANGE_ALTER_FOR_VOLTS':
-        requestAlterToVoltsExchange(action.payload.alterAmount);
+        requestAlterToVoltsExchangeLocal(action.payload.alterAmount);
         dataStore.bumpRevision('wallet');
         return { ok: true, status: 'applied' };
 
@@ -687,6 +697,9 @@ export class ActionDispatcher {
 
       case 'CRAFT_ITEM':
         return { ok: false, reason: 'Craft requer servidor online ou mock economy.' };
+
+      case 'ACTIVATE_BOOK':
+        return { ok: false, reason: 'Ativação de livro requer servidor online.' };
 
       default: {
         const _exhaustive: never = action;

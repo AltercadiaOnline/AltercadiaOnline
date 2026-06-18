@@ -1,23 +1,24 @@
-import type { ClientAction } from '../ActionDispatcher.js';
+import type { ActionDispatcherMode, ClientAction } from '../ActionDispatcher.js';
+import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
 
-
-
-export type ActionDispatcherMode = 'local' | 'online' | 'mock';
-
-
+export type { ActionDispatcherMode };
 
 export type IntentConfirmationPolicy = 'waitForServer' | 'optimisticLocal';
 
-
-
 const WAIT_FOR_SERVER: IntentConfirmationPolicy = 'waitForServer';
-
 const OPTIMISTIC_LOCAL: IntentConfirmationPolicy = 'optimisticLocal';
 
+/** Mensagem padrão quando a UI tenta mutar estado sem servidor. */
+export const SERVER_AUTHORITY_REQUIRED_MESSAGE =
+  'Esta ação requer conexão com o servidor. Aguarde a sincronização ou reconecte.';
 
+/** Mutações locais (heal, pet, market, wallet) — apenas localhost + mock/local. */
+export function canApplyLocalGameplayMutations(mode: ActionDispatcherMode): boolean {
+  if (!allowsOfflineGameplayFallback()) return false;
+  return mode === 'mock' || mode === 'local';
+}
 
 /** Ações de loja NPC / pet / cura — candidatas a mutação local offline. */
-
 export function isVendorClientAction(action: ClientAction): boolean {
 
   switch (action.type) {

@@ -10,6 +10,7 @@ import {
   getActivePersistenceStorage,
   setActivePersistenceStorage,
 } from './storage/persistenceStorageRegistry.js';
+import { tryGetServerInstanceContext } from '../instance/ServerInstanceContext.js';
 
 export type InitializedPersistence = {
   readonly mode: ReturnType<typeof parsePersistenceMode>;
@@ -23,7 +24,11 @@ export async function initializePersistence(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<InitializedPersistence> {
   const mode = parsePersistenceMode(env.PERSISTENCE_MODE);
-  const dataDir = path.resolve(env.DATA_DIR?.trim() || path.join(process.cwd(), 'data'));
+  const baseDataDir = path.resolve(env.DATA_DIR?.trim() || path.join(process.cwd(), 'data'));
+  const instance = tryGetServerInstanceContext();
+  const dataDir = instance
+    ? path.join(baseDataDir, instance.id)
+    : baseDataDir;
 
   const storage = createPersistenceStorage(mode);
   setActivePersistenceStorage(storage);

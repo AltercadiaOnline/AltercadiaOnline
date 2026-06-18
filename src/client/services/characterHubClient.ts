@@ -5,6 +5,7 @@ import {
   type CreateCharacterRequest,
 } from '../../shared/auth/characterHubProtocol.js';
 import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
+import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
 import { getSupabaseClient, resolveSessionAccessToken } from '../auth/supabaseAuth.js';
 import { getLocalSession } from '../services/localSessionStore.js';
 import { isLocalDevHost } from '../auth/localDevAuth.js';
@@ -25,6 +26,15 @@ async function resolveHubAuth(): Promise<{ token: string | null; devPlayerId: st
   return { token: null, devPlayerId: null };
 }
 
+function buildCharacterHubUrl(auth: { devPlayerId: string | null }): URL {
+  const url = new URL('/api/character-hub', window.location.origin);
+  if (auth.devPlayerId) {
+    url.searchParams.set('playerId', auth.devPlayerId);
+  }
+  url.searchParams.set('serverId', resolveActiveServerId());
+  return url;
+}
+
 export function shouldUseAuthoritativeCharacterHub(): boolean {
   return !allowsOfflineGameplayFallback() || Boolean(getSupabaseClient());
 }
@@ -37,10 +47,7 @@ export async function fetchAuthoritativeCharacterHub(): Promise<
     return { ok: false, message: 'Sessão não autenticada.' };
   }
 
-  const url = new URL('/api/character-hub', window.location.origin);
-  if (auth.devPlayerId) {
-    url.searchParams.set('playerId', auth.devPlayerId);
-  }
+  const url = buildCharacterHubUrl(auth);
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (auth.token) {
@@ -51,7 +58,7 @@ export async function fetchAuthoritativeCharacterHub(): Promise<
   try {
     response = await fetch(url.toString(), { headers });
   } catch {
-    return { ok: false, message: 'Servidor indisponível ao carregar personagens.' };
+    return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
 
   let body: unknown;
@@ -80,10 +87,7 @@ export async function createAuthoritativeCharacter(
     return { ok: false, message: 'Sessão não autenticada.' };
   }
 
-  const url = new URL('/api/character-hub', window.location.origin);
-  if (auth.devPlayerId) {
-    url.searchParams.set('playerId', auth.devPlayerId);
-  }
+  const url = buildCharacterHubUrl(auth);
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -101,7 +105,7 @@ export async function createAuthoritativeCharacter(
       body: JSON.stringify(input),
     });
   } catch {
-    return { ok: false, message: 'Servidor indisponível ao criar personagem.' };
+    return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
 
   let body: unknown;

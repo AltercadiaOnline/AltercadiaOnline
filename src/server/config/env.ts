@@ -6,6 +6,8 @@ import {
   normalizeSupabaseProjectUrl,
   sanitizeEnvSecret,
 } from '../supabase/normalizeSupabaseUrl.js';
+import type { ServerInstanceDefinition } from '../../shared/world/serverInstanceCatalog.js';
+import { resolveServerInstanceFromEnv } from './serverInstanceEnv.js';
 
 export type NodeEnv = 'development' | 'production' | 'test';
 export type ServerEnv = {
@@ -22,6 +24,8 @@ export type ServerEnv = {
   /** Permite world-login sem JWT — apenas desenvolvimento local explícito. */
   readonly devAuthBypass: boolean;
   readonly database: DatabaseEnv;
+  /** Shard / instância de mundo (SERVER_ID). */
+  readonly serverInstance: ServerInstanceDefinition;
 };
 
 function parseNodeEnv(raw: string | undefined): NodeEnv {
@@ -63,6 +67,7 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   }
 
   const nodeEnv = parseNodeEnv(env.NODE_ENV);
+  const serverInstance = resolveServerInstanceFromEnv(env, nodeEnv);
   const trustProxy =
     env.TRUST_PROXY === '1' ||
     env.TRUST_PROXY === 'true' ||
@@ -81,6 +86,7 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     devAuthBypass:
       env.DEV_AUTH_BYPASS === '1'
       || env.DEV_AUTH_BYPASS === 'true',
-    database: loadDatabaseEnv(env),
+    database: loadDatabaseEnv(env, serverInstance),
+    serverInstance,
   };
 }

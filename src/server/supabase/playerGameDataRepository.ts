@@ -1,6 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EquippedSlots, InventoryStack } from '../../shared/character/equipmentState.js';
 import {
+  createCharacterServerKey,
+  requireServerId,
+  rejectUnscopedCharacterQuery,
+  ARCHITECTURE_SERVER_ID_REQUIRED,
+  type CharacterServerKey,
+} from '../../shared/supabase/characterServerScope.js';
+import {
   parseEquippedSlots,
   parseInventoryStacks,
   type CurrencyRow,
@@ -22,12 +29,15 @@ export async function profileExistsForUser(
   client: SupabaseClient,
   userId: string,
   characterId: number,
+  serverId: string,
 ): Promise<boolean> {
+  const scopedServerId = requireServerId(serverId);
   const { data, error } = await client
     .from('profiles')
     .select('id')
     .eq('user_id', userId)
     .eq('character_id', characterId)
+    .eq('server_id', scopedServerId)
     .maybeSingle();
 
   if (error) {
@@ -37,11 +47,10 @@ export async function profileExistsForUser(
   return Boolean(data);
 }
 
-/** Aguarda trigger auth.users → profiles (race após OAuth). */
-export async function waitForUserProfile(
+/** Aguarda profile visível no shard (race após insert / trigger). */
+export async function waitForUserProfileOnServer(
   client: SupabaseClient,
-  userId: string,
-  characterId: number,
+  scope: CharacterServerKey,
   options?: {
     readonly maxAttempts?: number;
     readonly delayMs?: number;
@@ -51,7 +60,7 @@ export async function waitForUserProfile(
   const delayMs = options?.delayMs ?? DEFAULT_PROFILE_WAIT_DELAY_MS;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    if (await profileExistsForUser(client, userId, characterId)) {
+    if (await profileExistsForUser(client, scope.userId, scope.characterId, scope.serverId)) {
       return true;
     }
     if (attempt < maxAttempts - 1) {
@@ -62,24 +71,34 @@ export async function waitForUserProfile(
   return false;
 }
 
-export async function fetchPlayerGameData(
+export async function fetchPlayerGameDataForScope(
   client: SupabaseClient,
-  userId: string,
-  characterId: number,
+  scope: CharacterServerKey,
 ): Promise<PlayerGameDataBundle> {
+  const scopedServerId = requireServerId(scope.serverId);
+  if (!scope.userId?.trim()) {
+    throw new Error(ARCHITECTURE_SERVER_ID_REQUIRED);
+  }
   const [profileRes, currencyRes, inventoryRes] = await Promise.all([
     client
       .from('profiles')
       .select('*')
-      .eq('user_id', userId)
-      .eq('character_id', characterId)
+      .eq('user_id', scope.userId)
+      .eq('character_id', scope.characterId)
+      .eq('server_id', scopedServerId)
       .maybeSingle(),
-    client.from('currency').select('*').eq('user_id', userId).maybeSingle(),
+    client
+      .from('currency')
+      .select('*')
+      .eq('user_id', scope.userId)
+      .eq('server_id', scopedServerId)
+      .maybeSingle(),
     client
       .from('inventory')
       .select('*')
-      .eq('user_id', userId)
-      .eq('character_id', characterId)
+      .eq('user_id', scope.userId)
+      .eq('character_id', scope.characterId)
+      .eq('server_id', scopedServerId)
       .maybeSingle(),
   ]);
 
@@ -103,23 +122,63 @@ export async function fetchPlayerGameData(
   };
 }
 
-/** Leitura autoritativa — sem RPC bootstrap (DB populado via trigger + seed servidor). */
+/** @deprecated Bloqueado — use fetchPlayerGameDataForScope(scope). */
+export async function fetchPlayerGameData(
+  _client: SupabaseClient,
+  _userId: string,
+  _characterId: number,
+  _serverId?: string,
+): Promise<PlayerGameDataBundle> {
+  return rejectUnscopedCharacterQuery();
+}
+
+export async function provisionStarterCharacterOnServer(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+  serverId: string,
+): Promise<PlayerGameDataBundle> {
+  const scopedServerId = requireServerId(serverId);
+  const scope = createCharacterServerKey(userId, scopedServerId, characterId);
+
+  const { error } = await client.rpc('bootstrap_player_game_data', {
+    p_user_id: userId,
+    p_character_id: characterId,
+    p_server_id: scopedServerId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const ready = await waitForUserProfileOnServer(client, scope);
+  if (!ready) {
+    throw new Error('Perfil inicial não provisionado a tempo.');
+  }
+
+  return fetchPlayerGameDataForScope(client, scope);
+}
+
+/** Leitura autoritativa no shard — sem auto-provision (use loadCharacterData). */
 export async function fetchPlayerGameDataWhenProfileReady(
   client: SupabaseClient,
   userId: string,
   characterId: number,
+  serverId: string,
 ): Promise<{ ok: boolean; data?: PlayerGameDataBundle; message?: string; profileReady?: boolean }> {
-  const profileReady = await waitForUserProfile(client, userId, characterId);
+  const scopedServerId = requireServerId(serverId);
+  const scope = createCharacterServerKey(userId, scopedServerId, characterId);
+  const profileReady = await waitForUserProfileOnServer(client, scope);
   if (!profileReady) {
     return {
       ok: false,
       profileReady: false,
-      message: 'Perfil não provisionado — aguarde o trigger auth.users.',
+      message: 'Perfil não provisionado neste servidor.',
     };
   }
 
   try {
-    const data = await fetchPlayerGameData(client, userId, characterId);
+    const data = await fetchPlayerGameDataForScope(client, scope);
     return { ok: true, data, profileReady: true };
   } catch (error) {
     return {
@@ -133,16 +192,19 @@ export async function fetchPlayerGameDataWhenProfileReady(
 export async function upsertPlayerCurrency(
   client: SupabaseClient,
   userId: string,
+  serverId: string,
   dollarVolt: number,
   alterCoins: number,
 ): Promise<{ ok: boolean; message?: string }> {
+  const scopedServerId = requireServerId(serverId);
   const { error } = await client.from('currency').upsert(
     {
       user_id: userId,
+      server_id: scopedServerId,
       dollar_volt: Math.max(0, Math.floor(dollarVolt)),
       alter_coins: Math.max(0, Math.floor(alterCoins)),
     },
-    { onConflict: 'user_id' },
+    { onConflict: 'user_id,server_id' },
   );
 
   if (error) return { ok: false, message: error.message };
@@ -153,17 +215,20 @@ export async function upsertPlayerInventory(
   client: SupabaseClient,
   userId: string,
   characterId: number,
+  serverId: string,
   stacks: readonly InventoryStack[],
   equipped: EquippedSlots,
 ): Promise<{ ok: boolean; message?: string }> {
+  const scopedServerId = requireServerId(serverId);
   const { error } = await client.from('inventory').upsert(
     {
       user_id: userId,
       character_id: characterId,
+      server_id: scopedServerId,
       stacks,
       equipped,
     },
-    { onConflict: 'user_id,character_id' },
+    { onConflict: 'user_id,character_id,server_id' },
   );
 
   if (error) return { ok: false, message: error.message };

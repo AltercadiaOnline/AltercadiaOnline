@@ -31,7 +31,7 @@ import {
 } from '../shared/economy/premiumCurrency.js';
 import { BATTLE_SURRENDER_VOLT_PENALTY } from '../shared/combat/battleSurrenderConstants.js';
 import { mergeAuthorizedEquippedSnapshot } from '../shared/economy/authorizeEquippedSnapshot.js';
-import type { EquippedSlots } from '../shared/character/equipmentState.js';
+import type { EquippedSlots, InventoryStack, PlayerWorldVitals } from '../shared/character/equipmentState.js';
 import type { EquipmentUiSlotId } from '../shared/character/equipmentUiSlots.js';
 import { equippedToEquipmentUiGrid } from '../shared/character/equipmentUiSlots.js';
 import {
@@ -48,6 +48,12 @@ import {
   syncAuthoritativeLoadoutFromEconomyProfile,
 } from './economyStore.js';
 import { validateCraftItemRequest } from '../shared/crafting/craftValidation.js';
+import { findNpcVendorListing } from '../shared/economy/npcVendorCatalog.js';
+import {
+  validateInventoryItemSale,
+  validateNpcPurchase,
+} from '../shared/economy/npcVendorService.js';
+import { assertSellItemAllowed } from './InventoryService.js';
 import { validateCaelRationPurchase } from '../shared/economy/caelPetService.js';
 import {
   buildAdoptedPet,
@@ -477,6 +483,7 @@ export type ExchangeAlterCoinsRequest = {
   readonly playerId: string;
   readonly characterId: number;
   readonly alterAmount: number;
+  readonly intentId?: string;
 };
 
 export type ExchangeAlterCoinsResult =
@@ -505,7 +512,10 @@ export async function exchangeAlterCoinsForVolts(
   if (!tx.ok) {
     globalEventBus.emit({
       type: EconomyEventType.TransactionFailed,
-      payload: { message: tx.message },
+      payload: {
+        message: tx.message,
+        ...(request.intentId !== undefined ? { intentId: request.intentId } : {}),
+      },
     });
     return { ok: false, message: tx.message };
   }
@@ -516,6 +526,7 @@ export async function exchangeAlterCoinsForVolts(
     voltsReceived: voltsGain,
     dollarVolt: tx.walletBalance,
     alterCoins: tx.alterCoins,
+    ...(request.intentId !== undefined ? { intentId: request.intentId } : {}),
   };
 
   globalEventBus.emit({ type: EconomyEventType.AlterExchangeCompleted, payload });
@@ -525,6 +536,7 @@ export async function exchangeAlterCoinsForVolts(
       playerId: request.playerId,
       dollarVolt: tx.walletBalance,
       alterCoins: tx.alterCoins,
+      ...(request.intentId !== undefined ? { intentId: request.intentId } : {}),
     },
   });
 
@@ -921,6 +933,273 @@ export async function unequipToInventorySlot(
     payload: inventoryUpdatedPayload(playerId, characterId, inventorySnapshot, {
       ...(intentId ? { intentId } : {}),
     }),
+  });
+
+  return { ok: true };
+}
+
+function countInventoryQuantity(
+  stacks: readonly InventoryStack[],
+  itemId: string,
+): number {
+  let total = 0;
+  for (const row of stacks) {
+    if (row.itemId === itemId) {
+      total += row.quantity;
+    }
+  }
+  return total;
+}
+
+export type PurchaseNpcItemAtVendorRequest = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly vendorId: string;
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly intentId?: string;
+};
+
+export type PurchaseNpcItemAtVendorResult =
+  | {
+      readonly ok: true;
+      readonly itemId: string;
+      readonly quantity: number;
+      readonly totalVolts: number;
+    }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+/** Compra em loja NPC — debita VOLTS e concede item (transação ACID). */
+export async function purchaseNpcItemAtVendor(
+  request: PurchaseNpcItemAtVendorRequest,
+): Promise<PurchaseNpcItemAtVendorResult> {
+  const listing = findNpcVendorListing(request.vendorId, request.itemId);
+  if (!listing) {
+    return { ok: false, code: 'ITEM_UNAVAILABLE', message: 'Item indisponível nesta loja.' };
+  }
+
+  const wallet = getPlayerWallet(request.playerId);
+  const validation = validateNpcPurchase({
+    listing,
+    quantity: request.quantity,
+    walletVolts: wallet.dollarVolt,
+  });
+
+  if (!validation.ok) {
+    const code = validation.reason.includes('VOLTS insuficientes')
+      ? 'INSUFFICIENT_FUNDS'
+      : 'PURCHASE_REJECTED';
+    const message = code === 'INSUFFICIENT_FUNDS'
+      ? 'INSUFFICIENT_FUNDS: VOLTS insuficientes.'
+      : validation.reason;
+    return { ok: false, code, message };
+  }
+
+  const quote = validation.quote;
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      store.spendDollarVolt(quote.totalVolts);
+      store.addInventoryItem(request.itemId, quote.quantity);
+    },
+  );
+
+  if (!tx.ok) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_FUNDS',
+      message: tx.message,
+    };
+  }
+
+  syncAuthoritativeLoadoutFromEconomyProfile(request.playerId, request.characterId);
+  const revision = Date.now();
+
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId: request.playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      revision,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: inventoryUpdatedPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      {
+        revision,
+        ...(request.intentId ? { intentId: request.intentId } : {}),
+      },
+    ),
+  });
+
+  return {
+    ok: true,
+    itemId: request.itemId,
+    quantity: quote.quantity,
+    totalVolts: quote.totalVolts,
+  };
+}
+
+export type SellNpcItemAtVendorRequest = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly vendorId: string;
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly intentId?: string;
+};
+
+export type SellNpcItemAtVendorResult =
+  | {
+      readonly ok: true;
+      readonly itemId: string;
+      readonly quantity: number;
+      readonly totalVolts: number;
+    }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+/** Revenda ao NPC — remove item do inventário e credita VOLTS (transação ACID). */
+export async function sellNpcItemAtVendor(
+  request: SellNpcItemAtVendorRequest,
+): Promise<SellNpcItemAtVendorResult> {
+  try {
+    assertSellItemAllowed(request.itemId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Item não pode ser vendido.';
+    return { ok: false, code: 'SELL_REJECTED', message };
+  }
+
+  const economyProfile = getCharacterProfile(request.playerId, request.characterId);
+  const owned = countInventoryQuantity(economyProfile.inventory, request.itemId);
+  const validation = validateInventoryItemSale({
+    itemId: request.itemId,
+    quantity: request.quantity,
+    inventoryQuantity: owned,
+  });
+
+  if (!validation.ok) {
+    return { ok: false, code: 'SELL_REJECTED', message: validation.reason };
+  }
+
+  const quote = validation.quote;
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      store.removeInventoryItem(request.itemId, quote.quantity);
+      store.addDollarVolt(quote.totalVolts);
+    },
+  );
+
+  if (!tx.ok) {
+    return {
+      ok: false,
+      code: 'SELL_REJECTED',
+      message: tx.message,
+    };
+  }
+
+  syncAuthoritativeLoadoutFromEconomyProfile(request.playerId, request.characterId);
+  const revision = Date.now();
+
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: inventoryUpdatedPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      {
+        revision,
+        ...(request.intentId ? { intentId: request.intentId } : {}),
+      },
+    ),
+  });
+
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId: request.playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      revision,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  return {
+    ok: true,
+    itemId: request.itemId,
+    quantity: quote.quantity,
+    totalVolts: quote.totalVolts,
+  };
+}
+
+export type ApplyNpcHealEconomyRequest = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly voltsCost: number;
+  readonly vitals: PlayerWorldVitals;
+  readonly message: string;
+  readonly intentId?: string;
+};
+
+export type ApplyNpcHealEconomyResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+/** Parte econômica da cura NPC — debita VOLTS e emite WalletUpdated + WorldVitalsUpdated. */
+export async function applyNpcHealEconomy(
+  request: ApplyNpcHealEconomyRequest,
+): Promise<ApplyNpcHealEconomyResult> {
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      if (request.voltsCost > 0) {
+        store.spendDollarVolt(request.voltsCost);
+      }
+    },
+  );
+
+  if (!tx.ok) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_FUNDS',
+      message: tx.message,
+    };
+  }
+
+  const revision = Date.now();
+
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId: request.playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      revision,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  globalEventBus.emit({
+    type: EconomyEventType.WorldVitalsUpdated,
+    payload: {
+      playerId: request.playerId,
+      characterId: request.characterId,
+      vitals: request.vitals,
+      message: request.message,
+      revision,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
   });
 
   return { ok: true };

@@ -1,4 +1,11 @@
 import { registerIntentHandler } from '../network/intentHandlerRegistry.js';
+import { getActivateBookHandler } from './economy/ActivateBookHandler.js';
+import {
+  getDepositBankCurrencyHandler,
+  getDepositBankItemHandler,
+  getWithdrawBankCurrencyHandler,
+  getWithdrawBankItemHandler,
+} from './economy/BankTransactionHandlers.js';
 import { getExchangeAlterHandler } from './economy/ExchangeAlterHandler.js';
 import { getHealAtNpcHandler } from './economy/HealAtNpcHandler.js';
 import { getPurchaseNpcItemHandler } from './economy/PurchaseNpcItemHandler.js';
@@ -22,6 +29,11 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getSellNpcItemHandler());
   registerIntentHandler(getHealAtNpcHandler());
   registerIntentHandler(getExchangeAlterHandler());
+  registerIntentHandler(getActivateBookHandler());
+  registerIntentHandler(getDepositBankItemHandler());
+  registerIntentHandler(getWithdrawBankItemHandler());
+  registerIntentHandler(getDepositBankCurrencyHandler());
+  registerIntentHandler(getWithdrawBankCurrencyHandler());
   registerIntentHandler(getSyncLoadoutHandler());
   registerIntentHandler(getEquipFromInventoryHandler());
   registerIntentHandler(getUnequipToInventoryHandler());
@@ -37,6 +49,3 @@ function ensureHandlersRegistered(): void {
 export function bootstrapIntentHandlers(): void {
   ensureHandlersRegistered();
 }
-
-/** @deprecated Use bootstrapIntentHandlers */
-export const bootstrapTransactionHandlers = bootstrapIntentHandlers;

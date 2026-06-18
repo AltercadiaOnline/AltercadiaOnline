@@ -1,16 +1,24 @@
-import type { AuthService, AuthUser } from '../../shared/authService.js';
+import type { AuthUser } from '../../shared/authService.js';
 import {
   bindAuthNavigation,
   copyLoginCredentialsToRegisterForm,
   copyRegisterCredentialsToLoginForm,
   showAuthView,
 } from './authFlow.js';
-import { bindGoogleLoginButton } from '../services/auth/GameAuthService.js';
+import { bindGoogleLoginButton, loginWithEmailForServer, registerAccount } from '../services/auth/GameAuthService.js';
 import { getSupabaseClient } from '../auth/supabaseAuth.js';
+import { resolveLoginServerId } from '../auth/resolveLoginServerId.js';
+import { syncLoginServerSelector } from '../auth/syncLoginServerSelector.js';
+import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
+import {
+  logAuthApiAttempt,
+  logAuthApiResult,
+  logAuthClick,
+  logAuthEnvironment,
+} from '../auth/authDebug.js';
 
 export type LoginScreenOptions = {
-  authService: AuthService;
-  onAuthenticated: (user: AuthUser) => void;
+  onAuthenticated: (user: AuthUser, serverId: string) => void | Promise<void>;
 };
 
 function requireInput(id: string): HTMLInputElement | null {
@@ -26,6 +34,7 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   const root = document.getElementById('login-screen');
   const emailField = requireInput('email-input');
   const passField = requireInput('pass-input');
+  const serverField = document.getElementById('server-id-input');
   const nameField = requireInput('reg-name-input');
   const birthField = requireInput('reg-birth-input');
   const regEmailField = requireInput('reg-email-input');
@@ -37,6 +46,7 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     !root
     || !emailField
     || !passField
+    || !(serverField instanceof HTMLSelectElement)
     || !nameField
     || !birthField
     || !regEmailField
@@ -67,6 +77,9 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   };
 
   const setBusy = (next: boolean): void => {
+    if (busy !== next) {
+      console.log(`[LoginScreen] setBusy(${String(next)}) — botões ${next ? 'DESABILITADOS' : 'habilitados'}`);
+    }
     busy = next;
     root.querySelectorAll('button').forEach((button) => {
       button.toggleAttribute('disabled', next);
@@ -88,26 +101,55 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     fields.email.focus();
   };
 
+  syncLoginServerSelector();
+
   async function handleLogin(): Promise<void> {
-    if (busy) return;
+    console.log('[LoginScreen] handleLogin() disparado', { busy, email: fields.email.value.trim() });
+    if (busy) {
+      console.warn('[LoginScreen] handleLogin ignorado — busy=true (aguarde ou recarregue a página)');
+      return;
+    }
+
+    let serverId: string;
+    try {
+      serverId = resolveLoginServerId();
+    } catch {
+      setStatus(ARCHITECTURE_SERVER_ID_REQUIRED, true);
+      return;
+    }
 
     setBusy(true);
     setStatus('Validando credenciais…', false);
+    logAuthApiAttempt('login', { email: fields.email.value.trim(), serverId });
 
     try {
-      const result = await options.authService.login(fields.email.value, fields.pass.value);
+      const result = await loginWithEmailForServer(
+        fields.email.value,
+        fields.pass.value,
+        serverId,
+      );
       if (!result.success) {
+        logAuthApiResult('login', 'error', { message: result.message ?? 'Credenciais inválidas.' });
         setStatus(result.message ?? 'Credenciais inválidas.', true);
         return;
       }
 
+      logAuthApiResult('login', 'success', {
+        userId: result.user?.id ?? null,
+        serverId: result.serverId ?? serverId,
+        message: result.message ?? null,
+      });
       setStatus(result.message ?? 'Login autorizado!', false);
       if (!result.user) {
         setStatus('Login sem dados de usuário.', true);
         return;
       }
-      options.onAuthenticated(result.user);
+
+      await options.onAuthenticated(result.user, result.serverId ?? serverId);
     } catch (error) {
+      logAuthApiResult('login', 'error', {
+        message: error instanceof Error ? error.message : String(error),
+      });
       console.error('[LoginScreen] Erro no login:', error);
       setStatus('Erro inesperado ao fazer login.', true);
     } finally {
@@ -116,7 +158,14 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   }
 
   async function handleRegister(): Promise<void> {
-    if (busy) return;
+    console.log('[LoginScreen] handleRegister() disparado', {
+      busy,
+      email: fields.regEmail.value.trim(),
+    });
+    if (busy) {
+      console.warn('[LoginScreen] handleRegister ignorado — busy=true');
+      return;
+    }
 
     if (fields.regPass.value !== fields.regConfirm.value) {
       setStatus('As senhas não coincidem.', true);
@@ -125,9 +174,10 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
 
     setBusy(true);
     setStatus('Criando conta…', false);
+    logAuthApiAttempt('register', { email: fields.regEmail.value.trim() });
 
     try {
-      const result = await options.authService.register({
+      const result = await registerAccount({
         fullName: fields.name.value,
         birthDate: fields.birth.value,
         email: fields.regEmail.value,
@@ -135,14 +185,19 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
       });
 
       if (!result.success) {
+        logAuthApiResult('register', 'error', { message: result.message ?? 'Falha no cadastro.' });
         setStatus(result.message ?? 'Falha no cadastro.', true);
         return;
       }
 
+      logAuthApiResult('register', 'success', { message: result.message ?? null });
       copyRegisterCredentialsToLoginForm();
       setStatus(result.message ?? 'Conta criada!', false);
       showAuthView('login');
     } catch (error) {
+      logAuthApiResult('register', 'error', {
+        message: error instanceof Error ? error.message : String(error),
+      });
       console.error('[LoginScreen] Erro no cadastro:', error);
       setStatus('Erro inesperado ao cadastrar.', true);
     } finally {
@@ -182,10 +237,13 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   }
 
   if (!navigationReady) {
-    console.error('[LoginScreen] Falha ao ligar botões de navegação.');
-    return;
+    console.error('[LoginScreen] Alguns botões de navegação ausentes — cliques parciais podem falhar.');
   }
 
+  logAuthEnvironment('login-screen-ready', {
+    navigationReady,
+    googleButtons: googleButtons.length,
+  });
   showAuthView('login');
   console.log('[LoginScreen] HUD de login pronta (login ↔ cadastro).');
 }

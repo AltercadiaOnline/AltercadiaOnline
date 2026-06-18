@@ -13,6 +13,13 @@
 import type { AuthService, AuthUser } from '../../../shared/authService.js';
 import { createAuthService } from '../../auth/createAuthService.js';
 import {
+  applyLoginServerIdToRuntime,
+  clearPendingLoginServerId,
+  resolveLoginServerId,
+  stashPendingLoginServerId,
+} from '../../auth/resolveLoginServerId.js';
+import { requireServerId } from '../../../shared/supabase/characterServerScope.js';
+import {
   clearOAuthRedirectPending,
   isOAuthRedirectPending,
   markOAuthRedirectPending,
@@ -40,6 +47,7 @@ export type AuthLoginResult = {
   readonly success: boolean;
   readonly user?: AuthUser;
   readonly message?: string;
+  readonly serverId?: string;
 };
 
 let authServiceInstance: AuthService | null = null;
@@ -64,23 +72,41 @@ export function isGoogleAuthAvailable(): boolean {
 }
 
 export async function loginWithEmail(email: string, password: string): Promise<AuthLoginResult> {
+  const serverId = resolveLoginServerId();
+  return loginWithEmailForServer(email, password, serverId);
+}
+
+/**
+ * Login Fase P1 — exige server_id explícito antes de autenticar no Supabase.
+ * Após sucesso, ativa o GameStore para o init pesado pós-login (char hub / snapshot).
+ */
+export async function loginWithEmailForServer(
+  email: string,
+  password: string,
+  serverId: string,
+): Promise<AuthLoginResult> {
+  const scopedServerId = applyLoginServerIdToRuntime(requireServerId(serverId));
+  console.log(`Login iniciado para ServerID: ${scopedServerId}`);
+
   const result = await getAuthService().login(email, password);
   if (!result.success) {
     const message = result.message ?? 'Credenciais inválidas.';
     reportTransactionFailure(null, message, 'Falha no login.');
-    return { success: false, message };
+    return { success: false, message, serverId: scopedServerId };
   }
 
   if (!result.user) {
     const message = 'Login sem dados de usuário.';
     reportTransactionFailure(null, message, 'Falha no login.');
-    return { success: false, message };
+    return { success: false, message, serverId: scopedServerId };
   }
 
+  clearPendingLoginServerId();
   activateGameStoreAfterAuth();
   return {
     success: true,
     user: result.user,
+    serverId: scopedServerId,
     ...(result.message ? { message: result.message } : {}),
   };
 }
@@ -100,6 +126,19 @@ export async function startGoogleOAuth(): Promise<{ ok: boolean; message?: strin
     reportTransactionFailure(null, message, message);
     return { ok: false, message };
   }
+
+  let serverId: string;
+  try {
+    serverId = resolveLoginServerId();
+  } catch {
+    const message = 'Servidor inválido. Recarregue a página e tente novamente.';
+    reportTransactionFailure(null, message, message);
+    return { ok: false, message };
+  }
+
+  applyLoginServerIdToRuntime(serverId);
+  stashPendingLoginServerId(serverId);
+  console.log(`Login iniciado para ServerID: ${serverId}`);
 
   markOAuthRedirectPending();
   const result = await signInWithGoogleOAuth();

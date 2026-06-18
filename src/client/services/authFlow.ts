@@ -1,3 +1,5 @@
+import { logAuthClick } from '../auth/authDebug.js';
+
 export type AuthView = 'login' | 'register';
 
 export function showAuthView(view: AuthView): void {
@@ -78,12 +80,22 @@ export function bindAuthNavigation(handlers: {
     const button = target instanceof Element ? target.closest('button') : null;
     if (!(button instanceof HTMLButtonElement)) return;
 
+    logAuthClick(button.id, {
+      disabled: button.disabled,
+      type: button.type,
+    });
+
     const handler = buttonHandlers.get(button.id);
     if (!handler) return;
+
+    if (button.disabled) {
+      console.warn(`[AuthFlow] Clique em #${button.id} ignorado — botão disabled`);
+      return;
+    }
 
     event.preventDefault();
     handler();
   });
 
-  return bound === buttonHandlers.size;
+  return bound > 0;
 }

@@ -6,12 +6,14 @@ export type ProfileRow = {
   readonly character_id: number;
   readonly display_name: string | null;
   readonly email: string | null;
+  readonly server_id: string;
   readonly created_at: string;
   readonly updated_at: string;
 };
 
 export type CurrencyRow = {
   readonly user_id: string;
+  readonly server_id: string;
   readonly dollar_volt: number;
   readonly alter_coins: number;
   readonly updated_at: string;
@@ -21,6 +23,7 @@ export type InventoryRow = {
   readonly id: string;
   readonly user_id: string;
   readonly character_id: number;
+  readonly server_id: string;
   readonly stacks: InventoryStack[];
   readonly equipped: EquippedSlots;
   readonly updated_at: string;

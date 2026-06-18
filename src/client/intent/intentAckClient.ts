@@ -14,6 +14,18 @@ import {
 } from '../combat/VfxProjectileManager.js';
 import { getVfxProjectileManager } from '../combat/VfxProjectileManager.js';
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
+import { notifyActivateBookIntentSuccess } from '../economy/activateBookClient.js';
+
+function tryNotifyActivateBookSuccess(intentId: string, data: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending || pending.action.type !== 'ACTIVATE_BOOK') return;
+  if (!data || typeof data !== 'object') return;
+  const record = data as Record<string, unknown>;
+  const bookId = typeof record.bookId === 'string' ? record.bookId : null;
+  const expiresAt = typeof record.expiresAt === 'number' ? record.expiresAt : null;
+  if (!bookId || expiresAt === null || !Number.isFinite(expiresAt)) return;
+  notifyActivateBookIntentSuccess(bookId, expiresAt);
+}
 
 async function playCombatAttackVfx(data: CombatActionIntentResultData): Promise<void> {
   if (!isProjectileCombatAction(data.action)) return;
@@ -31,6 +43,8 @@ export function handleIntentResultPayload(raw: unknown): void {
   if (!registry.isIntentPending(raw.intentId)) return;
 
   if (raw.success) {
+    tryNotifyActivateBookSuccess(raw.intentId, raw.data);
+
     if (isCombatActionIntentResultData(raw.data) && isProjectileCombatAction(raw.data.action)) {
       void playCombatAttackVfx(raw.data).finally(() => {
         getActionDispatcher().confirmIntent(raw.intentId);

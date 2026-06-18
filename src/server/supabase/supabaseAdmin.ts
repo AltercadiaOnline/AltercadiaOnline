@@ -3,6 +3,7 @@ import type { ServerEnv } from '../config/env.js';
 import {
   normalizeSupabaseProjectUrl,
   sanitizeEnvSecret,
+  validateSupabaseProjectUrl,
 } from './normalizeSupabaseUrl.js';
 
 let adminClient: SupabaseClient | null = null;
@@ -54,7 +55,15 @@ export function assertSupabaseAdminEnv(env: ServerEnv): SupabaseAdminCredentials
     );
   }
 
+  assertSupabaseProjectUrlShape(credentials);
   return credentials;
+}
+
+function assertSupabaseProjectUrlShape(credentials: SupabaseAdminCredentials): void {
+  const validation = validateSupabaseProjectUrl(credentials.url);
+  if (!validation.ok) {
+    throw new Error(`[Supabase] ${validation.reason}`);
+  }
 }
 
 /** Cliente admin (service_role) — bootstrap e leitura autoritativa; nunca expor ao browser. */

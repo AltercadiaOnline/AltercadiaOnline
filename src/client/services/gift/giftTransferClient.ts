@@ -5,6 +5,7 @@
 import type { GiftTransferRequest, GiftTransferResponse } from '../../../shared/gift/giftTransferProtocol.js';
 import { parseInventoryStacks } from '../../../shared/supabase/gameDatabaseTypes.js';
 import { resolveSessionAccessToken } from '../../auth/supabaseAuth.js';
+import { resolveActiveServerId } from '../../auth/resolveLoginServerId.js';
 import { AppScreens } from '../../browser/appScreens.js';
 
 export async function requestGiftTransfer(
@@ -23,6 +24,7 @@ export async function requestGiftTransfer(
   }
 
   const url = new URL('/api/gift/transfer', window.location.origin);
+  url.searchParams.set('serverId', resolveActiveServerId());
   if (!token && session?.id) {
     url.searchParams.set('playerId', session.id);
   }
@@ -32,7 +34,10 @@ export async function requestGiftTransfer(
     response = await fetch(url.toString(), {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        serverId: resolveActiveServerId(),
+      }),
     });
   } catch {
     return { ok: false, error: 'Servidor indisponível.' };

@@ -1,5 +1,5 @@
 import type { AuthUser } from '../../shared/authService.js';
-import { CHARACTER_SLOT_COUNT } from '../../shared/characterHub.js';
+import { CHARACTER_SLOT_COUNT, createEmptyCharacterHub } from '../../shared/characterHub.js';
 import type { AccountCharacter } from '../../shared/types/account.js';
 import type { AccountCharacterHub } from '../../shared/characterHub.js';
 import { createAuthService } from '../auth/createAuthService.js';
@@ -41,6 +41,8 @@ import {
   destroyCharacterAppearancePersistence,
   initCharacterAppearancePersistence,
 } from '../services/characterAppearancePersistence.js';
+import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
+import { syncLoginServerSelector } from '../auth/syncLoginServerSelector.js';
 import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
 import {
   hidePlayerInitLoading,
@@ -60,7 +62,7 @@ function bindAppShellListeners(onEnterWorld: () => void): void {
 
   document.getElementById('btn-enter-world')?.addEventListener('click', () => {
     if (AppScreens.selectedCharacterId === null) return;
-    onEnterWorld();
+    void AppScreens.enterWorldWithAuthoritativeSnapshot(onEnterWorld);
   });
 
   document.getElementById('btn-back-to-login')?.addEventListener('click', () => {
@@ -80,8 +82,13 @@ export const AppScreens = {
 
   async showCharSelect(): Promise<void> {
     showScreen('char-select-screen');
-    await this.loadCharacterHub();
+    this.clearCharacterHubError();
+    const hubResult = await this.loadCharacterHub();
     this.renderAccountLabel();
+    if (!hubResult.ok) {
+      this.renderCharacterHubError(hubResult.message ?? 'Erro ao conectar ao servidor de dados.');
+      return;
+    }
     this.renderCharacterSlots();
     this.syncCharacterSelectionUi();
   },
@@ -103,23 +110,57 @@ export const AppScreens = {
     await this.loadCharacterHub();
   },
 
-  async loadCharacterHub(): Promise<void> {
+  async loadCharacterHub(): Promise<{ ok: boolean; message?: string }> {
     const accountKey = this.currentSession?.id;
     if (!accountKey) {
       this.characterHub = null;
-      return;
+      return { ok: false, message: 'Sessão inválida. Faça login novamente.' };
     }
 
     if (shouldUseAuthoritativeCharacterHub()) {
       const result = await fetchAuthoritativeCharacterHub();
       if (result.ok) {
         this.characterHub = result.hub;
-        return;
+        return { ok: true };
       }
+
       console.warn('[CharHub] Falha ao carregar hub autoritativo:', result.message);
+      if (!allowsOfflineGameplayFallback()) {
+        this.characterHub = createEmptyCharacterHub(accountKey);
+        return {
+          ok: false,
+          message: result.message ?? 'Erro ao conectar ao servidor de dados.',
+        };
+      }
     }
 
     this.characterHub = ensureCharacterHub(accountKey);
+    return { ok: true };
+  },
+
+  clearCharacterHubError(): void {
+    const statusEl = document.getElementById('char-select-status');
+    if (!statusEl) return;
+    statusEl.textContent = '';
+    statusEl.classList.remove('is-error');
+  },
+
+  renderCharacterHubError(message: string): void {
+    let statusEl = document.getElementById('char-select-status');
+    if (!statusEl) {
+      statusEl = document.createElement('p');
+      statusEl.id = 'char-select-status';
+      statusEl.className = 'auth-status';
+      statusEl.setAttribute('aria-live', 'polite');
+      const container = document.getElementById('char-select-screen');
+      const slots = document.getElementById('char-slots');
+      if (container && slots) {
+        container.insertBefore(statusEl, slots);
+      }
+    }
+    statusEl.textContent = message;
+    statusEl.classList.add('is-error');
+    statusEl.classList.remove('is-success');
   },
 
   renderAccountLabel(): void {
@@ -311,24 +352,6 @@ export const AppScreens = {
     return true;
   },
 
-  async awaitAuthoritativePlayerReady(
-    onError?: (message: string) => void,
-  ): Promise<boolean> {
-    showPlayerInitLoading('Carregando perfil no servidor…');
-    activateGameStoreAfterAuth();
-
-    const snapshot = await initializeAuthoritativePlayerSnapshot();
-    hidePlayerInitLoading();
-
-    if (!snapshot.ok || !snapshot.ready) {
-      resetGameStoreState();
-      onError?.(snapshot.message ?? 'Não foi possível carregar o perfil do jogador.');
-      return false;
-    }
-
-    return true;
-  },
-
   async restoreSessionFromSupabase(): Promise<boolean> {
     const user = await getUser();
     if (!user?.email) return false;
@@ -338,7 +361,37 @@ export const AppScreens = {
       id: user.id ?? resolveAccountKey({ email: user.email }),
     });
 
-    return this.awaitAuthoritativePlayerReady();
+    return true;
+  },
+
+  async enterWorldWithAuthoritativeSnapshot(onEnterWorld: () => void): Promise<void> {
+    const character = this.getSelectedCharacter();
+    if (!character || !this.currentSession) return;
+
+    const enterBtn = document.getElementById('btn-enter-world');
+    if (enterBtn instanceof HTMLButtonElement) {
+      enterBtn.disabled = true;
+    }
+
+    this.clearCharacterHubError();
+    showPlayerInitLoading('Carregando perfil no servidor…');
+
+    try {
+      const snapshot = await initializeAuthoritativePlayerSnapshot(character.id);
+      if (!snapshot.ok || !snapshot.ready) {
+        this.renderCharacterHubError(
+          snapshot.message ?? 'Erro ao conectar ao servidor de dados.',
+        );
+        return;
+      }
+      onEnterWorld();
+    } catch (error) {
+      console.error('[CharSelect] Falha ao entrar no mundo:', error);
+      this.renderCharacterHubError('Erro inesperado ao carregar o perfil.');
+    } finally {
+      hidePlayerInitLoading();
+      this.syncCharacterSelectionUi();
+    }
   },
 
   showLoginEnvironmentHint(config: { supabase: boolean; serverOk: boolean; gameWsUrl?: boolean }): void {
@@ -371,7 +424,7 @@ export const AppScreens = {
   async init(
     onEnterWorld: () => void,
     authCallbacks?: {
-      onAuthenticated: (user: AuthUser) => void;
+      onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
       onAuthError?: (message: string) => void;
     },
   ): Promise<void> {
@@ -389,6 +442,7 @@ export const AppScreens = {
 
       const config = await fetchPublicClientConfig();
       setClientRuntimeConfig(config);
+      syncLoginServerSelector();
       supabaseConfigured = isSupabaseConfigured(config);
       const hasGameWsUrl = Boolean(config.gameWsUrl);
 

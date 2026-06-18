@@ -4,40 +4,28 @@ import type { AuthUser } from '../../shared/authService.js';
 
 import { resolveAccountKey } from '../services/localSessionStore.js';
 
-import { AppScreens } from '../browser/appScreens.js';
-
-import { resetGameStoreState } from '../state/GameStore.js';
+import { resetGameStoreState, activateGameStoreAfterAuth } from '../state/GameStore.js';
 
 import {
-
   clearOAuthRedirectPending,
-
   isOAuthRedirectPending,
-
 } from '../services/auth/oauthPending.js';
 
-import { initializeAuthoritativePlayerSnapshot } from './playerProfileClient.js';
 import {
-  hidePlayerInitLoading,
-  showPlayerInitLoading,
-} from './playerInitLoading.js';
+  applyLoginServerIdToRuntime,
+  clearPendingLoginServerId,
+  readPendingLoginServerId,
+  resolveLoginServerId,
+} from './resolveLoginServerId.js';
+import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
 
 import { getUser, subscribeAuthStateChange } from './supabaseAuth.js';
 
-
-
 export type AuthSessionBridgeOptions = {
-
-  onAuthenticated: (user: AuthUser) => void;
-
+  onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
   onAuthError?: (message: string) => void;
-
   onSnapshotInitializing?: (message: string) => void;
-
 };
-
-
-
 function mapSupabaseUser(user: User): AuthUser {
 
   const email = user.email ?? '';
@@ -86,32 +74,21 @@ async function completeGoogleOAuthSession(
 
 
 
-  await AppScreens.setAuthenticatedUser(authUser);
-  showPlayerInitLoading('Provisionando perfil no servidor…');
-  options.onSnapshotInitializing?.('Provisionando perfil no servidor…');
-
-  const snapshot = await initializeAuthoritativePlayerSnapshot();
-  hidePlayerInitLoading();
-
-  if (!snapshot.ok || !snapshot.ready) {
-
+  let serverId: string;
+  try {
+    serverId = readPendingLoginServerId() ?? resolveLoginServerId();
+  } catch {
     resetGameStoreState();
-
-    AppScreens.signOut();
-
-    options.onAuthError?.(
-
-      snapshot.message ?? 'Não foi possível inicializar o perfil no servidor.',
-
-    );
-
+    options.onAuthError?.(ARCHITECTURE_SERVER_ID_REQUIRED);
     return false;
-
   }
 
+  applyLoginServerIdToRuntime(serverId);
+  console.log(`Login iniciado para ServerID: ${serverId}`);
+  clearPendingLoginServerId();
+  activateGameStoreAfterAuth();
 
-
-  options.onAuthenticated(authUser);
+  options.onAuthenticated(authUser, serverId);
 
   return true;
 

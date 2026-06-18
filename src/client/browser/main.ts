@@ -41,6 +41,7 @@ import {
   createAuthoritativeWorldSocket,
   isAuthoritativeWorldSocket,
 } from '../world/authoritativeWorldSocket.js';
+import { applyWorldPeersPayload } from '../world/worldPeersStore.js';
 import { DEFAULT_MAP_ID } from '../../shared/world/mapRegistry.js';
 import { getZoneTransitionController } from '../world/zoneTransitionController.js';
 import { getGameRenderLoop, resetGameRenderLoop } from '../render/GameRenderLoop.js';
@@ -48,6 +49,7 @@ import { resetWorldMovementAuthority } from '../world/worldMovementAuthority.js'
 import { showScreen } from '../navigation.js';
 import { ExplorationScene } from '../scenes/Exploration.js';
 import { setupLoginScreen } from '../services/loginScreen.js';
+import { logAuthEnvironment } from '../auth/authDebug.js';
 import {
   hidePauseMenu,
   setWorldSessionActive,
@@ -55,7 +57,6 @@ import {
 } from '../components/pauseMenu.js';
 import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
 import { AppScreens } from './appScreens.js';
-import { getGameStore } from '../state/GameStore.js';
 import { createBrowserCombatSocket, connectionPhaseLabel, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
 import { mountWorldMapScene, SceneManager, resetWorldMapSceneMount } from './sceneManager.js';
 import { initGameRoot } from './GameRoot.js';
@@ -75,15 +76,9 @@ import {
 } from '../ui/index.js';
 import { handleInboundLogService, initLogServiceUi } from '../ui/logService.js';
 import {
-  bindBankTransactionSocket,
-  setBankTransactionCharacterId,
-  setBankTransactionPositionProvider,
-} from '../economy/bankTransactionClient.js';
-import {
   bindRefractionBoothSocket,
   setRefractionBoothCredentials,
 } from '../cityMinigames/refractionBoothClient.js';
-import { bindEconomyExchangeSocket } from '../economy/walletExchangeClient.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getMutableDataStore, initDataStore } from '../PlayerDataStore.js';
@@ -93,6 +88,7 @@ import {
   handleIntentSuccessPayload,
 } from '../intent/intentAckClient.js';
 import { pendingIntentToWire } from '../../shared/intent/clientIntent.js';
+import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
 import { PositionGateway } from '../world/PositionGateway.js';
 import { initGlobalChatController } from '../world/globalChatController.js';
 import { resetSpeechBubbleManager } from '../world/speech/SpeechBubbleManager.js';
@@ -110,7 +106,6 @@ import {
 import type { WorldChroniclesRequest } from '../../shared/world/worldLoreTypes.js';
 import type { WorldLoginResult } from '../../shared/world/playerWorldProfile.js';
 import type { AuthUser } from '../../shared/authService.js';
-import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
 import {
   hidePlayerInitLoading,
   showPlayerInitLoading,
@@ -123,6 +118,7 @@ import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
+import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
 export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
@@ -132,6 +128,7 @@ let worldSocket: WorldSocket | null = null;
 let world: ExplorationScene | null = null;
 let socket: BrowserCombatSocket | null = null;
 let positionGateway: PositionGateway | null = null;
+let teardownAccessTokenRefresh: (() => void) | null = null;
 let teardownGlobalChat: (() => void) | null = null;
 let worldStarted = false;
 let gameLoopStarted = false;
@@ -356,10 +353,6 @@ function handleWorldLoginResult(raw: unknown): void {
   }
 
   world?.applyServerWorldSpawn(raw);
-  const character = AppScreens.getSelectedCharacter();
-  if (character) {
-    setBankTransactionCharacterId(character.id);
-  }
   syncRefractionBoothCredentials();
   setWorldSessionReady(true);
   world?.setPaused(false);
@@ -390,16 +383,14 @@ function connectSocket(): void {
     },
   });
   positionGateway?.bindSocket(socket);
-  bindEconomyExchangeSocket(socket);
-  bindBankTransactionSocket(socket);
   bindRefractionBoothSocket(socket);
 
   synchronizer.bindSocket(socket);
   synchronizer.setRequestTransport(() => {
     const selected = AppScreens.getSelectedCharacter();
-    const characterId = selected?.id ?? 1;
-    synchronizer.setCharacterId(characterId);
-    socket?.send('request-full-state', { characterId });
+    if (!selected) return;
+    synchronizer.setCharacterId(selected.id);
+    socket?.send('request-full-state', { characterId: selected.id });
   });
 
   socket.onPhaseChange((phase) => {
@@ -411,7 +402,7 @@ function connectSocket(): void {
   });
   const dispatcher = getActionDispatcher();
   dispatcher.setIntentTransport((intent) => {
-    socket?.send('player-intent', pendingIntentToWire(intent));
+    socket?.send('player-intent', pendingIntentToWire(intent, resolveActiveServerId()));
   });
 
   configureCombatClient({
@@ -529,6 +520,10 @@ function connectSocket(): void {
     synchronizer.applyLegacyFullState(raw);
   });
 
+  socket.on('world-peers', (raw) => {
+    applyWorldPeersPayload(raw);
+  });
+
   socket.onOpen(() => {
     attachOnlineEconomyLayer();
     setExplorationOnlineMode(true);
@@ -620,10 +615,6 @@ function enterWorld(): void {
   world = new ExplorationScene(mapManager, worldSocket);
   const activeWorld = world;
   activeWorld.resize();
-  setBankTransactionPositionProvider(() => {
-    const snap = activeWorld.captureExplorationSnapshot();
-    return { x: snap.x, y: snap.y };
-  });
   if (selected) {
     activeWorld.setPlayerDisplayName(selected.name);
     activeWorld.setPlayerLevel(selected.level);
@@ -631,7 +622,6 @@ function enterWorld(): void {
       AppScreens.currentSession?.id ?? 'local-player',
       selected.id,
     );
-    setBankTransactionCharacterId(selected.id);
   } else {
     activeWorld.setWorldIdentity('local-player', 1);
   }
@@ -667,6 +657,13 @@ function enterWorld(): void {
     },
     captureSnapshot: () => activeWorld.captureExplorationSnapshot(),
     isExploration: () => getGameStateManager().isExploration(),
+  });
+
+  teardownAccessTokenRefresh?.();
+  teardownAccessTokenRefresh = subscribeAuthStateChange((event) => {
+    if (event !== 'TOKEN_REFRESHED') return;
+    if (!isWorldSessionReady()) return;
+    void positionGateway?.refreshServerAccessToken();
   });
 
   teardownGameState?.();
@@ -778,36 +775,31 @@ function enterWorld(): void {
   }
 }
 
-async function onLoginSuccess(user: AuthUser): Promise<void> {
-  if (!AppScreens.currentSession) {
-    await AppScreens.setAuthenticatedUser(user);
-  }
-
-  if (!getGameStore().isHydrated()) {
+async function onLoginSuccess(user: AuthUser, serverId?: string): Promise<void> {
+  try {
+    showPlayerInitLoading('Carregando conta no servidor…');
+    if (serverId) {
+      console.log(`[Auth] Init pós-login no shard: ${serverId}`);
+    }
+    if (!AppScreens.currentSession) {
+      await AppScreens.setAuthenticatedUser(user);
+    }
+    await AppScreens.showCharSelect();
+  } catch (error) {
+    console.error('[Auth] Falha após login:', error);
+    const message = error instanceof Error
+      ? error.message
+      : 'Erro ao conectar ao servidor de dados.';
+    AppScreens.showLogin();
     const statusEl = document.getElementById('auth-status');
     if (statusEl) {
-      statusEl.textContent = 'Inicializando perfil no servidor…';
-      statusEl.classList.remove('is-error');
-      statusEl.classList.add('is-success');
+      statusEl.textContent = message;
+      statusEl.classList.add('is-error');
+      statusEl.classList.remove('is-success');
     }
-
-    showPlayerInitLoading('Carregando perfil no servidor…');
-    const snapshot = await initializeAuthoritativePlayerSnapshot();
+  } finally {
     hidePlayerInitLoading();
-
-    if (!snapshot.ok || !snapshot.ready) {
-      AppScreens.signOut();
-      if (statusEl) {
-        statusEl.textContent = snapshot.message ?? 'Falha ao inicializar perfil no servidor.';
-        statusEl.classList.add('is-error');
-        statusEl.classList.remove('is-success');
-      }
-      AppScreens.showLogin();
-      return;
-    }
   }
-
-  await AppScreens.showCharSelect();
 }
 
 function clearGameState(): void {
@@ -818,6 +810,8 @@ function clearGameState(): void {
   resetSpeechBubbleManager();
 
   setExplorationOnlineMode(false);
+  teardownAccessTokenRefresh?.();
+  teardownAccessTokenRefresh = null;
   positionGateway?.stopHeartbeat();
   positionGateway?.destroy();
   positionGateway = null;
@@ -830,7 +824,6 @@ function clearGameState(): void {
   }
 
   resetWorldSessionGate();
-  setBankTransactionPositionProvider(null);
 
   if (socket) {
     socket.removeAllListeners();
@@ -928,11 +921,18 @@ function showBootstrapFatalError(message: string): void {
 }
 
 function setupLogin(): void {
-  assertAuthReadyForLogin();
-  if (loginUiBound) return;
+  if (loginUiBound) {
+    console.log('[Bootstrap] Login HUD já ligada — ignorando setupLogin duplicado.');
+    return;
+  }
+
+  try {
+    assertAuthReadyForLogin();
+  } catch (error) {
+    console.warn('[Bootstrap] Supabase ainda não pronto — ligando HUD mesmo assim:', error);
+  }
 
   setupLoginScreen({
-    authService: AppScreens.authService,
     onAuthenticated: onLoginSuccess,
   });
   loginUiBound = true;
@@ -949,6 +949,13 @@ async function bootstrap(): Promise<void> {
   try {
     showScreen('login-screen');
 
+    // Liga botões antes do init pesado — evita UI morta se bootstrap travar ou overlay persistir.
+    try {
+      setupLogin();
+    } catch (bindError) {
+      console.error('[Bootstrap] Falha ao ligar login HUD cedo:', bindError);
+    }
+
     await AppScreens.init(enterWorld, {
       onAuthenticated: onLoginSuccess,
       onAuthError: (message) => {
@@ -961,6 +968,8 @@ async function bootstrap(): Promise<void> {
       },
     });
 
+    logAuthEnvironment('bootstrap-post-init');
+
     assertAuthReadyForLogin();
 
     registerCombatDevTransportResolver(() => {
@@ -971,15 +980,13 @@ async function bootstrap(): Promise<void> {
     initBattleHud(document);
     setupPauseControls();
 
-    hidePlayerInitLoading();
-    setupLogin();
-
     console.log('[MVP] Cliente V2 pronto', CLIENT_RUNTIME_VERSION);
   } catch (error) {
     console.error('[MVP] Bootstrap falhou:', error);
-    hidePlayerInitLoading();
     showBootstrapFatalError(resolveBootstrapFatalMessage(error));
   } finally {
+    hidePlayerInitLoading();
+    logAuthEnvironment('bootstrap-finally', { loginUiBound });
     bootstrapInFlight = false;
   }
 }

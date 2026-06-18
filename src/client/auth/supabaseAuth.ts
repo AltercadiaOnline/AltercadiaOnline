@@ -1,11 +1,17 @@
 import type { AuthChangeEvent, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
+import { logAuthEnvironment } from './authDebug.js';
 
 let supabase: SupabaseClient | null = null;
 
 /** Inicializa o client — URL e anon key vêm de `.env.governance` via servidor (`GET /config/client`). */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
+  logAuthEnvironment('initSupabaseAuth-start', {
+    supabaseUrl: config.supabaseUrl ?? null,
+    gameWsUrl: config.gameWsUrl ?? null,
+  });
+
   if (!isSupabaseConfigured(config)) {
     console.warn('[Auth] Supabase não configurado — defina SUPABASE_URL e SUPABASE_ANON_KEY.');
     return false;
@@ -18,15 +24,24 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
       flowType: 'pkce',
     },
   });
+  logAuthEnvironment('initSupabaseAuth-ready');
   return true;
 }
 
 export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
+  console.log('[AuthDebug:api] Tentando conectar… GET /config/client');
   const response = await fetch('/config/client');
   if (!response.ok) {
+    console.error('[AuthDebug:api] Erro GET /config/client', { status: response.status });
     throw new Error(`Falha ao carregar /config/client (${response.status})`);
   }
-  return response.json() as Promise<PublicClientConfig>;
+  const config = await response.json() as PublicClientConfig;
+  console.log('[AuthDebug:api] Sucesso GET /config/client', {
+    supabaseUrl: config.supabaseUrl ?? null,
+    gameWsUrl: config.gameWsUrl ?? null,
+    serverId: config.serverId ?? null,
+  });
+  return config;
 }
 
 export async function signInWithGoogleOAuth(): Promise<{ ok: boolean; message?: string }> {

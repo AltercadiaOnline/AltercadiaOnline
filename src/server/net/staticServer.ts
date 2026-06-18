@@ -10,6 +10,7 @@ import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { handleGiftTransferRoute } from './giftTransferRoute.js';
 import { handlePlayerSnapshotRoute } from './playerSnapshotRoute.js';
 import { handleCharacterHubRoute } from './characterHubRoute.js';
+import { tryGetServerInstanceContext } from '../instance/ServerInstanceContext.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -141,8 +142,19 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
       let pathname = decodeURIComponent(url.pathname);
 
       if (pathname === '/health') {
+        const instance = tryGetServerInstanceContext();
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ ok: true, service: 'altercadia-v2' }));
+        res.end(JSON.stringify({
+          ok: true,
+          service: 'altercadia-v2',
+          ...(instance
+            ? {
+                serverId: instance.id,
+                serverName: instance.displayName,
+                maps: instance.mapIds,
+              }
+            : {}),
+        }));
         return;
       }
 

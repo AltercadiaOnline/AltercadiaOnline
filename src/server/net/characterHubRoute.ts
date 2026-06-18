@@ -1,5 +1,5 @@
 import type http from 'node:http';
-import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
+import { SecurityGuard } from '../middleware/securityGuard.js';
 import type { ServerEnv } from '../config/env.js';
 import type { ClassType } from '../../shared/types/classes.js';
 import type { CreateCharacterRequest } from '../../shared/auth/characterHubProtocol.js';
@@ -8,11 +8,8 @@ import {
   createAuthoritativeCharacterInSlot,
 } from './characterHubService.js';
 
-function readBearerToken(req: http.IncomingMessage): string | null {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return null;
-  const token = header.slice(7).trim();
-  return token.length > 0 ? token : null;
+function readDevBypassPlayerId(url: URL): string | null {
+  return url.searchParams.get('playerId')?.trim() || null;
 }
 
 async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
@@ -24,25 +21,6 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   const raw = Buffer.concat(chunks).toString('utf8').trim();
   if (!raw) return {};
   return JSON.parse(raw) as unknown;
-}
-
-async function resolvePlayerId(
-  req: http.IncomingMessage,
-  url: URL,
-  env: ServerEnv,
-): Promise<string | null> {
-  const token = readBearerToken(req);
-  if (token) {
-    const verified = await getSessionAuthGateway().verifyAccessToken(token);
-    return verified?.userId ?? null;
-  }
-
-  if (env.devAuthBypass) {
-    const fallback = url.searchParams.get('playerId')?.trim();
-    if (fallback) return fallback;
-  }
-
-  return null;
 }
 
 function isCreateCharacterRequest(value: unknown): value is CreateCharacterRequest {
@@ -65,12 +43,15 @@ export async function handleCharacterHubRoute(
     return false;
   }
 
-  const playerId = await resolvePlayerId(req, url, env);
-  if (!playerId) {
-    res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: false, message: 'Autenticação necessária.' }));
+  const auth = await SecurityGuard.enforceHttp(env, req, res, {
+    devBypassPlayerId: env.devAuthBypass ? readDevBypassPlayerId(url) : null,
+    clientServerId: url.searchParams.get('serverId')?.trim().toLowerCase() || null,
+  });
+  if (!auth) {
     return true;
   }
+
+  const playerId = auth.userId;
 
   try {
     if (req.method === 'GET') {

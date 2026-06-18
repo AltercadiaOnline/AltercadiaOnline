@@ -1,21 +1,14 @@
 import type { WalletUpdatedPayload, BalanceChangedPayload } from '../../../shared/economy/events.js';
-
 import {
-
   ALTER_TO_VOLTS_EXCHANGE_RATE,
-
   calculateVoltsFromAlterCoins,
-
   formatAlterCoins,
-
   formatVolts,
-
   isValidAlterExchangeAmount,
-
 } from '../../../shared/economy/premiumCurrency.js';
-
 import { eventBus, HudEvent } from '../../../shared/utils/EventBus.js';
-
+import { getActionDispatcher } from '../../ActionDispatcher.js';
+import { allowsOfflineGameplayFallback } from '../../runtime/onlineFirstPolicy.js';
 import { alertSystem } from '../alertSystem.js';
 
 
@@ -152,16 +145,16 @@ class PlayerWalletStore {
 
 
 
-  /** Troca local (exploração offline) — espelha regras do economyGateway. */
-
+  /** Troca local (exploração offline) — bloqueada em modo online. */
   exchangeAlterForVolts(alterAmount: number): boolean {
+    if (!this.canMutateLocally('exchangeAlterForVolts')) {
+      alertSystem('Conecte-se ao servidor para trocar Alter Coins.');
+      return false;
+    }
 
     if (!isValidAlterExchangeAmount(alterAmount)) {
-
       alertSystem('Informe uma quantidade inteira de Alter Coins.');
-
       return false;
-
     }
 
     if (this.alterCoins < alterAmount) {
@@ -206,9 +199,9 @@ class PlayerWalletStore {
 
 
 
-  /** Credita VOLTS — retorna false se valor inválido. */
-
+  /** Credita VOLTS — retorna false se valor inválido ou modo online. */
   creditVolts(amount: number): boolean {
+    if (!this.canMutateLocally('creditVolts')) return false;
 
     if (!Number.isFinite(amount) || amount <= 0) return false;
 
@@ -226,9 +219,9 @@ class PlayerWalletStore {
 
 
 
-  /** Debita VOLTS — retorna false se saldo insuficiente. */
-
+  /** Debita VOLTS — retorna false se saldo insuficiente ou modo online. */
   spendVolts(amount: number): boolean {
+    if (!this.canMutateLocally('spendVolts')) return false;
 
     if (!Number.isFinite(amount) || amount <= 0) return false;
 
@@ -247,6 +240,15 @@ class PlayerWalletStore {
   }
 
 
+
+  private canMutateLocally(caller: string): boolean {
+    const mode = getActionDispatcher().getMode();
+    if (mode === 'online' || !allowsOfflineGameplayFallback()) {
+      console.warn(`[Wallet] ${caller} bloqueado — servidor é a fonte de verdade.`);
+      return false;
+    }
+    return true;
+  }
 
   private buildBalancePayload(
 

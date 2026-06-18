@@ -2,40 +2,24 @@ import { randomUUID } from 'node:crypto';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import {
-  activateBook,
   collectBattleLoot,
   consumeChargedEquipmentBattleParticipation,
   debitBattleSurrenderPenalty,
-  depositBankCurrency,
-  depositBankItem,
   dismissBattleLoot,
-  exchangeAlterCoinsForVolts,
   stageBattleLoot,
-  withdrawBankCurrency,
-  withdrawBankItem,
 } from '../../Economy/economyGateway.js';
-import { globalEventBus } from '../../Economy/EventBus.js';
 import { seedAuthoritativePlayerEconomyIfEmpty } from '../economy/seedAuthoritativePlayerEconomy.js';
 import { isOriginAllowed } from '../config/cors.js';
+import type { ActionRequest } from '../../shared/events.js';
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
-import { buildCombatUiHints, withTurnTimerConfig } from '../../shared/combatWire.js';
 import type { BattleEndReason } from '../../shared/combat/battleEnded.js';
 import { BattleType } from '../../shared/combat/battleType.js';
-import { BATTLE_TURN_TIMER_SEC } from '../../shared/combat/battleScreenConstants.js';
 import { BATTLE_SESSION_LEASE_SWEEP_MS } from '../../shared/combat/battleSessionLeaseConstants.js';
 import { combatReactionStaggerDelay } from '../../shared/combat/combatReactionDelay.js';
 import {
   shouldStaggerMonsterReaction,
   splitDispatchForMonsterStagger,
 } from '../../shared/combat/combatDispatchStagger.js';
-import { estimateCombatPlaybackMs } from '../../shared/combat/combatPlaybackBudget.js';
-import {
-  matchesCombatChoiceWindow,
-  resolveCombatChoiceWindowKey,
-  type CombatChoiceWindowKey,
-} from '../../shared/combat/playerTurnChoice.js';
-import type { EconomyEvent } from '../../shared/economy/events.js';
-import { EconomyEventType } from '../../shared/economy/events.js';
 import {
   didPlayerWinBattle,
   resolveBattleCreatureId,
@@ -56,6 +40,10 @@ import { resolveAuthoritativeCombatLoadout } from '../persistence/authoritativeC
 import { MovementIntentHandler } from '../handlers/world/MovementIntentHandler.js';
 import { getTimeManager } from '../TimeManager.js';
 import { sendIntentFailure } from '../network/intentOrchestrator.js';
+import {
+  buildIntentValidationContext,
+  logRejectedPlayerIntent,
+} from '../network/intentValidationLogger.js';
 import type { ClientIntent } from '../../shared/intent/clientIntent.js';
 import {
   acceptClientIntent,
@@ -86,15 +74,20 @@ import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { ChatGlobalPayload } from '../../shared/world/globalChatTypes.js';
 import { normalizeSpeechBubbleText } from '../../shared/world/speechBubbleText.js';
 import { validateGlobalChatOnServer } from '../chat/globalChatModeratorServer.js';
-import { getRefractionBoothService } from '../city/RefractionBoothService.js';
-import { validateBankNpcAccess } from '../../shared/bank/bankAccessPolicy.js';
-import { validateBankCurrencyRequest } from '../../shared/bank/bankCurrencyRules.js';
 import { WORLD_TICK_MS } from '../../shared/sync/syncProtocol.js';
 import type { StateSyncBody } from '../../shared/sync/syncProtocol.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
-import { buildWorldCreaturesForMap } from '../../shared/world/worldCreatureSync.js';
+import { buildServerScopedWorldCreaturesForMap, normalizeProfileForServerInstance } from '../instance/serverWorldScope.js';
+import { assertPlayerBoundToServerInstance } from '../instance/playerInstanceBinding.js';
+import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
+import { requireServerId } from '../../shared/supabase/characterServerScope.js';
+import type { ServerEnv } from '../config/env.js';
 import { ServerSyncAuthority } from '../sync/ServerSyncAuthority.js';
 import { WorldTickScheduler } from '../world/WorldTickScheduler.js';
+import { GameLoop } from '../world/GameLoop.js';
+import { getWorldGameState } from '../world/WorldGameState.js';
+import { WorldBroadcastHub } from '../world/WorldBroadcastHub.js';
+import { WorldPersistenceScheduler } from '../world/WorldPersistenceScheduler.js';
 import {
   buildAuthoritativeSnapshotForCharacter,
   hydrateCharacterSession,
@@ -104,60 +97,47 @@ import {
 } from '../persistence/PersistenceGateway.js';
 import { patchAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
+import { SecurityGuard } from '../middleware/securityGuard.js';
 import { ensureServerPlayerBootstrap } from '../supabase/bootstrapPlayerOnServer.js';
+import {
+  persistAuthoritativeLoginSnapshot,
+  resolveLoginSnapshotScope,
+} from '../supabase/persistAuthoritativeLoginSnapshot.js';
+import { CombatTurnController } from './ws/combatTurnController.js';
+import { EconomyEventForwarder } from './ws/economyEventForwarder.js';
+import { routeWsInboundMessage } from './ws/registerWsInboundRoutes.js';
+import type { CombatWsRouteHost } from './ws/wsInboundRouter.js';
+import {
+  type LiveSocket,
+  type WorldConnectionState,
+  WORLD_AUTH_REQUIRED_MESSAGES,
+  WS_JWT_REVALIDATED_WRITE_MESSAGES,
+} from './ws/wsConnectionTypes.js';
+import {
+  revalidateWorldWriteAccess,
+  shouldRevalidateWorldWriteJwt,
+} from './ws/wsWriteAuthGate.js';
 
-type LiveSocket = WebSocket & { readonly sessionId?: string };
-
-type WorldConnectionState = {
-  readonly playerId: string;
-  readonly characterId: number;
-  readonly displayName: string;
-  readonly authUserId: string;
-  /** JWT Supabase — revalidado antes de cada player-intent (memória, nunca logado). */
-  readonly accessToken: string | null;
-};
-
-const WORLD_AUTH_REQUIRED_MESSAGES = new Set<string>([
-  'request-full-state',
-  'player-intent',
-  'position-sync',
-  'portal-transition-request',
-  'chat-global-send',
-  'activate-book',
-  'economy-exchange-alter',
-  'economy-bank-transaction',
-  'refraction-booth-quote',
-  'refraction-booth-start',
-  'refraction-booth-complete',
-  'world-chronicles-request',
-  'combat-join',
-  'combat-action',
-  'combat-forfeit',
-  'combat-collect-loot',
-  'combat-confirm-loot',
-  'combat-dismiss-loot',
-  'player-honor-given',
-]);
+export type { LiveSocket, WorldConnectionState } from './ws/wsConnectionTypes.js';
 
 export type CombatWsHubOptions = {
   readonly corsOrigins: readonly string[];
+  readonly serverEnv: ServerEnv;
 };
 
-export class CombatWsHub {
+export class CombatWsHub implements CombatWsRouteHost {
   private readonly wss: WebSocketServer;
   private readonly sessions = new Map<string, CombatSession>();
   private readonly socketsByPlayerId = new Map<string, WebSocket>();
   private readonly socketsByConnectionId = new Map<string, WebSocket>();
-  private readonly turnTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private readonly choiceWindows = new Map<string, CombatChoiceWindowKey & {
-    readonly deadlineMs: number;
-    readonly playbackGraceMs: number;
-  }>();
+  private readonly combatTurnController: CombatTurnController;
+  private readonly economyEventForwarder = new EconomyEventForwarder();
   private readonly stagedLootBattleIds = new Set<string>();
   private readonly pendingCollectLootByConnection = new Map<string, { readonly battleId: string; readonly lootId: string }>();
   private readonly persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly corsOrigins: readonly string[];
-  private readonly worldConnections = new Map<string, WorldConnectionState>();
+  private readonly serverEnv: ServerEnv;
+  readonly worldConnections = new Map<string, WorldConnectionState>();
   private readonly positionGateway: PositionGateway;
   private readonly movementIntentHandler = new MovementIntentHandler();
   private readonly portalTransitionGateway = new PortalTransitionGateway();
@@ -167,11 +147,27 @@ export class CombatWsHub {
   private readonly worldTickScheduler = new WorldTickScheduler(WORLD_TICK_MS, () => {
     this.onWorldTick();
   });
+  private readonly gameState = getWorldGameState();
+  private readonly gameLoop = new GameLoop();
+  private readonly broadcastHub = new WorldBroadcastHub((connectionId, payload) => {
+    const ws = this.socketsByConnectionId.get(connectionId);
+    if (!ws) return;
+    this.send(ws, { type: 'world-peers', payload });
+  });
+  private readonly persistenceScheduler: WorldPersistenceScheduler;
   private lastBattleLeaseSweepMs = 0;
 
   constructor(server: import('node:http').Server, options: CombatWsHubOptions) {
+    this.combatTurnController = new CombatTurnController({
+      getSocket: (connectionId) => this.socketsByConnectionId.get(connectionId),
+      onTurnTimeout: async (connectionId, session, ws, payload) => {
+        await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, payload);
+      },
+    });
     this.positionGateway = new PositionGateway(this);
     this.corsOrigins = options.corsOrigins;
+    this.serverEnv = options.serverEnv;
+    this.persistenceScheduler = new WorldPersistenceScheduler(this.serverEnv, this.gameState);
     this.wss = new WebSocketServer({
       server,
       path: '/ws',
@@ -187,9 +183,19 @@ export class CombatWsHub {
       },
     });
     this.wss.on('connection', (ws) => this.onConnection(ws as LiveSocket));
-    this.bindEconomyEventForwarding();
+    this.economyEventForwarder.bind({
+      getSocketByPlayerId: (playerId) => this.socketsByPlayerId.get(playerId),
+      syncAuthority: this.syncAuthority,
+      sendStateSync: (socket, envelope, body) => this.sendStateSync(socket as LiveSocket, envelope, body),
+      send: (socket, message) => this.send(socket, message),
+      worldConnections: this.worldConnections,
+      scheduleCharacterPersist: (playerId, characterId) => {
+        this.scheduleCharacterPersist(playerId, characterId);
+      },
+    });
     this.worldTickScheduler.start();
-    console.log('[WS] CombatWsHub ativo — path=/ws');
+    this.persistenceScheduler.start();
+    console.log('[WS] CombatWsHub ativo — path=/ws (tick 20Hz)');
   }
 
   getPlayer(playerId: string, characterId: number): Player | null {
@@ -198,13 +204,13 @@ export class CombatWsHub {
 
   public close(): Promise<void> {
     this.worldTickScheduler.stop();
+    this.persistenceScheduler.stop();
+    void this.persistenceScheduler.flushAllActive('shutdown');
+    this.economyEventForwarder.unbind();
     for (const client of this.wss.clients) {
       client.close(1001, 'server_shutdown');
     }
-    for (const timer of this.turnTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.turnTimers.clear();
+    this.combatTurnController.clearAll();
     return new Promise((resolve, reject) => {
       this.wss.close((error) => (error ? reject(error) : resolve()));
     });
@@ -221,7 +227,7 @@ export class CombatWsHub {
     });
 
     ws.on('close', () => {
-      this.clearTurnTimer(connectionId);
+      this.combatTurnController.clearTurnTimer(connectionId);
       this.socketsByConnectionId.delete(connectionId);
       const session = this.sessions.get(connectionId);
       if (session) {
@@ -234,7 +240,15 @@ export class CombatWsHub {
       if (worldState) {
         setPlayerLoggingOut(worldState.playerId, worldState.characterId, true);
         this.worldLoreLog.onPlayerDisconnect(worldState.playerId, worldState.characterId);
-        if (isDurablePersistence()) {
+        const removed = this.gameState.unregisterConnection(connectionId);
+        this.broadcastHub.clearConnection(connectionId);
+        if (removed) {
+          void this.persistenceScheduler.flushPlayer(
+            removed.playerId,
+            removed.characterId,
+            'disconnect',
+          );
+        } else if (isDurablePersistence()) {
           void persistCharacterSession(worldState.playerId, worldState.characterId);
           void persistPendingLootSnapshot();
         }
@@ -275,339 +289,123 @@ export class CombatWsHub {
       return;
     }
 
-    if (message.type === 'combat-join') {
-      const world = this.worldConnections.get(connectionId);
-      this.handleJoin(
-        ws,
-        connectionId,
-        message.payload,
-        world?.characterId ?? 1,
-        world?.playerId,
-      );
-      return;
-    }
-
-    if (message.type === 'world-login') {
-      await this.handleWorldLogin(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'request-full-state') {
-      this.handleRequestFullState(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'player-intent') {
-      await this.handlePlayerIntent(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'world-chronicles-request') {
-      this.handleWorldChroniclesRequest(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'position-sync') {
-      this.handlePositionSync(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'portal-transition-request') {
-      this.handlePortalTransitionRequest(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'chat-global-send') {
-      this.handleChatGlobalSend(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'activate-book') {
-      await this.handleActivateBook(ws, connectionId, message.payload.bookId);
-      return;
-    }
-
-    if (message.type === 'economy-exchange-alter') {
-      await this.handleExchangeAlter(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'economy-bank-transaction') {
-      await this.handleBankTransaction(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'refraction-booth-quote') {
-      this.handleRefractionBoothQuote(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'refraction-booth-start') {
-      await this.handleRefractionBoothStart(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'refraction-booth-complete') {
-      await this.handleRefractionBoothComplete(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'player-honor-given') {
-      this.handlePlayerHonorGiven(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'combat-forfeit') {
-      const session = this.sessions.get(connectionId);
-      if (!session) {
-        this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
-        return;
-      }
-      const state = session.getState();
-      if (message.payload.battleId !== state.battleId) {
-        this.send(ws, { type: 'combat-error', payload: { reason: 'INVALID_BATTLE' } });
-        return;
-      }
-      this.clearTurnTimer(connectionId);
-      const result = await session.forfeitPlayer();
-      if (!result.ok) {
-        this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
-        return;
-      }
-      const penalty = await debitBattleSurrenderPenalty(
-        session.getPlayerActorId(),
-        session.getCharacterId(),
-      );
-      const surrenderVoltPenalty = penalty.ok ? penalty.debited : 0;
-      await this.deliverCombatPayload(
-        ws,
-        connectionId,
-        session,
-        result.payload,
-        'FORFEIT',
-        surrenderVoltPenalty,
-      );
-      return;
-    }
-
-    if (message.type === 'combat-collect-loot' || message.type === 'combat-confirm-loot') {
-      await this.handleCollectLoot(ws, connectionId, message.payload);
-      return;
-    }
-
-    if (message.type === 'combat-dismiss-loot') {
-      dismissBattleLoot(message.payload.lootId);
-      void persistPendingLootSnapshot();
-      return;
-    }
-
-    if (message.type === 'dev-spawn-mirror-player') {
-      const session = this.sessions.get(connectionId);
-      if (!session) {
-        this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
-        return;
-      }
-      const result = session.injectMirrorPlayer();
-      if (!result.ok) {
-        this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
-        return;
-      }
-      await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
-      return;
-    }
-
-    if (message.type === 'mirror-combat-action') {
-      const session = this.sessions.get(connectionId);
-      if (!session) {
-        this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
-        return;
-      }
-      const result = await session.dispatchMirrorAction(message.payload);
-      if (!result.ok) {
-        this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
-        return;
-      }
-      await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
-      return;
-    }
-
-    if (message.type === 'combat-action') {
-      const session = this.sessions.get(connectionId);
-      if (!session) {
-        this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
-        return;
-      }
-      const gate = this.validateTurnChoiceWindow(connectionId, session, message.payload);
-      if (!gate.ok) {
-        this.send(ws, { type: 'combat-error', payload: { reason: gate.reason } });
-        return;
-      }
-      this.clearTurnTimer(connectionId);
-      const result = await session.dispatchPlayerAction(message.payload);
-      if (!result.ok) {
-        const window = this.choiceWindows.get(connectionId);
-        if (window && Date.now() < window.deadlineMs) {
-          this.scheduleTurnTimer(connectionId, session, window.deadlineMs - Date.now());
-        }
-        this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
-        return;
-      }
-      this.choiceWindows.delete(connectionId);
-      await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
-    }
-  }
-
-  private bindEconomyEventForwarding(): void {
-    const forward = (event: EconomyEvent) => {
-      const playerId = 'playerId' in event.payload ? event.payload.playerId : null;
-      if (!playerId) return;
-      const ws = this.socketsByPlayerId.get(playerId);
-      if (ws) {
-        this.sendStateSync(ws, this.syncAuthority.nextEnvelope('delta'), { mode: 'economy', event });
-        this.send(ws, { type: 'economy-event', payload: event });
-      }
-      this.schedulePersistFromEconomyEvent(playerId, event);
-    };
-
-    globalEventBus.on(EconomyEventType.LootGranted, forward);
-    globalEventBus.on(EconomyEventType.WalletUpdated, forward);
-    globalEventBus.on(EconomyEventType.AlterExchangeCompleted, forward);
-    globalEventBus.on(EconomyEventType.InventoryUpdated, forward);
-    globalEventBus.on(EconomyEventType.UpdateBankSuccess, forward);
-    globalEventBus.on(EconomyEventType.WorldVitalsUpdated, forward);
-    globalEventBus.on(EconomyEventType.PetAffinityUpdated, forward);
-    globalEventBus.on(EconomyEventType.PetRosterUpdated, forward);
-    globalEventBus.on(EconomyEventType.TransactionFailed, forward);
-  }
-
-  private enrichPayloadWithTurnTimer(
-    connectionId: string,
-    session: CombatSession,
-    payload: CombatDispatchPayload,
-  ): CombatDispatchPayload {
-    const playerActorId = session.getPlayerActorId();
-    const hints = buildCombatUiHints(payload.state, playerActorId);
-    if (!hints.actionsEnabled) {
-      this.clearTurnTimer(connectionId);
-      this.choiceWindows.delete(connectionId);
-      return { ...payload, ui: hints };
-    }
-
-    const windowKey = resolveCombatChoiceWindowKey(payload.state, playerActorId);
-    if (!windowKey) {
-      this.clearTurnTimer(connectionId);
-      this.choiceWindows.delete(connectionId);
-      return { ...payload, ui: hints };
-    }
-
-    const existingWindow = this.choiceWindows.get(connectionId);
     if (
-      existingWindow
-      && existingWindow.turn === windowKey.turn
-      && existingWindow.allianceSlot === windowKey.allianceSlot
-      && Date.now() < existingWindow.deadlineMs
+      getSessionAuthGateway().isAuthRequired()
+      && WS_JWT_REVALIDATED_WRITE_MESSAGES.has(message.type)
+      && shouldRevalidateWorldWriteJwt(message.type)
     ) {
-      return {
-        ...payload,
-        ui: withTurnTimerConfig(hints, {
-          turnDeadlineMs: existingWindow.deadlineMs,
-          turnPlaybackGraceMs: existingWindow.playbackGraceMs,
-          turnChoiceBudgetMs: BATTLE_TURN_TIMER_SEC * 1000,
-        }),
-      };
+      const world = this.worldConnections.get(connectionId);
+      if (world && !(await this.ensureWorldWriteAuthorized(ws, connectionId, world, message.type))) {
+        return;
+      }
     }
 
-    const playbackGraceMs = estimateCombatPlaybackMs(payload.events, playerActorId);
-    const choiceBudgetMs = BATTLE_TURN_TIMER_SEC * 1000;
-    const turnDeadlineMs = Date.now() + playbackGraceMs + choiceBudgetMs;
-
-    this.choiceWindows.set(connectionId, {
-      ...windowKey,
-      deadlineMs: turnDeadlineMs,
-      playbackGraceMs,
-    });
-    this.scheduleTurnTimer(connectionId, session, playbackGraceMs + choiceBudgetMs);
-
-    return {
-      ...payload,
-      ui: withTurnTimerConfig(hints, {
-        turnDeadlineMs,
-        turnPlaybackGraceMs: playbackGraceMs,
-        turnChoiceBudgetMs: choiceBudgetMs,
-      }),
-    };
+    const handled = await routeWsInboundMessage(this, ws, connectionId, message);
+    if (!handled) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'INVALID_MESSAGE' } });
+    }
   }
 
-  private validateTurnChoiceWindow(
+  getCombatSession(connectionId: string): CombatSession | undefined {
+    return this.sessions.get(connectionId);
+  }
+
+  routeCombatDismissLoot(payload: { readonly lootId: string }): void {
+    dismissBattleLoot(payload.lootId);
+    void persistPendingLootSnapshot();
+  }
+
+  async routeCombatForfeit(
+    ws: LiveSocket,
     connectionId: string,
-    session: CombatSession,
-    action: import('../../shared/events.js').ActionRequest,
-  ): { readonly ok: true } | { readonly ok: false; readonly reason: string } {
-    const window = this.choiceWindows.get(connectionId);
-    if (!window) {
-      return { ok: false, reason: 'TURN_CHOICE_NOT_OPEN' };
-    }
-    if (Date.now() > window.deadlineMs) {
-      return { ok: false, reason: 'TURN_CHOICE_EXPIRED' };
-    }
-    if (action.actorId !== session.getPlayerActorId()) {
-      return { ok: false, reason: 'NOT_YOUR_ACTOR' };
-    }
-    if (!matchesCombatChoiceWindow(action.turn, window)) {
-      return { ok: false, reason: 'STALE_TURN' };
-    }
-    const liveKey = resolveCombatChoiceWindowKey(session.getState(), session.getPlayerActorId());
-    if (!liveKey || liveKey.turn !== window.turn || liveKey.allianceSlot !== window.allianceSlot) {
-      return { ok: false, reason: 'TURN_CHOICE_NOT_OPEN' };
-    }
-    return { ok: true };
-  }
-
-  private scheduleTurnTimer(
-    connectionId: string,
-    session: CombatSession,
-    durationMs: number,
-  ): void {
-    this.clearTurnTimer(connectionId);
-    const ws = this.socketsByConnectionId.get(connectionId);
-    if (!ws) return;
-
-    const timer = setTimeout(() => {
-      void this.onTurnTimerExpired(connectionId, session, ws);
-    }, durationMs);
-    this.turnTimers.set(connectionId, timer);
-  }
-
-  private clearTurnTimer(connectionId: string): void {
-    const timer = this.turnTimers.get(connectionId);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      this.turnTimers.delete(connectionId);
-    }
-  }
-
-  private async onTurnTimerExpired(
-    connectionId: string,
-    session: CombatSession,
-    ws: WebSocket,
+    payload: { readonly battleId: string },
   ): Promise<void> {
-    this.turnTimers.delete(connectionId);
-    this.choiceWindows.delete(connectionId);
-    const state = session.getState();
-    const playerActorId = session.getPlayerActorId();
-    const windowKey = resolveCombatChoiceWindowKey(state, playerActorId);
-    if (!windowKey) {
+    const session = this.sessions.get(connectionId);
+    if (!session) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
       return;
     }
+    const state = session.getState();
+    if (payload.battleId !== state.battleId) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'INVALID_BATTLE' } });
+      return;
+    }
+    this.combatTurnController.clearTurnTimer(connectionId);
+    const result = await session.forfeitPlayer();
+    if (!result.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
+    const penalty = await debitBattleSurrenderPenalty(
+      session.getPlayerActorId(),
+      session.getCharacterId(),
+    );
+    const surrenderVoltPenalty = penalty.ok ? penalty.debited : 0;
+    await this.deliverCombatPayload(
+      ws,
+      connectionId,
+      session,
+      result.payload,
+      'FORFEIT',
+      surrenderVoltPenalty,
+    );
+  }
 
-    const result = await session.dispatchPlayerAction({
-      battleId: state.battleId,
-      actorId: session.getPlayerActorId(),
-      turn: state.turn,
-      skillId: null,
-      requestId: `timeout-${Date.now()}`,
-    });
-    if (!result.ok) return;
+  async routeCombatAction(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: ActionRequest,
+  ): Promise<void> {
+    const session = this.sessions.get(connectionId);
+    if (!session) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
+      return;
+    }
+    const gate = this.combatTurnController.validateTurnChoiceWindow(connectionId, session, payload);
+    if (!gate.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: gate.reason } });
+      return;
+    }
+    this.combatTurnController.clearTurnTimer(connectionId);
+    const result = await session.dispatchPlayerAction(payload);
+    if (!result.ok) {
+      this.combatTurnController.rescheduleActiveTurnTimer(connectionId, session);
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
+    this.combatTurnController.clearChoiceWindow(connectionId);
+    await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
+  }
+
+  async routeMirrorCombatAction(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: ActionRequest,
+  ): Promise<void> {
+    const session = this.sessions.get(connectionId);
+    if (!session) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
+      return;
+    }
+    const result = await session.dispatchMirrorAction(payload);
+    if (!result.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
+    await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
+  }
+
+  async routeDevSpawnMirrorPlayer(ws: LiveSocket, connectionId: string): Promise<void> {
+    const session = this.sessions.get(connectionId);
+    if (!session) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
+      return;
+    }
+    const result = session.injectMirrorPlayer();
+    if (!result.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
     await this.deliverCombatPayloadWithMonsterStagger(ws, connectionId, session, result.payload);
   }
 
@@ -654,7 +452,7 @@ export class CombatWsHub {
     forcedEndReason?: BattleEndReason,
     surrenderVoltPenalty?: number,
   ): Promise<void> {
-    const timerEnriched = this.enrichPayloadWithTurnTimer(connectionId, session, payload);
+    const timerEnriched = this.combatTurnController.enrichPayloadWithTurnTimer(connectionId, session, payload);
     const enriched = timerEnriched.state.phase === 'ENDED'
       ? (() => {
           const combatClassId = session.getCombatClassId();
@@ -696,7 +494,7 @@ export class CombatWsHub {
     this.sendCombatEvent(ws, enriched);
 
     if (enriched.state.phase === 'ENDED') {
-      this.clearTurnTimer(connectionId);
+      this.combatTurnController.clearTurnTimer(connectionId);
       const playerActorId = session.getPlayerActorId();
       const playerCombatant = enriched.state.combatants[playerActorId];
       if (playerCombatant) {
@@ -726,7 +524,7 @@ export class CombatWsHub {
     this.sessions.delete(connectionId);
   }
 
-  private touchBattleSessionActivity(connectionId: string): void {
+  touchBattleSessionActivity(connectionId: string): void {
     const session = this.sessions.get(connectionId);
     if (!session) return;
     touchBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
@@ -749,8 +547,8 @@ export class CombatWsHub {
 
       const session = this.sessions.get(lease.connectionId);
       if (session) {
-        this.clearTurnTimer(lease.connectionId);
-        this.choiceWindows.delete(lease.connectionId);
+        this.combatTurnController.clearTurnTimer(lease.connectionId);
+        this.combatTurnController.clearChoiceWindow(lease.connectionId);
         this.cleanupBattleSession(lease.connectionId, session);
         const ws = this.socketsByConnectionId.get(lease.connectionId);
         if (ws) {
@@ -812,7 +610,7 @@ export class CombatWsHub {
     });
   }
 
-  private handlePlayerHonorGiven(
+  handlePlayerHonorGiven(
     ws: LiveSocket,
     connectionId: string,
     payload: import('../../shared/combat/playerHonorTypes.js').PlayerHonorGivenPayload,
@@ -892,7 +690,7 @@ export class CombatWsHub {
     });
   }
 
-  private async handleCollectLoot(
+  async handleCollectLoot(
     ws: LiveSocket,
     connectionId: string,
     payload: { readonly lootId: string; readonly battleId: string },
@@ -964,27 +762,6 @@ export class CombatWsHub {
     );
   }
 
-  private schedulePersistFromEconomyEvent(playerId: string, event: EconomyEvent): void {
-    if (!isDurablePersistence()) return;
-    let characterId: number | undefined;
-    if ('characterId' in event.payload && typeof event.payload.characterId === 'number') {
-      characterId = event.payload.characterId;
-    } else {
-      for (const world of this.worldConnections.values()) {
-        if (world.playerId === playerId) {
-          characterId = world.characterId;
-          break;
-        }
-      }
-    }
-    if (characterId !== undefined) {
-      this.scheduleCharacterPersist(playerId, characterId);
-    }
-    if (event.type === EconomyEventType.LootGranted) {
-      void persistPendingLootSnapshot();
-    }
-  }
-
   private sendFullStateSync(ws: LiveSocket, playerId: string, characterId: number, force = false): void {
     const snapshot = buildAuthoritativeSnapshotForCharacter(playerId, characterId);
     const envelope = this.syncAuthority.nextEnvelope('full', force ? { force: true } : {});
@@ -1013,7 +790,7 @@ export class CombatWsHub {
   ): void {
     const envelope = this.syncAuthority.nextEnvelope('delta', { force: true });
     const creatures = isMapId(profile.currentMapId)
-      ? buildWorldCreaturesForMap(profile.currentMapId)
+      ? buildServerScopedWorldCreaturesForMap(profile.currentMapId)
       : [];
 
     this.sendStateSync(ws, envelope, {
@@ -1034,61 +811,34 @@ export class CombatWsHub {
   }
 
   private onWorldTick(): void {
-    this.expireStaleBattleSessionLeases();
-
-    const tick = this.syncAuthority.advanceTick();
-    const envelope = this.syncAuthority.nextEnvelope('delta');
-    const timeAnchor = this.timeManager.advance(WORLD_TICK_MS, envelope.serverTimeMs);
-    const deltaBase = {
-      tick,
-      serverTimeMs: envelope.serverTimeMs,
-      gameTime: timeAnchor.gameTime,
-    };
-
-    for (const [connectionId, ws] of this.socketsByConnectionId) {
-      const world = this.worldConnections.get(connectionId);
-      if (!world) continue;
-
-      const player = this.getPlayer(world.playerId, world.characterId);
-      if (!player || !player.isExploring()) {
-        this.sendStateSync(ws, envelope, { mode: 'tick', delta: deltaBase });
-        continue;
-      }
-
-      const moveResult = this.movementIntentHandler.processNext(
-        connectionId,
-        world.playerId,
-        world.characterId,
-      );
-
-      const profile = moveResult
-        ? (moveResult.ok ? moveResult.profile : getWorldProfile(world.playerId, world.characterId))
-        : getWorldProfile(world.playerId, world.characterId);
-
-      const position: import('../../shared/world/movementIntent.js').AuthoritativePositionDelta = {
-        mapId: profile.currentMapId,
-        x: profile.lastPosition.x,
-        y: profile.lastPosition.y,
-        facing: profile.facing,
-        ...(moveResult ? { moveSeq: moveResult.seq } : {}),
-      };
-
-      const creatures = isMapId(profile.currentMapId)
-        ? buildWorldCreaturesForMap(profile.currentMapId)
-        : [];
-
-      this.sendStateSync(ws, envelope, {
-        mode: 'tick',
-        delta: {
-          ...deltaBase,
-          position,
-          creatures,
-        },
-      });
-    }
+    this.gameLoop.tick({
+      movementIntentHandler: this.movementIntentHandler,
+      syncAuthority: this.syncAuthority,
+      timeManager: this.timeManager,
+      gameState: this.gameState,
+      broadcastHub: this.broadcastHub,
+      getWorldSession: (connectionId) => {
+        const world = this.worldConnections.get(connectionId);
+        if (!world) return null;
+        return {
+          connectionId,
+          playerId: world.playerId,
+          characterId: world.characterId,
+        };
+      },
+      getPlayer: (playerId, characterId) => this.getPlayer(playerId, characterId),
+      sendStateSync: (connectionId, envelope, body) => {
+        const ws = this.socketsByConnectionId.get(connectionId);
+        if (!ws) return;
+        this.sendStateSync(ws, envelope, body);
+      },
+      buildCreaturesForMap: (mapId) =>
+        isMapId(mapId) ? buildServerScopedWorldCreaturesForMap(mapId) : [],
+      onTickStart: () => this.expireStaleBattleSessionLeases(),
+    });
   }
 
-  private handleRequestFullState(
+  handleRequestFullState(
     ws: LiveSocket,
     connectionId: string,
     payload: { readonly characterId: number },
@@ -1125,40 +875,94 @@ export class CombatWsHub {
     return world;
   }
 
-  private async ensureConnectionJwtValid(
-    ws: LiveSocket,
-    world: WorldConnectionState,
-    intentId: string,
-  ): Promise<boolean> {
-    const authGateway = getSessionAuthGateway();
-    if (!authGateway.isAuthRequired()) return true;
-
-    const token = world.accessToken?.trim() ?? '';
-    if (!token) {
-      sendIntentFailure(
-        (message) => this.send(ws, message),
-        intentId,
-        'Sessão não autenticada.',
-        'AUTH_REQUIRED',
-      );
-      return false;
-    }
-
-    const verified = await authGateway.verifyAccessToken(token);
-    if (!verified || verified.userId !== world.playerId) {
-      sendIntentFailure(
-        (message) => this.send(ws, message),
-        intentId,
-        'Token inválido ou expirado.',
-        'AUTH_INVALID',
-      );
-      return false;
-    }
-
-    return true;
+  private invalidateWorldConnection(connectionId: string, world: WorldConnectionState): void {
+    this.worldConnections.delete(connectionId);
+    clearPlayerSessionFlags(world.playerId, world.characterId);
+    clearIntentReplaySession(world.playerId, world.characterId);
+    this.movementIntentHandler.clearConnection(connectionId);
   }
 
-  private async handlePlayerIntent(
+  /**
+   * C.2 — revalida JWT + shard antes de canais WS de escrita (exceto player-intent).
+   */
+  private async ensureWorldWriteAuthorized(
+    ws: LiveSocket,
+    connectionId: string,
+    world: WorldConnectionState,
+    messageType: string,
+  ): Promise<boolean> {
+    const ctx = await revalidateWorldWriteAccess(
+      this.serverEnv,
+      {
+        ws,
+        sendCombatError: (code, _message) => {
+          this.send(ws, { type: 'combat-error', payload: { reason: code } });
+        },
+        invalidateSession: () => this.invalidateWorldConnection(connectionId, world),
+        logContext: {
+          messageType,
+          sessionPlayerId: world.playerId,
+          sessionCharacterId: world.characterId,
+          serverId: getServerInstanceContext().id,
+        },
+      },
+      world,
+    );
+    return ctx !== null;
+  }
+
+  /**
+   * Server-Authoritative — player-intent: JWT + serverId do payload + anti-replay.
+   */
+  private async ensurePlayerActionAuthorized(
+    ws: LiveSocket,
+    connectionId: string,
+    world: WorldConnectionState,
+    intent: Pick<ClientIntent, 'intentId' | 'correlationId' | 'type' | 'payload' | 'timestamp' | 'serverId'>,
+  ): Promise<boolean> {
+    const intentId = intent.correlationId ?? intent.intentId;
+    const serverId = getServerInstanceContext().id;
+    const validationContext = buildIntentValidationContext(connectionId, world, serverId, intent);
+
+    const ctx = await SecurityGuard.enforceWs(
+      this.serverEnv,
+      {
+        ws,
+        sendSystemError: (code, message) => {
+          logRejectedPlayerIntent(code, message, validationContext, {
+            disconnect: code === 'AUTH_MISMATCH',
+          });
+          sendIntentFailure(
+            (outbound) => this.send(ws, outbound),
+            intentId,
+            message,
+            code,
+          );
+        },
+        onViolatorDisconnect: () => {
+          this.invalidateWorldConnection(connectionId, world);
+        },
+        logContext: {
+          intentId,
+          intentType: intent.type,
+          intentPayload: validationContext.intentPayload,
+          sessionPlayerId: world.playerId,
+          sessionCharacterId: world.characterId,
+          serverId,
+        },
+      },
+      {
+        accessToken: world.accessToken,
+        claimedUserId: world.playerId,
+        characterId: world.characterId,
+        ...(intent.serverId ? { clientServerId: intent.serverId } : {}),
+      },
+    );
+
+    return ctx !== null;
+  }
+
+  async handlePlayerIntent(
     ws: LiveSocket,
     connectionId: string,
     payload: ClientIntent,
@@ -1175,7 +979,7 @@ export class CombatWsHub {
       return;
     }
 
-    if (!(await this.ensureConnectionJwtValid(ws, world, intentId))) {
+    if (!(await this.ensurePlayerActionAuthorized(ws, connectionId, world, payload))) {
       return;
     }
 
@@ -1186,6 +990,16 @@ export class CombatWsHub {
 
     const acceptance = acceptClientIntent(playerId, characterId, payload);
     if (!acceptance.ok) {
+      logRejectedPlayerIntent(
+        acceptance.code,
+        acceptance.message,
+        buildIntentValidationContext(
+          connectionId,
+          world,
+          getServerInstanceContext().id,
+          payload,
+        ),
+      );
       sendIntentFailure(sendIntentWs, intentId, acceptance.message, acceptance.code);
       return;
     }
@@ -1201,12 +1015,13 @@ export class CombatWsHub {
     }, payload);
   }
 
-  private async handleWorldLogin(
+  async handleWorldLogin(
     ws: LiveSocket,
     connectionId: string,
     payload: {
       readonly playerId: string;
       readonly characterId: number;
+      readonly serverId: string;
       readonly displayName?: string;
       readonly clientMapId?: string;
       readonly clientPosition?: { readonly x: number; readonly y: number };
@@ -1242,6 +1057,19 @@ export class CombatWsHub {
         authUserId = verified.userId;
       }
 
+      let reportedServerId: string;
+      try {
+        reportedServerId = requireServerId(payload.serverId);
+      } catch {
+        this.send(ws, { type: 'combat-error', payload: { reason: 'WRONG_SERVER' } });
+        return;
+      }
+
+      if (reportedServerId !== getServerInstanceContext().id) {
+        this.send(ws, { type: 'combat-error', payload: { reason: 'WRONG_SERVER' } });
+        return;
+      }
+
       if (payload.clientMapId !== undefined || payload.clientPosition !== undefined) {
         console.log('[WS] world-login: posição do cliente descartada', {
           connectionId,
@@ -1257,7 +1085,6 @@ export class CombatWsHub {
         ...(payload.clientPosition !== undefined ? { clientPosition: payload.clientPosition } : {}),
       };
 
-      const hadPersistedSave = await hydrateCharacterSession(authUserId, payload.characterId);
       const bootstrap = await ensureServerPlayerBootstrap(authUserId, payload.characterId);
 
       if (!bootstrap.profileReady) {
@@ -1268,12 +1095,35 @@ export class CombatWsHub {
         return;
       }
 
+      const instanceBinding = await assertPlayerBoundToServerInstance(
+        this.serverEnv,
+        authUserId,
+        payload.characterId,
+        payload.serverId,
+      );
+      if (!instanceBinding.ok) {
+        this.send(ws, {
+          type: 'combat-error',
+          payload: { reason: instanceBinding.code },
+        });
+        return;
+      }
+
+      const hadPersistedSave = await hydrateCharacterSession(authUserId, payload.characterId);
+
+      await persistAuthoritativeLoginSnapshot(
+        this.serverEnv,
+        resolveLoginSnapshotScope(authUserId, reportedServerId, payload.characterId),
+      );
+
       if (payload.displayName?.trim()) {
         patchAuthoritativeProgression(authUserId, payload.characterId, {
           characterProfile: { displayName: payload.displayName.trim() },
         });
       }
-      const result = this.positionGateway.handleWorldLogin(loginRequest);
+      this.positionGateway.handleWorldLogin(loginRequest);
+      normalizeProfileForServerInstance(authUserId, payload.characterId);
+      const authoritativeProfile = getWorldProfile(authUserId, payload.characterId);
 
       this.worldLoreLog.onPlayerLogin(authUserId, payload.characterId);
 
@@ -1287,6 +1137,14 @@ export class CombatWsHub {
         authUserId,
         accessToken: authGateway.isAuthRequired() ? (payload.accessToken?.trim() ?? null) : null,
       });
+      this.gameState.registerPlayer({
+        connectionId,
+        playerId: authUserId,
+        characterId: payload.characterId,
+        displayName: payload.displayName?.trim() || 'Jogador',
+        profile: authoritativeProfile,
+        status: 'exploring',
+      });
       this.socketsByPlayerId.set(authUserId, ws);
 
       if (!hadPersistedSave && bootstrap.profileReady) {
@@ -1297,9 +1155,9 @@ export class CombatWsHub {
         type: 'world-login-result',
         payload: {
           ok: true,
-          currentMapId: result.currentMapId,
-          lastPosition: result.lastPosition,
-          facing: result.facing,
+          currentMapId: authoritativeProfile.currentMapId,
+          lastPosition: authoritativeProfile.lastPosition,
+          facing: authoritativeProfile.facing,
         },
       });
 
@@ -1318,7 +1176,7 @@ export class CombatWsHub {
     }
   }
 
-  private handlePortalTransitionRequest(
+  handlePortalTransitionRequest(
     ws: LiveSocket,
     connectionId: string,
     payload: import('../../shared/world/zoneTransition.js').PortalTransitionRequestPayload,
@@ -1370,7 +1228,7 @@ export class CombatWsHub {
     this.send(ws, { type: 'portal-transition-ready', payload: result.ready });
   }
 
-  private handleWorldChroniclesRequest(
+  handleWorldChroniclesRequest(
     ws: LiveSocket,
     connectionId: string,
     payload: {
@@ -1399,7 +1257,7 @@ export class CombatWsHub {
     });
   }
 
-  private handleChatGlobalSend(
+  handleChatGlobalSend(
     ws: LiveSocket,
     connectionId: string,
     payload: {
@@ -1452,7 +1310,7 @@ export class CombatWsHub {
     }
   }
 
-  private handlePositionSync(
+  handlePositionSync(
     ws: LiveSocket,
     connectionId: string,
     payload: {
@@ -1489,11 +1347,11 @@ export class CombatWsHub {
 
     if (payload.reason === 'logout') {
       recordPlayerLastSeen(world.playerId, world.characterId);
-      this.scheduleCharacterPersist(world.playerId, world.characterId);
+      void this.persistenceScheduler.flushPlayer(world.playerId, world.characterId, 'logout');
     }
   }
 
-  private handleJoin(
+  handleJoin(
     ws: LiveSocket,
     connectionId: string,
     joinPayload?: CombatJoinSessionSyncInput & { readonly monsterInstanceId?: string },
@@ -1539,6 +1397,7 @@ export class CombatWsHub {
       this.socketsByPlayerId.set(playerId, ws);
       this.movementIntentHandler.clearConnection(connectionId);
       setPlayerInBattle(playerId, characterId, true);
+      this.gameState.setStatus(connectionId, 'battle');
       registerBattleSessionLease(connectionId, playerId, characterId);
       const payload = session.start();
       console.log('[WS] Batalha iniciada', {
@@ -1561,257 +1420,11 @@ export class CombatWsHub {
     }
   }
 
-  private async handleActivateBook(ws: LiveSocket, connectionId: string, bookId: string): Promise<void> {
-    const session = this.sessions.get(connectionId);
-    if (!session) {
-      this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
-      return;
-    }
-
-    const result = await activateBook({
-      playerId: session.getPlayerActorId(),
-      characterId: session.getCharacterId(),
-      bookId,
-    });
-
-    if (!result.ok) {
-      this.send(ws, { type: 'combat-error', payload: { reason: result.message } });
-      return;
-    }
-
-    this.send(ws, {
-      type: 'book-activated',
-      payload: { bookId, expiresAt: result.expiresAt },
-    });
-  }
-
-  private async handleBankTransaction(
-    ws: LiveSocket,
-    connectionId: string,
-    payload: {
-      readonly intentId: string;
-      readonly characterId: number;
-      readonly operation: 'deposit-item' | 'withdraw-item' | 'deposit-currency' | 'withdraw-currency';
-      readonly itemId?: string;
-      readonly quantity?: number;
-      readonly currency?: 'volts' | 'alter';
-      readonly amount?: number;
-      readonly clientReportedX?: number;
-      readonly clientReportedY?: number;
-    },
-  ): Promise<void> {
-    const world = this.worldConnections.get(connectionId);
-    const intentId = payload.intentId;
-
-    if (!world) {
-      this.send(ws, {
-        type: 'economy-bank-result',
-        payload: { ok: false, message: 'Faça login no mundo antes de usar o banco.', intentId },
-      });
-      return;
-    }
-
-    if (world.characterId !== payload.characterId) {
-      this.send(ws, {
-        type: 'economy-bank-result',
-        payload: { ok: false, message: 'Personagem inválido para esta sessão.', intentId },
-      });
-      return;
-    }
-
-    const profile = getWorldProfile(world.playerId, world.characterId);
-    if (!validateBankNpcAccess({
-      mapId: profile.currentMapId,
-      serverX: profile.lastPosition.x,
-      serverY: profile.lastPosition.y,
-    })) {
-      this.send(ws, {
-        type: 'economy-bank-result',
-        payload: { ok: false, message: 'Aproxime-se do Banqueiro para usar o cofre.', intentId },
-      });
-      return;
-    }
-
-    const playerId = world.playerId;
-    const characterId = world.characterId;
-
-    let result: { ok: true } | { ok: false; message: string };
-
-    switch (payload.operation) {
-      case 'deposit-item':
-        result = await depositBankItem({
-          playerId,
-          characterId,
-          itemId: payload.itemId!,
-          ...(payload.quantity !== undefined ? { quantity: payload.quantity } : {}),
-          intentId,
-        });
-        break;
-      case 'withdraw-item':
-        result = await withdrawBankItem({
-          playerId,
-          characterId,
-          itemId: payload.itemId!,
-          ...(payload.quantity !== undefined ? { quantity: payload.quantity } : {}),
-          intentId,
-        });
-        break;
-      case 'deposit-currency':
-      case 'withdraw-currency': {
-        const currencyCheck = validateBankCurrencyRequest(
-          payload.currency,
-          payload.amount ?? Number.NaN,
-        );
-        if (!currencyCheck.ok) {
-          result = { ok: false, message: currencyCheck.reason };
-          break;
-        }
-        const currencyRequest = {
-          playerId,
-          characterId,
-          currency: currencyCheck.currency,
-          amount: currencyCheck.amount,
-          intentId,
-        };
-        result = payload.operation === 'deposit-currency'
-          ? await depositBankCurrency(currencyRequest)
-          : await withdrawBankCurrency(currencyRequest);
-        break;
-      }
-      default:
-        result = { ok: false, message: 'Operação bancária inválida.' };
-    }
-
-    if (!result.ok) {
-      this.send(ws, {
-        type: 'economy-bank-result',
-        payload: { ok: false, message: result.message, intentId },
-      });
-      return;
-    }
-
-    this.send(ws, {
-      type: 'economy-bank-result',
-      payload: { ok: true, intentId },
-    });
-  }
-
-  private async handleExchangeAlter(
-    ws: LiveSocket,
-    connectionId: string,
-    payload: { readonly alterAmount: number; readonly characterId?: number },
-  ): Promise<void> {
-    const session = this.sessions.get(connectionId);
-    const playerId = session?.getPlayerActorId() ?? `player_${connectionId.slice(0, 8)}`;
-    const characterId = payload.characterId ?? session?.getCharacterId() ?? 1;
-
-    const result = await exchangeAlterCoinsForVolts({
-      playerId,
-      characterId,
-      alterAmount: payload.alterAmount,
-    });
-
-    this.send(ws, {
-      type: 'economy-exchange-result',
-      payload: result.ok ? { ok: true } : { ok: false, message: result.message },
-    });
-  }
-
-  private resolveRefractionWorldActor(
-    connectionId: string,
-    payload: { readonly playerId: string; readonly characterId: number },
-  ): { readonly playerId: string; readonly characterId: number } | null {
-    const world = this.worldConnections.get(connectionId);
-    if (!world) return null;
-    if (world.playerId !== payload.playerId || world.characterId !== payload.characterId) {
-      return null;
-    }
-    return { playerId: world.playerId, characterId: world.characterId };
-  }
-
-  private handleRefractionBoothQuote(
-    ws: LiveSocket,
-    connectionId: string,
-    payload: { readonly playerId: string; readonly characterId: number },
-  ): void {
-    const actor = this.resolveRefractionWorldActor(connectionId, payload);
-    if (!actor) {
-      this.send(ws, {
-        type: 'refraction-booth-quote-result',
-        payload: { ok: false, reason: 'Sessão de mundo inválida.' },
-      });
-      return;
-    }
-
-    const result = getRefractionBoothService().getQuote(actor);
-    this.send(ws, { type: 'refraction-booth-quote-result', payload: result });
-  }
-
-  private async handleRefractionBoothStart(
-    ws: LiveSocket,
-    connectionId: string,
-    payload: { readonly playerId: string; readonly characterId: number; readonly displayName: string },
-  ): Promise<void> {
-    const actor = this.resolveRefractionWorldActor(connectionId, payload);
-    if (!actor) {
-      this.send(ws, {
-        type: 'refraction-booth-started',
-        payload: { ok: false, reason: 'Sessão de mundo inválida.' },
-      });
-      return;
-    }
-
-    const result = await getRefractionBoothService().startSession({
-      playerId: actor.playerId,
-      characterId: actor.characterId,
-      displayName: payload.displayName,
-    });
-
-    this.send(ws, { type: 'refraction-booth-started', payload: result });
-  }
-
-  private async handleRefractionBoothComplete(
-    ws: LiveSocket,
-    connectionId: string,
-    payload: {
-      readonly playerId: string;
-      readonly characterId: number;
-      readonly sessionId: string;
-      readonly hits: number;
-      readonly misses: number;
-      readonly durationMs: number;
-      readonly hitTimings?: readonly number[];
-    },
-  ): Promise<void> {
-    const actor = this.resolveRefractionWorldActor(connectionId, payload);
-    if (!actor) {
-      this.send(ws, {
-        type: 'refraction-booth-complete-result',
-        payload: { ok: false, reason: 'Sessão de mundo inválida.' },
-      });
-      return;
-    }
-
-    const result = await getRefractionBoothService().completeSession({
-      playerId: actor.playerId,
-      characterId: actor.characterId,
-      payload: {
-        sessionId: payload.sessionId,
-        hits: payload.hits,
-        misses: payload.misses,
-        durationMs: payload.durationMs,
-        ...(payload.hitTimings ? { hitTimings: payload.hitTimings } : {}),
-      },
-    });
-
-    this.send(ws, { type: 'refraction-booth-complete-result', payload: result });
-  }
-
   private sendCombatEvent(ws: WebSocket, payload: CombatDispatchPayload): void {
     this.send(ws, { type: 'combat-event', payload });
   }
 
-  private send(ws: WebSocket, message: WsOutboundMessage): void {
+  send(ws: WebSocket, message: WsOutboundMessage): void {
     if (ws.readyState === ws.OPEN) {
       ws.send(serializeWsOutbound(message));
     }

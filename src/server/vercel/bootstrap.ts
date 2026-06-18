@@ -2,6 +2,7 @@ import { loadProjectEnv } from '../config/loadEnv.js';
 import { loadServerEnv, type ServerEnv } from '../config/env.js';
 import { initSessionAuthGateway } from '../auth/SessionAuthGateway.js';
 import { bootstrapSupabase } from '../supabase/initializeSupabase.js';
+import { initializeServerInstanceContext } from '../instance/ServerInstanceContext.js';
 
 let cachedEnv: ServerEnv | null = null;
 let supabaseBootstrapPromise: Promise<void> | null = null;
@@ -11,6 +12,7 @@ export function ensureVercelServerEnv(): ServerEnv {
   if (cachedEnv) return cachedEnv;
   loadProjectEnv();
   cachedEnv = loadServerEnv();
+  initializeServerInstanceContext(cachedEnv.serverInstance);
   initSessionAuthGateway(cachedEnv);
   return cachedEnv;
 }

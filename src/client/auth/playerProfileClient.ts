@@ -8,6 +8,7 @@ import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getLocalSession } from '../services/localSessionStore.js';
 import { isLocalDevHost } from './localDevAuth.js';
 import { getSupabaseClient, resolveSessionAccessToken } from './supabaseAuth.js';
+import { resolveActiveServerId } from './resolveLoginServerId.js';
 
 type AuthoritativePlayerAuth = {
   readonly token: string | null;
@@ -60,6 +61,7 @@ async function fetchAuthoritativePlayerSnapshotOnce(
 ): Promise<SnapshotFetchResult> {
   const url = new URL('/api/player-snapshot', window.location.origin);
   url.searchParams.set('characterId', String(characterId));
+  url.searchParams.set('serverId', resolveActiveServerId());
   if (auth.devPlayerId) {
     url.searchParams.set('playerId', auth.devPlayerId);
   }
@@ -73,7 +75,7 @@ async function fetchAuthoritativePlayerSnapshotOnce(
   try {
     response = await fetch(url.toString(), { headers });
   } catch {
-    return { ok: false, message: 'Servidor indisponível ao carregar perfil.' };
+    return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
 
   let body: unknown;

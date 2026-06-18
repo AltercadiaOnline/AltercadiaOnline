@@ -4,7 +4,7 @@ import {
   initActionDispatcher,
   resetActionDispatcher,
 } from '../ActionDispatcher.js';
-import type { IEconomyService } from './IEconomyService.js';
+import type { IDevMockEconomyService, IEconomyService } from './IEconomyService.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getMutableDataStore, initDataStore, resetDataStore } from '../PlayerDataStore.js';
 import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
@@ -15,32 +15,59 @@ import {
   resetGameStoreState,
 } from '../state/GameStore.js';
 import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
-import { MockEconomyService } from '../testing/MockEconomyService.js';
 
 export type EconomyBackend = 'mock' | 'local';
 
-let mockService: MockEconomyService | null = null;
+let mockService: IDevMockEconomyService | null = null;
+let mockServicePromise: Promise<IDevMockEconomyService | null> | null = null;
+
+/** Dynamic import — MockEconomyService (e Economy/*) só carrega em localhost. */
+function loadMockEconomyService(): Promise<IDevMockEconomyService | null> {
+  if (!allowsOfflineGameplayFallback()) {
+    return Promise.resolve(null);
+  }
+  if (mockService) {
+    return Promise.resolve(mockService);
+  }
+  if (!mockServicePromise) {
+    mockServicePromise = import('../testing/MockEconomyService.js').then(({ MockEconomyService }) => {
+      const instance = new MockEconomyService();
+      instance.reset();
+      mockService = instance;
+      return instance;
+    });
+  }
+  return mockServicePromise;
+}
+
+function wireMockEconomyService(mock: IDevMockEconomyService): void {
+  const dispatcher = getActionDispatcher();
+  dispatcher.setEconomyService(mock);
+  dispatcher.setMode('mock');
+  getGlobalStateSynchronizer().setRequestTransport(() => {
+    mock.requestFullState();
+  });
+}
 
 export function initEconomyLayer(mode: EconomyBackend = 'mock'): void {
   initActionDispatcher();
   initGameStore();
 
   if (mode === 'mock') {
-    resetDataStore();
-    mockService = new MockEconomyService();
-    mockService.reset();
+    if (!allowsOfflineGameplayFallback()) {
+      attachOnlineEconomyLayer();
+      return;
+    }
 
-    const dispatcher = getActionDispatcher();
-    dispatcher.setEconomyService(mockService);
-    dispatcher.setMode('mock');
-
-    getGlobalStateSynchronizer().setRequestTransport(() => {
-      mockService?.requestFullState();
+    void loadMockEconomyService().then((mock) => {
+      if (!mock) return;
+      wireMockEconomyService(mock);
     });
     return;
   }
 
   mockService = null;
+  mockServicePromise = null;
   initDataStore();
   const dispatcher = getActionDispatcher();
   dispatcher.setEconomyService(null);
@@ -72,16 +99,10 @@ export function attachOfflineEconomyLayer(): void {
     return;
   }
 
-  if (!mockService) {
-    mockService = new MockEconomyService();
-  }
-  mockService.syncInventoryStacksFromClient(getPlayerItemStore().toInventoryStacks(), false);
-
-  const dispatcher = getActionDispatcher();
-  dispatcher.setEconomyService(mockService);
-  dispatcher.setMode('mock');
-  getGlobalStateSynchronizer().setRequestTransport(() => {
-    mockService?.requestFullState();
+  void loadMockEconomyService().then((mock) => {
+    if (!mock) return;
+    mock.syncInventoryStacksFromClient(getPlayerItemStore().toInventoryStacks(), false);
+    wireMockEconomyService(mock);
   });
 }
 
@@ -98,7 +119,7 @@ export function getEconomyService(): IEconomyService | null {
   return mockService;
 }
 
-export function getMockEconomyService(): MockEconomyService | null {
+export function getMockEconomyService(): IDevMockEconomyService | null {
   return mockService;
 }
 
@@ -114,6 +135,7 @@ export function resetGame(): void {
 
 export function resetEconomyLayer(): void {
   mockService = null;
+  mockServicePromise = null;
   resetDataStore();
   resetGameStoreState();
   resetGameStore();

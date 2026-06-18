@@ -7,6 +7,8 @@ export type GiftTransferRequest = {
   readonly quantity?: number;
   readonly characterId?: number;
   readonly targetCharacterId?: number;
+  /** Shard reportado pelo cliente — validado no SecurityGuard. */
+  readonly serverId?: string;
 };
 
 export type GiftTransferSuccess = {
@@ -56,6 +58,10 @@ export function mapGiftTransferErrorMessage(code: string): string {
       return 'Inventário do remetente não encontrado.';
     case 'RECIPIENT_INVENTORY_NOT_FOUND':
       return 'Inventário do destinatário não encontrado.';
+    case 'RECIPIENT_NOT_ON_SHARD':
+      return 'Destinatário não está neste shard.';
+    case 'SENDER_NOT_ON_SHARD':
+      return 'Personagem remetente não está neste shard.';
     case 'SELF_TRANSFER':
       return 'Não é possível enviar presente para si mesmo.';
     case 'INVALID_ITEM':

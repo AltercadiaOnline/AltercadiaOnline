@@ -498,6 +498,8 @@ export class MockEconomyService implements IEconomyService {
         return { ok: false, reason: 'Pivot usa WorldSocket no mock.' };
       case 'CRAFT_ITEM':
         return { ok: false, reason: 'Craft requer servidor online (CraftItemHandler).' };
+      case 'ACTIVATE_BOOK':
+        return { ok: false, reason: 'Ativação de livro requer servidor online.' };
       default: {
         const _exhaustive: never = action;
         return _exhaustive;

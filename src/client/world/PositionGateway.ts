@@ -6,6 +6,8 @@ import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.j
 
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
+import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
+import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
 
 const HEARTBEAT_MS = 5000;
 
@@ -82,7 +84,6 @@ export class PositionGateway {
 
 
   async requestWorldLogin(clientPositionIgnored?: ExplorationSnapshot): Promise<void> {
-
     const creds = this.getCredentials();
 
     if (!creds || !this.socket) {
@@ -94,12 +95,19 @@ export class PositionGateway {
     }
 
     const accessToken = await resolveSessionAccessToken();
+    const serverId = getClientRuntimeConfig()?.serverId?.trim().toLowerCase();
+    if (!serverId) {
+      console.error(`[PositionGateway] ${ARCHITECTURE_SERVER_ID_REQUIRED} — carregue /config/client antes do world-login.`);
+      return;
+    }
 
     this.socket.send('world-login', {
 
       playerId: creds.playerId,
 
       characterId: creds.characterId,
+
+      serverId,
 
       displayName: creds.displayName,
 
@@ -115,6 +123,13 @@ export class PositionGateway {
 
     });
 
+  }
+
+
+
+  /** Reenvia world-login para atualizar JWT armazenado no servidor (C.2). */
+  async refreshServerAccessToken(): Promise<void> {
+    await this.requestWorldLogin(this.captureSnapshot());
   }
 
 

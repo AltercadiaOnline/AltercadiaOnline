@@ -3,8 +3,7 @@ import type { EconomyEvent } from '../economy/events.js';
 import type { AuthoritativePositionDelta } from '../world/movementIntent.js';
 import type { WorldCreatureSnapshot } from '../world/worldCreatureSync.js';
 
-/** Intervalo padrão do loop de mundo no servidor (ms). */
-export const WORLD_TICK_MS = 100;
+export { WORLD_TICK_MS, WORLD_TICK_HZ } from '../world/worldGameLoopConfig.js';
 
 export type SyncKind = 'full' | 'delta';
 

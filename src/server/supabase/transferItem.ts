@@ -4,6 +4,7 @@ import {
   mapGiftTransferRpcResult,
 } from '../../shared/gift/giftTransferProtocol.js';
 import { setCharacterInventoryStacks } from '../../Economy/economyStore.js';
+import { requireServerId } from '../../shared/supabase/characterServerScope.js';
 import { loadServerEnv } from '../config/env.js';
 import { getSupabaseAdminClient } from './supabaseAdmin.js';
 
@@ -13,10 +14,12 @@ export type TransferItemResult =
 
 export async function executeTransferItem(
   senderUserId: string,
+  serverId: string,
   payload: GiftTransferRequest,
 ): Promise<TransferItemResult> {
   const env = loadServerEnv();
   const client = await getSupabaseAdminClient(env);
+  const scopedServerId = requireServerId(serverId);
 
   const quantity = Math.max(1, Math.floor(payload.quantity ?? 1));
   const fromCharacterId = Math.max(1, Math.floor(payload.characterId ?? 1));
@@ -29,6 +32,7 @@ export async function executeTransferItem(
     p_quantity: quantity,
     p_from_character_id: fromCharacterId,
     p_to_character_id: toCharacterId,
+    p_server_id: scopedServerId,
   });
 
   if (error) {
@@ -37,6 +41,8 @@ export async function executeTransferItem(
       'INSUFFICIENT_QUANTITY',
       'SENDER_INVENTORY_NOT_FOUND',
       'RECIPIENT_INVENTORY_NOT_FOUND',
+      'RECIPIENT_NOT_ON_SHARD',
+      'SENDER_NOT_ON_SHARD',
       'SELF_TRANSFER',
       'INVALID_ITEM',
       'INVALID_QUANTITY',

@@ -35,7 +35,6 @@ export type BrowserCombatSocket = CombatSocket & {
     readonly marcoDominance?: MarcoDominanceInput;
     readonly equipmentSnapshot?: EquippedSlots;
   }): void;
-  send(type: 'economy-exchange-alter', payload: { readonly alterAmount: number; readonly characterId?: number }): void;
   send(type: 'combat-collect-loot', payload: { readonly lootId: string; readonly battleId: string }): void;
   send(type: 'combat-dismiss-loot', payload: { readonly lootId: string }): void;
   send(type: string, payload?: unknown): void;

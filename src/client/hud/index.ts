@@ -24,6 +24,7 @@ import {
   isOnlineCombatClient,
 } from '../game/battleLootStageClient.js';
 import { postSystemNotification } from '../ui/logService.js';
+import { AppScreens } from '../browser/appScreens.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import type { CombatFinishedPayload } from '../../shared/combat/combatFinished.js';
 import {
@@ -662,10 +663,13 @@ function openBattleResultHub(presentation: BattleFinishPresentationPayload): voi
     );
     enterPostBattleObservation();
     if (dispatch.ui.playerActorId) {
-      configurePostBattleHonorOpener({
-        giverActorId: dispatch.ui.playerActorId,
-        characterId: 1,
-      });
+      const characterId = AppScreens.getSelectedCharacter()?.id;
+      if (characterId !== undefined) {
+        configurePostBattleHonorOpener({
+          giverActorId: dispatch.ui.playerActorId,
+          characterId,
+        });
+      }
     }
     syncBattleChatOpponentAuthor();
   }

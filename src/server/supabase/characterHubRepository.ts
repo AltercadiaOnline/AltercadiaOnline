@@ -1,14 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ProfileRow } from '../../shared/supabase/gameDatabaseTypes.js';
+import { requireServerId, rejectUnscopedCharacterQuery } from '../../shared/supabase/characterServerScope.js';
 
-export async function listProfilesForUser(
+export async function listProfilesForUserOnServer(
   client: SupabaseClient,
   userId: string,
+  serverId: string,
 ): Promise<ProfileRow[]> {
+  const scopedServerId = requireServerId(serverId);
   const { data, error } = await client
     .from('profiles')
     .select('*')
     .eq('user_id', userId)
+    .eq('server_id', scopedServerId)
     .order('character_id', { ascending: true });
 
   if (error) {
@@ -18,16 +22,27 @@ export async function listProfilesForUser(
   return (data ?? []) as ProfileRow[];
 }
 
-export async function profileExists(
+/** @deprecated Bloqueado — use listProfilesForUserOnServer(userId, serverId). */
+export async function listProfilesForUser(
+  _client: SupabaseClient,
+  _userId: string,
+): Promise<ProfileRow[]> {
+  return rejectUnscopedCharacterQuery();
+}
+
+export async function profileExistsOnServer(
   client: SupabaseClient,
   userId: string,
   characterId: number,
+  serverId: string,
 ): Promise<boolean> {
+  const scopedServerId = requireServerId(serverId);
   const { data, error } = await client
     .from('profiles')
     .select('id')
     .eq('user_id', userId)
     .eq('character_id', characterId)
+    .eq('server_id', scopedServerId)
     .maybeSingle();
 
   if (error) {
@@ -37,17 +52,33 @@ export async function profileExists(
   return Boolean(data);
 }
 
+export async function profileExists(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+  serverId: string,
+): Promise<boolean> {
+  return profileExistsOnServer(client, userId, characterId, serverId);
+}
+
 export async function insertProfileForCharacter(
   client: SupabaseClient,
   userId: string,
   characterId: number,
   displayName: string,
   email: string | null,
+  serverId: string,
 ): Promise<void> {
+  const normalizedUserId = userId?.trim();
+  if (!normalizedUserId) {
+    throw new Error('user_id obrigatório para criar personagem.');
+  }
+  const scopedServerId = requireServerId(serverId);
   const { error } = await client.from('profiles').insert({
-    user_id: userId,
+    user_id: normalizedUserId,
     character_id: characterId,
     display_name: displayName,
+    server_id: scopedServerId,
     ...(email ? { email } : {}),
   });
 
@@ -59,8 +90,9 @@ export async function insertProfileForCharacter(
 export async function resolveAccountEmail(
   client: SupabaseClient,
   userId: string,
+  serverId: string,
 ): Promise<string | null> {
-  const profiles = await listProfilesForUser(client, userId);
+  const profiles = await listProfilesForUserOnServer(client, userId, serverId);
   const fromProfile = profiles.find((row) => row.email)?.email ?? null;
   if (fromProfile) return fromProfile;
 

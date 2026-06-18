@@ -1,12 +1,9 @@
-import { peekPendingLoot, consumePendingLoot } from '../../Economy/pendingLootStore.js';
-import { formatVolts } from '../../shared/economy/premiumCurrency.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getMockEconomyService } from '../economy/economyLayer.js';
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
 import { postSystemNotification, showErrorToast } from '../ui/logService.js';
 
-const MOCK_WINNER_ID = 'mock-player';
 const COLLECT_TIMEOUT_MS = 12_000;
 const COLLECT_ERROR_TOAST = 'Falha ao coletar: Servidor offline ou item inválido';
 
@@ -138,13 +135,7 @@ export async function requestBattleLootCollection(
       return result;
     }
 
-    const pending = peekPendingLoot(lootId);
-    if (!pending || pending.winnerId !== MOCK_WINNER_ID) {
-      return reportCollectFailure();
-    }
-
-    consumePendingLoot(lootId, MOCK_WINNER_ID);
-    return { ok: true };
+    return reportCollectFailure();
   } catch (error) {
     pendingCollectResolvers.delete(lootId);
     return reportCollectFailure(error);
@@ -154,6 +145,11 @@ export async function requestBattleLootCollection(
 export function dismissBattleLootOnServer(lootId: string): void {
   if (dismissTransport) {
     dismissTransport(lootId);
+    return;
+  }
+
+  if (getActionDispatcher().getMode() !== 'mock' || !getMockEconomyService()) {
+    console.warn('[BattleLoot] Dismiss ignorado — aguardando conexão com o servidor.');
     return;
   }
 

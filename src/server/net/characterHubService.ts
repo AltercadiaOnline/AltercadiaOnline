@@ -14,12 +14,13 @@ import {
 } from '../../shared/progression/movesetMasterySeed.js';
 import { createDefaultPlayerProgressionData } from '../../shared/progression/playerProgressionData.js';
 import { emptyMarcosNodeProgression } from '../../shared/progression/marcoProgression.js';
+import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
 import { getSupabaseAdminClient } from '../supabase/supabaseAdmin.js';
 import { ensureServerPlayerBootstrap } from '../supabase/bootstrapPlayerOnServer.js';
 import {
   insertProfileForCharacter,
-  listProfilesForUser,
-  profileExists,
+  listProfilesForUserOnServer,
+  profileExistsOnServer,
   resolveAccountEmail,
 } from '../supabase/characterHubRepository.js';
 import { hydrateCharacterSession } from '../persistence/PersistenceGateway.js';
@@ -66,7 +67,8 @@ export async function buildAuthoritativeCharacterHub(
   env: ServerEnv,
 ): Promise<AccountCharacterHub> {
   const client = await getSupabaseAdminClient(env);
-  const profiles = await listProfilesForUser(client, playerId);
+  const instance = getServerInstanceContext();
+  const profiles = await listProfilesForUserOnServer(client, playerId, instance.id);
 
   if (profiles.length === 0) {
     return createEmptyCharacterHub(playerId);
@@ -127,8 +129,9 @@ export async function createAuthoritativeCharacterInSlot(
 
   const characterId = validation.slotIndex + 1;
   const client = await getSupabaseAdminClient(env);
+  const instance = getServerInstanceContext();
 
-  if (await profileExists(client, playerId, characterId)) {
+  if (await profileExistsOnServer(client, playerId, characterId, instance.id)) {
     return { ok: false, message: 'Este slot já possui um personagem.' };
   }
 
@@ -140,13 +143,14 @@ export async function createAuthoritativeCharacterInSlot(
     return { ok: false, message: 'Já existe um personagem com este nome nesta conta.' };
   }
 
-  const email = await resolveAccountEmail(client, playerId);
+  const email = await resolveAccountEmail(client, playerId, instance.id);
   await insertProfileForCharacter(
     client,
     playerId,
     characterId,
     validation.name,
     email,
+    instance.id,
   );
 
   const bootstrap = await ensureServerPlayerBootstrap(playerId, characterId);

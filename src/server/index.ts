@@ -10,6 +10,7 @@ import { flushAllPersistence, initializePersistence, shutdownPersistenceStorage 
 import { initSessionAuthGateway } from './auth/SessionAuthGateway.js';
 import { hasDatabaseConnection } from './persistence/databaseConnection.js';
 import { bootstrapSupabase } from './supabase/initializeSupabase.js';
+import { initializeServerInstanceContext } from './instance/ServerInstanceContext.js';
 
 const CLIENT_DIST_ARTIFACTS = [
   'client/browser/main.js',
@@ -35,6 +36,7 @@ async function main(): Promise<void> {
   const envLoadReport = loadProjectEnv();
   logProjectEnvLoadReport(envLoadReport);
   const env = loadServerEnv();
+  initializeServerInstanceContext(env.serverInstance);
   logCorsWarning(env.corsOrigins, env.nodeEnv);
   initSessionAuthGateway(env);
   const supabaseReport = await bootstrapSupabase(env);
@@ -50,11 +52,13 @@ async function main(): Promise<void> {
       ...(env.supabaseUrl ? { supabaseUrl: env.supabaseUrl } : {}),
       ...(env.supabaseAnonKey ? { supabaseAnonKey: env.supabaseAnonKey } : {}),
       ...(env.gameWsUrl ? { gameWsUrl: env.gameWsUrl } : {}),
+      serverId: env.serverInstance.id,
+      serverName: env.serverInstance.displayName,
     }),
   });
 
   bootstrapIntentHandlers();
-  const wsHub = new CombatWsHub(httpServer, { corsOrigins: env.corsOrigins });
+  const wsHub = new CombatWsHub(httpServer, { corsOrigins: env.corsOrigins, serverEnv: env });
 
   const shutdown = (signal: string) => {
     console.log(`[server] ${signal} — encerrando…`);
@@ -90,6 +94,9 @@ async function main(): Promise<void> {
     port: env.port,
     host: env.host,
     nodeEnv: env.nodeEnv,
+    serverId: env.serverInstance.id,
+    serverName: env.serverInstance.displayName,
+    serverMaps: env.serverInstance.mapIds,
     persistence: persistence.mode,
     dataDir: persistence.dataDir,
     clientDistOk: distCheck.ok,
@@ -107,6 +114,8 @@ async function main(): Promise<void> {
   httpServer.listen(env.port, env.host, () => {
     const scheme = env.nodeEnv === 'production' ? 'https/wss (via proxy)' : 'http';
     console.log('[Altercadia V2] Servidor online');
+    console.log(`  SERVER_ID    → ${env.serverInstance.id} (${env.serverInstance.displayName})`);
+    console.log(`  Mapas shard  → ${env.serverInstance.mapIds.join(', ')}`);
     console.log(`  NODE_ENV     → ${env.nodeEnv}`);
     console.log(`  Persistência → ${persistence.mode} (${persistence.dataDir})`);
     console.log('  Supabase API → conectado (service_role validado no bootstrap)');
