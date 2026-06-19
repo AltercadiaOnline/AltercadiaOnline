@@ -61,6 +61,28 @@ export async function profileExists(
   return profileExistsOnServer(client, userId, characterId, serverId);
 }
 
+export async function profileExistsOnOtherServer(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+  serverId: string,
+): Promise<boolean> {
+  const scopedServerId = requireServerId(serverId);
+  const { data, error } = await client
+    .from('profiles')
+    .select('server_id')
+    .eq('user_id', userId)
+    .eq('character_id', characterId)
+    .neq('server_id', scopedServerId)
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data?.length ?? 0) > 0;
+}
+
 export async function insertProfileForCharacter(
   client: SupabaseClient,
   userId: string,
@@ -74,6 +96,15 @@ export async function insertProfileForCharacter(
     throw new Error('user_id obrigatório para criar personagem.');
   }
   const scopedServerId = requireServerId(serverId);
+
+  if (await profileExistsOnOtherServer(client, normalizedUserId, characterId, scopedServerId)) {
+    throw new Error('Este slot já está vinculado a outro servidor (server_id imutável).');
+  }
+
+  if (await profileExistsOnServer(client, normalizedUserId, characterId, scopedServerId)) {
+    throw new Error('Personagem já existe neste slot neste servidor.');
+  }
+
   const { error } = await client.from('profiles').insert({
     user_id: normalizedUserId,
     character_id: characterId,

@@ -20,7 +20,6 @@ import {
   subscribeAuthStateChange,
 } from '../auth/supabaseAuth.js';
 import { ADULT_AGE_YEARS, computeAgeYears, isAtLeastAge } from '../auth.js';
-import { isLocalDevHost } from '../auth/localDevAuth.js';
 import {
   logAuthApiAttempt,
   logAuthApiResult,
@@ -43,7 +42,7 @@ function requireStatusEl(): HTMLElement | null {
 }
 
 function isAuthChannelReady(): boolean {
-  return isSupabaseReady() || isLocalDevHost();
+  return isSupabaseReady();
 }
 
 function requireCheckbox(id: string): HTMLInputElement | null {
@@ -290,13 +289,6 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
                 ? { fullName: String(supabaseUser.user_metadata.nome) }
                 : {}),
           });
-          return;
-        }
-      } else if (isLocalDevHost()) {
-        const loginResult = await loginWithEmailForServer(email, password);
-        if (loginResult.success && loginResult.user) {
-          setStatus(result.message ?? 'Conta criada!', false);
-          await options.onAuthenticated(loginResult.user);
           return;
         }
       }

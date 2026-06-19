@@ -20,6 +20,7 @@ import { ensureServerPlayerBootstrap } from '../supabase/bootstrapPlayerOnServer
 import {
   insertProfileForCharacter,
   listProfilesForUserOnServer,
+  profileExistsOnOtherServer,
   profileExistsOnServer,
   resolveAccountEmail,
 } from '../supabase/characterHubRepository.js';
@@ -58,6 +59,7 @@ function mapProfileToCharacter(
     class: resolveCharacterClass(playerId, profile.character_id),
     level: progression.characterProfile.level ?? 1,
     slotIndex,
+    serverId: profile.server_id,
     skin: createDefaultPlayerSkin(),
   };
 }
@@ -133,6 +135,13 @@ export async function createAuthoritativeCharacterInSlot(
 
   if (await profileExistsOnServer(client, playerId, characterId, instance.id)) {
     return { ok: false, message: 'Este slot já possui um personagem.' };
+  }
+
+  if (await profileExistsOnOtherServer(client, playerId, characterId, instance.id)) {
+    return {
+      ok: false,
+      message: 'Este slot já está vinculado a outro servidor. Criação bloqueada.',
+    };
   }
 
   const hub = await buildAuthoritativeCharacterHub(playerId, env);

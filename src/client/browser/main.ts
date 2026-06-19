@@ -24,8 +24,7 @@ import { canPetEnterBattle } from '../../shared/pet/petModel.js';
 import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
 import { bootstrapEmptyPlayerItems, bootstrapMvpPlayerItems } from '../game/PlayerItemSession.js';
-import { attachOnlineEconomyLayer, attachOfflineEconomyLayer, getDataStore } from '../economy/economyLayer.js';
-import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
+import { attachOnlineEconomyLayer, getDataStore } from '../economy/economyLayer.js';
 import { requestReturnToExploration } from '../game/battleReturnToWorld.js';
 import {
   initGameStateProvider,
@@ -35,7 +34,6 @@ import {
   resetGameStateManager,
 } from '../game/GameStateProvider.js';
 import { MapManager } from '../managers/mapManager.js';
-import { type MockWorldSocket } from '../services/mockWorldSocket.js';
 import type { WorldSocket } from '../world/WorldSocket.js';
 import {
   createAuthoritativeWorldSocket,
@@ -111,10 +109,6 @@ import {
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
 import { getSupabaseClient } from '../auth/supabaseAuth.js';
-import { isLocalDevHost } from '../auth/localDevAuth.js';
-import { DESIGN_CONFIG } from '../../config/designConstants.js';
-import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
-import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
@@ -146,7 +140,6 @@ let loginUiBound = false;
 let bootstrapInFlight = false;
 
 function isSupabaseInfrastructureError(error: unknown): boolean {
-  if (isLocalDevHost()) return false;
   const message = error instanceof Error ? error.message : String(error);
   const needles = [
     'Supabase não configurado',
@@ -165,9 +158,7 @@ function resolveBootstrapFatalMessage(error: unknown): string {
     return message;
   }
   if (message.includes('/config/client')) {
-    return isLocalDevHost()
-      ? 'Servidor offline ou /config/client indisponível. Rode npm run dev e acesse http://localhost:3000'
-      : 'Não foi possível carregar a configuração do servidor (/config/client).';
+    return 'Não foi possível carregar a configuração do servidor (/config/client).';
   }
   if (isSupabaseInfrastructureError(error)) {
     return BOOTSTRAP_SUPABASE_INFRA_MESSAGE;
@@ -178,67 +169,13 @@ function resolveBootstrapFatalMessage(error: unknown): string {
   return 'Não foi possível conectar ao Altercadia. Verifique sua conexão e tente novamente.';
 }
 
-function canUseLocalDevAuthWithoutSupabase(): boolean {
-  return isLocalDevHost() && !getSupabaseClient();
-}
-
 function assertAuthReadyForLogin(): void {
   if (!AppScreens.authService) {
     throw new Error('Serviço de autenticação indisponível.');
   }
-  if (!getSupabaseClient() && !canUseLocalDevAuthWithoutSupabase()) {
+  if (!getSupabaseClient()) {
     throw new Error('Supabase Auth não foi inicializado — login bloqueado por segurança.');
   }
-}
-
-type ViewportProbe = {
-  readonly state: () => Record<string, unknown> | null;
-  readonly loadFarmZone: () => void;
-  readonly teleportTile: (tileX: number, tileY: number) => void;
-  readonly resizeProbe: () => void;
-};
-
-function mountLocalViewportProbe(activeWorld: ExplorationScene): void {
-  if (!isLocalDevHost() || !mapManager) return;
-
-  const probe: ViewportProbe = {
-    state: () => {
-      if (!mapManager) return null;
-      const snap = activeWorld.captureExplorationSnapshot();
-      const maxX = DESIGN_CONFIG.MAP.MAX_TILES_WIDTH * DESIGN_CONFIG.TILE.SIZE - DESIGN_CONFIG.VIEWPORT.WIDTH;
-      const maxY = DESIGN_CONFIG.MAP.MAX_TILES_HEIGHT * DESIGN_CONFIG.TILE.SIZE - DESIGN_CONFIG.VIEWPORT.HEIGHT;
-      return {
-        mapId: snap.mapId,
-        player: { x: snap.x, y: snap.y },
-        camera: {
-          x: activeWorld.camera.x,
-          y: activeWorld.camera.y,
-          viewW: activeWorld.camera.visibleWorldWidth,
-          viewH: activeWorld.camera.visibleWorldHeight,
-        },
-        clampLimits: { maxX, maxY },
-      };
-    },
-    loadFarmZone: () => {
-      if (!mapManager) return;
-      const spawn = tileCenterToWorldPixel(18, 30);
-      mapManager.loadMap(FARM_ZONE_01_ID, { x: spawn.x, y: spawn.y, facing: 'south' });
-      activeWorld.prepareFrame(0);
-      activeWorld.renderWorld(performance.now());
-    },
-    teleportTile: (tileX, tileY) => {
-      if (!mapManager) return;
-      const pos = tileCenterToWorldPixel(tileX, tileY);
-      mapManager.loadMap(mapManager.currentMapId, { x: pos.x, y: pos.y, facing: 'south' });
-      activeWorld.prepareFrame(0);
-      activeWorld.renderWorld(performance.now());
-    },
-    resizeProbe: () => {
-      activeWorld.applyFixedViewport();
-    },
-  };
-
-  (globalThis as typeof globalThis & { __altercadiaViewportProbe?: ViewportProbe }).__altercadiaViewportProbe = probe;
 }
 
 function bootstrapHpBars(_state: CombatState): void {
@@ -297,22 +234,6 @@ function wirePortalTransitionBridge(): void {
   );
 }
 
-function bootstrapLocalWorldSession(): void {
-  if (isWorldSessionReady() || !worldStarted || !world || !worldSocket) return;
-
-  const mock = worldSocket as MockWorldSocket;
-  if (typeof mock.getPlayerSnapshot !== 'function') return;
-
-  const snap = mock.getPlayerSnapshot();
-  handleWorldLoginResult({
-    ok: true,
-    currentMapId: snap.mapId,
-    lastPosition: { x: snap.x, y: snap.y },
-    facing: snap.facing,
-  });
-  setStatus('Explorando (sessão local)');
-}
-
 function syncRefractionBoothCredentials(): void {
   const session = AppScreens.currentSession;
   const character = AppScreens.getSelectedCharacter();
@@ -355,9 +276,6 @@ function handleWorldAuthError(reason: string): void {
 function handleWorldLoginResult(raw: unknown): void {
   if (!isWorldLoginResult(raw)) {
     setStatus('Falha ao sincronizar posição do mundo.');
-    if (allowsOfflineGameplayFallback()) {
-      bootstrapLocalWorldSession();
-    }
     return;
   }
 
@@ -572,26 +490,18 @@ function connectSocket(): void {
       setStatus('Reconectando…');
       return;
     }
-    attachOfflineEconomyLayer();
     setExplorationOnlineMode(false);
     setStatus(message);
-    if (allowsOfflineGameplayFallback()) {
-      bootstrapLocalWorldSession();
-    }
   });
   socket.onClose((message) => {
     if (socket?.getConnectionPhase() === 'reconnecting') {
       setStatus('Reconectando…');
       return;
     }
-    attachOfflineEconomyLayer();
     setExplorationOnlineMode(false);
     setStatus(message);
     SceneManager.showExploration();
     wirePortalTransitionBridge();
-    if (allowsOfflineGameplayFallback()) {
-      bootstrapLocalWorldSession();
-    }
   });
 
   setStatus('Conectando…');
@@ -768,15 +678,11 @@ function enterWorld(): void {
   connectSocket();
   wirePortalTransitionBridge();
 
-  // Renderiza o mapa local enquanto aguarda world-login (mock ou servidor).
+  // Renderiza o mapa enquanto aguarda world-login do servidor.
   activeWorld.prepareFrame(0);
   activeWorld.renderWorld(performance.now());
-  if (allowsOfflineGameplayFallback()) {
-    bootstrapLocalWorldSession();
-  }
 
   worldStarted = true;
-  mountLocalViewportProbe(activeWorld);
 
   console.log('[Altercadia] Entrou no mundo', {
     userId: AppScreens.currentSession?.id,

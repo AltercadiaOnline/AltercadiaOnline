@@ -11,6 +11,7 @@ import {
 } from './playerGameDataRepository.js';
 import {
   listProfilesForUserOnServer,
+  profileExistsOnOtherServer,
   profileExistsOnServer,
 } from './characterHubRepository.js';
 
@@ -30,27 +31,6 @@ export type LoadCharacterDataResult =
       readonly code: 'WRONG_SERVER' | 'NOT_FOUND';
       readonly message: string;
     };
-
-async function profileExistsOnOtherServer(
-  client: SupabaseClient,
-  userId: string,
-  characterId: number,
-  serverId: string,
-): Promise<boolean> {
-  const { data, error } = await client
-    .from('profiles')
-    .select('server_id')
-    .eq('user_id', userId)
-    .eq('character_id', characterId)
-    .neq('server_id', serverId)
-    .limit(1);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data?.length ?? 0) > 0;
-}
 
 /**
  * Carrega dados do personagem exclusivos do shard informado.

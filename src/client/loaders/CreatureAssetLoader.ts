@@ -67,29 +67,10 @@ export function getCreatureBattleSpriteCandidates(creatureId: string): readonly 
   return [assets.sprites.idle, assets.sprites.attack, FALLBACK_BATTLE_SPRITE_SRC];
 }
 
-/** Verifica URLs no runtime (browser) ou paths no disco (Node). */
+/** Verifica URLs via fetch (browser / produção). */
 export async function validateAssets(bundle: CreatureAssetBundle): Promise<boolean> {
   const urls = [bundle.sprites.idle, bundle.sprites.attack];
   let ok = true;
-
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    const { existsSync } = await import('node:fs');
-    const path = await import('node:path');
-    const { fileURLToPath } = await import('node:url');
-
-    const root = path.join(fileURLToPath(new URL('../../..', import.meta.url)));
-    for (const url of urls) {
-      const relative = url.replace(/^\//, '').split('/').join(path.sep);
-      const diskPath = path.join(root, 'public', relative);
-      if (!existsSync(diskPath)) {
-        console.error(
-          `[CreatureAssetLoader] Arquivo ausente: ${diskPath} (creature=${bundle.creatureId}, manifest=${bundle.id})`,
-        );
-        ok = false;
-      }
-    }
-    return ok;
-  }
 
   for (const url of urls) {
     try {

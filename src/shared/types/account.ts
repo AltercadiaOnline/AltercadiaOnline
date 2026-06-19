@@ -8,6 +8,8 @@ export interface AccountCharacter {
   readonly class: ClassType;
   readonly level: number;
   readonly slotIndex: number;
+  /** Shard onde o personagem foi criado — imutável. */
+  readonly serverId: string;
   /** Aparência top-down — atualizada ao trocar skin no mundo. */
   readonly skin: PlayerSkin;
 }
@@ -33,6 +35,7 @@ export function isAccountProfile(value: unknown): value is AccountProfile {
       && typeof character.name === 'string'
       && typeof character.level === 'number'
       && typeof character.slotIndex === 'number'
+      && typeof character.serverId === 'string'
       && typeof classId === 'string'
       && hasValidSkin
       && (classId === 'IMPETUS'

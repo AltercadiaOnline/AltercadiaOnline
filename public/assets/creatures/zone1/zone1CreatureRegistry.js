@@ -1,9 +1,29 @@
 import { ZONE1_ALLEY_CREATURES } from '../../../shared/world/zone1MonsterSpawns.js';
-import aranhaManifest from './aranha/manifest.json' with { type: 'json' };
-import caoSelvagemManifest from './cao_selvagem/manifest.json' with { type: 'json' };
-import corvoManifest from './corvo/manifest.json' with { type: 'json' };
-import morcegoManifest from './morcego/manifest.json' with { type: 'json' };
-import ratoManifest from './rato/manifest.json' with { type: 'json' };
+const aranhaManifest = {
+    id: 'aranha_z1',
+    displayName: 'Aranha',
+    sprites: { idle: 'idle.png', attack: 'attack.png' },
+};
+const caoSelvagemManifest = {
+    id: 'cao_z1',
+    displayName: 'Cão Selvagem',
+    sprites: { idle: 'idle.png', attack: 'attack.png' },
+};
+const corvoManifest = {
+    id: 'corvo_z1',
+    displayName: 'Corvo',
+    sprites: { idle: 'idle.png', attack: 'attack.png' },
+};
+const morcegoManifest = {
+    id: 'morcego_z1',
+    displayName: 'Morcego',
+    sprites: { idle: 'idle.png', attack: 'attack.png' },
+};
+const ratoManifest = {
+    id: 'rato_z1',
+    displayName: 'Rato',
+    sprites: { idle: 'idle.png', attack: 'attack.png' },
+};
 export const ZONE1_ID = 'zone1';
 /** Mapeia IDs de gameplay (crow, rat…) → pasta + manifesto da zona. */
 export const ZONE1_CREATURE_REGISTRY = [

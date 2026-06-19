@@ -3,7 +3,6 @@ import { CHARACTER_SLOT_COUNT, createEmptyCharacterHub } from '../../shared/char
 import type { AccountCharacter } from '../../shared/types/account.js';
 import type { AccountCharacterHub } from '../../shared/characterHub.js';
 import { createAuthService } from '../auth/createAuthService.js';
-import { isLocalDevHost } from '../auth/localDevAuth.js';
 import {
   fetchPublicClientConfig,
   getUser,
@@ -16,11 +15,9 @@ import { initAuthSessionBridge, tryCompleteOAuthReturn } from '../auth/authSessi
 import { isSupabaseConfigured, type PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { isGameServerReachable } from '../services/serverReachability.js';
 import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
-import { ensureCharacterHub, createCharacterInSlot } from '../services/localCharacterHubStore.js';
 import {
   createAuthoritativeCharacter,
   fetchAuthoritativeCharacterHub,
-  shouldUseAuthoritativeCharacterHub,
 } from '../services/characterHubClient.js';
 import {
   clearLocalSession,
@@ -41,7 +38,6 @@ import {
   destroyCharacterAppearancePersistence,
   initCharacterAppearancePersistence,
 } from '../services/characterAppearancePersistence.js';
-import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
 import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
 import {
   bindCharSelectServerSelector,
@@ -76,9 +72,7 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
   const serverOk = await isGameServerReachable();
   if (!serverOk) {
     throw new Error(
-      isLocalDevHost()
-        ? 'Servidor offline. Rode npm run dev na pasta do projeto e acesse http://localhost:3000'
-        : 'Servidor offline. Não foi possível conectar ao Altercadia (/health na Vercel).',
+      'Servidor offline. Não foi possível conectar ao Altercadia (/health).',
     );
   }
 
@@ -87,25 +81,23 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
   const supabaseConfigured = isSupabaseConfigured(config);
   const hasGameWsUrl = Boolean(config.gameWsUrl);
 
-  if (!config.gameWsUrl && !isLocalDevHost()) {
+  if (!config.gameWsUrl) {
     console.warn(
-      '[Net] GAME_WS_URL ausente em /config/client — combate e mundo online não funcionarão até configurar wss://…/ws na Vercel.',
+      '[Net] GAME_WS_URL ausente em /config/client — configure wss://…/ws na Vercel.',
     );
   }
 
-  if (supabaseConfigured) {
-    const supabaseReady = await initSupabaseAuth(config);
-    if (!supabaseReady || !getSupabaseClient()) {
-      throw new Error(
-        'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client e as variáveis de ambiente.',
-      );
-    }
-  } else if (!isLocalDevHost()) {
+  if (!supabaseConfigured) {
     throw new Error(
-      'Supabase não configurado em /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel.',
+      'Supabase não configurado em /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY.',
     );
-  } else {
-    console.warn('[Auth] localhost sem Supabase — login local (email + senha no navegador).');
+  }
+
+  const supabaseReady = await initSupabaseAuth(config);
+  if (!supabaseReady || !getSupabaseClient()) {
+    throw new Error(
+      'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client.',
+    );
   }
 
   clientAuthBootstrapCache = {
@@ -116,10 +108,6 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
   };
 
   return clientAuthBootstrapCache;
-}
-
-function canRestoreLocalSessionWithoutSupabase(supabaseConfigured: boolean): boolean {
-  return isLocalDevHost() && !supabaseConfigured;
 }
 
 function bindAppShellListeners(onEnterWorld: () => void): void {
@@ -237,25 +225,17 @@ export const AppScreens = {
       return { ok: false, message: 'Sessão inválida. Faça login novamente.' };
     }
 
-    if (shouldUseAuthoritativeCharacterHub()) {
-      const result = await fetchAuthoritativeCharacterHub();
-      if (result.ok) {
-        this.characterHub = result.hub;
-        return { ok: true };
-      }
-
-      console.warn('[CharHub] Falha ao carregar hub autoritativo:', result.message);
-      if (!allowsOfflineGameplayFallback()) {
-        this.characterHub = createEmptyCharacterHub(accountKey);
-        return {
-          ok: false,
-          message: result.message ?? 'Erro ao conectar ao servidor de dados.',
-        };
-      }
+    const result = await fetchAuthoritativeCharacterHub();
+    if (result.ok) {
+      this.characterHub = result.hub;
+      return { ok: true };
     }
 
-    this.characterHub = ensureCharacterHub(accountKey);
-    return { ok: true };
+    this.characterHub = createEmptyCharacterHub(accountKey);
+    return {
+      ok: false,
+      message: result.message ?? 'Erro ao conectar ao servidor de dados.',
+    };
   },
 
   clearCharacterHubError(): void {
@@ -402,28 +382,7 @@ export const AppScreens = {
       return { ok: false, message: 'Sessão inválida. Faça login novamente.' };
     }
 
-    if (shouldUseAuthoritativeCharacterHub()) {
-      const result = await createAuthoritativeCharacter({
-        slotIndex,
-        name,
-        class: classId,
-      });
-
-      if (!result.ok) {
-        return { ok: false, message: result.message };
-      }
-
-      this.characterHub = result.hub;
-      this.renderCharacterSlots();
-      const created = result.hub.slots[slotIndex];
-      if (created) {
-        this.selectCharacter(created.id);
-      }
-
-      return { ok: true, message: `${name} criado com sucesso!` };
-    }
-
-    const result = createCharacterInSlot(accountKey, {
+    const result = await createAuthoritativeCharacter({
       slotIndex,
       name,
       class: classId,
@@ -435,9 +394,12 @@ export const AppScreens = {
 
     this.characterHub = result.hub;
     this.renderCharacterSlots();
-    this.selectCharacter(result.character.id);
+    const created = result.hub.slots[slotIndex];
+    if (created) {
+      this.selectCharacter(created.id);
+    }
 
-    return { ok: true, message: `${result.character.name} criado com sucesso!` };
+    return { ok: true, message: `${name} criado com sucesso!` };
   },
 
   setupCharacterCreation(): void {
@@ -520,22 +482,17 @@ export const AppScreens = {
     if (!statusEl || statusEl.textContent.trim().length > 0) return;
 
     if (!config.serverOk) {
-      statusEl.textContent = isLocalDevHost()
-        ? 'Servidor offline. Abra o terminal na pasta do jogo e rode: npm run dev — depois acesse http://localhost:3000'
-        : 'Servidor offline. Confira o deploy da Vercel (/health) e do Railway.';
+      statusEl.textContent =
+        'Servidor offline. Confira o deploy da Vercel (/health) e do Railway.';
       statusEl.classList.add('is-error');
       return;
     }
 
-    if (!config.supabase && isLocalDevHost()) {
+    if (!config.supabase) {
       statusEl.textContent =
-        'Modo dev local: use email + senha (mín. 6) — conta criada no navegador; produção usa Supabase Auth.';
-      statusEl.classList.remove('is-error');
-    } else if (!config.supabase) {
-      statusEl.textContent =
-        'Supabase ausente no /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel (não só no Railway).';
+        'Supabase ausente no /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel.';
       statusEl.classList.add('is-error');
-    } else if (!config.gameWsUrl && !isLocalDevHost()) {
+    } else if (!config.gameWsUrl) {
       statusEl.textContent =
         'Defina GAME_WS_URL na Vercel (ex.: wss://SEU-APP.railway.app/ws) para conectar ao servidor de jogo.';
       statusEl.classList.add('is-error');
@@ -561,59 +518,43 @@ export const AppScreens = {
       hasGameWsUrl = bootstrap.hasGameWsUrl;
 
       if (authCallbacks) {
-        if (supabaseConfigured) {
-          initAuthSessionBridge(authCallbacks);
+        initAuthSessionBridge(authCallbacks);
 
-          const oauthCompleted = await tryCompleteOAuthReturn({
-            onAuthenticated: authCallbacks.onAuthenticated,
-            onSnapshotInitializing: (message) => {
-              showPlayerInitLoading(message);
-              const statusEl = document.getElementById('auth-status');
-              if (!statusEl) return;
-              statusEl.textContent = message;
-              statusEl.classList.remove('is-error');
-              statusEl.classList.add('is-success');
-            },
-            onAuthError: (message) => {
-              hidePlayerInitLoading();
-              authCallbacks.onAuthError?.(message);
-              this.showLogin();
-              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
-            },
-          });
+        const oauthCompleted = await tryCompleteOAuthReturn({
+          onAuthenticated: authCallbacks.onAuthenticated,
+          onSnapshotInitializing: (message) => {
+            showPlayerInitLoading(message);
+            const statusEl = document.getElementById('auth-status');
+            if (!statusEl) return;
+            statusEl.textContent = message;
+            statusEl.classList.remove('is-error');
+            statusEl.classList.add('is-success');
+          },
+          onAuthError: (message) => {
+            hidePlayerInitLoading();
+            authCallbacks.onAuthError?.(message);
+            this.showLogin();
+            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
+          },
+        });
 
-          if (!oauthCompleted) {
-            const hasSupabaseSession = await this.restoreSessionFromSupabase();
-            if (hasSupabaseSession) {
-              await this.proceedAfterAuthentication();
-            } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
-              await this.showCharSelect();
-            } else {
-              this.showLogin();
-              this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
-            }
+        if (!oauthCompleted) {
+          const hasSupabaseSession = await this.restoreSessionFromSupabase();
+          if (hasSupabaseSession) {
+            await this.proceedAfterAuthentication();
+          } else {
+            this.showLogin();
+            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
           }
-        } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
-          await this.showCharSelect();
-        } else {
-          this.showLogin();
-          this.showLoginEnvironmentHint({ supabase: false, serverOk, gameWsUrl: hasGameWsUrl });
         }
-      } else if (supabaseConfigured) {
+      } else {
         const hasSupabaseSession = await this.restoreSessionFromSupabase();
         if (hasSupabaseSession) {
           await this.proceedAfterAuthentication();
-        } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
-          await this.showCharSelect();
         } else {
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         }
-      } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
-        await this.showCharSelect();
-      } else {
-        this.showLogin();
-        this.showLoginEnvironmentHint({ supabase: false, serverOk, gameWsUrl: hasGameWsUrl });
       }
     } catch (error) {
       console.error('[Auth] Falha ao inicializar Supabase:', error);

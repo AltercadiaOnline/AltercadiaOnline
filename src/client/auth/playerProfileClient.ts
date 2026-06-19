@@ -5,30 +5,16 @@ import {
 } from '../../shared/auth/playerSnapshotProtocol.js';
 import { AppScreens } from '../browser/appScreens.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
-import { getLocalSession } from '../services/localSessionStore.js';
-import { isLocalDevHost } from './localDevAuth.js';
-import { getSupabaseClient, resolveSessionAccessToken } from './supabaseAuth.js';
+import { resolveSessionAccessToken } from './supabaseAuth.js';
 import { resolveActiveServerId } from './resolveLoginServerId.js';
 
 type AuthoritativePlayerAuth = {
   readonly token: string | null;
-  readonly devPlayerId: string | null;
 };
 
 async function resolveAuthoritativePlayerAuth(): Promise<AuthoritativePlayerAuth> {
   const token = await resolveSessionAccessToken();
-  if (token) {
-    return { token, devPlayerId: null };
-  }
-
-  if (isLocalDevHost() && !getSupabaseClient()) {
-    const session = getLocalSession();
-    if (session?.id) {
-      return { token: null, devPlayerId: session.id };
-    }
-  }
-
-  return { token: null, devPlayerId: null };
+  return { token };
 }
 
 export function resolveDefaultCharacterIdForProfile(): number {
@@ -62,9 +48,6 @@ async function fetchAuthoritativePlayerSnapshotOnce(
   const url = new URL('/api/player-snapshot', window.location.origin);
   url.searchParams.set('characterId', String(characterId));
   url.searchParams.set('serverId', resolveActiveServerId());
-  if (auth.devPlayerId) {
-    url.searchParams.set('playerId', auth.devPlayerId);
-  }
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (auth.token) {
@@ -118,7 +101,7 @@ export async function initializeAuthoritativePlayerSnapshot(
   const resolvedCharacterId = characterId ?? resolveDefaultCharacterIdForProfile();
   const auth = await resolveAuthoritativePlayerAuth();
 
-  if (!auth.token && !auth.devPlayerId) {
+  if (!auth.token) {
     return { ok: false, message: 'Sessão não autenticada.' };
   }
 

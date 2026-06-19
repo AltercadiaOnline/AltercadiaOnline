@@ -1,10 +1,12 @@
-import { isLocalDevHost } from '../auth/localDevAuth.js';
-
 /**
- * Mock economy e world-login local só em localhost explícito.
- * Produção (Vercel) nunca deve reativar MockEconomyService quando o WS cai.
+ * Altercadia V2 — 100% online autoritativo.
+ * Fallback offline/local foi removido; produção e dev usam Supabase + Railway.
  */
-export function allowsOfflineGameplayFallback(hostname?: string): boolean {
-  if (typeof window === 'undefined') return false;
-  return isLocalDevHost(hostname);
+export function allowsOfflineGameplayFallback(_hostname?: string): boolean {
+  return false;
+}
+
+/** @deprecated Modo local removido — mantido para compatibilidade de imports. */
+export function isLocalDevHost(_hostname?: string): boolean {
+  return false;
 }

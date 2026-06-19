@@ -5,7 +5,6 @@ import type { PositionSyncReason } from '../../shared/world/playerWorldProfile.j
 import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
 
 import { getActionDispatcher } from '../ActionDispatcher.js';
-import { isLocalDevHost } from '../auth/localDevAuth.js';
 import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
@@ -104,7 +103,7 @@ export class PositionGateway {
       return;
     }
 
-    if (!accessToken && !isLocalDevHost()) {
+    if (!accessToken) {
       console.error('[PositionGateway] world-login bloqueado — sessão JWT ausente.');
       this.onWorldLoginBlocked?.('AUTH_REQUIRED');
       return;

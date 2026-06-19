@@ -6,7 +6,14 @@
 2. Execute também:
    - `supabase/migrations/003_auth_user_profile_trigger.sql` — trigger em `auth.users` cria `profiles` automaticamente.
    - `supabase/migrations/004_zero_trust_client_rls.sql` — remove INSERT/UPDATE/DELETE no cliente (apenas SELECT).
+   - `supabase/migrations/010_immutable_profile_server_id.sql` — `server_id` imutável após criação do personagem.
 3. Confirme em **Table Editor** que existem as tabelas `profiles`, `inventory` e `currency`.
+
+Ou via script local (requer `DATABASE_URL` em `.env.governance`):
+
+```bash
+npm run db:migrate:010
+```
 
 Alternativa com CLI:
 

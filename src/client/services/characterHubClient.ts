@@ -5,59 +5,37 @@ import {
   resolveCharacterHubErrorMessage,
   type CreateCharacterRequest,
 } from '../../shared/auth/characterHubProtocol.js';
-import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
 import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
-import { getSupabaseClient, resolveSessionAccessToken } from '../auth/supabaseAuth.js';
-import { getLocalSession } from '../services/localSessionStore.js';
-import { isLocalDevHost } from '../auth/localDevAuth.js';
+import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
 
-async function resolveHubAuth(): Promise<{ token: string | null; devPlayerId: string | null }> {
-  const token = await resolveSessionAccessToken();
-  if (token) {
-    return { token, devPlayerId: null };
-  }
-
-  if (isLocalDevHost() && !getSupabaseClient()) {
-    const session = getLocalSession();
-    if (session?.id) {
-      return { token: null, devPlayerId: session.id };
-    }
-  }
-
-  return { token: null, devPlayerId: null };
-}
-
-function buildCharacterHubUrl(auth: { devPlayerId: string | null }): URL {
+function buildCharacterHubUrl(): URL {
   const url = new URL('/api/character-hub', window.location.origin);
-  if (auth.devPlayerId) {
-    url.searchParams.set('playerId', auth.devPlayerId);
-  }
   url.searchParams.set('serverId', resolveActiveServerId());
   return url;
 }
 
 export function shouldUseAuthoritativeCharacterHub(): boolean {
-  return !allowsOfflineGameplayFallback() || Boolean(getSupabaseClient());
+  return true;
 }
 
 export async function fetchAuthoritativeCharacterHub(): Promise<
   { ok: true; hub: AccountCharacterHub } | { ok: false; message: string }
 > {
-  const auth = await resolveHubAuth();
-  if (!auth.token && !auth.devPlayerId) {
+  const token = await resolveSessionAccessToken();
+  if (!token) {
     return { ok: false, message: 'Sessão não autenticada.' };
   }
 
-  const url = buildCharacterHubUrl(auth);
-
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (auth.token) {
-    headers.Authorization = `Bearer ${auth.token}`;
-  }
+  const url = buildCharacterHubUrl();
 
   let response: Response;
   try {
-    response = await fetch(url.toString(), { headers });
+    response = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
   } catch {
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
@@ -88,26 +66,22 @@ export async function fetchAuthoritativeCharacterHub(): Promise<
 export async function createAuthoritativeCharacter(
   input: CreateCharacterRequest,
 ): Promise<{ ok: true; hub: AccountCharacterHub } | { ok: false; message: string }> {
-  const auth = await resolveHubAuth();
-  if (!auth.token && !auth.devPlayerId) {
+  const token = await resolveSessionAccessToken();
+  if (!token) {
     return { ok: false, message: 'Sessão não autenticada.' };
   }
 
-  const url = buildCharacterHubUrl(auth);
-
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  };
-  if (auth.token) {
-    headers.Authorization = `Bearer ${auth.token}`;
-  }
+  const url = buildCharacterHubUrl();
 
   let response: Response;
   try {
     response = await fetch(url.toString(), {
       method: 'POST',
-      headers,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(input),
     });
   } catch {
