@@ -1,7 +1,6 @@
 import type { GameState } from '../../shared/game/gameState.js';
 import { GameState as GameStateValue } from '../../shared/game/gameState.js';
 import { getGameStateManager } from '../../shared/state/GameStateManager.js';
-import { getBattleScreen } from '../hud/index.js';
 import type { MapManager } from '../managers/mapManager.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
@@ -113,6 +112,7 @@ export function handlePortalTrigger(
 }
 
 export async function enterBattleWithFade(): Promise<void> {
+  const { getBattleScreen } = await import('../hud/index.js');
   await getBattleScreen()?.enterWithFade();
 }
 
