@@ -22,24 +22,24 @@ function copyDir(from, to) {
   console.log(`[sync-vercel-public] ${path.relative(root, from)} → ${path.relative(root, to)}`);
 }
 
-/** Mescla apenas .js compilados — preserva imagens/placeholders já em public/assets. */
-function mergeCompiledJsTree(fromDir, toDir) {
-  if (!existsSync(fromDir)) {
-    console.error(`[sync-vercel-public] Origem ausente: ${fromDir}`);
+/** Mescla .js compilados e .json de src/assets — preserva imagens/placeholders já em public/assets. */
+function mergeCompiledAssetsTree(fromJsDir, fromJsonDir, toDir) {
+  if (!existsSync(fromJsDir)) {
+    console.error(`[sync-vercel-public] Origem ausente: ${fromJsDir}`);
     process.exit(1);
   }
 
   mkdirSync(toDir, { recursive: true });
 
-  function walk(relativeDir) {
-    const absoluteFrom = path.join(fromDir, relativeDir);
+  function walkJs(relativeDir) {
+    const absoluteFrom = path.join(fromJsDir, relativeDir);
     for (const entry of readdirSync(absoluteFrom, { withFileTypes: true })) {
       const childRelative = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
-      const fromPath = path.join(fromDir, childRelative);
+      const fromPath = path.join(fromJsDir, childRelative);
       const toPath = path.join(toDir, childRelative);
 
       if (entry.isDirectory()) {
-        walk(childRelative);
+        walkJs(childRelative);
         continue;
       }
 
@@ -50,20 +50,45 @@ function mergeCompiledJsTree(fromDir, toDir) {
     }
   }
 
-  walk('');
-  console.log(`[sync-vercel-public] ${path.relative(root, fromDir)} → ${path.relative(root, toDir)} (merge .js)`);
+  walkJs('');
+  console.log(`[sync-vercel-public] ${path.relative(root, fromJsDir)} → ${path.relative(root, toDir)} (merge .js)`);
+
+  if (!existsSync(fromJsonDir)) return;
+
+  function walkJson(relativeDir) {
+    const absoluteFrom = path.join(fromJsonDir, relativeDir);
+    for (const entry of readdirSync(absoluteFrom, { withFileTypes: true })) {
+      const childRelative = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
+      const fromPath = path.join(fromJsonDir, childRelative);
+      const toPath = path.join(toDir, childRelative);
+
+      if (entry.isDirectory()) {
+        walkJson(childRelative);
+        continue;
+      }
+
+      if (!entry.name.endsWith('.json')) continue;
+
+      mkdirSync(path.dirname(toPath), { recursive: true });
+      cpSync(fromPath, toPath);
+    }
+  }
+
+  walkJson('');
+  console.log(`[sync-vercel-public] ${path.relative(root, fromJsonDir)} → ${path.relative(root, toDir)} (merge .json)`);
 }
 
 const clientSrc = path.join(distDir, 'client');
 const sharedSrc = path.join(distDir, 'shared');
 const configSrc = path.join(distDir, 'config');
 const assetsSrc = path.join(distDir, 'assets');
+const assetsJsonSrc = path.join(root, 'src', 'assets');
 const gsapSrc = path.join(root, 'node_modules', 'gsap');
 
 copyDir(clientSrc, path.join(publicDir, 'client'));
 copyDir(sharedSrc, path.join(publicDir, 'shared'));
 copyDir(configSrc, path.join(publicDir, 'config'));
-mergeCompiledJsTree(assetsSrc, path.join(publicDir, 'assets'));
+mergeCompiledAssetsTree(assetsSrc, assetsJsonSrc, path.join(publicDir, 'assets'));
 
 if (existsSync(gsapSrc)) {
   copyDir(gsapSrc, path.join(publicDir, 'vendor', 'gsap'));
@@ -75,6 +100,8 @@ const requiredBundles = [
   path.join(publicDir, 'client', 'browser', 'main.js'),
   path.join(publicDir, 'config', 'designConstants.js'),
   path.join(publicDir, 'assets', 'urban', 'urbanAssetManifest.js'),
+  path.join(publicDir, 'assets', 'creatures', 'zone1', 'aranha', 'manifest.json'),
+  path.join(publicDir, 'assets', 'creatures', 'zone1', 'corvo', 'manifest.json'),
 ];
 
 for (const bundlePath of requiredBundles) {
