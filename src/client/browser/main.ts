@@ -969,13 +969,11 @@ async function bootstrap(): Promise<void> {
   bootstrapInFlight = true;
 
   hideBootstrapFatalError();
-  showPlayerInitLoading(BOOTSTRAP_LOADING_MESSAGE);
+  showScreen('login-screen');
+  ensureLoginHudBound();
 
   try {
-    showScreen('login-screen');
-
     await prepareClientAuthBootstrap();
-    ensureLoginHudBound();
 
     await AppScreens.init(enterWorld, {
       onAuthenticated: onLoginSuccess,
