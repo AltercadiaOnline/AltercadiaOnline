@@ -11,7 +11,7 @@ export function parseServerIdFromEnv(
 
   if (nodeEnv === 'production') {
     console.warn(
-      '[server] SERVER_ID ausente — usando "default". Defina SERVER_ID=azul (ou outro) no Railway.',
+      '[server] SERVER_ID ausente — usando "default". Defina SERVER_ID=azul|vermelho|roxo no Railway e na Vercel.',
     );
   }
 

@@ -51,6 +51,36 @@ export function copyRegisterCredentialsToLoginForm(): void {
   passInput.value = regPassInput.value;
 }
 
+function bindAuthButton(id: string, handler: () => void): boolean {
+  const button = document.getElementById(id);
+  if (!(button instanceof HTMLButtonElement)) {
+    console.warn(`[AuthFlow] Botão ausente: #${id}`);
+    return false;
+  }
+
+  if (button.dataset.authBound === '1') {
+    return true;
+  }
+  button.dataset.authBound = '1';
+
+  button.addEventListener('click', (event) => {
+    logAuthClick(button.id, {
+      disabled: button.disabled,
+      type: button.type,
+    });
+
+    if (button.disabled) {
+      console.warn(`[AuthFlow] Clique em #${button.id} ignorado — botão disabled`);
+      return;
+    }
+
+    event.preventDefault();
+    handler();
+  });
+
+  return true;
+}
+
 export function bindAuthNavigation(handlers: {
   onLogin: () => void;
   onShowRegister: () => void;
@@ -67,66 +97,37 @@ export function bindAuthNavigation(handlers: {
     return false;
   }
 
-  if (root.dataset.authNavBound === '1') {
-    return true;
-  }
-  root.dataset.authNavBound = '1';
-
-  const buttonHandlers = new Map<string, () => void>([
+  const bindings: Array<[string, () => void]> = [
     ['btn-login', handlers.onLogin],
     ['btn-show-register', handlers.onShowRegister],
     ['btn-create-account', handlers.onCreateAccount],
     ['btn-back-login', handlers.onBackToLogin],
-  ]);
+    ['btn-back-login-from-forgot', handlers.onBackToLogin],
+    ['btn-back-login-from-reset', handlers.onBackToLogin],
+  ];
 
   if (handlers.onGoogleLogin) {
-    buttonHandlers.set('btn-login-google', handlers.onGoogleLogin);
-    buttonHandlers.set('btn-google-register', handlers.onGoogleLogin);
+    bindings.push(['btn-login-google', handlers.onGoogleLogin]);
+    bindings.push(['btn-google-register', handlers.onGoogleLogin]);
   }
 
   if (handlers.onShowForgotPassword) {
-    buttonHandlers.set('btn-forgot-password', handlers.onShowForgotPassword);
+    bindings.push(['btn-forgot-password', handlers.onShowForgotPassword]);
   }
   if (handlers.onSendPasswordReset) {
-    buttonHandlers.set('btn-send-reset', handlers.onSendPasswordReset);
+    bindings.push(['btn-send-reset', handlers.onSendPasswordReset]);
   }
   if (handlers.onApplyNewPassword) {
-    buttonHandlers.set('btn-apply-new-password', handlers.onApplyNewPassword);
+    bindings.push(['btn-apply-new-password', handlers.onApplyNewPassword]);
   }
-  buttonHandlers.set('btn-back-login-from-forgot', handlers.onBackToLogin);
-  buttonHandlers.set('btn-back-login-from-reset', handlers.onBackToLogin);
 
   let bound = 0;
-
-  for (const id of buttonHandlers.keys()) {
-    if (document.getElementById(id) instanceof HTMLButtonElement) {
+  for (const [id, handler] of bindings) {
+    if (bindAuthButton(id, handler)) {
       bound += 1;
-      continue;
     }
-    console.warn(`[AuthFlow] Botão ausente: #${id}`);
   }
 
-  root.addEventListener('click', (event) => {
-    const target = event.target;
-    const button = target instanceof Element ? target.closest('button') : null;
-    if (!(button instanceof HTMLButtonElement)) return;
-
-    logAuthClick(button.id, {
-      disabled: button.disabled,
-      type: button.type,
-    });
-
-    const handler = buttonHandlers.get(button.id);
-    if (!handler) return;
-
-    if (button.disabled) {
-      console.warn(`[AuthFlow] Clique em #${button.id} ignorado — botão disabled`);
-      return;
-    }
-
-    event.preventDefault();
-    handler();
-  });
-
+  root.dataset.authNavBound = bound > 0 ? '1' : '0';
   return bound > 0;
 }

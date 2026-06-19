@@ -74,7 +74,7 @@ function isMinorBirthDate(birthDate: string): boolean {
   return age !== null && !isAtLeastAge(birthDate, ADULT_AGE_YEARS);
 }
 
-export function setupLoginScreen(options: LoginScreenOptions): void {
+export function setupLoginScreen(options: LoginScreenOptions): boolean {
   const root = document.getElementById('login-screen');
   const emailField = requireInput('email-input');
   const passField = requireInput('pass-input');
@@ -86,6 +86,19 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   const consentField = requireConsentField();
   const consentCheckbox = requireCheckbox('reg-guardian-consent-input');
   const statusEl = requireStatusEl();
+
+  const missing: string[] = [];
+  if (!root) missing.push('#login-screen');
+  if (!emailField) missing.push('#email-input');
+  if (!passField) missing.push('#pass-input');
+  if (!nameField) missing.push('#reg-name-input');
+  if (!birthField) missing.push('#reg-birth-input');
+  if (!regEmailField) missing.push('#reg-email-input');
+  if (!regPassField) missing.push('#reg-pass-input');
+  if (!regConfirmField) missing.push('#reg-confirm-input');
+  if (!consentField) missing.push('#reg-guardian-consent-field');
+  if (!consentCheckbox) missing.push('#reg-guardian-consent-input');
+  if (!statusEl) missing.push('#auth-status');
 
   if (
     !root
@@ -100,9 +113,14 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     || !consentCheckbox
     || !statusEl
   ) {
-    console.error('[LoginScreen] Elementos da HUD de login ausentes.');
-    return;
+    console.error('[LoginScreen] Elementos da HUD de login ausentes:', missing.join(', '));
+    return false;
   }
+
+  const loginRoot = root;
+  const authStatusEl = statusEl;
+  const guardianConsentField = consentField;
+  const guardianConsentCheckbox = consentCheckbox;
 
   const fields = {
     email: emailField,
@@ -116,7 +134,7 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   };
 
   const refreshConsentVisibility = (): void => {
-    syncParentalConsentVisibility(fields.birth.value.trim(), consentField, consentCheckbox);
+    syncParentalConsentVisibility(fields.birth.value.trim(), guardianConsentField, guardianConsentCheckbox);
   };
 
   fields.birth.addEventListener('change', refreshConsentVisibility);
@@ -125,14 +143,14 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   let busy = false;
 
   const setStatus = (message: string, isError: boolean): void => {
-    statusEl.textContent = message;
-    statusEl.classList.toggle('is-error', isError);
-    statusEl.classList.toggle('is-success', !isError && message.length > 0);
+    authStatusEl.textContent = message;
+    authStatusEl.classList.toggle('is-error', isError);
+    authStatusEl.classList.toggle('is-success', !isError && message.length > 0);
   };
 
   const setBusy = (next: boolean): void => {
     busy = next;
-    root.querySelectorAll('button').forEach((button) => {
+    loginRoot.querySelectorAll('button').forEach((button) => {
       button.toggleAttribute('disabled', next);
     });
   };
@@ -434,4 +452,5 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
 
   logAuthEnvironment('login-screen-ready', { navigationReady });
   console.log('[LoginScreen] HUD de login pronta (GameAuthService).');
+  return navigationReady;
 }

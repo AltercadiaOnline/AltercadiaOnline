@@ -5,6 +5,8 @@ export type PublicServerInstanceEntry = {
   readonly mapIds: readonly string[];
   /** true quando este shard é o SERVER_ID do processo que respondeu a API. */
   readonly isCurrentDeploy: boolean;
+  /** Jogador pode selecionar (rollout — ex.: só Azul no lançamento). */
+  readonly selectable: boolean;
 };
 
 export type ServerListResponse = {
@@ -23,6 +25,7 @@ export function isServerListResponse(value: unknown): value is ServerListRespons
     return typeof row.id === 'string'
       && typeof row.displayName === 'string'
       && Array.isArray(row.mapIds)
-      && typeof row.isCurrentDeploy === 'boolean';
+      && typeof row.isCurrentDeploy === 'boolean'
+      && typeof row.selectable === 'boolean';
   });
 }

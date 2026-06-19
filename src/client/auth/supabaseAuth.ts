@@ -7,6 +7,11 @@ let supabase: SupabaseClient | null = null;
 
 /** Inicializa o client — URL e anon key vêm de `.env.governance` via servidor (`GET /config/client`). */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
+  if (supabase) {
+    logAuthEnvironment('initSupabaseAuth-already-ready');
+    return true;
+  }
+
   logAuthEnvironment('initSupabaseAuth-start', {
     supabaseUrl: config.supabaseUrl ?? null,
     gameWsUrl: config.gameWsUrl ?? null,

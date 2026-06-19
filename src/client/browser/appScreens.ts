@@ -13,7 +13,7 @@ import {
 } from '../auth/supabaseAuth.js';
 import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameStore.js';
 import { initAuthSessionBridge, tryCompleteOAuthReturn } from '../auth/authSessionBridge.js';
-import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
+import { isSupabaseConfigured, type PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { isGameServerReachable } from '../services/serverReachability.js';
 import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { ensureCharacterHub, createCharacterInSlot } from '../services/localCharacterHubStore.js';
@@ -57,6 +57,66 @@ import {
 
 let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
 let appShellListenersBound = false;
+
+export type ClientAuthBootstrapResult = {
+  readonly serverOk: boolean;
+  readonly supabaseConfigured: boolean;
+  readonly hasGameWsUrl: boolean;
+  readonly config: PublicClientConfig;
+};
+
+let clientAuthBootstrapCache: ClientAuthBootstrapResult | null = null;
+
+/** Health + /config/client + Supabase — deve rodar antes de ligar os botões de login. */
+export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
+  if (clientAuthBootstrapCache) {
+    return clientAuthBootstrapCache;
+  }
+
+  const serverOk = await isGameServerReachable();
+  if (!serverOk) {
+    throw new Error(
+      isLocalDevHost()
+        ? 'Servidor offline. Rode npm run dev na pasta do projeto e acesse http://localhost:3000'
+        : 'Servidor offline. Não foi possível conectar ao Altercadia (/health na Vercel).',
+    );
+  }
+
+  const config = await fetchPublicClientConfig();
+  setClientRuntimeConfig(config);
+  const supabaseConfigured = isSupabaseConfigured(config);
+  const hasGameWsUrl = Boolean(config.gameWsUrl);
+
+  if (!config.gameWsUrl && !isLocalDevHost()) {
+    console.warn(
+      '[Net] GAME_WS_URL ausente em /config/client — combate e mundo online não funcionarão até configurar wss://…/ws na Vercel.',
+    );
+  }
+
+  if (supabaseConfigured) {
+    const supabaseReady = await initSupabaseAuth(config);
+    if (!supabaseReady || !getSupabaseClient()) {
+      throw new Error(
+        'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client e as variáveis de ambiente.',
+      );
+    }
+  } else if (!isLocalDevHost()) {
+    throw new Error(
+      'Supabase não configurado em /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel.',
+    );
+  } else {
+    console.warn('[Auth] localhost sem Supabase — login local (email + senha no navegador).');
+  }
+
+  clientAuthBootstrapCache = {
+    serverOk,
+    supabaseConfigured,
+    hasGameWsUrl,
+    config,
+  };
+
+  return clientAuthBootstrapCache;
+}
 
 function canRestoreLocalSessionWithoutSupabase(supabaseConfigured: boolean): boolean {
   return isLocalDevHost() && !supabaseConfigured;
@@ -490,43 +550,15 @@ export const AppScreens = {
       onSignedOut?: () => void;
     },
   ): Promise<void> {
-    const serverOk = await isGameServerReachable();
     let supabaseConfigured = false;
+    let serverOk = false;
+    let hasGameWsUrl = false;
 
     try {
-      if (!serverOk) {
-        throw new Error(
-          isLocalDevHost()
-            ? 'Servidor offline. Rode npm run dev na pasta do projeto e acesse http://localhost:3000'
-            : 'Servidor offline. Não foi possível conectar ao Altercadia (/health na Vercel).',
-        );
-      }
-
-      const config = await fetchPublicClientConfig();
-      setClientRuntimeConfig(config);
-      supabaseConfigured = isSupabaseConfigured(config);
-      const hasGameWsUrl = Boolean(config.gameWsUrl);
-
-      if (!config.gameWsUrl && !isLocalDevHost()) {
-        console.warn(
-          '[Net] GAME_WS_URL ausente em /config/client — combate e mundo online não funcionarão até configurar wss://…/ws na Vercel.',
-        );
-      }
-
-      if (supabaseConfigured) {
-        const supabaseReady = await initSupabaseAuth(config);
-        if (!supabaseReady || !getSupabaseClient()) {
-          throw new Error(
-            'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client e as variáveis de ambiente.',
-          );
-        }
-      } else if (!isLocalDevHost()) {
-        throw new Error(
-          'Supabase não configurado em /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel.',
-        );
-      } else {
-        console.warn('[Auth] localhost sem Supabase — login local (email + senha no navegador).');
-      }
+      const bootstrap = await prepareClientAuthBootstrap();
+      supabaseConfigured = bootstrap.supabaseConfigured;
+      serverOk = bootstrap.serverOk;
+      hasGameWsUrl = bootstrap.hasGameWsUrl;
 
       if (authCallbacks) {
         if (supabaseConfigured) {

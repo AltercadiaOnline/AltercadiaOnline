@@ -1078,6 +1078,11 @@ export class CombatWsHub implements CombatWsRouteHost {
       }
 
       if (reportedServerId !== getServerInstanceContext().id) {
+        console.warn('[WS] world-login: SERVER_ID do cliente não coincide com o deploy', {
+          connectionId,
+          reportedServerId,
+          deployServerId: getServerInstanceContext().id,
+        });
         this.send(ws, { type: 'combat-error', payload: { reason: 'WRONG_SERVER' } });
         return;
       }

@@ -1,8 +1,18 @@
 import type http from 'node:http';
 import type { ServerEnv } from '../config/env.js';
 import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
-import { SERVER_INSTANCE_CATALOG } from '../../shared/world/serverInstanceCatalog.js';
+import { listCharSelectShardDefinitions } from '../../shared/world/serverInstanceCatalog.js';
 import type { ServerListResponse } from '../../shared/world/serverListProtocol.js';
+
+function buildPublicServerList(deployId: string): ServerListResponse['servers'] {
+  return listCharSelectShardDefinitions().map((definition) => ({
+    id: definition.id,
+    displayName: definition.displayName,
+    mapIds: definition.mapIds,
+    isCurrentDeploy: definition.id === deployId,
+    selectable: definition.charSelectSelectable === true,
+  }));
+}
 
 export async function handleServerListRoute(
   req: http.IncomingMessage,
@@ -23,12 +33,7 @@ export async function handleServerListRoute(
   const payload: ServerListResponse = {
     ok: true,
     defaultServerId: deployId,
-    servers: Object.values(SERVER_INSTANCE_CATALOG).map((definition) => ({
-      id: definition.id,
-      displayName: definition.displayName,
-      mapIds: definition.mapIds,
-      isCurrentDeploy: definition.id === deployId,
-    })),
+    servers: buildPublicServerList(deployId),
   };
 
   res.writeHead(200, {
@@ -45,11 +50,6 @@ export function buildServerListPayload(env: ServerEnv): ServerListResponse {
   return {
     ok: true,
     defaultServerId: deployId,
-    servers: Object.values(SERVER_INSTANCE_CATALOG).map((definition) => ({
-      id: definition.id,
-      displayName: definition.displayName,
-      mapIds: definition.mapIds,
-      isCurrentDeploy: definition.id === deployId,
-    })),
+    servers: buildPublicServerList(deployId),
   };
 }

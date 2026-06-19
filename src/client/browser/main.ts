@@ -56,7 +56,7 @@ import {
   setupPauseMenu,
 } from '../components/pauseMenu.js';
 import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
-import { AppScreens } from './appScreens.js';
+import { AppScreens, prepareClientAuthBootstrap } from './appScreens.js';
 import { createBrowserCombatSocket, connectionPhaseLabel, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
 import { mountWorldMapScene, SceneManager, resetWorldMapSceneMount } from './sceneManager.js';
 import { initGameRoot } from './GameRoot.js';
@@ -137,7 +137,7 @@ let teardownGameState: (() => void) | null = null;
 let teardownGameRoot: (() => void) | null = null;
 let teardownLightOverlay: (() => void) | null = null;
 
-const BOOTSTRAP_FATAL_OVERLAY_ID = 'bootstrap-fatal-overlay';
+const BOOTSTRAP_RETRY_BUTTON_ID = 'bootstrap-retry-btn';
 const BOOTSTRAP_LOADING_MESSAGE = 'Conectando ao Altercadia…';
 const BOOTSTRAP_SUPABASE_INFRA_MESSAGE =
   'Erro de infraestrutura: Configurações do Supabase ausentes';
@@ -916,12 +916,12 @@ function setupPauseControls(): void {
 }
 
 function hideBootstrapFatalError(): void {
-  document.getElementById(BOOTSTRAP_FATAL_OVERLAY_ID)?.remove();
+  document.getElementById(BOOTSTRAP_RETRY_BUTTON_ID)?.classList.add('hidden');
 }
 
 function showBootstrapFatalError(message: string): void {
-  hideBootstrapFatalError();
   showScreen('login-screen');
+  ensureLoginHudBound();
 
   const statusEl = document.getElementById('auth-status');
   if (statusEl) {
@@ -930,47 +930,38 @@ function showBootstrapFatalError(message: string): void {
     statusEl.classList.remove('is-success');
   }
 
-  const overlay = document.createElement('div');
-  overlay.id = BOOTSTRAP_FATAL_OVERLAY_ID;
-  overlay.className = 'player-init-loading bootstrap-fatal-overlay';
-  overlay.setAttribute('role', 'alertdialog');
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-labelledby', 'bootstrap-fatal-title');
-  overlay.innerHTML = `
-    <div class="player-init-loading__panel bootstrap-fatal-overlay__panel">
-      <h2 id="bootstrap-fatal-title" class="bootstrap-fatal-overlay__title">Falha ao iniciar</h2>
-      <p class="bootstrap-fatal-overlay__message"></p>
-      <button type="button" class="auth-google-btn bootstrap-fatal-overlay__retry">Tentar Novamente</button>
-    </div>
-  `;
+  let retryBtn = document.getElementById(BOOTSTRAP_RETRY_BUTTON_ID);
+  if (!(retryBtn instanceof HTMLButtonElement)) {
+    const created = document.createElement('button');
+    created.id = BOOTSTRAP_RETRY_BUTTON_ID;
+    created.type = 'button';
+    created.className = 'auth-link-btn bootstrap-retry-btn';
+    created.textContent = 'Tentar novamente';
+    statusEl?.insertAdjacentElement('afterend', created);
+    created.addEventListener('click', () => {
+      void bootstrap();
+    });
+    retryBtn = created;
+  }
 
-  const messageEl = overlay.querySelector('.bootstrap-fatal-overlay__message');
-  if (messageEl) messageEl.textContent = message;
-
-  overlay.querySelector('.bootstrap-fatal-overlay__retry')?.addEventListener('click', () => {
-    void bootstrap();
-  });
-
-  document.body.appendChild(overlay);
+  retryBtn.classList.remove('hidden');
 }
 
-function setupLogin(): void {
-  if (loginUiBound) {
-    console.log('[Bootstrap] Login HUD já ligada — ignorando setupLogin duplicado.');
-    return;
-  }
+function ensureLoginHudBound(): boolean {
+  if (loginUiBound) return true;
 
-  try {
-    assertAuthReadyForLogin();
-  } catch (error) {
-    console.warn('[Bootstrap] Supabase ainda não pronto — ligando HUD mesmo assim:', error);
-  }
-
-  setupLoginScreen({
+  const bound = setupLoginScreen({
     onAuthenticated: onLoginSuccess,
   });
-  loginUiBound = true;
-  console.log('[Bootstrap] Login HUD ligada.');
+
+  if (bound) {
+    loginUiBound = true;
+    console.log('[Bootstrap] Login HUD ligada.');
+  } else {
+    console.error('[Bootstrap] Falha ao ligar login HUD — DOM incompleto ou botões ausentes.');
+  }
+
+  return bound;
 }
 
 async function bootstrap(): Promise<void> {
@@ -983,12 +974,8 @@ async function bootstrap(): Promise<void> {
   try {
     showScreen('login-screen');
 
-    // Liga botões antes do init pesado — evita UI morta se bootstrap travar ou overlay persistir.
-    try {
-      setupLogin();
-    } catch (bindError) {
-      console.error('[Bootstrap] Falha ao ligar login HUD cedo:', bindError);
-    }
+    await prepareClientAuthBootstrap();
+    ensureLoginHudBound();
 
     await AppScreens.init(enterWorld, {
       onAuthenticated: onLoginSuccess,
@@ -1023,9 +1010,13 @@ async function bootstrap(): Promise<void> {
     console.log('[MVP] Cliente V2 pronto', CLIENT_RUNTIME_VERSION);
   } catch (error) {
     console.error('[MVP] Bootstrap falhou:', error);
+    ensureLoginHudBound();
     showBootstrapFatalError(resolveBootstrapFatalMessage(error));
   } finally {
     hidePlayerInitLoading();
+    if (!loginUiBound) {
+      ensureLoginHudBound();
+    }
     logAuthEnvironment('bootstrap-finally', { loginUiBound });
     bootstrapInFlight = false;
   }

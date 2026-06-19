@@ -42,12 +42,14 @@ export function pickDefaultServerEntry(
   preferredId?: string | null,
 ): PublicServerInstanceEntry | null {
   if (preferredId) {
-    const match = servers.find((entry) => entry.id === preferredId);
-    if (match) return match;
+    const match = servers.find((entry) => entry.id === preferredId && entry.selectable);
+    if (match?.isCurrentDeploy) return match;
   }
 
-  const deployMatch = servers.find((entry) => entry.isCurrentDeploy);
-  if (deployMatch) return deployMatch;
+  const deploySelectable = servers.find((entry) => entry.isCurrentDeploy && entry.selectable);
+  if (deploySelectable) return deploySelectable;
 
-  return servers[0] ?? null;
+  return servers.find((entry) => entry.selectable && entry.isCurrentDeploy)
+    ?? servers.find((entry) => entry.selectable)
+    ?? null;
 }
