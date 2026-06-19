@@ -14,10 +14,6 @@
 
         <section id="auth-login-panel" class="auth-panel">
           <label class="auth-field">
-            <span id="server-id-label">Servidor</span>
-            <select id="server-id-input" aria-label="Servidor"></select>
-          </label>
-          <label class="auth-field">
             <span>Email</span>
             <input id="email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
           </label>
@@ -29,7 +25,62 @@
             <button id="btn-login" type="button">LOGIN</button>
             <button id="btn-show-register" type="button">CADASTRAR</button>
           </div>
+          <button id="btn-forgot-password" type="button" class="auth-link-btn">Esqueci minha senha</button>
           <button id="btn-login-google" type="button" class="auth-google-btn">ENTRAR COM GOOGLE</button>
+        </section>
+
+        <section id="auth-forgot-panel" class="auth-panel hidden">
+          <h2 class="auth-panel-title">RECUPERAR SENHA</h2>
+          <p class="auth-panel-hint">Enviaremos um link para redefinir sua senha.</p>
+          <label class="auth-field">
+            <span>Email</span>
+            <input id="forgot-email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
+          </label>
+          <div class="auth-actions">
+            <button id="btn-send-reset" type="button">ENVIAR LINK</button>
+            <button id="btn-back-login-from-forgot" type="button">VOLTAR</button>
+          </div>
+        </section>
+
+        <section id="auth-reset-panel" class="auth-panel hidden">
+          <h2 class="auth-panel-title">NOVA SENHA</h2>
+          <p class="auth-panel-hint">Defina uma nova senha para sua conta.</p>
+          <label class="auth-field">
+            <span>Nova senha</span>
+            <input id="reset-pass-input" type="password" autocomplete="new-password" placeholder="••••••" />
+          </label>
+          <label class="auth-field">
+            <span>Confirmar senha</span>
+            <input id="reset-confirm-input" type="password" autocomplete="new-password" placeholder="••••••" />
+          </label>
+          <div class="auth-actions">
+            <button id="btn-apply-new-password" type="button">SALVAR SENHA</button>
+            <button id="btn-back-login-from-reset" type="button">VOLTAR</button>
+          </div>
+        </section>
+
+        <section id="auth-profile-complete-panel" class="auth-panel hidden">
+          <h2 class="auth-panel-title">COMPLETAR PERFIL</h2>
+          <p class="auth-panel-hint">Informe sua data de nascimento para continuar (contas Google ou novas).</p>
+          <label class="auth-field">
+            <span>Nome</span>
+            <input id="profile-name-input" type="text" autocomplete="name" placeholder="Seu nome" />
+          </label>
+          <label class="auth-field">
+            <span>Data de nascimento</span>
+            <input id="profile-birth-input" type="date" autocomplete="bday" />
+          </label>
+          <label id="profile-guardian-consent-field" class="auth-field auth-consent-field hidden">
+            <span class="auth-consent-heading">Consentimento de Responsável</span>
+            <span class="auth-consent-label">
+              <input id="profile-guardian-consent-input" type="checkbox" />
+              Declaro que tenho permissão dos meus pais ou responsáveis para jogar e para o processamento dos meus dados.
+            </span>
+          </label>
+          <div class="auth-actions">
+            <button id="btn-profile-complete" type="button">CONTINUAR</button>
+            <button id="btn-profile-cancel" type="button">SAIR</button>
+          </div>
         </section>
 
         <section id="auth-register-panel" class="auth-panel hidden">
@@ -40,7 +91,14 @@
           </label>
           <label class="auth-field">
             <span>Data de nascimento</span>
-            <input id="reg-birth-input" type="date" />
+            <input id="reg-birth-input" type="date" required autocomplete="bday" />
+          </label>
+          <label id="reg-guardian-consent-field" class="auth-field auth-consent-field hidden">
+            <span class="auth-consent-heading">Consentimento de Responsável</span>
+            <span class="auth-consent-label">
+              <input id="reg-guardian-consent-input" type="checkbox" />
+              Declaro que tenho permissão dos meus pais ou responsáveis para jogar e para o processamento dos meus dados.
+            </span>
           </label>
           <label class="auth-field">
             <span>Email</span>
@@ -68,6 +126,11 @@
     <div id="char-select-screen" class="screen full-screen">
       <h1>ESCOLHA SEU PERSONAGEM</h1>
       <p id="char-select-account" class="char-select-account"></p>
+      <label class="auth-field char-select-server-field">
+        <span id="char-select-server-label">Servidor</span>
+        <select id="char-select-server-input" aria-label="Servidor"></select>
+      </label>
+      <p id="char-select-server-hint" class="char-select-server-hint" aria-live="polite"></p>
       <div id="char-slots" class="char-container"></div>
       <div class="char-select-actions">
         <button id="btn-back-to-login" type="button">VOLTAR AO LOGIN</button>

@@ -5,21 +5,33 @@ import {
   copyRegisterCredentialsToLoginForm,
   showAuthView,
 } from './authFlow.js';
-import { bindGoogleLoginButton, loginWithEmailForServer, registerAccount } from '../services/auth/GameAuthService.js';
-import { getSupabaseClient } from '../auth/supabaseAuth.js';
-import { resolveLoginServerId } from '../auth/resolveLoginServerId.js';
-import { syncLoginServerSelector } from '../auth/syncLoginServerSelector.js';
-import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
+import {
+  loginWithEmailForServer,
+  registerAccount,
+  startGoogleOAuth,
+} from './auth/GameAuthService.js';
+import { applyPasswordReset, requestPasswordReset } from '../auth.js';
+import {
+  clearPasswordRecoveryUrl,
+  getSupabaseClient,
+  getUser,
+  isPasswordRecoverySession,
+  isSupabaseReady,
+  subscribeAuthStateChange,
+} from '../auth/supabaseAuth.js';
+import { ADULT_AGE_YEARS, computeAgeYears, isAtLeastAge } from '../auth.js';
+import { isLocalDevHost } from '../auth/localDevAuth.js';
 import {
   logAuthApiAttempt,
   logAuthApiResult,
-  logAuthClick,
   logAuthEnvironment,
 } from '../auth/authDebug.js';
 
 export type LoginScreenOptions = {
-  onAuthenticated: (user: AuthUser, serverId: string) => void | Promise<void>;
+  onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
 };
+
+const MIN_PASSWORD_LENGTH = 6;
 
 function requireInput(id: string): HTMLInputElement | null {
   const element = document.getElementById(id);
@@ -30,28 +42,62 @@ function requireStatusEl(): HTMLElement | null {
   return document.getElementById('auth-status');
 }
 
+function isAuthChannelReady(): boolean {
+  return isSupabaseReady() || isLocalDevHost();
+}
+
+function requireCheckbox(id: string): HTMLInputElement | null {
+  const element = document.getElementById(id);
+  return element instanceof HTMLInputElement && element.type === 'checkbox' ? element : null;
+}
+
+function requireConsentField(): HTMLElement | null {
+  return document.getElementById('reg-guardian-consent-field');
+}
+
+function syncParentalConsentVisibility(
+  birthDate: string,
+  consentField: HTMLElement,
+  consentCheckbox: HTMLInputElement,
+): void {
+  const age = computeAgeYears(birthDate);
+  const isMinor = age !== null && age < ADULT_AGE_YEARS;
+
+  consentField.classList.toggle('hidden', !isMinor);
+  if (!isMinor) {
+    consentCheckbox.checked = false;
+  }
+}
+
+function isMinorBirthDate(birthDate: string): boolean {
+  const age = computeAgeYears(birthDate);
+  return age !== null && !isAtLeastAge(birthDate, ADULT_AGE_YEARS);
+}
+
 export function setupLoginScreen(options: LoginScreenOptions): void {
   const root = document.getElementById('login-screen');
   const emailField = requireInput('email-input');
   const passField = requireInput('pass-input');
-  const serverField = document.getElementById('server-id-input');
   const nameField = requireInput('reg-name-input');
   const birthField = requireInput('reg-birth-input');
   const regEmailField = requireInput('reg-email-input');
   const regPassField = requireInput('reg-pass-input');
   const regConfirmField = requireInput('reg-confirm-input');
+  const consentField = requireConsentField();
+  const consentCheckbox = requireCheckbox('reg-guardian-consent-input');
   const statusEl = requireStatusEl();
 
   if (
     !root
     || !emailField
     || !passField
-    || !(serverField instanceof HTMLSelectElement)
     || !nameField
     || !birthField
     || !regEmailField
     || !regPassField
     || !regConfirmField
+    || !consentField
+    || !consentCheckbox
     || !statusEl
   ) {
     console.error('[LoginScreen] Elementos da HUD de login ausentes.');
@@ -66,7 +112,15 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     regEmail: regEmailField,
     regPass: regPassField,
     regConfirm: regConfirmField,
+    guardianConsent: consentCheckbox,
   };
+
+  const refreshConsentVisibility = (): void => {
+    syncParentalConsentVisibility(fields.birth.value.trim(), consentField, consentCheckbox);
+  };
+
+  fields.birth.addEventListener('change', refreshConsentVisibility);
+  fields.birth.addEventListener('input', refreshConsentVisibility);
 
   let busy = false;
 
@@ -77,19 +131,26 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   };
 
   const setBusy = (next: boolean): void => {
-    if (busy !== next) {
-      console.log(`[LoginScreen] setBusy(${String(next)}) — botões ${next ? 'DESABILITADOS' : 'habilitados'}`);
-    }
     busy = next;
     root.querySelectorAll('button').forEach((button) => {
       button.toggleAttribute('disabled', next);
     });
   };
 
+  const requireAuthReady = (): boolean => {
+    if (isAuthChannelReady()) return true;
+    setStatus(
+      'Autenticação ainda carregando… Aguarde alguns segundos ou recarregue (Ctrl+F5).',
+      true,
+    );
+    return false;
+  };
+
   const goToRegister = (): void => {
     if (busy) return;
     showAuthView('register');
     copyLoginCredentialsToRegisterForm();
+    refreshConsentVisibility();
     setStatus('Preencha seus dados para criar a conta.', false);
     fields.name.focus();
   };
@@ -101,51 +162,32 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     fields.email.focus();
   };
 
-  syncLoginServerSelector();
-
   async function handleLogin(): Promise<void> {
-    console.log('[LoginScreen] handleLogin() disparado', { busy, email: fields.email.value.trim() });
-    if (busy) {
-      console.warn('[LoginScreen] handleLogin ignorado — busy=true (aguarde ou recarregue a página)');
-      return;
-    }
+    if (busy) return;
+    if (!requireAuthReady()) return;
 
-    let serverId: string;
-    try {
-      serverId = resolveLoginServerId();
-    } catch {
-      setStatus(ARCHITECTURE_SERVER_ID_REQUIRED, true);
+    const email = fields.email.value.trim();
+    const password = fields.pass.value;
+    if (!email || !password) {
+      setStatus('Preencha email e senha.', true);
       return;
     }
 
     setBusy(true);
     setStatus('Validando credenciais…', false);
-    logAuthApiAttempt('login', { email: fields.email.value.trim(), serverId });
+    logAuthApiAttempt('login', { email, via: 'GameAuthService.loginWithEmailForServer' });
 
     try {
-      const result = await loginWithEmailForServer(
-        fields.email.value,
-        fields.pass.value,
-        serverId,
-      );
-      if (!result.success) {
+      const result = await loginWithEmailForServer(email, password);
+      if (!result.success || !result.user) {
         logAuthApiResult('login', 'error', { message: result.message ?? 'Credenciais inválidas.' });
         setStatus(result.message ?? 'Credenciais inválidas.', true);
         return;
       }
 
-      logAuthApiResult('login', 'success', {
-        userId: result.user?.id ?? null,
-        serverId: result.serverId ?? serverId,
-        message: result.message ?? null,
-      });
+      logAuthApiResult('login', 'success', { userId: result.user.id ?? null });
       setStatus(result.message ?? 'Login autorizado!', false);
-      if (!result.user) {
-        setStatus('Login sem dados de usuário.', true);
-        return;
-      }
-
-      await options.onAuthenticated(result.user, result.serverId ?? serverId);
+      await options.onAuthenticated(result.user);
     } catch (error) {
       logAuthApiResult('login', 'error', {
         message: error instanceof Error ? error.message : String(error),
@@ -158,30 +200,53 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
   }
 
   async function handleRegister(): Promise<void> {
-    console.log('[LoginScreen] handleRegister() disparado', {
-      busy,
-      email: fields.regEmail.value.trim(),
-    });
-    if (busy) {
-      console.warn('[LoginScreen] handleRegister ignorado — busy=true');
-      return;
-    }
+    if (busy) return;
+    if (!requireAuthReady()) return;
 
     if (fields.regPass.value !== fields.regConfirm.value) {
       setStatus('As senhas não coincidem.', true);
       return;
     }
 
+    const email = fields.regEmail.value.trim();
+    const password = fields.regPass.value;
+    const fullName = fields.name.value.trim();
+    const birthDate = fields.birth.value.trim();
+
+    if (!fullName) {
+      setStatus('Informe seu nome.', true);
+      return;
+    }
+
+    if (!birthDate) {
+      setStatus('Informe sua data de nascimento.', true);
+      return;
+    }
+
+    if (!email || !password) {
+      setStatus('Preencha email e senha.', true);
+      return;
+    }
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setStatus(`A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`, true);
+      return;
+    }
+
+    const minor = isMinorBirthDate(birthDate);
+    const parentalConsent = fields.guardianConsent.checked;
+
     setBusy(true);
     setStatus('Criando conta…', false);
-    logAuthApiAttempt('register', { email: fields.regEmail.value.trim() });
+    logAuthApiAttempt('register', { email, via: 'GameAuthService.registerAccount' });
 
     try {
       const result = await registerAccount({
-        fullName: fields.name.value,
-        birthDate: fields.birth.value,
-        email: fields.regEmail.value,
-        password: fields.regPass.value,
+        email,
+        password,
+        fullName,
+        birthDate,
+        parentalConsent: minor ? parentalConsent : false,
       });
 
       if (!result.success) {
@@ -191,8 +256,35 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
       }
 
       logAuthApiResult('register', 'success', { message: result.message ?? null });
+
+      if (getSupabaseClient()) {
+        const supabaseUser = await getUser();
+        const { data: { session } } = await getSupabaseClient()!.auth.getSession();
+
+        if (session?.user && supabaseUser?.email) {
+          setStatus(result.message ?? 'Conta criada!', false);
+          await options.onAuthenticated({
+            email: supabaseUser.email,
+            id: supabaseUser.id,
+            ...(supabaseUser.user_metadata?.full_name
+              ? { fullName: String(supabaseUser.user_metadata.full_name) }
+              : supabaseUser.user_metadata?.nome
+                ? { fullName: String(supabaseUser.user_metadata.nome) }
+                : {}),
+          });
+          return;
+        }
+      } else if (isLocalDevHost()) {
+        const loginResult = await loginWithEmailForServer(email, password);
+        if (loginResult.success && loginResult.user) {
+          setStatus(result.message ?? 'Conta criada!', false);
+          await options.onAuthenticated(loginResult.user);
+          return;
+        }
+      }
+
       copyRegisterCredentialsToLoginForm();
-      setStatus(result.message ?? 'Conta criada!', false);
+      setStatus(result.message ?? 'Conta criada! Confirme seu email e faça login.', false);
       showAuthView('login');
     } catch (error) {
       logAuthApiResult('register', 'error', {
@@ -205,45 +297,141 @@ export function setupLoginScreen(options: LoginScreenOptions): void {
     }
   }
 
-  const navigationReady = bindAuthNavigation({
-    onLogin: () => {
-      void handleLogin();
-    },
-    onShowRegister: goToRegister,
-    onCreateAccount: () => {
-      void handleRegister();
-    },
-    onBackToLogin: goToLogin,
-  });
+  const forgotEmailField = requireInput('forgot-email-input');
+  const resetPassField = requireInput('reset-pass-input');
+  const resetConfirmField = requireInput('reset-confirm-input');
 
-  const googleButtons: HTMLButtonElement[] = [];
-  const loginGoogleBtn = document.getElementById('btn-login-google');
-  const registerGoogleBtn = document.getElementById('btn-google-register');
-  if (loginGoogleBtn instanceof HTMLButtonElement) googleButtons.push(loginGoogleBtn);
-  if (registerGoogleBtn instanceof HTMLButtonElement) googleButtons.push(registerGoogleBtn);
+  const goToForgotPassword = (): void => {
+    if (busy) return;
+    if (forgotEmailField) {
+      forgotEmailField.value = fields.email.value.trim();
+    }
+    showAuthView('forgot-password');
+    setStatus('', false);
+    forgotEmailField?.focus();
+  };
 
-  if (getSupabaseClient()) {
-    googleButtons.forEach((button) => {
-      bindGoogleLoginButton({
-        button,
-        onStatus: setStatus,
-        setBusy,
+  async function handleSendPasswordReset(): Promise<void> {
+    if (busy) return;
+    if (!isSupabaseReady()) {
+      setStatus('Recuperação de senha requer Supabase configurado.', true);
+      return;
+    }
+
+    const email = forgotEmailField?.value.trim() ?? fields.email.value.trim();
+    if (!email) {
+      setStatus('Informe seu email.', true);
+      return;
+    }
+
+    setBusy(true);
+    setStatus('Enviando link de recuperação…', false);
+
+    try {
+      const result = await requestPasswordReset(email);
+      setStatus(result.message, !result.ok);
+      if (result.ok) {
+        showAuthView('login');
+        fields.email.value = email;
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleApplyNewPassword(): Promise<void> {
+    if (busy) return;
+    if (!resetPassField || !resetConfirmField) return;
+
+    const password = resetPassField.value;
+    const confirm = resetConfirmField.value;
+
+    if (!password || !confirm) {
+      setStatus('Preencha e confirme a nova senha.', true);
+      return;
+    }
+
+    if (password !== confirm) {
+      setStatus('As senhas não coincidem.', true);
+      return;
+    }
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setStatus(`A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`, true);
+      return;
+    }
+
+    setBusy(true);
+    setStatus('Salvando nova senha…', false);
+
+    try {
+      const result = await applyPasswordReset(password);
+      setStatus(result.message, !result.ok);
+      if (result.ok) {
+        clearPasswordRecoveryUrl();
+        showAuthView('login');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGoogleLogin(): Promise<void> {
+    if (busy) return;
+    if (!requireAuthReady()) return;
+    if (!isSupabaseReady()) {
+      setStatus('Login com Google requer Supabase configurado.', true);
+      return;
+    }
+
+    setBusy(true);
+    setStatus('Redirecionando para Google…', false);
+    logAuthApiAttempt('login', { via: 'GameAuthService.startGoogleOAuth', provider: 'google' });
+
+    try {
+      const result = await startGoogleOAuth();
+      if (!result.ok) {
+        logAuthApiResult('login', 'error', { message: result.message ?? 'Falha OAuth' });
+        setStatus(result.message ?? 'Não foi possível iniciar login com Google.', true);
+        setBusy(false);
+      }
+    } catch (error) {
+      logAuthApiResult('login', 'error', {
+        message: error instanceof Error ? error.message : String(error),
       });
-    });
-  } else {
-    googleButtons.forEach((button) => {
-      button.hidden = true;
-    });
+      setStatus('Erro inesperado ao iniciar Google OAuth.', true);
+      setBusy(false);
+    }
   }
 
-  if (!navigationReady) {
-    console.error('[LoginScreen] Alguns botões de navegação ausentes — cliques parciais podem falhar.');
-  }
-
-  logAuthEnvironment('login-screen-ready', {
-    navigationReady,
-    googleButtons: googleButtons.length,
+  const navigationReady = bindAuthNavigation({
+    onLogin: () => { void handleLogin(); },
+    onShowRegister: goToRegister,
+    onCreateAccount: () => { void handleRegister(); },
+    onBackToLogin: goToLogin,
+    onGoogleLogin: () => { void handleGoogleLogin(); },
+    onShowForgotPassword: goToForgotPassword,
+    onSendPasswordReset: () => { void handleSendPasswordReset(); },
+    onApplyNewPassword: () => { void handleApplyNewPassword(); },
   });
-  showAuthView('login');
-  console.log('[LoginScreen] HUD de login pronta (login ↔ cadastro).');
+
+  subscribeAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      showAuthView('reset-password');
+      setStatus('Defina sua nova senha.', false);
+    }
+  });
+
+  if (isPasswordRecoverySession()) {
+    showAuthView('reset-password');
+    setStatus('Defina sua nova senha.', false);
+  } else {
+    showAuthView('login');
+  }
+
+  document.getElementById('btn-login-google')?.removeAttribute('hidden');
+  document.getElementById('btn-google-register')?.removeAttribute('hidden');
+
+  logAuthEnvironment('login-screen-ready', { navigationReady });
+  console.log('[LoginScreen] HUD de login pronta (GameAuthService).');
 }

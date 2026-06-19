@@ -97,6 +97,7 @@ import {
 } from '../persistence/PersistenceGateway.js';
 import { patchAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
+import { resolveMinorAccountNotice, buildAvisoMenor } from '../../shared/auth/accountAgePolicy.js';
 import { SecurityGuard } from '../middleware/securityGuard.js';
 import { ensureServerPlayerBootstrap } from '../supabase/bootstrapPlayerOnServer.js';
 import {
@@ -1031,6 +1032,7 @@ export class CombatWsHub implements CombatWsRouteHost {
     try {
       const authGateway = getSessionAuthGateway();
       let authUserId = payload.playerId;
+      let avisoMenor: string | undefined;
 
       if (authGateway.isAuthRequired()) {
         const token = payload.accessToken?.trim() ?? '';
@@ -1055,6 +1057,16 @@ export class CombatWsHub implements CombatWsRouteHost {
         }
 
         authUserId = verified.userId;
+        avisoMenor = buildAvisoMenor(verified.userMetadata) ?? undefined;
+        if (avisoMenor) {
+          const notice = resolveMinorAccountNotice(verified.userMetadata);
+          console.log('[WS] world-login: aviso_menor preparado', {
+            connectionId,
+            characterId: payload.characterId,
+            ageYears: notice?.ageYears ?? null,
+            consentimentoResponsavel: notice?.consentimentoResponsavel ?? false,
+          });
+        }
       }
 
       let reportedServerId: string;
@@ -1158,6 +1170,7 @@ export class CombatWsHub implements CombatWsRouteHost {
           currentMapId: authoritativeProfile.currentMapId,
           lastPosition: authoritativeProfile.lastPosition,
           facing: authoritativeProfile.facing,
+          ...(avisoMenor ? { aviso_menor: avisoMenor } : {}),
         },
       });
 

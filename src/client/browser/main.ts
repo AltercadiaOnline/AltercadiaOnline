@@ -118,6 +118,7 @@ import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
+import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
 export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
@@ -326,6 +327,31 @@ function syncRefractionBoothCredentials(): void {
   });
 }
 
+const WORLD_AUTH_ERROR_MESSAGES: Record<string, string> = {
+  AUTH_REQUIRED: 'Sessão expirada. Faça login novamente.',
+  AUTH_INVALID: 'Sessão inválida. Faça login novamente.',
+  AUTH_MISMATCH: 'Conta inconsistente. Faça login novamente.',
+  WRONG_SERVER: 'Servidor incorreto. Escolha o shard correto na seleção de personagem.',
+  PROFILE_NOT_READY: 'Personagem ainda não provisionado. Crie um personagem ou aguarde.',
+};
+
+function handleWorldAuthError(reason: string): void {
+  const msg = WORLD_AUTH_ERROR_MESSAGES[reason] ?? `Erro de conexão (${reason}).`;
+  setStatus(msg);
+  resetWorldSessionGate();
+  setWorldSessionActive(false);
+
+  if (reason === 'AUTH_REQUIRED' || reason === 'AUTH_INVALID' || reason === 'AUTH_MISMATCH') {
+    AppScreens.returnToLogin();
+    return;
+  }
+
+  if (reason === 'WRONG_SERVER' || reason === 'PROFILE_NOT_READY') {
+    void AppScreens.showCharSelect();
+    AppScreens.renderCharacterHubError(msg);
+  }
+}
+
 function handleWorldLoginResult(raw: unknown): void {
   if (!isWorldLoginResult(raw)) {
     setStatus('Falha ao sincronizar posição do mundo.');
@@ -354,9 +380,12 @@ function handleWorldLoginResult(raw: unknown): void {
   world?.applyServerWorldSpawn(raw);
   syncRefractionBoothCredentials();
   setWorldSessionReady(true);
+  setWorldSessionActive(true);
   world?.setPaused(false);
   positionGateway?.startHeartbeat();
   setStatus('Conectado');
+
+  presentMinorAccountAviso(raw.aviso_menor);
 }
 
 function connectSocket(): void {
@@ -379,6 +408,9 @@ function connectSocket(): void {
       if (world && positionGateway) {
         void positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
       }
+    },
+    onSystemError: (reason) => {
+      handleWorldAuthError(reason);
     },
   });
   positionGateway?.bindSocket(socket);
@@ -662,6 +694,7 @@ function enterWorld(): void {
     },
     captureSnapshot: () => activeWorld.captureExplorationSnapshot(),
     isExploration: () => getGameStateManager().isExploration(),
+    onWorldLoginBlocked: handleWorldAuthError,
   });
 
   teardownAccessTokenRefresh?.();
@@ -743,7 +776,6 @@ function enterWorld(): void {
   }
 
   worldStarted = true;
-  setWorldSessionActive(true);
   mountLocalViewportProbe(activeWorld);
 
   console.log('[Altercadia] Entrou no mundo', {
@@ -786,10 +818,7 @@ async function onLoginSuccess(user: AuthUser, serverId?: string): Promise<void> 
     if (serverId) {
       console.log(`[Auth] Init pós-login no shard: ${serverId}`);
     }
-    if (!AppScreens.currentSession) {
-      await AppScreens.setAuthenticatedUser(user);
-    }
-    await AppScreens.showCharSelect();
+    await AppScreens.proceedAfterAuthentication(user);
   } catch (error) {
     console.error('[Auth] Falha após login:', error);
     const message = error instanceof Error
@@ -970,6 +999,12 @@ async function bootstrap(): Promise<void> {
         statusEl.textContent = message;
         statusEl.classList.add('is-error');
         statusEl.classList.remove('is-success');
+      },
+      onSignedOut: () => {
+        if (worldStarted) {
+          clearGameState();
+        }
+        AppScreens.returnToLogin();
       },
     });
 

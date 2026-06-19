@@ -10,15 +10,9 @@
  * UI nunca importa supabaseAuth.ts nem gameDataRepository.ts diretamente.
  */
 
-import type { AuthService, AuthUser } from '../../../shared/authService.js';
+import type { AuthRegisterPayload, AuthService, AuthUser } from '../../../shared/authService.js';
 import { createAuthService } from '../../auth/createAuthService.js';
-import {
-  applyLoginServerIdToRuntime,
-  clearPendingLoginServerId,
-  resolveLoginServerId,
-  stashPendingLoginServerId,
-} from '../../auth/resolveLoginServerId.js';
-import { requireServerId } from '../../../shared/supabase/characterServerScope.js';
+import { clearPendingLoginServerId } from '../../auth/resolveLoginServerId.js';
 import {
   clearOAuthRedirectPending,
   isOAuthRedirectPending,
@@ -72,8 +66,7 @@ export function isGoogleAuthAvailable(): boolean {
 }
 
 export async function loginWithEmail(email: string, password: string): Promise<AuthLoginResult> {
-  const serverId = resolveLoginServerId();
-  return loginWithEmailForServer(email, password, serverId);
+  return loginWithEmailForServer(email, password);
 }
 
 /**
@@ -83,22 +76,18 @@ export async function loginWithEmail(email: string, password: string): Promise<A
 export async function loginWithEmailForServer(
   email: string,
   password: string,
-  serverId: string,
 ): Promise<AuthLoginResult> {
-  const scopedServerId = applyLoginServerIdToRuntime(requireServerId(serverId));
-  console.log(`Login iniciado para ServerID: ${scopedServerId}`);
-
   const result = await getAuthService().login(email, password);
   if (!result.success) {
     const message = result.message ?? 'Credenciais inválidas.';
     reportTransactionFailure(null, message, 'Falha no login.');
-    return { success: false, message, serverId: scopedServerId };
+    return { success: false, message };
   }
 
   if (!result.user) {
     const message = 'Login sem dados de usuário.';
     reportTransactionFailure(null, message, 'Falha no login.');
-    return { success: false, message, serverId: scopedServerId };
+    return { success: false, message };
   }
 
   clearPendingLoginServerId();
@@ -106,17 +95,11 @@ export async function loginWithEmailForServer(
   return {
     success: true,
     user: result.user,
-    serverId: scopedServerId,
     ...(result.message ? { message: result.message } : {}),
   };
 }
 
-export async function registerAccount(payload: {
-  email: string;
-  password: string;
-  fullName: string;
-  birthDate: string;
-}): Promise<{ success: boolean; message?: string }> {
+export async function registerAccount(payload: AuthRegisterPayload): Promise<{ success: boolean; message?: string }> {
   return getAuthService().register(payload);
 }
 
@@ -126,19 +109,6 @@ export async function startGoogleOAuth(): Promise<{ ok: boolean; message?: strin
     reportTransactionFailure(null, message, message);
     return { ok: false, message };
   }
-
-  let serverId: string;
-  try {
-    serverId = resolveLoginServerId();
-  } catch {
-    const message = 'Servidor inválido. Recarregue a página e tente novamente.';
-    reportTransactionFailure(null, message, message);
-    return { ok: false, message };
-  }
-
-  applyLoginServerIdToRuntime(serverId);
-  stashPendingLoginServerId(serverId);
-  console.log(`Login iniciado para ServerID: ${serverId}`);
 
   markOAuthRedirectPending();
   const result = await signInWithGoogleOAuth();

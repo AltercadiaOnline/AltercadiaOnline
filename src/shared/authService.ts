@@ -15,6 +15,8 @@ export type AuthRegisterPayload = {
   password: string;
   fullName: string;
   birthDate: string;
+  /** Obrigatório quando birthDate indica menor de 18 anos. */
+  parentalConsent?: boolean;
 };
 
 export type AuthRegisterResult = {

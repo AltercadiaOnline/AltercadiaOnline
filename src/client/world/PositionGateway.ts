@@ -5,6 +5,7 @@ import type { PositionSyncReason } from '../../shared/world/playerWorldProfile.j
 import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
 
 import { getActionDispatcher } from '../ActionDispatcher.js';
+import { isLocalDevHost } from '../auth/localDevAuth.js';
 import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
@@ -35,18 +36,15 @@ export type PositionGatewayOptions = {
 
   readonly isExploration: () => boolean;
 
+  /** Chamado quando world-login não pode ser enviado (JWT ausente, shard inválido, etc.). */
+  readonly onWorldLoginBlocked?: (reason: string) => void;
+
 };
 
-
-
 /**
-
  * Sincronização legada de posição — online usa MOVE_INTENT + state-sync tick.
-
  * Offline: heartbeat opcional apenas em EXPLORATION.
-
  */
-
 export class PositionGateway {
 
   private socket: BrowserCombatSocket | null;
@@ -56,6 +54,8 @@ export class PositionGateway {
   private readonly captureSnapshot: PositionGatewayOptions['captureSnapshot'];
 
   private readonly isExploration: PositionGatewayOptions['isExploration'];
+
+  private readonly onWorldLoginBlocked: PositionGatewayOptions['onWorldLoginBlocked'];
 
   private heartbeatHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -70,6 +70,8 @@ export class PositionGateway {
     this.captureSnapshot = options.captureSnapshot;
 
     this.isExploration = options.isExploration;
+
+    this.onWorldLoginBlocked = options.onWorldLoginBlocked;
 
   }
 
@@ -98,6 +100,13 @@ export class PositionGateway {
     const serverId = getClientRuntimeConfig()?.serverId?.trim().toLowerCase();
     if (!serverId) {
       console.error(`[PositionGateway] ${ARCHITECTURE_SERVER_ID_REQUIRED} — carregue /config/client antes do world-login.`);
+      this.onWorldLoginBlocked?.('WRONG_SERVER');
+      return;
+    }
+
+    if (!accessToken && !isLocalDevHost()) {
+      console.error('[PositionGateway] world-login bloqueado — sessão JWT ausente.');
+      this.onWorldLoginBlocked?.('AUTH_REQUIRED');
       return;
     }
 

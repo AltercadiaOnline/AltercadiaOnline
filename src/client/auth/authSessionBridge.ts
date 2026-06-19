@@ -11,13 +11,7 @@ import {
   isOAuthRedirectPending,
 } from '../services/auth/oauthPending.js';
 
-import {
-  applyLoginServerIdToRuntime,
-  clearPendingLoginServerId,
-  readPendingLoginServerId,
-  resolveLoginServerId,
-} from './resolveLoginServerId.js';
-import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
+import { clearPendingLoginServerId } from './resolveLoginServerId.js';
 
 import { getUser, subscribeAuthStateChange } from './supabaseAuth.js';
 
@@ -25,6 +19,7 @@ export type AuthSessionBridgeOptions = {
   onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
   onAuthError?: (message: string) => void;
   onSnapshotInitializing?: (message: string) => void;
+  onSignedOut?: () => void;
 };
 function mapSupabaseUser(user: User): AuthUser {
 
@@ -37,10 +32,10 @@ function mapSupabaseUser(user: User): AuthUser {
     id: user.id ?? resolveAccountKey({ email }),
 
     ...(user.user_metadata?.full_name
-
       ? { fullName: String(user.user_metadata.full_name) }
-
-      : {}),
+      : user.user_metadata?.nome
+        ? { fullName: String(user.user_metadata.nome) }
+        : {}),
 
   };
 
@@ -74,21 +69,10 @@ async function completeGoogleOAuthSession(
 
 
 
-  let serverId: string;
-  try {
-    serverId = readPendingLoginServerId() ?? resolveLoginServerId();
-  } catch {
-    resetGameStoreState();
-    options.onAuthError?.(ARCHITECTURE_SERVER_ID_REQUIRED);
-    return false;
-  }
-
-  applyLoginServerIdToRuntime(serverId);
-  console.log(`Login iniciado para ServerID: ${serverId}`);
   clearPendingLoginServerId();
   activateGameStoreAfterAuth();
 
-  options.onAuthenticated(authUser, serverId);
+  await options.onAuthenticated(authUser);
 
   return true;
 
@@ -151,11 +135,9 @@ export function initAuthSessionBridge(options: AuthSessionBridgeOptions): () => 
   return subscribeAuthStateChange((event, session) => {
 
     if (event === 'SIGNED_OUT') {
-
       resetGameStoreState();
-
+      options.onSignedOut?.();
       return;
-
     }
 
 

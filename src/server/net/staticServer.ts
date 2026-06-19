@@ -10,6 +10,7 @@ import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { handleGiftTransferRoute } from './giftTransferRoute.js';
 import { handlePlayerSnapshotRoute } from './playerSnapshotRoute.js';
 import { handleCharacterHubRoute } from './characterHubRoute.js';
+import { handleServerListRoute } from './serverListRoute.js';
 import { tryGetServerInstanceContext } from '../instance/ServerInstanceContext.js';
 
 const MIME: Record<string, string> = {
@@ -169,6 +170,10 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
       }
 
       if (await handlePlayerSnapshotRoute(req, res, url, options.serverEnv)) {
+        return;
+      }
+
+      if (await handleServerListRoute(req, res, url)) {
         return;
       }
 

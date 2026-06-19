@@ -50,6 +50,8 @@ export type BrowserCombatSocket = CombatSocket & {
 export type ResilientSocketOptions = {
   readonly maxReconnectAttempts?: number;
   readonly onReconnect?: () => void;
+  /** Erros de sistema (auth, shard, perfil) vindos de combat-error. */
+  readonly onSystemError?: (reason: string, payload: unknown) => void;
 };
 
 const WS_OPEN = 1;
@@ -74,6 +76,7 @@ function createSocketHandlers() {
 function bindWsEvents(
   ws: WebSocket,
   store: ReturnType<typeof createSocketHandlers>,
+  onSystemError?: ResilientSocketOptions['onSystemError'],
 ): void {
   ws.addEventListener('message', (event) => {
     try {
@@ -88,6 +91,7 @@ function bindWsEvents(
             ? String((data.payload as { reason?: unknown }).reason ?? 'COMBAT_ERROR')
             : 'COMBAT_ERROR';
         console.warn('[WS] combat-error:', data.payload);
+        onSystemError?.(reason, data.payload);
         getGameStore().rejectLatestCombatPending(reason);
         abortCombatFeedbackOnDisconnect();
         releaseForfeitInFlight();
@@ -138,7 +142,7 @@ export function createBrowserCombatSocket(
     notifyPhase(reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
 
     ws = new WebSocket(wsUrl);
-    bindWsEvents(ws, store);
+    bindWsEvents(ws, store, options.onSystemError);
 
     ws.addEventListener('open', () => {
       reconnectAttempt = 0;

@@ -110,6 +110,65 @@ export async function signOutSupabase(): Promise<void> {
   }
 }
 
+export async function requestPasswordResetEmail(email: string): Promise<{ ok: boolean; message: string }> {
+  if (!supabase) {
+    return { ok: false, message: 'Supabase não configurado no cliente.' };
+  }
+
+  const trimmed = email.trim();
+  if (!trimmed) {
+    return { ok: false, message: 'Informe seu email.' };
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+    redirectTo: `${window.location.origin}${window.location.pathname}`,
+  });
+
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+
+  return {
+    ok: true,
+    message: 'Link de recuperação enviado. Verifique seu email.',
+  };
+}
+
+export async function updateAccountPassword(password: string): Promise<{ ok: boolean; message: string }> {
+  if (!supabase) {
+    return { ok: false, message: 'Supabase não configurado no cliente.' };
+  }
+
+  if (!password || password.length < 6) {
+    return { ok: false, message: 'A senha deve ter pelo menos 6 caracteres.' };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+
+  return { ok: true, message: 'Senha atualizada com sucesso.' };
+}
+
+/** Detecta fluxo de recuperação (link do email Supabase). */
+export function isPasswordRecoverySession(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hash = window.location.hash;
+  const search = window.location.search;
+  return hash.includes('type=recovery') || search.includes('type=recovery');
+}
+
+export function clearPasswordRecoveryUrl(): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.hash = '';
+  url.searchParams.delete('type');
+  url.searchParams.delete('code');
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+}
+
 export function getSupabaseClient(): SupabaseClient | null {
   return supabase;
 }

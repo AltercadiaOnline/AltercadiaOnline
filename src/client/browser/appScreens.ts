@@ -42,8 +42,14 @@ import {
   initCharacterAppearancePersistence,
 } from '../services/characterAppearancePersistence.js';
 import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
-import { syncLoginServerSelector } from '../auth/syncLoginServerSelector.js';
 import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
+import {
+  bindCharSelectServerSelector,
+  syncCharSelectServerSelector,
+} from './charSelectServerSelector.js';
+import { clearSelectedServerId } from '../auth/resolveLoginServerId.js';
+import { currentUserNeedsProfileMetadata } from '../auth/profileMetadata.js';
+import { showProfileCompletePanel } from '../components/profileCompletePanel.js';
 import {
   hidePlayerInitLoading,
   showPlayerInitLoading,
@@ -68,6 +74,20 @@ function bindAppShellListeners(onEnterWorld: () => void): void {
   document.getElementById('btn-back-to-login')?.addEventListener('click', () => {
     AppScreens.returnToLogin();
   });
+
+  bindCharSelectServerSelector(async () => {
+    AppScreens.selectedCharacterId = null;
+    AppScreens.clearCharacterHubError();
+    const hubResult = await AppScreens.loadCharacterHub();
+    if (!hubResult.ok) {
+      AppScreens.renderCharacterHubError(
+        hubResult.message ?? 'Erro ao carregar personagens deste servidor.',
+      );
+      return;
+    }
+    AppScreens.renderCharacterSlots();
+    AppScreens.syncCharacterSelectionUi();
+  });
 }
 
 export const AppScreens = {
@@ -80,9 +100,49 @@ export const AppScreens = {
     showScreen('login-screen');
   },
 
+  async ensureProfileMetadataComplete(): Promise<boolean> {
+    if (!getSupabaseClient()) return true;
+
+    const needsCompletion = await currentUserNeedsProfileMetadata();
+    if (!needsCompletion) return true;
+
+    this.showLogin();
+
+    return new Promise((resolve) => {
+      showProfileCompletePanel({
+        onComplete: () => {
+          resolve(true);
+        },
+        onCancel: () => {
+          this.returnToLogin();
+          resolve(false);
+        },
+      });
+    });
+  },
+
+  async proceedAfterAuthentication(user?: AuthUser): Promise<void> {
+    if (user && !this.currentSession) {
+      await this.setAuthenticatedUser(user);
+    }
+
+    const profileReady = await this.ensureProfileMetadataComplete();
+    if (!profileReady) return;
+
+    await this.showCharSelect();
+  },
+
   async showCharSelect(): Promise<void> {
     showScreen('char-select-screen');
     this.clearCharacterHubError();
+
+    const serverSync = await syncCharSelectServerSelector();
+    if (!serverSync.ok) {
+      this.renderCharacterHubError(
+        serverSync.message ?? 'Erro ao carregar servidores disponíveis.',
+      );
+    }
+
     const hubResult = await this.loadCharacterHub();
     this.renderAccountLabel();
     if (!hubResult.ok) {
@@ -175,6 +235,7 @@ export const AppScreens = {
     void signOutSupabase();
     resetGameStoreState();
     clearLocalSession();
+    clearSelectedServerId();
     this.currentSession = null;
     this.characterHub = null;
     this.selectedCharacterId = null;
@@ -426,6 +487,7 @@ export const AppScreens = {
     authCallbacks?: {
       onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
       onAuthError?: (message: string) => void;
+      onSignedOut?: () => void;
     },
   ): Promise<void> {
     const serverOk = await isGameServerReachable();
@@ -442,7 +504,6 @@ export const AppScreens = {
 
       const config = await fetchPublicClientConfig();
       setClientRuntimeConfig(config);
-      syncLoginServerSelector();
       supabaseConfigured = isSupabaseConfigured(config);
       const hasGameWsUrl = Boolean(config.gameWsUrl);
 
@@ -492,7 +553,7 @@ export const AppScreens = {
           if (!oauthCompleted) {
             const hasSupabaseSession = await this.restoreSessionFromSupabase();
             if (hasSupabaseSession) {
-              await this.showCharSelect();
+              await this.proceedAfterAuthentication();
             } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
               await this.showCharSelect();
             } else {
@@ -509,7 +570,7 @@ export const AppScreens = {
       } else if (supabaseConfigured) {
         const hasSupabaseSession = await this.restoreSessionFromSupabase();
         if (hasSupabaseSession) {
-          await this.showCharSelect();
+          await this.proceedAfterAuthentication();
         } else if (canRestoreLocalSessionWithoutSupabase(supabaseConfigured) && this.restoreSessionFromStorage()) {
           await this.showCharSelect();
         } else {

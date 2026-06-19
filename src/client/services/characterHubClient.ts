@@ -2,6 +2,7 @@ import type { AccountCharacterHub } from '../../shared/characterHub.js';
 import {
   isCharacterHubErrorResponse,
   isCharacterHubResponse,
+  resolveCharacterHubErrorMessage,
   type CreateCharacterRequest,
 } from '../../shared/auth/characterHubProtocol.js';
 import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
@@ -76,6 +77,11 @@ export async function fetchAuthoritativeCharacterHub(): Promise<
     return { ok: false, message: body.message };
   }
 
+  const resolved = resolveCharacterHubErrorMessage(body);
+  if (resolved) {
+    return { ok: false, message: resolved };
+  }
+
   return { ok: false, message: 'Hub de personagens inválido.' };
 }
 
@@ -121,6 +127,11 @@ export async function createAuthoritativeCharacter(
 
   if (isCharacterHubErrorResponse(body)) {
     return { ok: false, message: body.message };
+  }
+
+  const createResolved = resolveCharacterHubErrorMessage(body);
+  if (createResolved) {
+    return { ok: false, message: createResolved };
   }
 
   return { ok: false, message: 'Falha ao criar personagem.' };

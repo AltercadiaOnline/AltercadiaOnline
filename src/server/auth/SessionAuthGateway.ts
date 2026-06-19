@@ -3,12 +3,19 @@ import type { ServerEnv } from '../config/env.js';
 export type VerifiedAuthSession = {
   readonly userId: string;
   readonly email?: string;
+  readonly userMetadata?: Record<string, unknown>;
 };
 
 type SupabaseAuthClient = {
   auth: {
     getUser(jwt: string): Promise<{
-      data: { user: { id: string; email?: string | null } | null };
+      data: {
+        user: {
+          id: string;
+          email?: string | null;
+          user_metadata?: Record<string, unknown> | null;
+        } | null;
+      };
       error: { message: string } | null;
     }>;
   };
@@ -51,6 +58,9 @@ export class SessionAuthGateway {
       return {
         userId: data.user.id,
         ...(data.user.email ? { email: data.user.email } : {}),
+        ...(data.user.user_metadata
+          ? { userMetadata: data.user.user_metadata as Record<string, unknown> }
+          : {}),
       };
     } catch (error) {
       console.warn('[Auth] Falha ao validar JWT.', {

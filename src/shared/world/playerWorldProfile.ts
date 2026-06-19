@@ -26,6 +26,8 @@ export type WorldLoginResult = {
   readonly currentMapId: string;
   readonly lastPosition: WorldPosition;
   readonly facing: PlayerFacing;
+  /** Aviso informativo para menores — definido pelo servidor; não bloqueia entrada. */
+  readonly aviso_menor?: string;
 };
 
 export type PositionSyncReason = 'heartbeat' | 'logout' | 'battle';

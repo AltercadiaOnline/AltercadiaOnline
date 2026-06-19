@@ -41,7 +41,11 @@ function createSupabaseAuthService(): AuthService {
         hasClient: Boolean(getSupabaseClient()),
         email: payload.email.trim(),
       });
-      const result = await signUpWithEmail(payload.email, payload.password);
+      const result = await signUpWithEmail(payload.email, payload.password, {
+        fullName: payload.fullName,
+        birthDate: payload.birthDate,
+        parentalConsent: payload.parentalConsent === true,
+      });
       logAuthApiResult(result.ok ? 'register' : 'register', result.ok ? 'success' : 'error', {
         message: result.message,
       });
