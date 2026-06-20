@@ -70,6 +70,8 @@ import { persistWorldVitalsAfterCombat } from '../world/persistWorldVitalsAfterC
 import { applyAuthoritativeBattleProgression } from '../combat/applyAuthoritativeBattleProgression.js';
 import { ensureMovesetMasteryForClass } from '../../shared/progression/movesetMasterySeed.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
+import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
+import { getPersistenceManager } from '../supabase/persistenceManagerRegistry.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { ChatGlobalPayload } from '../../shared/world/globalChatTypes.js';
 import { normalizeSpeechBubbleText } from '../../shared/world/speechBubbleText.js';
@@ -244,10 +246,29 @@ export class CombatWsHub implements CombatWsRouteHost {
         const removed = this.gameState.unregisterConnection(connectionId);
         this.broadcastHub.clearConnection(connectionId);
         if (removed) {
-          void this.persistenceScheduler.flushPlayer(
-            removed.playerId,
-            removed.characterId,
-            'disconnect',
+          void (async () => {
+            const manager = getPersistenceManager();
+            if (manager?.isEnabled()) {
+              const scope = manager.resolveScope(
+                removed.playerId,
+                removed.characterId,
+                getServerInstanceContext().id,
+              );
+              await manager.onDisconnect(scope);
+            }
+            await this.persistenceScheduler.flushPlayer(
+              removed.playerId,
+              removed.characterId,
+              'disconnect',
+            );
+          })();
+        } else if (worldState && getPersistenceManager()?.isEnabled()) {
+          void getPersistenceManager()!.onDisconnect(
+            getPersistenceManager()!.resolveScope(
+              worldState.playerId,
+              worldState.characterId,
+              getServerInstanceContext().id,
+            ),
           );
         } else if (isDurablePersistence()) {
           void persistCharacterSession(worldState.playerId, worldState.characterId);
@@ -748,7 +769,6 @@ export class CombatWsHub implements CombatWsRouteHost {
   }
 
   private scheduleCharacterPersist(playerId: string, characterId: number): void {
-    if (!isDurablePersistence()) return;
     const key = `${playerId}:${characterId}`;
     const existing = this.persistTimers.get(key);
     if (existing) clearTimeout(existing);
@@ -756,9 +776,23 @@ export class CombatWsHub implements CombatWsRouteHost {
       key,
       setTimeout(() => {
         this.persistTimers.delete(key);
-        void persistCharacterSession(playerId, characterId).catch((error) => {
-          console.error('[persistence] Falha ao salvar personagem:', error);
-        });
+        void (async () => {
+          if (isDurablePersistence()) {
+            await persistCharacterSession(playerId, characterId).catch((error) => {
+              console.error('[persistence] Falha ao salvar personagem (file):', error);
+            });
+          }
+
+          const manager = getPersistenceManager();
+          if (!manager?.isEnabled()) return;
+
+          const scope = manager.resolveScope(
+            playerId,
+            characterId,
+            getServerInstanceContext().id,
+          );
+          await manager.saveCritical(scope, buildCriticalCharacterDataFromRuntime(playerId, characterId));
+        })();
       }, 400),
     );
   }

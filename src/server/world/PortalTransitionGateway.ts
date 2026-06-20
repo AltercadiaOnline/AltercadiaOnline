@@ -8,6 +8,7 @@ import {
 } from '../../shared/world/zoneTransition.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import { saveWorldProfile } from './worldProfileStore.js';
+import { notifyWorldPositionPersist } from './notifyWorldPositionPersist.js';
 
 export type PortalTransitionGatewayResult =
   | { readonly ok: true; readonly ready: PortalTransitionReadyPayload; readonly profile: PlayerProfile }
@@ -38,6 +39,7 @@ export class PortalTransitionGateway {
       facing: (resolved.ready.facing ?? request.facing) as PlayerFacing,
       ...(request.sessionSync ? { sessionSync: normalizeSessionSync(request.sessionSync) } : {}),
     });
+    notifyWorldPositionPersist(playerId, request.characterId, profile);
 
     return {
       ok: true,

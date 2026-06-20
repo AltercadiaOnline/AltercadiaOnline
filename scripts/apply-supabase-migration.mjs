@@ -1,17 +1,36 @@
 #!/usr/bin/env node
 /**
- * Aplica supabase/migrations/010_immutable_profile_server_id.sql no Postgres.
+ * Aplica uma migration SQL do diretório supabase/migrations.
  *
  * Uso:
- *   DATABASE_URL="postgresql://postgres:...@db.rnlozvoclkozpguzwjtx.supabase.co:5432/postgres" node scripts/apply-migration-010.mjs
+ *   node scripts/apply-supabase-migration.mjs 010
+ *   node scripts/apply-supabase-migration.mjs 011_hybrid_character_persistence
  *
- * Ou com .env.governance na raiz do projeto (DATABASE_URL ou SUPABASE_DATABASE_URL).
+ * Requer DATABASE_URL em .env.governance, .env ou env.governance na raiz.
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
 
 const root = process.cwd();
+const migrationArg = process.argv[2]?.trim();
+
+if (!migrationArg) {
+  console.error('Uso: node scripts/apply-supabase-migration.mjs <id>');
+  console.error('Ex.: 010 | 011 | 011_hybrid_character_persistence');
+  process.exit(1);
+}
+
+const migrationsDir = path.join(root, 'supabase/migrations');
+const files = readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
+const match = files.find((name) => name.startsWith(`${migrationArg}_`) || name.startsWith(migrationArg));
+
+if (!match) {
+  console.error(`[migration] Arquivo não encontrado para "${migrationArg}".`);
+  console.error('Disponíveis:', files.join(', '));
+  process.exit(1);
+}
+
 const envCandidates = [
   path.join(root, '.env.governance'),
   path.join(root, '.env'),
@@ -49,40 +68,33 @@ const connectionString =
   || loadDatabaseUrlFromEnvFiles();
 
 if (!connectionString) {
-  console.error('[migration-010] DATABASE_URL ausente.');
+  console.error('[migration] DATABASE_URL ausente.');
   console.error('  Defina DATABASE_URL em .env.governance, .env ou env.governance na raiz do projeto.');
   process.exit(1);
 }
 
-const sqlPath = path.join(root, 'supabase/migrations/010_immutable_profile_server_id.sql');
+const sqlPath = path.join(migrationsDir, match);
 const sql = readFileSync(sqlPath, 'utf8');
+const label = match.replace(/\.sql$/u, '');
 
 const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } });
 
 try {
   await client.connect();
-  console.log('[migration-010] Conectado — aplicando trigger server_id imutável…');
+  console.log(`[migration:${label}] Conectado — aplicando…`);
   await client.query(sql);
-
-  const check = await client.query(`
-    SELECT tgname
-    FROM pg_trigger
-    WHERE tgname = 'profiles_server_id_immutable'
-  `);
-
-  if (check.rowCount && check.rowCount > 0) {
-    console.log('[migration-010] OK — trigger profiles_server_id_immutable ativo.');
-  } else {
-    console.warn('[migration-010] SQL executado, mas trigger não encontrado — revise manualmente.');
-    process.exit(1);
-  }
+  console.log(`[migration:${label}] OK.`);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('already exists') || message.includes('duplicate')) {
-    console.log('[migration-010] Já aplicada (objeto existente).');
+  if (
+    message.includes('already exists')
+    || message.includes('duplicate')
+    || message.includes('IF NOT EXISTS')
+  ) {
+    console.log(`[migration:${label}] Já aplicada ou idempotente (${message}).`);
     process.exit(0);
   }
-  console.error('[migration-010] Falha:', message);
+  console.error(`[migration:${label}] Falha:`, message);
   process.exit(1);
 } finally {
   await client.end().catch(() => undefined);

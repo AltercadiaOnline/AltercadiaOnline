@@ -7,6 +7,14 @@ export type ProfileRow = {
   readonly display_name: string | null;
   readonly email: string | null;
   readonly server_id: string;
+  readonly level: number;
+  readonly xp_current: number;
+  readonly quests_data: Readonly<Record<string, unknown>>;
+  readonly current_map_id: string | null;
+  readonly last_position_x: number | null;
+  readonly last_position_y: number | null;
+  readonly facing: string;
+  readonly persistence_version: number;
   readonly created_at: string;
   readonly updated_at: string;
 };

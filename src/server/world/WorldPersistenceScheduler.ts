@@ -5,37 +5,33 @@ import {
   persistCharacterSession,
   persistPendingLootSnapshot,
 } from '../persistence/PersistenceGateway.js';
+import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
 import {
-  persistAuthoritativeLoginSnapshot,
-  resolveLoginSnapshotScope,
-} from '../supabase/persistAuthoritativeLoginSnapshot.js';
-import { WORLD_PERSIST_INTERVAL_MS } from '../../shared/world/worldGameLoopConfig.js';
+  getPersistenceManager,
+  initPersistenceManager,
+} from '../supabase/persistenceManagerRegistry.js';
 import type { WorldGameState } from './WorldGameState.js';
 
 /**
- * Flush periódico memória → arquivo + Supabase sem bloquear o tick de jogo.
+ * Orquestra flush file + Supabase híbrido (PersistenceManager).
  */
 export class WorldPersistenceScheduler {
-  private timer: ReturnType<typeof setInterval> | null = null;
   private flushing = false;
 
   constructor(
     private readonly env: ServerEnv,
     private readonly gameState: WorldGameState,
-    private readonly intervalMs = WORLD_PERSIST_INTERVAL_MS,
-  ) {}
+  ) {
+    initPersistenceManager(env);
+    getPersistenceManager()?.start();
+  }
 
   start(): void {
-    if (this.timer !== null) return;
-    this.timer = setInterval(() => {
-      void this.flushAllActive('interval');
-    }, this.intervalMs);
+    getPersistenceManager()?.start();
   }
 
   stop(): void {
-    if (this.timer === null) return;
-    clearInterval(this.timer);
-    this.timer = null;
+    getPersistenceManager()?.stop();
   }
 
   async flushPlayer(playerId: string, characterId: number, reason: string): Promise<void> {
@@ -45,12 +41,14 @@ export class WorldPersistenceScheduler {
         await persistPendingLootSnapshot();
       }
 
-      if (this.env.supabaseUrl && this.env.supabaseServiceRoleKey) {
+      const manager = getPersistenceManager();
+      if (manager?.isEnabled()) {
         const serverId = getServerInstanceContext().id;
-        await persistAuthoritativeLoginSnapshot(
-          this.env,
-          resolveLoginSnapshotScope(playerId, serverId, characterId),
-        );
+        const scope = manager.resolveScope(playerId, characterId, serverId);
+        const critical = buildCriticalCharacterDataFromRuntime(playerId, characterId);
+
+        await manager.saveCritical(scope, critical);
+        await manager.flushPositions(scope, reason as import('../supabase/persistenceManagerTypes.js').PersistenceFlushReason);
       }
     } catch (error) {
       console.error('[WorldPersistence] Falha ao salvar jogador', {

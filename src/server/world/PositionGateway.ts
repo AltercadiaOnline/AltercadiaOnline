@@ -24,6 +24,7 @@ import {
   touchPositionSyncClock,
 } from './positionSyncClock.js';
 import { getWorldProfile, saveWorldProfile } from './worldProfileStore.js';
+import { notifyWorldPositionPersist } from './notifyWorldPositionPersist.js';
 
 export type PositionGatewayServer = {
   getPlayer(playerId: string, characterId: number): Player | null;
@@ -147,6 +148,7 @@ export class PositionGateway {
       lastPosition: payload.lastPosition,
       facing,
     });
+    notifyWorldPositionPersist(playerId, payload.characterId, updated);
     return { ok: true, profile: updated, wrotePosition: true, forceCorrection: false };
   }
 
@@ -234,6 +236,7 @@ export class PositionGateway {
       lastPosition: next,
       facing,
     });
+    notifyWorldPositionPersist(playerId, characterId, updated);
     touchPositionSyncClock(playerId, characterId);
 
     return { ok: true, profile: updated, changed: true, seq: intent.seq };
@@ -261,6 +264,7 @@ export class PositionGateway {
       lastPosition: profile.lastPosition,
       facing: nextFacing,
     });
+    notifyWorldPositionPersist(playerId, characterId, updated);
     touchPositionSyncClock(playerId, characterId);
 
     return { ok: true, profile: updated, changed: true, seq: intent.seq };
