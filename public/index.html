@@ -16,37 +16,13 @@
           /type=(signup|recovery|email|magiclink)/.test(hash);
         if (!isAuthReturn) return;
 
-        function deriveHttp(ws) {
-          if (!ws) return '';
-          try {
-            var u = new URL(ws);
-            var proto = u.protocol === 'wss:' ? 'https:' : u.protocol === 'ws:' ? 'http:' : u.protocol;
-            return (proto + '//' + u.host).replace(/\/+$/, '');
-          } catch (e) {
-            return '';
-          }
+        var path = window.location.pathname || '/';
+        if (path === '/characters') return;
+        if (path === '/' || path === '' || path === '/game') {
+          window.location.replace(
+            window.location.origin + '/characters' + search + hash,
+          );
         }
-
-        function redirectIfNeeded(cfg) {
-          if (!cfg) return;
-          var http = (cfg.gameHttpUrl || deriveHttp(cfg.gameWsUrl) || '').replace(/\/+$/, '');
-          if (!http) return;
-          if (window.location.origin.replace(/\/+$/, '') === http) return;
-          window.location.replace(http + window.location.pathname + search + hash);
-        }
-
-        fetch('/config/client', { credentials: 'omit' })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (cfg) {
-            redirectIfNeeded(cfg);
-            if (cfg && (cfg.gameHttpUrl || cfg.gameWsUrl)) return null;
-            return fetch('/config/game-origin.json', { credentials: 'omit' })
-              .then(function (r) { return r.ok ? r.json() : null; });
-          })
-          .then(function (fallback) {
-            redirectIfNeeded(fallback);
-          })
-          .catch(function () {});
       })();
     </script>
   </head>

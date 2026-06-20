@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isAuthCallbackPath } from '../../shared/auth/authCallback.js';
 import { applyHttpCors } from '../config/cors.js';
 import type { ServerEnv } from '../config/env.js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
@@ -186,7 +187,7 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
         return;
       }
 
-      if (pathname === '/') pathname = '/index.html';
+      if (pathname === '/' || isAuthCallbackPath(pathname)) pathname = '/index.html';
 
       const vendorFile = resolveVendorFile(options, pathname);
       if (vendorFile) {

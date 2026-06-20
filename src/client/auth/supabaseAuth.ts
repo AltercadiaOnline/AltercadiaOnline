@@ -2,8 +2,13 @@ import type { AuthChangeEvent, Provider, Session, SupabaseClient, User } from '@
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
 import { logAuthEnvironment } from './authDebug.js';
-import { resolveCanonicalGameOrigin } from '../net/canonicalGameOrigin.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
+import {
+  AUTH_CALLBACK_PATH,
+  buildAuthRedirectUrl,
+  hasAuthTokensInUrl,
+  resolveAuthCallbackPath,
+} from '../../shared/auth/authCallback.js';
 import { mergePublicClientConfigWithGameOrigin } from '../../shared/net/mergeGameOriginConfig.js';
 import type { GameOriginHints } from '../../shared/net/mergeGameOriginConfig.js';
 import {
@@ -16,14 +21,12 @@ const SUPABASE_STORAGE_KEY = 'altercadia-supabase-auth';
 
 let supabase: SupabaseClient | null = null;
 
-/** URL de retorno pós-OAuth / confirmação de email — host do jogo (Railway), não Vercel. */
-export function resolveAuthRedirectUrl(): string {
-  const config = getClientRuntimeConfig();
-  const origin = config
-    ? resolveCanonicalGameOrigin(config)
-    : window.location.origin.replace(/\/+$/, '');
-  return `${origin}${window.location.pathname || '/'}`;
+/** redirectTo / emailRedirectTo — sempre front-end atual + `/characters`. */
+export function resolveAuthRedirectUrl(_configOverride?: PublicClientConfig | null): string {
+  return buildAuthRedirectUrl();
 }
+
+export { AUTH_CALLBACK_PATH };
 
 function authRedirectUrl(): string {
   return resolveAuthRedirectUrl();
@@ -104,7 +107,7 @@ export type OAuthProvider = Extract<Provider, 'google'>;
 
 /**
  * Login social — Supabase Auth PKCE.
- * Redirect volta ao servidor de jogo (Railway); Vercel redireciona automaticamente se usado como entry.
+ * Redirect volta ao front-end atual em `/characters` (Vercel ou Railway).
  */
 export async function signInWithOAuth(
   provider: OAuthProvider,
@@ -114,6 +117,7 @@ export async function signInWithOAuth(
   }
 
   const redirectTo = authRedirectUrl();
+  console.debug('[Auth] signInWithOAuth redirectTo:', redirectTo);
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -151,13 +155,16 @@ export function clearAuthCallbackFromUrl(): void {
   url.searchParams.delete('state');
   url.searchParams.delete('error');
   url.searchParams.delete('error_description');
+  url.searchParams.delete('token_hash');
+  url.searchParams.delete('type');
   url.hash = '';
-  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+  const path = url.pathname === '/' ? AUTH_CALLBACK_PATH : url.pathname;
+  window.history.replaceState({}, document.title, `${path}${url.search}`);
 }
 
 /**
- * Troca ?code= PKCE por sessão após redirect Google → Vercel.
- * Deve rodar antes de getUser() no boot.
+ * Processa retorno Supabase na URL (?code= PKCE, #access_token= email, token_hash).
+ * `detectSessionInUrl: true` no createClient — getSession() materializa a sessão.
  */
 export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> {
   if (!supabase) return null;
@@ -168,6 +175,15 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
     console.error('[Auth] OAuth cancelado ou recusado:', oauthError);
     clearAuthCallbackFromUrl();
     return null;
+  }
+
+  if (!hasAuthTokensInUrl(url.href)) {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+      console.warn('[Auth] getSession falhou após boot.');
+      return null;
+    }
+    return session;
   }
 
   const code = url.searchParams.get('code');
@@ -181,9 +197,25 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
     return data.session;
   }
 
+  const tokenHash = url.searchParams.get('token_hash');
+  const otpType = url.searchParams.get('type');
+  if (tokenHash && otpType) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: otpType as 'signup' | 'email' | 'recovery' | 'magiclink' | 'invite',
+    });
+    clearAuthCallbackFromUrl();
+    if (error) {
+      console.error('[Auth] verifyOtp falhou:', error.message);
+      return null;
+    }
+    return data.session;
+  }
+
   const { data: { session }, error } = await supabase.auth.getSession();
+  clearAuthCallbackFromUrl();
   if (error) {
-    console.warn('[Auth] getSession falhou após boot.');
+    console.warn('[Auth] getSession falhou ao ler hash de auth.');
     return null;
   }
   return session;

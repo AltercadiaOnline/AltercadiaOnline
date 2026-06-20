@@ -110,9 +110,9 @@ import {
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
 import {
-  hasOAuthCallbackInUrl,
   isOAuthRedirectPending,
 } from '../services/auth/oauthPending.js';
+import { hasAuthTokensInUrl } from '../../shared/auth/authCallback.js';
 import {
   GAME_BRAND_NAME,
   USER_AUTH_UNAVAILABLE,
@@ -886,7 +886,7 @@ async function bootstrap(): Promise<void> {
 
   hideBootstrapFatalError();
 
-  const oauthReturn = hasOAuthCallbackInUrl() || isOAuthRedirectPending();
+  const oauthReturn = hasAuthTokensInUrl() || isOAuthRedirectPending();
   if (oauthReturn) {
     showPlayerInitLoading(USER_GOOGLE_CONNECTING);
   } else {

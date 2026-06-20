@@ -1,3 +1,5 @@
+import { hasAuthTokensInUrl } from '../../../shared/auth/authCallback.js';
+
 export const OAUTH_PENDING_KEY = 'altercadia.oauth_pending';
 export const OAUTH_AUTO_CHAR_CREATE_KEY = 'altercadia.oauth_auto_char_create';
 
@@ -38,13 +40,5 @@ export function hasOAuthCallbackInUrl(): boolean {
 /** Retorno do link de confirmação de email (não confundir com OAuth Google). */
 export function hasEmailConfirmationCallbackInUrl(): boolean {
   if (typeof window === 'undefined') return false;
-  const url = new URL(window.location.href);
-  const type = url.searchParams.get('type');
-  if (
-    url.searchParams.has('token_hash')
-    && (type === 'signup' || type === 'email' || type === 'magiclink')
-  ) {
-    return true;
-  }
-  return /type=(signup|email|magiclink)/.test(url.hash);
+  return hasAuthTokensInUrl(window.location.href);
 }
