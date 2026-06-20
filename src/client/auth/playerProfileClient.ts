@@ -4,7 +4,7 @@ import {
   isPlayerSnapshotNotReadyResponse,
 } from '../../shared/auth/playerSnapshotProtocol.js';
 import { AppScreens } from '../browser/appScreens.js';
-import { gameServerFetch } from '../net/gameServerClient.js';
+import { gameServerFetch, isGameServerFetchTimeoutError } from '../net/gameServerClient.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { resolveActiveServerId } from './resolveLoginServerId.js';
 
@@ -43,7 +43,10 @@ async function fetchAuthoritativePlayerSnapshotOnce(
         serverId: resolveActiveServerId(),
       },
     });
-  } catch {
+  } catch (error) {
+    if (isGameServerFetchTimeoutError(error)) {
+      return { ok: false, message: 'Servidor demorou demais ao carregar o perfil.' };
+    }
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
 

@@ -6,7 +6,7 @@ import {
   type CreateCharacterRequest,
 } from '../../shared/auth/characterHubProtocol.js';
 import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
-import { gameServerFetch } from '../net/gameServerClient.js';
+import { gameServerFetch, isGameServerFetchTimeoutError } from '../net/gameServerClient.js';
 
 function buildCharacterHubPath(): string {
   return '/api/character-hub';
@@ -24,7 +24,10 @@ export async function fetchAuthoritativeCharacterHub(): Promise<
     response = await gameServerFetch(buildCharacterHubPath(), {
       searchParams: { serverId: resolveActiveServerId() },
     });
-  } catch {
+  } catch (error) {
+    if (isGameServerFetchTimeoutError(error)) {
+      return { ok: false, message: 'Servidor demorou demais. Tente novamente em instantes.' };
+    }
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
 
@@ -62,7 +65,10 @@ export async function createAuthoritativeCharacter(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     });
-  } catch {
+  } catch (error) {
+    if (isGameServerFetchTimeoutError(error)) {
+      return { ok: false, message: 'Servidor demorou demais. Tente novamente em instantes.' };
+    }
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
 

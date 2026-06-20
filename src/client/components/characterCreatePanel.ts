@@ -1,5 +1,6 @@
 import type { ClassType } from '../../shared/types/classes.js';
 import { CLASS_CATALOG } from '../../shared/types/classes.js';
+import { validateCreateCharacterInput } from '../../shared/characterCreation.js';
 
 export type CharacterCreatePayload = {
   slotIndex: number;
@@ -127,14 +128,24 @@ export function setupCharacterCreatePanel(options: CharacterCreatePanelOptions):
         return;
       }
 
+      const validation = validateCreateCharacterInput({
+        slotIndex: activeSlotIndex,
+        name: nameInput.value,
+        class: selectedClass,
+      });
+      if (!validation.ok) {
+        setStatus(validation.message, true);
+        return;
+      }
+
       setBusy(true);
       setStatus('Criando personagem…', false);
 
       try {
         const result = await options.onSubmit({
-          slotIndex: activeSlotIndex,
-          name: nameInput.value,
-          class: selectedClass,
+          slotIndex: validation.slotIndex,
+          name: validation.name,
+          class: validation.class,
         });
 
         if (!result.ok) {

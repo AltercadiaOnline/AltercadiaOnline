@@ -3,7 +3,7 @@ import {
   type PublicServerInstanceEntry,
   type ServerListResponse,
 } from '../../shared/world/serverListProtocol.js';
-import { gameServerFetch } from '../net/gameServerClient.js';
+import { gameServerFetch, isGameServerFetchTimeoutError } from '../net/gameServerClient.js';
 
 export async function fetchAuthoritativeServerList(): Promise<
   { ok: true; list: ServerListResponse } | { ok: false; message: string }
@@ -11,7 +11,10 @@ export async function fetchAuthoritativeServerList(): Promise<
   let response: Response;
   try {
     response = await gameServerFetch('/api/servers', { auth: false });
-  } catch {
+  } catch (error) {
+    if (isGameServerFetchTimeoutError(error)) {
+      return { ok: false, message: 'Servidor demorou demais ao listar shards.' };
+    }
     return { ok: false, message: 'Erro ao carregar lista de servidores.' };
   }
 

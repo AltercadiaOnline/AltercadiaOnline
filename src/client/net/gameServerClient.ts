@@ -10,7 +10,31 @@ export type GameServerFetchOptions = {
   readonly searchParams?: Record<string, string>;
   /** Quando false, não envia Authorization (ex.: /health, /api/servers). */
   readonly auth?: boolean;
+  /** Aborta a requisição após N ms (evita UI presa se o Railway não responder). */
+  readonly deadlineMs?: number;
 };
+
+const DEFAULT_GAME_SERVER_DEADLINE_MS = 20_000;
+
+export function isGameServerFetchTimeoutError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function mergeAbortSignals(
+  primary: AbortSignal,
+  secondary?: AbortSignal,
+): AbortSignal {
+  if (!secondary) return primary;
+  if (secondary.aborted) return secondary;
+  if (primary.aborted) return primary;
+
+  const controller = new AbortController();
+  const abort = (): void => controller.abort();
+
+  primary.addEventListener('abort', abort, { once: true });
+  secondary.addEventListener('abort', abort, { once: true });
+  return controller.signal;
+}
 
 function resolveGameServerBaseUrl(): string {
   return resolveGameHttpUrl(window.location, getClientRuntimeConfig());
@@ -49,17 +73,24 @@ export async function gameServerFetch(
     }
   }
 
+  const deadlineMs = options.deadlineMs ?? DEFAULT_GAME_SERVER_DEADLINE_MS;
+  const deadlineController = new AbortController();
+  const deadlineTimer = setTimeout(() => deadlineController.abort(), deadlineMs);
+  const signal = mergeAbortSignals(deadlineController.signal, options.signal);
+
   const init: RequestInit = {
     method: options.method ?? 'GET',
     headers,
     credentials: 'omit',
+    signal,
   };
   if (options.body !== undefined) {
     init.body = options.body;
   }
-  if (options.signal !== undefined) {
-    init.signal = options.signal;
-  }
 
-  return fetch(url.toString(), init);
+  try {
+    return await fetch(url.toString(), init);
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
 }

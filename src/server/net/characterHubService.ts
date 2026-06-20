@@ -24,7 +24,7 @@ import {
   profileExistsOnServer,
   resolveAccountEmail,
 } from '../supabase/characterHubRepository.js';
-import { hydrateCharacterSession } from '../persistence/PersistenceGateway.js';
+import { hydrateCharacterSession, persistCharacterSession } from '../persistence/PersistenceGateway.js';
 import {
   getAuthoritativeProgression,
   loadAuthoritativeProgression,
@@ -170,6 +170,10 @@ export async function createAuthoritativeCharacterInSlot(
   seedClassProgression(playerId, characterId, validation.class, validation.name);
   patchAuthoritativeProgression(playerId, characterId, {
     characterProfile: { displayName: validation.name },
+  });
+
+  await persistCharacterSession(playerId, characterId).catch((error) => {
+    console.warn('[characterHub] persist after create failed:', error);
   });
 
   const updatedHub = await buildAuthoritativeCharacterHub(playerId, env);

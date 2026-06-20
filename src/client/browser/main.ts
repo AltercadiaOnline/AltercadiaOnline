@@ -825,6 +825,13 @@ function clearGameState(): void {
   setStatus('Sessão encerrada.');
 }
 
+function exitToCharSelect(): void {
+  clearGameState();
+  hidePlayerInitLoading();
+  hidePauseMenu();
+  void AppScreens.showCharSelect();
+}
+
 function exitToLoginScreen(): void {
   clearGameState();
   AppScreens.signOut();
@@ -833,7 +840,7 @@ function exitToLoginScreen(): void {
 
 function setupPauseControls(): void {
   setupPauseMenu({
-    onExit: exitToLoginScreen,
+    onExit: exitToCharSelect,
   });
 }
 

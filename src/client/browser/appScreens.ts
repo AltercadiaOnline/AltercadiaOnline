@@ -2,6 +2,7 @@ import type { AuthUser } from '../../shared/authService.js';
 import { CHARACTER_SLOT_COUNT, createEmptyCharacterHub } from '../../shared/characterHub.js';
 import type { AccountCharacter } from '../../shared/types/account.js';
 import type { AccountCharacterHub } from '../../shared/characterHub.js';
+import { CLASS_CATALOG } from '../../shared/types/classes.js';
 import { createAuthService } from '../auth/createAuthService.js';
 import {
   fetchPublicClientConfig,
@@ -217,8 +218,17 @@ export const AppScreens = {
     const oauthFlow = options?.oauthFlow === true;
 
     try {
-      if (user && !this.currentSession) {
-        await this.setAuthenticatedUser(user);
+      if (oauthFlow) {
+        showPlayerInitLoading('Preparando sua conta…');
+      } else {
+        showPlayerInitLoading('Carregando personagens…');
+      }
+
+      if (user) {
+        const accountKey = resolveAccountKey(user);
+        if (!this.currentSession || this.currentSession.id !== accountKey) {
+          await this.setAuthenticatedUser(user);
+        }
       }
 
       const profileReady = await this.ensureProfileMetadataComplete({ oauthFlow });
@@ -226,24 +236,20 @@ export const AppScreens = {
         return;
       }
 
-      if (oauthFlow) {
-        showPlayerInitLoading('Preparando sua conta…');
-      } else {
-        showPlayerInitLoading('Carregando personagens…');
-      }
+      const hubResult = await this.showCharSelect();
 
-      await this.showCharSelect();
-
-      if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth() && !this.hubHasPlayableCharacter()) {
+      if (hubResult.ok && !this.hubHasPlayableCharacter()) {
         this.openCharacterCreateForFirstEmptySlot();
-        clearOAuthAutoCharCreate();
+        if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth()) {
+          clearOAuthAutoCharCreate();
+        }
       }
     } finally {
       hidePlayerInitLoading();
     }
   },
 
-  async showCharSelect(): Promise<void> {
+  async showCharSelect(): Promise<{ ok: boolean; message?: string }> {
     showScreen('char-select-screen');
     this.clearCharacterHubError();
 
@@ -258,10 +264,11 @@ export const AppScreens = {
     this.renderAccountLabel();
     if (!hubResult.ok) {
       this.renderCharacterHubError(hubResult.message ?? 'Erro ao conectar ao servidor de dados.');
-      return;
+      return hubResult;
     }
     this.renderCharacterSlots();
     this.syncCharacterSelectionUi();
+    return { ok: true };
   },
 
   showGameWorld(): void {
@@ -277,8 +284,8 @@ export const AppScreens = {
   async setAuthenticatedUser(user: AuthUser): Promise<void> {
     this.currentSession = setLocalSession(user);
     this.selectedCharacterId = null;
+    this.characterHub = null;
     activateGameStoreAfterAuth();
-    await this.loadCharacterHub();
   },
 
   async loadCharacterHub(): Promise<{ ok: boolean; message?: string }> {
@@ -335,6 +342,7 @@ export const AppScreens = {
   },
 
   signOut(): void {
+    hidePlayerInitLoading();
     void signOutSupabase();
     resetGameStoreState();
     clearLocalSession();
@@ -403,6 +411,7 @@ export const AppScreens = {
           </div>
           <div class="char-slot-body">
             <strong class="char-name">${character.name}</strong>
+            <span class="char-class">${CLASS_CATALOG[character.class].name} · ${CLASS_CATALOG[character.class].trait}</span>
             <span class="char-level">LVL ${character.level}</span>
           </div>
         `;

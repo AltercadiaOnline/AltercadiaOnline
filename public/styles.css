@@ -443,6 +443,13 @@ body {
   line-height: 1.2;
 }
 
+.char-class {
+  font-size: 0.72rem;
+  opacity: 0.75;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .char-level {
   font-size: 0.8rem;
   opacity: 0.85;

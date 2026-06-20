@@ -37,7 +37,7 @@ import {
   markEmailCredentialAuthInFlight,
   suppressAuthSessionSideEffects,
 } from './auth/oauthPending.js';
-import { hidePlayerInitLoading } from '../auth/playerInitLoading.js';
+import { hidePlayerInitLoading, showPlayerInitLoading } from '../auth/playerInitLoading.js';
 import { AuthOperationTimeoutError } from '../auth/authDeadline.js';
 import { resetGameStoreState } from '../state/GameStore.js';
 
@@ -277,6 +277,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       logAuthApiResult('login', 'success', { userId: result.user.id ?? null });
       clearAllOAuthFlags();
       setStatus(result.message ?? 'Login autorizado!', false);
+      showPlayerInitLoading('Carregando personagens…');
       await options.onAuthenticated(result.user);
     } catch (error) {
       logAuthApiResult('login', 'error', {
