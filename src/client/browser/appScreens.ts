@@ -592,6 +592,30 @@ export const AppScreens = {
 
         const oauthCompleted = await tryCompleteOAuthReturn({
           onAuthenticated: authCallbacks.onAuthenticated,
+          onEmailConfirmed: (email) => {
+            hidePlayerInitLoading();
+            this.showLogin();
+            showAuthView('login');
+
+            const emailField = document.getElementById('email-input');
+            const passField = document.getElementById('pass-input');
+            if (emailField instanceof HTMLInputElement && email) {
+              emailField.value = email;
+            }
+            if (passField instanceof HTMLInputElement) {
+              passField.value = '';
+              passField.focus();
+            } else {
+              emailField?.focus();
+            }
+
+            const statusEl = document.getElementById('auth-status');
+            if (statusEl) {
+              statusEl.textContent = 'Email confirmado! Entre com sua senha para continuar.';
+              statusEl.classList.add('is-success');
+              statusEl.classList.remove('is-error');
+            }
+          },
           onSnapshotInitializing: (message) => {
             showPlayerInitLoading(message);
             const statusEl = document.getElementById('auth-status');

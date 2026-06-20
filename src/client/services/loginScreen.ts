@@ -210,6 +210,8 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
 
   const goToRegister = (): void => {
     if (busy) return;
+    clearAllOAuthFlags();
+    hidePlayerInitLoading();
     showAuthView('register');
     copyLoginCredentialsToRegisterForm();
     refreshConsentVisibility();
@@ -236,6 +238,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
     }
 
     setBusy(true);
+    clearAllOAuthFlags();
     setStatus('Validando credenciais…', false);
     logAuthApiAttempt('login', { email, via: 'GameAuthService.loginWithEmailForServer' });
 
@@ -306,6 +309,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
     const parentalConsent = fields.guardianConsent.checked;
 
     setBusy(true);
+    clearAllOAuthFlags();
     setStatus('Criando conta…', false);
     logAuthApiAttempt('register', { email, via: 'GameAuthService.registerAccount' });
 

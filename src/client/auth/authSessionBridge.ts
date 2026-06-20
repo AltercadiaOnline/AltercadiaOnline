@@ -11,16 +11,19 @@ import { USER_OAUTH_FAILED } from '../../shared/brand.js';
 import {
   clearAllOAuthFlags,
   clearOAuthRedirectPending,
+  consumeEmailConfirmationReturn,
   hasEmailConfirmationCallbackInUrl,
   hasOAuthCallbackInUrl,
   isOAuthRedirectPending,
 } from '../services/auth/oauthPending.js';
+import { isSupabaseEmailConfirmed } from '../../shared/auth/emailConfirmationPolicy.js';
 
 import { clearPendingLoginServerId } from './resolveLoginServerId.js';
 
 import {
   exchangeOAuthCallbackIfPresent,
   getUser,
+  signOutSupabase,
   subscribeAuthStateChange,
 } from './supabaseAuth.js';
 import { isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
@@ -32,6 +35,8 @@ export type AuthPostLoginOptions = {
 
 export type AuthSessionBridgeOptions = {
   onAuthenticated: (user: AuthUser, options?: AuthPostLoginOptions) => void | Promise<void>;
+  /** Email confirmado via link — jogador deve fazer login com senha. */
+  onEmailConfirmed?: (email: string) => void;
   onAuthError?: (message: string) => void;
   onSnapshotInitializing?: (message: string) => void;
   onSignedOut?: () => void;
@@ -71,13 +76,43 @@ async function completeGoogleOAuthSession(
   return true;
 }
 
+/** Processa link de confirmação — valida email, encerra sessão e manda para login manual. */
+export async function tryCompleteEmailConfirmationReturn(
+  options: AuthSessionBridgeOptions,
+): Promise<boolean> {
+  const isReturn = hasEmailConfirmationCallbackInUrl() || consumeEmailConfirmationReturn();
+  if (!isReturn) return false;
+
+  clearAllOAuthFlags();
+  await exchangeOAuthCallbackIfPresent();
+
+  const user = await getUser({ silent: true, clearInvalidSession: true });
+  if (!user) {
+    resetGameStoreState();
+    options.onAuthError?.('Link de confirmação inválido ou expirado.');
+    return true;
+  }
+
+  if (!isSupabaseEmailConfirmed(user)) {
+    resetGameStoreState();
+    await signOutSupabase();
+    options.onAuthError?.('Não foi possível confirmar seu email. Tente reenviar o link.');
+    return true;
+  }
+
+  const email = user.email ?? '';
+  await signOutSupabase();
+  resetGameStoreState();
+  options.onEmailConfirmed?.(email);
+  return true;
+}
+
 /** Processa retorno OAuth (?code= ou flag pending) após redirect Google → front. */
 export async function tryCompleteOAuthReturn(
   options: AuthSessionBridgeOptions,
 ): Promise<boolean> {
   if (hasEmailConfirmationCallbackInUrl()) {
-    clearAllOAuthFlags();
-    return false;
+    return tryCompleteEmailConfirmationReturn(options);
   }
 
   const oauthCallback = hasOAuthCallbackInUrl();

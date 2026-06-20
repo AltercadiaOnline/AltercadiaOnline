@@ -111,8 +111,12 @@ import {
 } from '../auth/playerInitLoading.js';
 import {
   isOAuthRedirectPending,
+  markEmailConfirmationReturnPending,
 } from '../services/auth/oauthPending.js';
-import { hasAuthTokensInUrl } from '../../shared/auth/authCallback.js';
+import {
+  hasEmailConfirmationCallbackInUrl,
+  hasOAuthCodeInUrl,
+} from '../../shared/auth/authCallback.js';
 import {
   GAME_BRAND_NAME,
   USER_AUTH_UNAVAILABLE,
@@ -886,8 +890,12 @@ async function bootstrap(): Promise<void> {
 
   hideBootstrapFatalError();
 
-  const oauthReturn = hasAuthTokensInUrl() || isOAuthRedirectPending();
-  if (oauthReturn) {
+  const emailConfirmReturn = hasEmailConfirmationCallbackInUrl();
+  const oauthReturn = hasOAuthCodeInUrl() || isOAuthRedirectPending();
+  if (emailConfirmReturn) {
+    markEmailConfirmationReturnPending();
+    showPlayerInitLoading('Confirmando seu email…');
+  } else if (oauthReturn) {
     showPlayerInitLoading(USER_GOOGLE_CONNECTING);
   } else {
     showScreen('login-screen');

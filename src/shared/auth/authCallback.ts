@@ -42,32 +42,60 @@ export function resolveAuthCallbackPath(currentPathname?: string): string {
 
 /** URL contém tokens de retorno Supabase (?code=, #access_token=, token_hash, etc.). */
 export function hasAuthTokensInUrl(href?: string): boolean {
-  const target = href
-    ?? (typeof window !== 'undefined' ? window.location.href : '');
-  if (!target) return false;
+  if (hasOAuthCodeInUrl(href)) return true;
+  return hasEmailConfirmationCallbackInUrl(href);
+}
 
-  let url: URL;
-  try {
-    url = new URL(target);
-  } catch {
-    return false;
-  }
+/** PKCE OAuth — ?code= ou erro na query (Google). */
+export function hasOAuthCodeInUrl(href?: string): boolean {
+  const url = parseAuthCallbackUrl(href);
+  if (!url) return false;
+  return url.searchParams.has('code') || url.searchParams.has('error');
+}
 
-  if (url.searchParams.has('code') || url.searchParams.has('error')) {
-    return true;
-  }
+/** Link de confirmação de email / recovery — não confundir com OAuth Google. */
+export function hasEmailConfirmationCallbackInUrl(href?: string): boolean {
+  const url = parseAuthCallbackUrl(href);
+  if (!url) return false;
 
-  const type = url.searchParams.get('type');
-  if (url.searchParams.has('token_hash') && type) {
-    return true;
+  const queryType = url.searchParams.get('type');
+  if (url.searchParams.has('token_hash') && queryType) {
+    return isEmailOtpType(queryType);
   }
 
   const hash = url.hash;
   if (!hash) return false;
 
-  return /access_token=/.test(hash)
-    || /refresh_token=/.test(hash)
-    || /type=(signup|recovery|email|magiclink|invite)/.test(hash);
+  if (/type=(signup|recovery|email|magiclink|invite)/.test(hash)) {
+    return true;
+  }
+
+  // Sessão implícita no hash após link de email (PKCE OAuth usa ?code= na query).
+  if (/access_token=/.test(hash) && !url.searchParams.has('code')) {
+    return true;
+  }
+
+  return false;
+}
+
+function isEmailOtpType(type: string): boolean {
+  return type === 'signup'
+    || type === 'email'
+    || type === 'recovery'
+    || type === 'magiclink'
+    || type === 'invite';
+}
+
+function parseAuthCallbackUrl(href?: string): URL | null {
+  const target = href
+    ?? (typeof window !== 'undefined' ? window.location.href : '');
+  if (!target) return null;
+
+  try {
+    return new URL(target);
+  } catch {
+    return null;
+  }
 }
 
 /** Se Supabase caiu na raiz com tokens, normaliza para `/characters` no mesmo host. */

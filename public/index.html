@@ -10,10 +10,13 @@
       (function () {
         var search = window.location.search;
         var hash = window.location.hash || '';
-        var isAuthReturn =
-          /(?:[?&]code=|[?&]error=|[?&]token_hash=)/.test(search) ||
-          /access_token=/.test(hash) ||
-          /type=(signup|recovery|email|magiclink)/.test(hash);
+        var isOAuthReturn =
+          /(?:[?&]code=|[?&]error=)/.test(search);
+        var isEmailReturn =
+          /(?:[?&]token_hash=|[?&]type=(signup|recovery|email|magiclink|invite))/.test(search) ||
+          /type=(signup|recovery|email|magiclink|invite)/.test(hash) ||
+          (/access_token=/.test(hash) && !/(?:[?&]code=)/.test(search));
+        var isAuthReturn = isOAuthReturn || isEmailReturn;
         if (!isAuthReturn) return;
 
         var path = window.location.pathname || '/';
