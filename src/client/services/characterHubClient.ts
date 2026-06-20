@@ -6,12 +6,10 @@ import {
   type CreateCharacterRequest,
 } from '../../shared/auth/characterHubProtocol.js';
 import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
-import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
+import { gameServerFetch } from '../net/gameServerClient.js';
 
-function buildCharacterHubUrl(): URL {
-  const url = new URL('/api/character-hub', window.location.origin);
-  url.searchParams.set('serverId', resolveActiveServerId());
-  return url;
+function buildCharacterHubPath(): string {
+  return '/api/character-hub';
 }
 
 export function shouldUseAuthoritativeCharacterHub(): boolean {
@@ -21,20 +19,10 @@ export function shouldUseAuthoritativeCharacterHub(): boolean {
 export async function fetchAuthoritativeCharacterHub(): Promise<
   { ok: true; hub: AccountCharacterHub } | { ok: false; message: string }
 > {
-  const token = await resolveSessionAccessToken();
-  if (!token) {
-    return { ok: false, message: 'Sessão não autenticada.' };
-  }
-
-  const url = buildCharacterHubUrl();
-
   let response: Response;
   try {
-    response = await fetch(url.toString(), {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+    response = await gameServerFetch(buildCharacterHubPath(), {
+      searchParams: { serverId: resolveActiveServerId() },
     });
   } catch {
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
@@ -66,22 +54,12 @@ export async function fetchAuthoritativeCharacterHub(): Promise<
 export async function createAuthoritativeCharacter(
   input: CreateCharacterRequest,
 ): Promise<{ ok: true; hub: AccountCharacterHub } | { ok: false; message: string }> {
-  const token = await resolveSessionAccessToken();
-  if (!token) {
-    return { ok: false, message: 'Sessão não autenticada.' };
-  }
-
-  const url = buildCharacterHubUrl();
-
   let response: Response;
   try {
-    response = await fetch(url.toString(), {
+    response = await gameServerFetch(buildCharacterHubPath(), {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      searchParams: { serverId: resolveActiveServerId() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     });
   } catch {

@@ -33,7 +33,11 @@ export type EconomyEventForwarderDeps = {
   ) => void;
   readonly send: (ws: WebSocket, message: WsOutboundMessage) => void;
   readonly worldConnections: ReadonlyMap<string, WorldConnectionState>;
-  readonly scheduleCharacterPersist: (playerId: string, characterId: number) => void;
+  readonly scheduleCharacterPersist: (
+    playerId: string,
+    characterId: number,
+    options?: { readonly skipSupabase?: boolean },
+  ) => void;
 };
 
 /** Encaminha eventos do EventBus econômico para o WS do jogador e agenda persistência. */
@@ -85,8 +89,6 @@ function schedulePersistFromEconomyEvent(
   playerId: string,
   event: EconomyEvent,
 ): void {
-  if (!isDurablePersistence()) return;
-
   let characterId: number | undefined;
   if ('characterId' in event.payload && typeof event.payload.characterId === 'number') {
     characterId = event.payload.characterId;
@@ -99,11 +101,23 @@ function schedulePersistFromEconomyEvent(
     }
   }
 
-  if (characterId !== undefined) {
+  // Economia crítica Supabase: InventoryPersistenceBridge (EventBus → saveCritical).
+  // File/postgres legado: scheduleCharacterPersist no hub (sem Supabase duplicado).
+  const isBridgeHandledCritical =
+    event.type === EconomyEventType.InventoryUpdated
+    || event.type === EconomyEventType.UpdateBankSuccess
+    || event.type === EconomyEventType.WalletUpdated
+    || event.type === EconomyEventType.AlterExchangeCompleted;
+
+  if (isDurablePersistence() && characterId !== undefined) {
+    deps.scheduleCharacterPersist(playerId, characterId, {
+      skipSupabase: isBridgeHandledCritical,
+    });
+  } else if (!isBridgeHandledCritical && characterId !== undefined) {
     deps.scheduleCharacterPersist(playerId, characterId);
   }
 
-  if (event.type === EconomyEventType.LootGranted) {
+  if (event.type === EconomyEventType.LootGranted && isDurablePersistence()) {
     void persistPendingLootSnapshot();
   }
 }

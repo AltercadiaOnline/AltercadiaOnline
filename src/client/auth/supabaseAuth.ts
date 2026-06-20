@@ -1,11 +1,13 @@
-import type { AuthChangeEvent, Session, SupabaseClient, User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Provider, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
 import { logAuthEnvironment } from './authDebug.js';
 
+const SUPABASE_STORAGE_KEY = 'altercadia-supabase-auth';
+
 let supabase: SupabaseClient | null = null;
 
-/** Inicializa o client — URL e anon key vêm de `.env.governance` via servidor (`GET /config/client`). */
+/** Inicializa o client — URL e anon key vêm via GET /config/client (bootstrap estático). */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
   if (supabase) {
     logAuthEnvironment('initSupabaseAuth-already-ready');
@@ -15,6 +17,7 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
   logAuthEnvironment('initSupabaseAuth-start', {
     supabaseUrl: config.supabaseUrl ?? null,
     gameWsUrl: config.gameWsUrl ?? null,
+    gameHttpUrl: config.gameHttpUrl ?? null,
   });
 
   if (!isSupabaseConfigured(config)) {
@@ -27,6 +30,10 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
     auth: {
       detectSessionInUrl: true,
       flowType: 'pkce',
+      persistSession: true,
+      autoRefreshToken: true,
+      storage: window.localStorage,
+      storageKey: SUPABASE_STORAGE_KEY,
     },
   });
   logAuthEnvironment('initSupabaseAuth-ready');
@@ -34,8 +41,8 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
 }
 
 export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
-  console.log('[AuthDebug:api] Tentando conectar… GET /config/client');
-  const response = await fetch('/config/client');
+  console.log('[AuthDebug:api] Bootstrap — GET /config/client');
+  const response = await fetch('/config/client', { credentials: 'omit' });
   if (!response.ok) {
     console.error('[AuthDebug:api] Erro GET /config/client', { status: response.status });
     throw new Error(`Falha ao carregar /config/client (${response.status})`);
@@ -44,20 +51,32 @@ export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
   console.log('[AuthDebug:api] Sucesso GET /config/client', {
     supabaseUrl: config.supabaseUrl ?? null,
     gameWsUrl: config.gameWsUrl ?? null,
+    gameHttpUrl: config.gameHttpUrl ?? null,
     serverId: config.serverId ?? null,
   });
   return config;
 }
 
-export async function signInWithGoogleOAuth(): Promise<{ ok: boolean; message?: string }> {
+export type OAuthProvider = Extract<Provider, 'google'>;
+
+/**
+ * Login social — exclusivamente via Supabase Auth (PKCE).
+ * Redirect volta ao origin do front; sessão em localStorage (sem cookies Vercel).
+ */
+export async function signInWithOAuth(
+  provider: OAuthProvider,
+): Promise<{ ok: boolean; message?: string }> {
   if (!supabase) {
     return { ok: false, message: 'Supabase não configurado no cliente.' };
   }
 
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+
   const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider,
     options: {
-      redirectTo: window.location.origin,
+      redirectTo,
+      skipBrowserRedirect: false,
     },
   });
 
@@ -69,7 +88,11 @@ export async function signInWithGoogleOAuth(): Promise<{ ok: boolean; message?: 
   return { ok: true };
 }
 
-/** @deprecated Use signInWithGoogleOAuth */
+export async function signInWithGoogleOAuth(): Promise<{ ok: boolean; message?: string }> {
+  return signInWithOAuth('google');
+}
+
+/** @deprecated Use signInWithOAuth('google') */
 export async function loginWithGoogle(): Promise<void> {
   await signInWithGoogleOAuth();
 }
@@ -81,6 +104,19 @@ export function subscribeAuthStateChange(
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
   return () => subscription.unsubscribe();
+}
+
+/** Restaura sessão persistida (localStorage) após reload ou retorno OAuth. */
+export async function restorePersistedSession(): Promise<Session | null> {
+  if (!supabase) return null;
+
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) {
+    console.warn('[Auth] Falha ao restaurar sessão persistida.');
+    return null;
+  }
+
+  return session;
 }
 
 /** Valida sessão com o Supabase (getUser) — fonte de verdade antes de entrar no jogo. */
@@ -96,15 +132,19 @@ export async function getUser(): Promise<User | null> {
   return user;
 }
 
-/** JWT de acesso para handshake world-login — nunca logar este valor. */
+/** JWT de acesso para Railway (HTTP + WebSocket) — nunca logar este valor. */
 export async function resolveSessionAccessToken(): Promise<string | null> {
   if (!supabase) return null;
+
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session?.access_token) {
+    return null;
+  }
 
   const user = await getUser();
   if (!user) return null;
 
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
+  return session.access_token;
 }
 
 export async function signOutSupabase(): Promise<void> {

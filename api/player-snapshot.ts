@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ensureVercelServerEnv, ensureVercelSupabaseBootstrap } from '../dist/server/vercel/bootstrap.js';
 import { handlePlayerSnapshotRoute } from '../dist/server/net/playerSnapshotRoute.js';
 
+/** @deprecated Cliente chama Railway diretamente via gameServerFetch — fallback serverless. */
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
     await ensureVercelSupabaseBootstrap();

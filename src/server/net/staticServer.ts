@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { applyHttpCors } from '../config/cors.js';
 import type { ServerEnv } from '../config/env.js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
+import { handleCriticalPersistOpsRoute } from './criticalPersistOpsRoute.js';
 import { handleGiftTransferRoute } from './giftTransferRoute.js';
 import { handlePlayerSnapshotRoute } from './playerSnapshotRoute.js';
 import { handleCharacterHubRoute } from './characterHubRoute.js';
@@ -156,6 +157,10 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
               }
             : {}),
         }));
+        return;
+      }
+
+      if (await handleCriticalPersistOpsRoute(req, res, url, options.serverEnv)) {
         return;
       }
 

@@ -94,6 +94,41 @@ export function normalizeSupabaseProjectUrl(raw: string | undefined | null): str
   }
 }
 
+/** Normaliza URL HTTP pública do servidor de jogo (GAME_HTTP_URL). */
+export function normalizeGameHttpUrl(raw: string | undefined | null): string | null {
+  const base = sanitizeEnvSecret(raw);
+  if (!base) return null;
+
+  let candidate = base.replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(candidate)) {
+    const scheme = candidate.includes('localhost') || candidate.startsWith('127.0.0.1')
+      ? 'http'
+      : 'https';
+    candidate = `${scheme}://${candidate}`;
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
+
+export function deriveGameHttpUrlFromWs(wsUrl: string | null): string | null {
+  if (!wsUrl) return null;
+  try {
+    const parsed = new URL(wsUrl);
+    const protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
+    return `${protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Normaliza URL pública do WebSocket (GAME_WS_URL). */
 export function normalizeGameWsUrl(raw: string | undefined | null): string | null {
   const base = sanitizeEnvSecret(raw);

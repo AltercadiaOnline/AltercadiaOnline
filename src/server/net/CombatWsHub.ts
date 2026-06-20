@@ -71,6 +71,7 @@ import { applyAuthoritativeBattleProgression } from '../combat/applyAuthoritativ
 import { ensureMovesetMasteryForClass } from '../../shared/progression/movesetMasterySeed.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
+import { getInventoryPersistenceBridge } from '../supabase/inventoryPersistenceBridge.js';
 import { getPersistenceManager } from '../supabase/persistenceManagerRegistry.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { ChatGlobalPayload } from '../../shared/world/globalChatTypes.js';
@@ -171,6 +172,12 @@ export class CombatWsHub implements CombatWsRouteHost {
     this.corsOrigins = options.corsOrigins;
     this.serverEnv = options.serverEnv;
     this.persistenceScheduler = new WorldPersistenceScheduler(this.serverEnv, this.gameState);
+    getInventoryPersistenceBridge()?.setCharacterIdResolver((playerId) => {
+      for (const world of this.worldConnections.values()) {
+        if (world.playerId === playerId) return world.characterId;
+      }
+      return undefined;
+    });
     this.wss = new WebSocketServer({
       server,
       path: '/ws',
@@ -192,8 +199,8 @@ export class CombatWsHub implements CombatWsRouteHost {
       sendStateSync: (socket, envelope, body) => this.sendStateSync(socket as LiveSocket, envelope, body),
       send: (socket, message) => this.send(socket, message),
       worldConnections: this.worldConnections,
-      scheduleCharacterPersist: (playerId, characterId) => {
-        this.scheduleCharacterPersist(playerId, characterId);
+      scheduleCharacterPersist: (playerId, characterId, options) => {
+        this.scheduleCharacterPersist(playerId, characterId, options);
       },
     });
     this.worldTickScheduler.start();
@@ -768,7 +775,11 @@ export class CombatWsHub implements CombatWsRouteHost {
     });
   }
 
-  private scheduleCharacterPersist(playerId: string, characterId: number): void {
+  private scheduleCharacterPersist(
+    playerId: string,
+    characterId: number,
+    options?: { readonly skipSupabase?: boolean },
+  ): void {
     const key = `${playerId}:${characterId}`;
     const existing = this.persistTimers.get(key);
     if (existing) clearTimeout(existing);
@@ -782,6 +793,8 @@ export class CombatWsHub implements CombatWsRouteHost {
               console.error('[persistence] Falha ao salvar personagem (file):', error);
             });
           }
+
+          if (options?.skipSupabase) return;
 
           const manager = getPersistenceManager();
           if (!manager?.isEnabled()) return;

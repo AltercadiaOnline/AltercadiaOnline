@@ -3,15 +3,14 @@ import {
   type PublicServerInstanceEntry,
   type ServerListResponse,
 } from '../../shared/world/serverListProtocol.js';
+import { gameServerFetch } from '../net/gameServerClient.js';
 
 export async function fetchAuthoritativeServerList(): Promise<
   { ok: true; list: ServerListResponse } | { ok: false; message: string }
 > {
   let response: Response;
   try {
-    response = await fetch('/api/servers', {
-      headers: { Accept: 'application/json' },
-    });
+    response = await gameServerFetch('/api/servers', { auth: false });
   } catch {
     return { ok: false, message: 'Erro ao carregar lista de servidores.' };
   }

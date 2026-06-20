@@ -31,7 +31,8 @@ import {
   fetchPublicClientConfig,
   initSupabaseAuth,
   isSupabaseReady,
-  signInWithGoogleOAuth,
+  restorePersistedSession,
+  signInWithOAuth,
   signOutSupabase,
 } from '../../auth/supabaseAuth.js';
 import { isSupabaseConfigured } from '../../../shared/publicClientConfig.js';
@@ -111,7 +112,7 @@ export async function startGoogleOAuth(): Promise<{ ok: boolean; message?: strin
   }
 
   markOAuthRedirectPending();
-  const result = await signInWithGoogleOAuth();
+  const result = await signInWithOAuth('google');
 
   if (!result.ok) {
     clearOAuthRedirectPending();

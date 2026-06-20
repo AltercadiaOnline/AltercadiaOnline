@@ -1,4 +1,8 @@
 import type { ServerEnv } from '../config/env.js';
+import {
+  initInventoryPersistenceBridge,
+  resetInventoryPersistenceBridge,
+} from './inventoryPersistenceBridge.js';
 import { PersistenceManager } from './PersistenceManager.js';
 
 let manager: PersistenceManager | null = null;
@@ -6,6 +10,7 @@ let manager: PersistenceManager | null = null;
 export function initPersistenceManager(env: ServerEnv): PersistenceManager {
   if (!manager) {
     manager = new PersistenceManager(env);
+    initInventoryPersistenceBridge();
   }
   return manager;
 }
@@ -17,5 +22,6 @@ export function getPersistenceManager(): PersistenceManager | null {
 /** Testes / shutdown — libera singleton. */
 export function resetPersistenceManager(): void {
   manager?.stop();
+  resetInventoryPersistenceBridge();
   manager = null;
 }

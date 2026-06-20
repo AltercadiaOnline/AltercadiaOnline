@@ -133,22 +133,17 @@ export function initAuthSessionBridge(options: AuthSessionBridgeOptions): () => 
 
 
   return subscribeAuthStateChange((event, session) => {
-
     if (event === 'SIGNED_OUT') {
       resetGameStoreState();
       options.onSignedOut?.();
       return;
     }
 
-
-
-    if (event !== 'SIGNED_IN') return;
+    if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return;
 
     if (!isOAuthRedirectPending()) return;
 
     if (!session?.user) return;
-
-
 
     void completeGoogleOAuthSession(session.user, options).catch((error) => {
 

@@ -4,18 +4,9 @@ import {
   isPlayerSnapshotNotReadyResponse,
 } from '../../shared/auth/playerSnapshotProtocol.js';
 import { AppScreens } from '../browser/appScreens.js';
+import { gameServerFetch } from '../net/gameServerClient.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
-import { resolveSessionAccessToken } from './supabaseAuth.js';
 import { resolveActiveServerId } from './resolveLoginServerId.js';
-
-type AuthoritativePlayerAuth = {
-  readonly token: string | null;
-};
-
-async function resolveAuthoritativePlayerAuth(): Promise<AuthoritativePlayerAuth> {
-  const token = await resolveSessionAccessToken();
-  return { token };
-}
 
 export function resolveDefaultCharacterIdForProfile(): number {
   const hub = AppScreens.characterHub;
@@ -43,20 +34,15 @@ type SnapshotFetchResult =
 
 async function fetchAuthoritativePlayerSnapshotOnce(
   characterId: number,
-  auth: AuthoritativePlayerAuth,
 ): Promise<SnapshotFetchResult> {
-  const url = new URL('/api/player-snapshot', window.location.origin);
-  url.searchParams.set('characterId', String(characterId));
-  url.searchParams.set('serverId', resolveActiveServerId());
-
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (auth.token) {
-    headers.Authorization = `Bearer ${auth.token}`;
-  }
-
   let response: Response;
   try {
-    response = await fetch(url.toString(), { headers });
+    response = await gameServerFetch('/api/player-snapshot', {
+      searchParams: {
+        characterId: String(characterId),
+        serverId: resolveActiveServerId(),
+      },
+    });
   } catch {
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
@@ -92,21 +78,15 @@ async function fetchAuthoritativePlayerSnapshotOnce(
 }
 
 /**
- * Aguarda o servidor provisionar perfil + snapshot (pós-OAuth / login Supabase).
- * Sinal oficial: GET /api/player-snapshot → `{ ready: true, snapshot }`.
+ * Aguarda o servidor Railway provisionar perfil + snapshot (pós-OAuth / login Supabase).
  */
 export async function initializeAuthoritativePlayerSnapshot(
   characterId?: number,
 ): Promise<{ ok: boolean; ready?: boolean; message?: string }> {
   const resolvedCharacterId = characterId ?? resolveDefaultCharacterIdForProfile();
-  const auth = await resolveAuthoritativePlayerAuth();
-
-  if (!auth.token) {
-    return { ok: false, message: 'Sessão não autenticada.' };
-  }
 
   for (let attempt = 0; attempt < SNAPSHOT_MAX_ATTEMPTS; attempt += 1) {
-    const result = await fetchAuthoritativePlayerSnapshotOnce(resolvedCharacterId, auth);
+    const result = await fetchAuthoritativePlayerSnapshotOnce(resolvedCharacterId);
     if (result.ok) {
       return { ok: true, ready: true };
     }
@@ -124,7 +104,7 @@ export async function initializeAuthoritativePlayerSnapshot(
   };
 }
 
-/** @deprecated Prefer initializeAuthoritativePlayerSnapshot — servidor é fonte de verdade. */
+/** @deprecated Prefer initializeAuthoritativePlayerSnapshot. */
 export async function fetchAndHydratePlayerProfile(
   characterId?: number,
 ): Promise<{ ok: boolean; message?: string }> {

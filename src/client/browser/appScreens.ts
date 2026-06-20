@@ -8,6 +8,7 @@ import {
   getUser,
   getSupabaseClient,
   initSupabaseAuth,
+  restorePersistedSession,
   signOutSupabase,
 } from '../auth/supabaseAuth.js';
 import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameStore.js';
@@ -63,27 +64,28 @@ export type ClientAuthBootstrapResult = {
 
 let clientAuthBootstrapCache: ClientAuthBootstrapResult | null = null;
 
-/** Health + /config/client + Supabase — deve rodar antes de ligar os botões de login. */
+/** Bootstrap: /config/client (Vercel estático) → health Railway → Supabase Auth. */
 export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
   if (clientAuthBootstrapCache) {
     return clientAuthBootstrapCache;
   }
 
-  const serverOk = await isGameServerReachable();
+  const config = await fetchPublicClientConfig();
+  setClientRuntimeConfig(config);
+
+  const serverOk = await isGameServerReachable(config);
   if (!serverOk) {
     throw new Error(
-      'Servidor offline. Não foi possível conectar ao Altercadia (/health).',
+      'Servidor de jogo offline. Verifique o deploy Railway (/health) e GAME_WS_URL na Vercel.',
     );
   }
 
-  const config = await fetchPublicClientConfig();
-  setClientRuntimeConfig(config);
   const supabaseConfigured = isSupabaseConfigured(config);
   const hasGameWsUrl = Boolean(config.gameWsUrl);
 
   if (!config.gameWsUrl) {
     console.warn(
-      '[Net] GAME_WS_URL ausente em /config/client — configure wss://…/ws na Vercel.',
+      '[Net] GAME_WS_URL ausente em /config/client — configure wss://….railway.app/ws na Vercel.',
     );
   }
 
@@ -99,6 +101,8 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
       'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client.',
     );
   }
+
+  await restorePersistedSession();
 
   clientAuthBootstrapCache = {
     serverOk,
@@ -483,7 +487,7 @@ export const AppScreens = {
 
     if (!config.serverOk) {
       statusEl.textContent =
-        'Servidor offline. Confira o deploy da Vercel (/health) e do Railway.';
+        'Servidor de jogo offline. Confira o deploy Railway (/health) e GAME_WS_URL na Vercel.';
       statusEl.classList.add('is-error');
       return;
     }

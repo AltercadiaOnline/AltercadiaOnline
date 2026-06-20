@@ -1,39 +1,21 @@
 /**
- * Cliente HTTP — presentes via servidor → Supabase RPC transfer_item.
+ * Cliente HTTP — presentes via servidor Railway → Supabase RPC transfer_item.
  */
 
 import type { GiftTransferRequest, GiftTransferResponse } from '../../../shared/gift/giftTransferProtocol.js';
 import { parseInventoryStacks } from '../../../shared/supabase/gameDatabaseTypes.js';
-import { resolveSessionAccessToken } from '../../auth/supabaseAuth.js';
 import { resolveActiveServerId } from '../../auth/resolveLoginServerId.js';
-import { AppScreens } from '../../browser/appScreens.js';
+import { gameServerFetch } from '../../net/gameServerClient.js';
 
 export async function requestGiftTransfer(
   payload: GiftTransferRequest,
 ): Promise<GiftTransferResponse> {
-  const token = await resolveSessionAccessToken();
-  const session = AppScreens.currentSession;
-
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const url = new URL('/api/gift/transfer', window.location.origin);
-  url.searchParams.set('serverId', resolveActiveServerId());
-  if (!token && session?.id) {
-    url.searchParams.set('playerId', session.id);
-  }
-
   let response: Response;
   try {
-    response = await fetch(url.toString(), {
+    response = await gameServerFetch('/api/gift/transfer', {
       method: 'POST',
-      headers,
+      searchParams: { serverId: resolveActiveServerId() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...payload,
         serverId: resolveActiveServerId(),

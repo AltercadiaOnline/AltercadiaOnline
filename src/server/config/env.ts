@@ -2,9 +2,11 @@ import type { DatabaseEnv } from './databaseConfig.js';
 import { loadDatabaseEnv } from './databaseConfig.js';
 import { BUILTIN_ALLOWED_ORIGINS } from './cors.js';
 import {
+  normalizeGameHttpUrl,
   normalizeGameWsUrl,
   normalizeSupabaseProjectUrl,
   sanitizeEnvSecret,
+  deriveGameHttpUrlFromWs,
 } from '../supabase/normalizeSupabaseUrl.js';
 import type { ServerInstanceDefinition } from '../../shared/world/serverInstanceCatalog.js';
 import { resolveServerInstanceFromEnv } from './serverInstanceEnv.js';
@@ -21,11 +23,15 @@ export type ServerEnv = {
   readonly supabaseServiceRoleKey: string | null;
   /** URL pública do WebSocket — exposta via GET /config/client (ex.: wss://app.railway.app/ws). */
   readonly gameWsUrl: string | null;
+  /** URL HTTP do servidor de jogo — exposta via GET /config/client (ex.: https://app.railway.app). */
+  readonly gameHttpUrl: string | null;
   /** Permite world-login sem JWT — apenas desenvolvimento local explícito. */
   readonly devAuthBypass: boolean;
   readonly database: DatabaseEnv;
   /** Shard / instância de mundo (SERVER_ID). */
   readonly serverInstance: ServerInstanceDefinition;
+  /** Protege GET /ops/* — ausente em dev; obrigatório em produção. */
+  readonly opsToken: string | null;
 };
 
 function parseNodeEnv(raw: string | undefined): NodeEnv {
@@ -73,6 +79,11 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     env.TRUST_PROXY === 'true' ||
     (nodeEnv === 'production' && env.TRUST_PROXY !== 'false');
 
+  const gameWsUrl = normalizeGameWsUrl(env.GAME_WS_URL ?? env.PUBLIC_GAME_WS_URL);
+  const gameHttpUrl =
+    normalizeGameHttpUrl(env.GAME_HTTP_URL ?? env.PUBLIC_GAME_HTTP_URL)
+    ?? deriveGameHttpUrlFromWs(gameWsUrl);
+
   return {
     nodeEnv,
     port,
@@ -82,11 +93,13 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     supabaseUrl: normalizeSupabaseProjectUrl(env.SUPABASE_URL),
     supabaseAnonKey: sanitizeEnvSecret(env.SUPABASE_ANON_KEY),
     supabaseServiceRoleKey: sanitizeEnvSecret(env.SUPABASE_SERVICE_ROLE_KEY),
-    gameWsUrl: normalizeGameWsUrl(env.GAME_WS_URL ?? env.PUBLIC_GAME_WS_URL),
+    gameWsUrl,
+    gameHttpUrl,
     devAuthBypass:
       env.DEV_AUTH_BYPASS === '1'
       || env.DEV_AUTH_BYPASS === 'true',
     database: loadDatabaseEnv(env, serverInstance),
     serverInstance,
+    opsToken: sanitizeEnvSecret(env.OPS_TOKEN),
   };
 }

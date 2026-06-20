@@ -52,6 +52,7 @@ async function main(): Promise<void> {
       ...(env.supabaseUrl ? { supabaseUrl: env.supabaseUrl } : {}),
       ...(env.supabaseAnonKey ? { supabaseAnonKey: env.supabaseAnonKey } : {}),
       ...(env.gameWsUrl ? { gameWsUrl: env.gameWsUrl } : {}),
+      ...(env.gameHttpUrl ? { gameHttpUrl: env.gameHttpUrl } : {}),
       serverId: env.serverInstance.id,
       serverName: env.serverInstance.displayName,
     }),
@@ -133,6 +134,7 @@ async function main(): Promise<void> {
     console.log(`  HTTP         → ${scheme}://<host>:${env.port}`);
     console.log(`  WebSocket    → ws(s)://<host>:${env.port}/ws`);
     console.log(`  Health       → /health`);
+    console.log(`  Ops metrics  → GET /ops/persistence/critical`);
     console.log(`  CORS origins → ${env.corsOrigins.length ? env.corsOrigins.join(', ') : '(nenhum — defina CORS_ORIGIN)'}`);
     console.log('  Protocolo    → ws (nativo) + combat-join / combat-action / combat-event');
   });
