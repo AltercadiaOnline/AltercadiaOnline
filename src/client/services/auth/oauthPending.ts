@@ -12,6 +12,9 @@ export const OAUTH_CODE_EXCHANGED_KEY = 'altercadia.oauth_code_exchanged';
 /** Bloqueia bridge OAuth durante login/cadastro por email (evita corrida com SIGNED_IN). */
 let emailCredentialAuthInFlight = false;
 
+/** Evita returnToLogin / signOut em cascata ao limpar sessão pós-cadastro. */
+let authSessionSideEffectsSuppressed = 0;
+
 export function markEmailCredentialAuthInFlight(): void {
   emailCredentialAuthInFlight = true;
 }
@@ -22,6 +25,22 @@ export function clearEmailCredentialAuthInFlight(): void {
 
 export function isEmailCredentialAuthInFlight(): boolean {
   return emailCredentialAuthInFlight;
+}
+
+/** Enquanto ativo, listeners SIGNED_OUT não disparam returnToLogin. */
+export function suppressAuthSessionSideEffects(): () => void {
+  authSessionSideEffectsSuppressed += 1;
+  return () => {
+    authSessionSideEffectsSuppressed = Math.max(0, authSessionSideEffectsSuppressed - 1);
+  };
+}
+
+export function areAuthSessionSideEffectsSuppressed(): boolean {
+  return authSessionSideEffectsSuppressed > 0;
+}
+
+export function shouldIgnoreAuthSessionSideEffect(): boolean {
+  return emailCredentialAuthInFlight || areAuthSessionSideEffectsSuppressed();
 }
 
 /** sessionStorage — PKCE trocado; URL já limpa antes do bridge SIGNED_IN. */

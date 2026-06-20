@@ -70,18 +70,6 @@ function buildSignupConfirmationSuccessMessage(): string {
   return `Cadastro realizado! Abra o email de confirmação antes de fazer login. ${SIGNUP_CONFIRM_EMAIL_HINT}`;
 }
 
-async function tryResendSignupConfirmation(email: string): Promise<AuthResult | null> {
-  const resend = await resendSignupConfirmationEmail(email);
-  if (resend.ok) {
-    return {
-      ok: true,
-      needsEmailConfirmation: true,
-      message: `Reenviamos o link de confirmação. ${SIGNUP_CONFIRM_EMAIL_HINT}`,
-    };
-  }
-  return null;
-}
-
 export async function signUpWithEmail(
   email: string,
   password: string,
@@ -141,7 +129,7 @@ export async function signUpWithEmail(
       },
     }),
     'Cadastro demorou demais. Verifique sua conexão e tente novamente.',
-    18_000,
+    12_000,
   );
 
   if (error) {
@@ -155,14 +143,6 @@ export async function signUpWithEmail(
       userId: data.user.id,
     });
     clearLocalSupabaseSession();
-    const resent = await tryResendSignupConfirmation(trimmedEmail);
-    if (resent) {
-      return {
-        ...resent,
-        message:
-          `Este email já tinha cadastro pendente. ${resent.message}`,
-      };
-    }
     return {
       ok: false,
       needsEmailConfirmation: true,

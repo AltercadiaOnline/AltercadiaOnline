@@ -17,6 +17,7 @@ import {
   hasOAuthCallbackInUrl,
   isEmailCredentialAuthInFlight,
   isOAuthRedirectPending,
+  shouldIgnoreAuthSessionSideEffect,
 } from '../services/auth/oauthPending.js';
 import { isSupabaseEmailConfirmed } from '../../shared/auth/emailConfirmationPolicy.js';
 
@@ -160,6 +161,7 @@ export function initAuthSessionBridge(options: AuthSessionBridgeOptions): () => 
 
   return subscribeAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
+      if (shouldIgnoreAuthSessionSideEffect()) return;
       resetGameStoreState();
       options.onSignedOut?.();
       return;

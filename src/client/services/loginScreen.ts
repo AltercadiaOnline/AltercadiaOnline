@@ -35,6 +35,7 @@ import {
   clearAllOAuthFlags,
   clearEmailCredentialAuthInFlight,
   markEmailCredentialAuthInFlight,
+  suppressAuthSessionSideEffects,
 } from './auth/oauthPending.js';
 import { hidePlayerInitLoading } from '../auth/playerInitLoading.js';
 import { AuthOperationTimeoutError } from '../auth/authDeadline.js';
@@ -326,6 +327,28 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
     setBusy(true);
     clearAllOAuthFlags();
     markEmailCredentialAuthInFlight();
+    const releaseSideEffects = suppressAuthSessionSideEffects();
+    let uiWatchdog: ReturnType<typeof setTimeout> | undefined;
+    let uiReleased = false;
+
+    const releaseRegisterUi = (): void => {
+      if (uiReleased) return;
+      uiReleased = true;
+      if (uiWatchdog !== undefined) {
+        clearTimeout(uiWatchdog);
+        uiWatchdog = undefined;
+      }
+      releaseSideEffects();
+      clearEmailCredentialAuthInFlight();
+      hidePlayerInitLoading();
+      setBusy(false);
+    };
+
+    uiWatchdog = setTimeout(() => {
+      setStatus('Cadastro demorou demais. Verifique sua conexão e tente novamente.', true);
+      releaseRegisterUi();
+    }, 15_000);
+
     setStatus('Criando conta…', false);
     logAuthApiAttempt('register', { email, via: 'GameAuthService.registerAccount' });
 
@@ -379,9 +402,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
         setStatus('Erro inesperado ao cadastrar.', true);
       }
     } finally {
-      clearEmailCredentialAuthInFlight();
-      hidePlayerInitLoading();
-      setBusy(false);
+      releaseRegisterUi();
     }
   }
 

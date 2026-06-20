@@ -113,6 +113,7 @@ import {
   isOAuthRedirectPending,
   markEmailConfirmationReturnPending,
   clearStaleAuthReturnFlags,
+  shouldIgnoreAuthSessionSideEffect,
 } from '../services/auth/oauthPending.js';
 import {
   hasEmailConfirmationCallbackInUrl,
@@ -920,6 +921,7 @@ async function bootstrap(): Promise<void> {
         statusEl.classList.remove('is-success');
       },
       onSignedOut: () => {
+        if (shouldIgnoreAuthSessionSideEffect()) return;
         if (worldStarted) {
           clearGameState();
         }

@@ -9,7 +9,7 @@ import {
   hasAuthTokensInUrl,
   resolveAuthCallbackPath,
 } from '../../shared/auth/authCallback.js';
-import { markOAuthCodeExchanged } from '../services/auth/oauthPending.js';
+import { markOAuthCodeExchanged, suppressAuthSessionSideEffects } from '../services/auth/oauthPending.js';
 import { withAuthDeadline } from './authDeadline.js';
 import { mergePublicClientConfigWithGameOrigin } from '../../shared/net/mergeGameOriginConfig.js';
 import type { GameOriginHints } from '../../shared/net/mergeGameOriginConfig.js';
@@ -276,15 +276,20 @@ export async function signOutSupabase(): Promise<void> {
   }
 }
 
-/** Limpa sessão local sem aguardar rede — evita travar cadastro/login. */
+/** Limpa sessão local sem disparar returnToLogin (side effects suprimidos). */
 export function clearLocalSupabaseSession(): void {
-  if (supabase) {
-    void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-  }
+  const release = suppressAuthSessionSideEffects();
   try {
-    localStorage.removeItem(SUPABASE_STORAGE_KEY);
-  } catch {
-    /* storage indisponível */
+    if (supabase) {
+      void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    }
+    try {
+      localStorage.removeItem(SUPABASE_STORAGE_KEY);
+    } catch {
+      /* storage indisponível */
+    }
+  } finally {
+    release();
   }
 }
 
