@@ -300,16 +300,23 @@ export async function resendSignupConfirmationEmail(
     return { ok: false, message: 'Informe seu email.' };
   }
 
-  const { error } = await supabase.auth.resend({
-    type: 'signup',
-    email: trimmed,
-    options: {
-      emailRedirectTo: authRedirectUrl(),
-    },
-  });
+  const { error } = await withAuthDeadline(
+    supabase.auth.resend({
+      type: 'signup',
+      email: trimmed,
+      options: {
+        emailRedirectTo: authRedirectUrl(),
+      },
+    }),
+    'Reenvio de confirmação demorou demais. Tente novamente em instantes.',
+    12_000,
+  );
 
   if (error) {
-    return { ok: false, message: error.message };
+    const message = /rate limit|too many|429/i.test(error.message)
+      ? 'Limite de envio de emails atingido. Aguarde alguns minutos e tente de novo.'
+      : error.message;
+    return { ok: false, message };
   }
 
   return {

@@ -19,3 +19,14 @@ export function isSupabaseEmailConfirmed(user: EmailConfirmUserLike | null | und
   if (user.email_confirmed_at) return true;
   return isGoogleAuthUser(user);
 }
+
+/** Supabase retorna identities vazio quando o email já existe (anti-enumeração). */
+export function isDuplicateSignUpAttempt(
+  user: { readonly identities?: readonly unknown[] | null } | null | undefined,
+): boolean {
+  if (!user) return false;
+  return Array.isArray(user.identities) && user.identities.length === 0;
+}
+
+export const SIGNUP_CONFIRM_EMAIL_HINT =
+  'Verifique caixa de entrada, spam e Promoções. Remetente: Supabase ou noreply@mail.app.supabase.io.';

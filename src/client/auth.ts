@@ -16,7 +16,7 @@ import {
   isAtLeastAge,
   parseBirthDateIso,
 } from '../shared/auth/accountAgePolicy.js';
-import { isSupabaseEmailConfirmed } from '../shared/auth/emailConfirmationPolicy.js';
+import { isSupabaseEmailConfirmed, isDuplicateSignUpAttempt, SIGNUP_CONFIRM_EMAIL_HINT } from '../shared/auth/emailConfirmationPolicy.js';
 
 export type AuthResult = {
   ok: boolean;
@@ -52,7 +52,34 @@ function mapSupabaseAuthError(error: { message?: string; code?: string | null | 
     return { ok: false, message: 'Email ou senha incorretos.' };
   }
 
+  if (
+    code === 'over_email_send_rate_limit'
+    || /rate limit|too many requests|429/i.test(message)
+  ) {
+    return {
+      ok: false,
+      message:
+        'Limite de envio de emails atingido. Aguarde alguns minutos e use "Reenviar email de confirmação".',
+    };
+  }
+
   return { ok: false, message: message || 'Falha na autenticação.' };
+}
+
+function buildSignupConfirmationSuccessMessage(): string {
+  return `Cadastro realizado! Abra o email de confirmação antes de fazer login. ${SIGNUP_CONFIRM_EMAIL_HINT}`;
+}
+
+async function tryResendSignupConfirmation(email: string): Promise<AuthResult | null> {
+  const resend = await resendSignupConfirmationEmail(email);
+  if (resend.ok) {
+    return {
+      ok: true,
+      needsEmailConfirmation: true,
+      message: `Reenviamos o link de confirmação. ${SIGNUP_CONFIRM_EMAIL_HINT}`,
+    };
+  }
+  return null;
 }
 
 export async function signUpWithEmail(
@@ -96,6 +123,7 @@ export async function signUpWithEmail(
     hasNome: Boolean(fullName),
     hasDataNascimento: Boolean(birthDate),
     consentimentoResponsavel,
+    emailRedirectTo: resolveAuthRedirectUrl(),
   });
 
   const { data, error } = await withAuthDeadline(
@@ -113,6 +141,7 @@ export async function signUpWithEmail(
       },
     }),
     'Cadastro demorou demais. Verifique sua conexão e tente novamente.',
+    18_000,
   );
 
   if (error) {
@@ -120,31 +149,52 @@ export async function signUpWithEmail(
     return mapSupabaseAuthError(error);
   }
 
+  if (data.user && isDuplicateSignUpAttempt(data.user)) {
+    logAuthApiResult('register', 'error', {
+      reason: 'duplicate-email',
+      userId: data.user.id,
+    });
+    clearLocalSupabaseSession();
+    const resent = await tryResendSignupConfirmation(trimmedEmail);
+    if (resent) {
+      return {
+        ...resent,
+        message:
+          `Este email já tinha cadastro pendente. ${resent.message}`,
+      };
+    }
+    return {
+      ok: false,
+      needsEmailConfirmation: true,
+      message:
+        'Este email já está cadastrado. Faça login, use "Esqueci minha senha" ou clique em "Reenviar email de confirmação" se ainda não confirmou.',
+    };
+  }
+
   if (data.user && !data.session) {
     logAuthApiResult('register', 'success', {
       userId: data.user.id,
       needsEmailConfirm: true,
     });
+    clearLocalSupabaseSession();
     return {
       ok: true,
       needsEmailConfirmation: true,
-      message:
-        'Cadastro realizado! Abra o email de confirmação antes de fazer login (verifique spam).',
+      message: buildSignupConfirmationSuccessMessage(),
     };
   }
 
   if (data.session && data.user && !isSupabaseEmailConfirmed(data.user)) {
-    clearLocalSupabaseSession();
     logAuthApiResult('register', 'success', {
       userId: data.user.id,
       needsEmailConfirm: true,
       clearedPrematureSession: true,
     });
+    clearLocalSupabaseSession();
     return {
       ok: true,
       needsEmailConfirmation: true,
-      message:
-        'Cadastro realizado! Confirme seu email antes de entrar (verifique spam).',
+      message: buildSignupConfirmationSuccessMessage(),
     };
   }
 
