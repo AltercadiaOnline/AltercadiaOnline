@@ -11,7 +11,7 @@
         var search = window.location.search;
         var hash = window.location.hash || '';
         var isAuthReturn =
-          /(?:[?&]code=|[?&]error=)/.test(search) ||
+          /(?:[?&]code=|[?&]error=|[?&]token_hash=)/.test(search) ||
           /access_token=/.test(hash) ||
           /type=(signup|recovery|email|magiclink)/.test(hash);
         if (!isAuthReturn) return;

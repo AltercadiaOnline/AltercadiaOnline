@@ -22,6 +22,8 @@ export type AuthRegisterPayload = {
 export type AuthRegisterResult = {
   success: boolean;
   message?: string;
+  /** Conta criada — jogador deve confirmar email antes de entrar. */
+  needsEmailConfirmation?: boolean;
 };
 
 /** Contrato de autenticação usado pelo cliente e futuros módulos do jogo. */

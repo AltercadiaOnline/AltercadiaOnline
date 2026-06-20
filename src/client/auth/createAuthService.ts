@@ -66,6 +66,7 @@ export function createAuthService(): AuthService {
       return {
         success: result.ok,
         message: result.message,
+        ...(result.needsEmailConfirmation ? { needsEmailConfirmation: true } : {}),
       };
     },
   };

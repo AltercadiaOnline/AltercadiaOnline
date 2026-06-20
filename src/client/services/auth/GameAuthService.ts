@@ -102,7 +102,9 @@ export async function loginWithEmailForServer(
   };
 }
 
-export async function registerAccount(payload: AuthRegisterPayload): Promise<{ success: boolean; message?: string }> {
+export async function registerAccount(
+  payload: AuthRegisterPayload,
+): Promise<{ success: boolean; message?: string; needsEmailConfirmation?: boolean }> {
   return getAuthService().register(payload);
 }
 

@@ -61,6 +61,7 @@ import {
   hidePlayerInitLoading,
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
+import { isSupabaseEmailConfirmed } from '../../shared/auth/emailConfirmationPolicy.js';
 
 let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
 let appShellListenersBound = false;
@@ -96,12 +97,6 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
 
   const supabaseConfigured = isSupabaseConfigured(config);
   const hasGameWsUrl = Boolean(config.gameWsUrl);
-
-  if (!config.gameWsUrl) {
-    console.warn(
-      '[Net] GAME_WS_URL ausente em /config/client — configure wss://….railway.app/ws na Vercel.',
-    );
-  }
 
   if (!supabaseConfigured) {
     console.warn('[Auth] Supabase não configurado — defina SUPABASE_URL e SUPABASE_ANON_KEY.');
@@ -493,8 +488,19 @@ export const AppScreens = {
   },
 
   async restoreSessionFromSupabase(): Promise<boolean> {
-    const user = await getUser();
+    const client = getSupabaseClient();
+    if (!client) return false;
+
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) return false;
+
+    const user = await getUser({ silent: true, clearInvalidSession: true });
     if (!user?.email) return false;
+
+    if (!isSupabaseEmailConfirmed(user)) {
+      await client.auth.signOut({ scope: 'local' });
+      return false;
+    }
 
     await this.setAuthenticatedUser({
       email: user.email,

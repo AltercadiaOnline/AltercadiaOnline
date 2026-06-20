@@ -11,6 +11,7 @@ import { USER_OAUTH_FAILED } from '../../shared/brand.js';
 import {
   clearAllOAuthFlags,
   clearOAuthRedirectPending,
+  hasEmailConfirmationCallbackInUrl,
   hasOAuthCallbackInUrl,
   isOAuthRedirectPending,
 } from '../services/auth/oauthPending.js';
@@ -22,6 +23,7 @@ import {
   getUser,
   subscribeAuthStateChange,
 } from './supabaseAuth.js';
+import { isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
 
 export type AuthPostLoginOptions = {
   readonly serverId?: string;
@@ -73,6 +75,11 @@ async function completeGoogleOAuthSession(
 export async function tryCompleteOAuthReturn(
   options: AuthSessionBridgeOptions,
 ): Promise<boolean> {
+  if (hasEmailConfirmationCallbackInUrl()) {
+    clearAllOAuthFlags();
+    return false;
+  }
+
   const oauthCallback = hasOAuthCallbackInUrl();
   const pending = isOAuthRedirectPending();
 
@@ -80,12 +87,20 @@ export async function tryCompleteOAuthReturn(
 
   await exchangeOAuthCallbackIfPresent();
 
-  const user = await getUser();
+  const user = await getUser({ silent: true, clearInvalidSession: true });
   if (!user) {
     clearAllOAuthFlags();
     resetGameStoreState();
-    options.onAuthError?.(USER_OAUTH_FAILED);
-    return true;
+    if (oauthCallback || pending) {
+      options.onAuthError?.(USER_OAUTH_FAILED);
+      return true;
+    }
+    return false;
+  }
+
+  if (!oauthCallback && !isGoogleAuthUser(user)) {
+    clearAllOAuthFlags();
+    return false;
   }
 
   return completeGoogleOAuthSession(user, options);
@@ -113,6 +128,11 @@ export function initAuthSessionBridge(options: AuthSessionBridgeOptions): () => 
     if (!isOAuthRedirectPending() && !hasOAuthCallbackInUrl()) return;
 
     if (!session?.user) return;
+
+    if (!isGoogleAuthUser(session.user)) {
+      clearAllOAuthFlags();
+      return;
+    }
 
     void completeGoogleOAuthSession(session.user, options).catch((error) => {
       console.error('[Auth] Falha ao concluir OAuth:', error);

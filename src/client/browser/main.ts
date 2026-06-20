@@ -878,7 +878,7 @@ function ensureLoginHudBound(): boolean {
 
   if (bound) {
     loginUiBound = true;
-    console.log('[Bootstrap] Login HUD ligada.');
+    console.debug('[Bootstrap] Login HUD ligada.');
   } else {
     console.error('[Bootstrap] Falha ao ligar login HUD — DOM incompleto ou botões ausentes.');
   }
@@ -933,7 +933,7 @@ async function bootstrap(): Promise<void> {
     initBattleHud(document);
     setupPauseControls();
 
-    console.log('[MVP] Cliente V2 pronto', CLIENT_RUNTIME_VERSION);
+    console.debug('[MVP] Cliente V2 pronto', CLIENT_RUNTIME_VERSION);
   } catch (error) {
     console.error('[MVP] Bootstrap falhou:', error);
     ensureLoginHudBound();

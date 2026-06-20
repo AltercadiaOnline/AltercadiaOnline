@@ -14,7 +14,6 @@ import { applyPasswordReset, requestPasswordReset, resendEmailConfirmation } fro
 import {
   clearPasswordRecoveryUrl,
   getSupabaseClient,
-  getUser,
   isPasswordRecoverySession,
   isSupabaseReady,
   subscribeAuthStateChange,
@@ -32,6 +31,7 @@ import {
   USER_GOOGLE_REDIRECT,
   USER_PASSWORD_RESET_UNAVAILABLE,
 } from '../../shared/brand.js';
+import { clearAllOAuthFlags } from './auth/oauthPending.js';
 
 import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 
@@ -256,6 +256,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       }
 
       logAuthApiResult('login', 'success', { userId: result.user.id ?? null });
+      clearAllOAuthFlags();
       setStatus(result.message ?? 'Login autorizado!', false);
       await options.onAuthenticated(result.user);
     } catch (error) {
@@ -324,33 +325,26 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
 
       logAuthApiResult('register', 'success', { message: result.message ?? null });
 
-      if (getSupabaseClient()) {
-        const supabaseUser = await getUser();
-        const { data: { session } } = await getSupabaseClient()!.auth.getSession();
-
-        if (session?.user && supabaseUser?.email) {
-          setStatus(result.message ?? 'Conta criada!', false);
-          await options.onAuthenticated({
-            email: supabaseUser.email,
-            id: supabaseUser.id,
-            ...(supabaseUser.user_metadata?.full_name
-              ? { fullName: String(supabaseUser.user_metadata.full_name) }
-              : supabaseUser.user_metadata?.nome
-                ? { fullName: String(supabaseUser.user_metadata.nome) }
-                : {}),
-          });
-          return;
+      if (result.needsEmailConfirmation) {
+        if (getSupabaseClient()) {
+          await getSupabaseClient()!.auth.signOut({ scope: 'local' });
         }
+        clearAllOAuthFlags();
+        copyRegisterCredentialsToLoginForm();
+        showAuthView('register');
+        setStatus(
+          result.message
+          ?? 'Conta criada! Abra o email de confirmação (verifique spam) ou use o botão abaixo para reenviar.',
+          false,
+        );
+        fields.regEmail.focus();
+        return;
       }
 
       copyRegisterCredentialsToLoginForm();
-      showAuthView('register');
-      setStatus(
-        result.message
-        ?? 'Conta criada! Abra o email de confirmação (verifique spam) ou use o botão abaixo para reenviar.',
-        false,
-      );
-      fields.regEmail.focus();
+      showAuthView('login');
+      setStatus(result.message ?? 'Conta criada! Faça login para continuar.', false);
+      fields.email.focus();
     } catch (error) {
       logAuthApiResult('register', 'error', {
         message: error instanceof Error ? error.message : String(error),
@@ -537,6 +531,6 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
   document.getElementById('btn-google-register')?.removeAttribute('hidden');
 
   logAuthEnvironment('login-screen-ready', { navigationReady });
-  console.log('[LoginScreen] HUD de login pronta (GameAuthService).');
+  console.debug('[LoginScreen] HUD de login pronta (GameAuthService).');
   return navigationReady;
 }

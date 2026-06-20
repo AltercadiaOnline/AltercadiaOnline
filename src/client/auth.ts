@@ -15,6 +15,7 @@ import {
   isAtLeastAge,
   parseBirthDateIso,
 } from '../shared/auth/accountAgePolicy.js';
+import { isSupabaseEmailConfirmed } from '../shared/auth/emailConfirmationPolicy.js';
 
 export type AuthResult = {
   ok: boolean;
@@ -128,6 +129,21 @@ export async function signUpWithEmail(
     };
   }
 
+  if (data.session && data.user && !isSupabaseEmailConfirmed(data.user)) {
+    await supabase.auth.signOut({ scope: 'local' });
+    logAuthApiResult('register', 'success', {
+      userId: data.user.id,
+      needsEmailConfirm: true,
+      clearedPrematureSession: true,
+    });
+    return {
+      ok: true,
+      needsEmailConfirmation: true,
+      message:
+        'Cadastro realizado! Confirme seu email antes de entrar (verifique spam).',
+    };
+  }
+
   logAuthApiResult('register', 'success', {
     userId: data.user?.id ?? null,
     hasSession: Boolean(data.session),
@@ -167,6 +183,17 @@ export async function signInWithEmail(email: string, password: string): Promise<
       ok: false,
       needsEmailConfirmation: true,
       message: 'Confirme seu email antes de entrar.',
+    };
+  }
+
+  if (data.user && !isSupabaseEmailConfirmed(data.user)) {
+    await supabase.auth.signOut({ scope: 'local' });
+    logAuthApiResult('login', 'error', { message: 'Email não confirmado' });
+    return {
+      ok: false,
+      needsEmailConfirmation: true,
+      message:
+        'Confirme seu email antes de entrar. Abra o link que enviamos (verifique spam) ou reenvie na tela de cadastro.',
     };
   }
 

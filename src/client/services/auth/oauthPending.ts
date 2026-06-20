@@ -34,3 +34,17 @@ export function hasOAuthCallbackInUrl(): boolean {
   const url = new URL(window.location.href);
   return url.searchParams.has('code') || url.searchParams.has('error');
 }
+
+/** Retorno do link de confirmação de email (não confundir com OAuth Google). */
+export function hasEmailConfirmationCallbackInUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  const url = new URL(window.location.href);
+  const type = url.searchParams.get('type');
+  if (
+    url.searchParams.has('token_hash')
+    && (type === 'signup' || type === 'email' || type === 'magiclink')
+  ) {
+    return true;
+  }
+  return /type=(signup|email|magiclink)/.test(url.hash);
+}

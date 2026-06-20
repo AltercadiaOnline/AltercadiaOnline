@@ -71,8 +71,15 @@ async function fetchStaticGameOriginHints(): Promise<GameOriginHints | null> {
   }
 }
 
+export type GetUserOptions = {
+  /** Boot/leitura opcional — não emitir warn de sessão inválida. */
+  readonly silent?: boolean;
+  /** Remove token local expirado/inválido do storage. */
+  readonly clearInvalidSession?: boolean;
+};
+
 export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
-  console.log('[AuthDebug:api] Bootstrap — GET /config/client');
+  console.debug('[AuthDebug:api] Bootstrap — GET /config/client');
   const response = await fetch('/config/client', { credentials: 'omit' });
   if (!response.ok) {
     console.error('[AuthDebug:api] Erro GET /config/client', { status: response.status });
@@ -83,7 +90,7 @@ export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
   const config = needsOrigin
     ? mergePublicClientConfigWithGameOrigin(raw, await fetchStaticGameOriginHints())
     : raw;
-  console.log('[AuthDebug:api] Sucesso GET /config/client', {
+  console.debug('[AuthDebug:api] Sucesso GET /config/client', {
     supabaseConfigured: Boolean(config.supabaseUrl && config.supabaseAnonKey),
     gameWsConfigured: Boolean(config.gameWsUrl),
     gameHttpConfigured: Boolean(config.gameHttpUrl),
@@ -188,12 +195,17 @@ export async function restorePersistedSession(): Promise<Session | null> {
 }
 
 /** Valida sessão com o Supabase (getUser) — fonte de verdade antes de entrar no jogo. */
-export async function getUser(): Promise<User | null> {
+export async function getUser(options?: GetUserOptions): Promise<User | null> {
   if (!supabase) return null;
 
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error) {
-    console.warn('[Auth] Sessão inválida ou expirada.');
+    if (options?.clearInvalidSession) {
+      await supabase.auth.signOut({ scope: 'local' });
+    }
+    if (!options?.silent) {
+      console.warn('[Auth] Sessão inválida ou expirada.');
+    }
     return null;
   }
 
@@ -209,7 +221,7 @@ export async function resolveSessionAccessToken(): Promise<string | null> {
     return null;
   }
 
-  const user = await getUser();
+  const user = await getUser({ silent: true, clearInvalidSession: true });
   if (!user) return null;
 
   return session.access_token;
