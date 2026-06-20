@@ -37,39 +37,54 @@ const envCandidates = [
   path.join(root, 'env.governance'),
 ];
 
-function loadDatabaseUrlFromEnvFiles() {
-  for (const filePath of envCandidates) {
-    if (!existsSync(filePath)) continue;
-    const content = readFileSync(filePath, 'utf8');
-    for (const rawLine of content.split(/\r?\n/u)) {
-      const line = rawLine.trim();
-      if (!line || line.startsWith('#')) continue;
-      const eq = line.indexOf('=');
-      if (eq <= 0) continue;
-      const key = line.slice(0, eq).trim();
-      let value = line.slice(eq + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"'))
-        || (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      if ((key === 'DATABASE_URL' || key === 'SUPABASE_DATABASE_URL') && value) {
-        return value;
-      }
+function loadEnvFile(filePath) {
+  if (!existsSync(filePath)) return;
+  const content = readFileSync(filePath, 'utf8');
+  for (const rawLine of content.split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq <= 0) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"'))
+      || (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (value && process.env[key] === undefined) {
+      process.env[key] = value;
     }
   }
-  return null;
 }
 
-const connectionString =
-  process.env.DATABASE_URL?.trim()
-  || process.env.SUPABASE_DATABASE_URL?.trim()
-  || loadDatabaseUrlFromEnvFiles();
+for (const filePath of envCandidates) {
+  loadEnvFile(filePath);
+}
+
+function resolveConnectionString() {
+  const direct =
+    process.env.DATABASE_URL?.trim()
+    || process.env.SUPABASE_DATABASE_URL?.trim()
+    || process.env.POSTGRES_URL?.trim();
+  if (direct) return direct;
+
+  const host = process.env.DATABASE_HOST?.trim();
+  const user = process.env.DATABASE_USER?.trim();
+  const password = process.env.DATABASE_PASSWORD?.trim();
+  const name = process.env.DATABASE_NAME?.trim();
+  if (!host || !user || !password || !name) return null;
+
+  const port = Number(process.env.DATABASE_PORT?.trim() || '5432');
+  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(name)}`;
+}
+
+const connectionString = resolveConnectionString();
 
 if (!connectionString) {
   console.error('[migration] DATABASE_URL ausente.');
-  console.error('  Defina DATABASE_URL em .env.governance, .env ou env.governance na raiz do projeto.');
+  console.error('  Defina DATABASE_URL (sem #) ou DATABASE_HOST/USER/PASSWORD/NAME em .env.governance.');
   process.exit(1);
 }
 
