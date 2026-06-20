@@ -5,8 +5,10 @@
 ```text
 npm run dev          → teste local (build + servidor com reload)
 npm run deploy:check → validação pré-produção (typecheck + build)
-npm run deploy       → deploy:check + git add + commit + push origin main
-                     → GitHub → Vercel deploy automático (branch main)
+npm run deploy       → deploy:check + git add + commit + push origin main + aguardar sync Vercel/Railway
+npm run jpush        → alias de npm run deploy (mesmo fluxo nos dois hosts)
+                     → GitHub → Vercel + Railway deploy automático (branch main, se ligados ao repo)
+npm run deploy:sync-check → compara /config/deploy-manifest.json nos dois hosts
 ```
 
 O desenvolvedor **não deve precisar** do painel Vercel no dia a dia, exceto: primeira configuração de variáveis, ver logs de falha, ou domínio customizado.
@@ -63,7 +65,8 @@ Antes de concluir qualquer alteração em `src/server/`, **verificar compatibili
 |--------|----------|
 | `dev` | Desenvolvimento local completo (alias `dev:mvp`) |
 | `deploy:check` | `typecheck && build` — espelha CI/Docker |
-| `deploy` | `deploy:check` + `scripts/deploy.mjs` → push `main` |
+| `deploy:sync-check` | Compara commit publicado na Vercel vs Railway |
+| `deploy` / `jpush` | `deploy:check` + commit + push + aguardar sync Vercel/Railway |
 | `start` | `node dist/server/index.js` — produção |
 | `build` | `tsc` |
 

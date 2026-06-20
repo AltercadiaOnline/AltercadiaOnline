@@ -1,33 +1,55 @@
 #!/usr/bin/env node
 /**
- * Deploy Altercadia V2 → GitHub (main) → Vercel automático (se ligado ao repo).
+ * Deploy Altercadia V2 → GitHub (main) → Vercel + Railway (auto via GitHub).
+ *
  * Uso:
  *   npm run deploy
- *   npm run deploy -- "feat: nova mecanica de combate"
+ *   npm run jpush
+ *   npm run deploy -- "feat: nova mecanica"
  *   DEPLOY_MSG="fix: cors" npm run deploy
+ *   npm run deploy -- --no-wait
  */
 import { execSync } from 'node:child_process';
 
+const args = process.argv.slice(2);
+const noWait = args.includes('--no-wait');
+const messageArg = args.find((arg) => !arg.startsWith('--'));
+
 const message =
-  process.argv[2] ??
+  messageArg ??
   process.env.DEPLOY_MSG ??
   `deploy: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
 
-function run(cmd) {
-  execSync(cmd, { stdio: 'inherit', encoding: 'utf8' });
+function run(cmd, env = {}) {
+  execSync(cmd, {
+    stdio: 'inherit',
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+  });
 }
 
 function statusPorcelain() {
   return execSync('git status --porcelain', { encoding: 'utf8' }).trim();
 }
 
+function headCommit() {
+  return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+}
+
 const pending = statusPorcelain();
 if (!pending) {
-  console.log('[deploy] Nenhuma alteração para commitar. Push ignorado.');
+  console.log('[deploy] Nenhuma alteração para commitar. Verificando sync Vercel/Railway…');
+  try {
+    run('node scripts/check-deploy-sync.mjs');
+  } catch {
+    process.exit(1);
+  }
   process.exit(0);
 }
 
 console.log('[deploy] Alterações detectadas:\n', pending, '\n');
+run('npm run deploy:check');
+
 run('git add .');
 
 try {
@@ -37,5 +59,27 @@ try {
   process.exit(1);
 }
 
+const pushedCommit = headCommit();
 run('git push origin main');
-console.log('[deploy] Push concluído → Vercel deve iniciar deploy na branch main (se o projeto estiver ligado ao GitHub).');
+
+console.log('');
+console.log('[deploy] Push concluído → GitHub main');
+console.log('[deploy]   • Vercel: deploy automático (se ligado ao repo)');
+console.log('[deploy]   • Railway: deploy automático (se ligado ao repo)');
+console.log('[deploy]   • Mesmo commit / mesmo front nos dois hosts');
+console.log('');
+
+if (noWait) {
+  console.log('[deploy] --no-wait: rode depois → npm run deploy:sync-check');
+  process.exit(0);
+}
+
+try {
+  run('node scripts/check-deploy-sync.mjs --wait', {
+    DEPLOY_EXPECT_COMMIT: pushedCommit,
+  });
+} catch {
+  console.error('[deploy] Push OK, mas sync Vercel/Railway não confirmado a tempo.');
+  console.error('[deploy] Confira os dashboards e rode: npm run deploy:sync-check');
+  process.exit(1);
+}
