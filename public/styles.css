@@ -157,9 +157,9 @@ body {
   margin: 0 0 0.5rem;
 }
 
-.auth-resend-hint {
-  margin-top: -0.25rem;
-  margin-bottom: 0;
+#auth-register-panel .auth-link-btn {
+  margin-top: 0.85rem;
+  margin-bottom: 0.5rem;
 }
 
 .auth-panel.hidden {
