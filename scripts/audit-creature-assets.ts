@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ZONE1_CREATURE_REGISTRY,
   ZONE1_ID,
-} from '../src/assets/creatures/zone1/zone1CreatureRegistry.js';
+} from '../src/shared/world/zone1CreatureRegistry.js';
 import { buildCreatureSpriteUrl } from '../src/shared/assets/creatureManifest.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

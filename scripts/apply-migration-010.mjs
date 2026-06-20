@@ -12,20 +12,32 @@ import path from 'node:path';
 import pg from 'pg';
 
 const root = process.cwd();
-const governancePath = path.join(root, '.env.governance');
+const envCandidates = [
+  path.join(root, '.env.governance'),
+  path.join(root, '.env'),
+  path.join(root, 'env.governance'),
+];
 
-function loadGovernanceDatabaseUrl() {
-  if (!existsSync(governancePath)) return null;
-  const content = readFileSync(governancePath, 'utf8');
-  for (const rawLine of content.split(/\r?\n/u)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eq = line.indexOf('=');
-    if (eq <= 0) continue;
-    const key = line.slice(0, eq).trim();
-    const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
-    if ((key === 'DATABASE_URL' || key === 'SUPABASE_DATABASE_URL') && value) {
-      return value;
+function loadDatabaseUrlFromEnvFiles() {
+  for (const filePath of envCandidates) {
+    if (!existsSync(filePath)) continue;
+    const content = readFileSync(filePath, 'utf8');
+    for (const rawLine of content.split(/\r?\n/u)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq <= 0) continue;
+      const key = line.slice(0, eq).trim();
+      let value = line.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"'))
+        || (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      if ((key === 'DATABASE_URL' || key === 'SUPABASE_DATABASE_URL') && value) {
+        return value;
+      }
     }
   }
   return null;
@@ -34,11 +46,11 @@ function loadGovernanceDatabaseUrl() {
 const connectionString =
   process.env.DATABASE_URL?.trim()
   || process.env.SUPABASE_DATABASE_URL?.trim()
-  || loadGovernanceDatabaseUrl();
+  || loadDatabaseUrlFromEnvFiles();
 
 if (!connectionString) {
   console.error('[migration-010] DATABASE_URL ausente.');
-  console.error('  Defina DATABASE_URL ou crie .env.governance (ver .env.governance.example).');
+  console.error('  Defina DATABASE_URL em .env.governance, .env ou env.governance na raiz do projeto.');
   process.exit(1);
 }
 

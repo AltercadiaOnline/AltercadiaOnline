@@ -53,6 +53,31 @@ function mergeCompiledAssetsTree(fromJsDir, fromJsonDir, toDir) {
   walkJs('');
   console.log(`[sync-vercel-public] ${path.relative(root, fromJsDir)} → ${path.relative(root, toDir)} (merge .js)`);
 
+  /** Remove .js órfãos em public/assets (ex.: módulo movido para /shared). */
+  function pruneOrphanJs(relativeDir) {
+    const absoluteTo = path.join(toDir, relativeDir);
+    if (!existsSync(absoluteTo)) return;
+
+    for (const entry of readdirSync(absoluteTo, { withFileTypes: true })) {
+      const childRelative = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
+      const toPath = path.join(toDir, childRelative);
+      const fromPath = path.join(fromJsDir, childRelative);
+
+      if (entry.isDirectory()) {
+        pruneOrphanJs(childRelative);
+        continue;
+      }
+
+      if (!entry.name.endsWith('.js')) continue;
+      if (existsSync(fromPath)) continue;
+
+      rmSync(toPath, { force: true });
+      console.log(`[sync-vercel-public] removido órfão ${path.relative(root, toPath)}`);
+    }
+  }
+
+  pruneOrphanJs('');
+
   if (!existsSync(fromJsonDir)) return;
 
   function walkJson(relativeDir) {

@@ -18,7 +18,7 @@ const REQUIRED_STATIC_MODULES = [
   'config/sceneConfig.js',
   'shared/world/npcRegistry.js',
   'assets/urban/urbanAssetManifest.js',
-  'assets/creatures/zone1/zone1CreatureRegistry.js',
+  'shared/world/zone1CreatureRegistry.js',
   'assets/creatures/zone1/aranha/manifest.json',
   'assets/creatures/zone1/cao_selvagem/manifest.json',
   'assets/creatures/zone1/corvo/manifest.json',

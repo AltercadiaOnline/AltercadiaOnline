@@ -7,7 +7,7 @@ import {
   listZone1CreatureIds,
   resolveZone1CreatureEntry,
   ZONE1_ID,
-} from '../../assets/creatures/zone1/zone1CreatureRegistry.js';
+} from '../../shared/world/zone1CreatureRegistry.js';
 
 import { DEFAULT_PLAYER_SOUTH_ROTATION_URL } from '../entities/player/playerConstants.js';
 

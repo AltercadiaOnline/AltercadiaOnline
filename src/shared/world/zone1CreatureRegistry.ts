@@ -1,5 +1,5 @@
-import type { CreatureManifest } from '../../../shared/assets/creatureManifest.js';
-import { ZONE1_ALLEY_CREATURES, type Zone1CreatureId } from '../../../shared/world/zone1MonsterSpawns.js';
+import type { CreatureManifest } from '../assets/creatureManifest.js';
+import { ZONE1_ALLEY_CREATURES, type Zone1CreatureId } from './zone1MonsterSpawns.js';
 
 const aranhaManifest = {
   id: 'aranha_z1',
