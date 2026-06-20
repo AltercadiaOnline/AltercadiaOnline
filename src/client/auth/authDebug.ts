@@ -2,12 +2,11 @@ import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { getSupabaseClient } from '../auth/supabaseAuth.js';
 import { isPlayerInitLoadingVisible } from '../auth/playerInitLoading.js';
 
-/** Logs de diagnóstico — F12 → Console durante login/cadastro. */
+/** Logs de diagnóstico — F12 → Console. Nunca logar URL completa do Supabase (marca vs API). */
 export function logAuthEnvironment(phase: string, extra?: Record<string, unknown>): void {
   const config = getClientRuntimeConfig();
   console.log(`[AuthDebug:${phase}]`, {
     supabaseConfigured: Boolean(config?.supabaseUrl && config?.supabaseAnonKey),
-    supabaseUrl: config?.supabaseUrl ?? null,
     gameWsUrl: config?.gameWsUrl ?? null,
     serverId: config?.serverId ?? null,
     supabaseClientReady: Boolean(getSupabaseClient()),

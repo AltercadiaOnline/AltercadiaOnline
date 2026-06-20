@@ -104,10 +104,22 @@ import {
 import type { WorldChroniclesRequest } from '../../shared/world/worldLoreTypes.js';
 import type { WorldLoginResult } from '../../shared/world/playerWorldProfile.js';
 import type { AuthUser } from '../../shared/authService.js';
+import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 import {
   hidePlayerInitLoading,
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
+import {
+  hasOAuthCallbackInUrl,
+  isOAuthRedirectPending,
+} from '../services/auth/oauthPending.js';
+import {
+  GAME_BRAND_NAME,
+  USER_AUTH_UNAVAILABLE,
+  USER_CONFIG_LOAD_FAILED,
+  USER_GOOGLE_CONNECTING,
+  USER_SERVER_OFFLINE,
+} from '../../shared/brand.js';
 import { getSupabaseClient } from '../auth/supabaseAuth.js';
 import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
@@ -132,20 +144,19 @@ let teardownGameRoot: (() => void) | null = null;
 let teardownLightOverlay: (() => void) | null = null;
 
 const BOOTSTRAP_RETRY_BUTTON_ID = 'bootstrap-retry-btn';
-const BOOTSTRAP_LOADING_MESSAGE = 'Conectando ao Altercadia…';
-const BOOTSTRAP_SUPABASE_INFRA_MESSAGE =
-  'Erro de infraestrutura: Configurações do Supabase ausentes';
+const BOOTSTRAP_LOADING_MESSAGE = `Conectando a ${GAME_BRAND_NAME}…`;
+const BOOTSTRAP_AUTH_INFRA_MESSAGE = USER_AUTH_UNAVAILABLE;
 
 let loginUiBound = false;
 let bootstrapInFlight = false;
 
 function isSupabaseInfrastructureError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
+  if (message === USER_AUTH_UNAVAILABLE) return true;
   const needles = [
     'Supabase não configurado',
     'SUPABASE_URL',
     'SUPABASE_ANON_KEY',
-    'variáveis de ambiente',
     'Supabase Auth não foi inicializado',
     'Falha ao inicializar Supabase Auth',
   ];
@@ -154,19 +165,19 @@ function isSupabaseInfrastructureError(error: unknown): boolean {
 
 function resolveBootstrapFatalMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('Servidor offline')) {
-    return message;
+  if (message === USER_SERVER_OFFLINE || message.includes('offline')) {
+    return USER_SERVER_OFFLINE;
   }
   if (message.includes('/config/client')) {
-    return 'Não foi possível carregar a configuração do servidor (/config/client).';
+    return USER_CONFIG_LOAD_FAILED;
   }
   if (isSupabaseInfrastructureError(error)) {
-    return BOOTSTRAP_SUPABASE_INFRA_MESSAGE;
+    return BOOTSTRAP_AUTH_INFRA_MESSAGE;
   }
   if (error instanceof Error && message.trim().length > 0) {
     return message;
   }
-  return 'Não foi possível conectar ao Altercadia. Verifique sua conexão e tente novamente.';
+  return USER_CONFIG_LOAD_FAILED;
 }
 
 function assertAuthReadyForLogin(): void {
@@ -718,13 +729,16 @@ function enterWorld(): void {
   }
 }
 
-async function onLoginSuccess(user: AuthUser, serverId?: string): Promise<void> {
+async function onLoginSuccess(user: AuthUser, options?: AuthPostLoginOptions): Promise<void> {
+  const oauthFlow = options?.oauthFlow === true;
   try {
-    showPlayerInitLoading('Carregando conta no servidor…');
-    if (serverId) {
-      console.log(`[Auth] Init pós-login no shard: ${serverId}`);
+    if (!oauthFlow) {
+      showPlayerInitLoading('Carregando conta no servidor…');
     }
-    await AppScreens.proceedAfterAuthentication(user);
+    if (options?.serverId) {
+      console.log(`[Auth] Init pós-login no shard: ${options.serverId}`);
+    }
+    await AppScreens.proceedAfterAuthentication(user, { oauthFlow });
   } catch (error) {
     console.error('[Auth] Falha após login:', error);
     const message = error instanceof Error
@@ -738,7 +752,9 @@ async function onLoginSuccess(user: AuthUser, serverId?: string): Promise<void> 
       statusEl.classList.remove('is-success');
     }
   } finally {
-    hidePlayerInitLoading();
+    if (!oauthFlow) {
+      hidePlayerInitLoading();
+    }
   }
 }
 
@@ -875,7 +891,13 @@ async function bootstrap(): Promise<void> {
   bootstrapInFlight = true;
 
   hideBootstrapFatalError();
-  showScreen('login-screen');
+
+  const oauthReturn = hasOAuthCallbackInUrl() || isOAuthRedirectPending();
+  if (oauthReturn) {
+    showPlayerInitLoading(USER_GOOGLE_CONNECTING);
+  } else {
+    showScreen('login-screen');
+  }
   ensureLoginHudBound();
 
   try {
@@ -917,7 +939,9 @@ async function bootstrap(): Promise<void> {
     ensureLoginHudBound();
     showBootstrapFatalError(resolveBootstrapFatalMessage(error));
   } finally {
-    hidePlayerInitLoading();
+    if (!hasOAuthCallbackInUrl() && !isOAuthRedirectPending()) {
+      hidePlayerInitLoading();
+    }
     if (!loginUiBound) {
       ensureLoginHudBound();
     }

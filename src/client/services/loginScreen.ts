@@ -25,9 +25,17 @@ import {
   logAuthApiResult,
   logAuthEnvironment,
 } from '../auth/authDebug.js';
+import {
+  USER_EMAIL_CONFIRM_UNAVAILABLE,
+  USER_GOOGLE_LOGIN_UNAVAILABLE,
+  USER_GOOGLE_REDIRECT,
+  USER_PASSWORD_RESET_UNAVAILABLE,
+} from '../../shared/brand.js';
+
+import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 
 export type LoginScreenOptions = {
-  onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
+  onAuthenticated: (user: AuthUser, options?: AuthPostLoginOptions) => void | Promise<void>;
 };
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -328,7 +336,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
   async function handleSendPasswordReset(): Promise<void> {
     if (busy) return;
     if (!isSupabaseReady()) {
-      setStatus('Recuperação de senha requer Supabase configurado.', true);
+      setStatus(USER_PASSWORD_RESET_UNAVAILABLE, true);
       return;
     }
 
@@ -393,7 +401,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
   async function handleResendConfirmation(): Promise<void> {
     if (busy) return;
     if (!isSupabaseReady()) {
-      setStatus('Confirmação de email requer Supabase configurado.', true);
+      setStatus(USER_EMAIL_CONFIRM_UNAVAILABLE, true);
       return;
     }
 
@@ -418,12 +426,12 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
     if (busy) return;
     if (!requireAuthReady()) return;
     if (!isSupabaseReady()) {
-      setStatus('Login com Google requer Supabase configurado.', true);
+      setStatus(USER_GOOGLE_LOGIN_UNAVAILABLE, true);
       return;
     }
 
     setBusy(true);
-    setStatus('Redirecionando para Google…', false);
+    setStatus(USER_GOOGLE_REDIRECT, false);
     logAuthApiAttempt('login', { via: 'GameAuthService.startGoogleOAuth', provider: 'google' });
 
     try {

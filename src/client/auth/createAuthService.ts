@@ -3,6 +3,10 @@ import { getSupabaseClient, getUser } from './supabaseAuth.js';
 import { signInWithEmail, signUpWithEmail } from '../auth.js';
 import { resolveAccountKey } from '../services/localSessionStore.js';
 import { logAuthApiAttempt, logAuthApiResult } from './authDebug.js';
+import {
+  USER_AUTH_NOT_CONFIGURED,
+  USER_REGISTER_UNAVAILABLE,
+} from '../../shared/brand.js';
 
 /** Autenticação exclusivamente via Supabase (online). */
 export function createAuthService(): AuthService {
@@ -14,7 +18,7 @@ export function createAuthService(): AuthService {
         });
         return {
           success: false,
-          message: 'Login requer Supabase Auth configurado neste ambiente.',
+          message: USER_AUTH_NOT_CONFIGURED,
         };
       }
       logAuthApiAttempt('login', { provider: 'supabase', hasClient: true });
@@ -43,7 +47,7 @@ export function createAuthService(): AuthService {
       if (!getSupabaseClient()) {
         return {
           success: false,
-          message: 'Cadastro requer Supabase Auth configurado neste ambiente.',
+          message: USER_REGISTER_UNAVAILABLE,
         };
       }
       logAuthApiAttempt('register', {

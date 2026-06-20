@@ -1,4 +1,5 @@
 import type { AuthService } from '../../shared/authService.js';
+import { USER_AUTH_NOT_CONFIGURED, USER_GOOGLE_REDIRECT } from '../../shared/brand.js';
 import { isSupabaseReady, signInWithGoogleOAuth } from '../auth/supabaseAuth.js';
 
 export type AuthFormOptions = {
@@ -166,12 +167,12 @@ export class AuthForm {
     if (this.busy) return;
 
     if (!isSupabaseReady()) {
-      this.setStatus('Supabase não configurado. Defina SUPABASE_URL e SUPABASE_ANON_KEY.', true);
+      this.setStatus(USER_AUTH_NOT_CONFIGURED, true);
       return;
     }
 
     this.setBusy(true);
-    this.setStatus('Redirecionando para Google…', false);
+    this.setStatus(USER_GOOGLE_REDIRECT, false);
     await signInWithGoogleOAuth();
     this.setBusy(false);
   }

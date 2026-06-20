@@ -6,6 +6,10 @@ import {
 } from './auth/supabaseAuth.js';
 import { logAuthApiAttempt, logAuthApiResult } from './auth/authDebug.js';
 import {
+  USER_AUTH_NOT_CONFIGURED,
+  USER_REGISTER_UNAVAILABLE,
+} from '../shared/brand.js';
+import {
   ADULT_AGE_YEARS,
   computeAgeYears,
   isAtLeastAge,
@@ -64,7 +68,7 @@ export async function signUpWithEmail(
     logAuthApiResult('register', 'error', { message: 'Supabase client ausente' });
     return {
       ok: false,
-      message: 'Cadastro disponível apenas com Supabase Auth configurado.',
+      message: USER_REGISTER_UNAVAILABLE,
     };
   }
 
@@ -142,7 +146,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
     logAuthApiResult('login', 'error', { message: 'Supabase client ausente' });
     return {
       ok: false,
-      message: 'Login com senha requer Supabase Auth. Configure SUPABASE_URL e SUPABASE_ANON_KEY.',
+      message: USER_AUTH_NOT_CONFIGURED,
     };
   }
 

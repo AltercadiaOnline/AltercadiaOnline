@@ -2,16 +2,28 @@ import type { AuthChangeEvent, Provider, Session, SupabaseClient, User } from '@
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
 import { logAuthEnvironment } from './authDebug.js';
+import { resolveCanonicalGameOrigin } from '../net/canonicalGameOrigin.js';
+import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
+import {
+  USER_AUTH_NOT_CONFIGURED,
+  USER_GOOGLE_LOGIN_UNAVAILABLE,
+  USER_PASSWORD_RESET_UNAVAILABLE,
+} from '../../shared/brand.js';
 
 const SUPABASE_STORAGE_KEY = 'altercadia-supabase-auth';
 
 let supabase: SupabaseClient | null = null;
 
+/** Redirect OAuth/cadastro — host do jogo (Railway). Marca visível: Altercadia.online. */
 function authRedirectUrl(): string {
-  return `${window.location.origin}${window.location.pathname}`;
+  const config = getClientRuntimeConfig();
+  const origin = config
+    ? resolveCanonicalGameOrigin(config)
+    : window.location.origin.replace(/\/+$/, '');
+  return `${origin}${window.location.pathname || '/'}`;
 }
 
-/** Inicializa o client — URL e anon key vêm via GET /config/client (bootstrap estático). */
+/** Inicializa o client Supabase — `config.supabaseUrl` é endpoint de API; nunca exibir na UI. */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
   if (supabase) {
     logAuthEnvironment('initSupabaseAuth-already-ready');
@@ -19,7 +31,6 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
   }
 
   logAuthEnvironment('initSupabaseAuth-start', {
-    supabaseUrl: config.supabaseUrl ?? null,
     gameWsUrl: config.gameWsUrl ?? null,
     gameHttpUrl: config.gameHttpUrl ?? null,
   });
@@ -53,7 +64,7 @@ export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
   }
   const config = await response.json() as PublicClientConfig;
   console.log('[AuthDebug:api] Sucesso GET /config/client', {
-    supabaseUrl: config.supabaseUrl ?? null,
+    supabaseConfigured: Boolean(config.supabaseUrl && config.supabaseAnonKey),
     gameWsUrl: config.gameWsUrl ?? null,
     gameHttpUrl: config.gameHttpUrl ?? null,
     serverId: config.serverId ?? null,
@@ -65,13 +76,13 @@ export type OAuthProvider = Extract<Provider, 'google'>;
 
 /**
  * Login social — Supabase Auth PKCE.
- * Redirect volta ao front (Vercel) — esperado; sessão fica em localStorage.
+ * Redirect volta ao servidor de jogo (Railway); Vercel redireciona automaticamente se usado como entry.
  */
 export async function signInWithOAuth(
   provider: OAuthProvider,
 ): Promise<{ ok: boolean; message?: string }> {
   if (!supabase) {
-    return { ok: false, message: 'Supabase não configurado no cliente.' };
+    return { ok: false, message: USER_GOOGLE_LOGIN_UNAVAILABLE };
   }
 
   const redirectTo = authRedirectUrl();
@@ -195,7 +206,7 @@ export async function resendSignupConfirmationEmail(
   email: string,
 ): Promise<{ ok: boolean; message: string }> {
   if (!supabase) {
-    return { ok: false, message: 'Supabase não configurado no cliente.' };
+    return { ok: false, message: USER_AUTH_NOT_CONFIGURED };
   }
 
   const trimmed = email.trim();
@@ -223,7 +234,7 @@ export async function resendSignupConfirmationEmail(
 
 export async function requestPasswordResetEmail(email: string): Promise<{ ok: boolean; message: string }> {
   if (!supabase) {
-    return { ok: false, message: 'Supabase não configurado no cliente.' };
+    return { ok: false, message: USER_PASSWORD_RESET_UNAVAILABLE };
   }
 
   const trimmed = email.trim();
@@ -247,7 +258,7 @@ export async function requestPasswordResetEmail(email: string): Promise<{ ok: bo
 
 export async function updateAccountPassword(password: string): Promise<{ ok: boolean; message: string }> {
   if (!supabase) {
-    return { ok: false, message: 'Supabase não configurado no cliente.' };
+    return { ok: false, message: USER_AUTH_NOT_CONFIGURED };
   }
 
   if (!password || password.length < 6) {

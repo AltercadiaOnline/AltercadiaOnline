@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 
 import { readBirthDateFromUserMetadata } from '../../shared/auth/accountAgePolicy.js';
+import { USER_AUTH_UNAVAILABLE } from '../../shared/brand.js';
 import { getSupabaseClient, getUser } from './supabaseAuth.js';
 
 export function userNeedsProfileMetadata(user: User | null | undefined): boolean {
@@ -21,7 +22,7 @@ export async function updateUserProfileMetadata(payload: {
 }): Promise<{ ok: boolean; message?: string }> {
   const supabase = getSupabaseClient();
   if (!supabase) {
-    return { ok: false, message: 'Supabase indisponível.' };
+    return { ok: false, message: USER_AUTH_UNAVAILABLE };
   }
 
   const fullName = payload.fullName?.trim() ?? '';

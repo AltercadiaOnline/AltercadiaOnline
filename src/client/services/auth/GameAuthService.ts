@@ -14,6 +14,7 @@ import type { AuthRegisterPayload, AuthService, AuthUser } from '../../../shared
 import { createAuthService } from '../../auth/createAuthService.js';
 import { clearPendingLoginServerId } from '../../auth/resolveLoginServerId.js';
 import {
+  clearAllOAuthFlags,
   clearOAuthRedirectPending,
   isOAuthRedirectPending,
   markOAuthRedirectPending,
@@ -36,6 +37,7 @@ import {
   signOutSupabase,
 } from '../../auth/supabaseAuth.js';
 import { isSupabaseConfigured } from '../../../shared/publicClientConfig.js';
+import { USER_GOOGLE_LOGIN_UNAVAILABLE, USER_GOOGLE_REDIRECT } from '../../../shared/brand.js';
 import { reportTransactionFailure } from '../../core/GameTransactionCoordinator.js';
 
 export type AuthLoginResult = {
@@ -106,7 +108,7 @@ export async function registerAccount(payload: AuthRegisterPayload): Promise<{ s
 
 export async function startGoogleOAuth(): Promise<{ ok: boolean; message?: string }> {
   if (!isSupabaseReady()) {
-    const message = 'Google OAuth requer Supabase configurado no servidor.';
+    const message = USER_GOOGLE_LOGIN_UNAVAILABLE;
     reportTransactionFailure(null, message, message);
     return { ok: false, message };
   }
@@ -115,7 +117,7 @@ export async function startGoogleOAuth(): Promise<{ ok: boolean; message?: strin
   const result = await signInWithOAuth('google');
 
   if (!result.ok) {
-    clearOAuthRedirectPending();
+    clearAllOAuthFlags();
     resetGameStoreState();
     reportTransactionFailure(null, result.message ?? 'Falha OAuth.', 'Login com Google falhou.');
   }
@@ -149,14 +151,14 @@ export async function completeOAuthReturnIfPending(
 export async function signOut(): Promise<void> {
   await signOutSupabase();
   resetGameStoreState();
-  clearOAuthRedirectPending();
+  clearAllOAuthFlags();
 }
 
 export function bindGoogleLoginButton(options: LoginWithGoogleOptions): () => void {
   const handler = (): void => {
     void (async () => {
       options.setBusy?.(true);
-      options.onStatus?.('Redirecionando para Google…', false);
+      options.onStatus?.(USER_GOOGLE_REDIRECT, false);
 
       const result = await startGoogleOAuth();
       if (!result.ok) {
@@ -170,7 +172,7 @@ export function bindGoogleLoginButton(options: LoginWithGoogleOptions): () => vo
   return () => options.button.removeEventListener('click', handler);
 }
 
-export { isOAuthRedirectPending, markOAuthRedirectPending, clearOAuthRedirectPending };
+export { isOAuthRedirectPending, markOAuthRedirectPending, clearOAuthRedirectPending, clearAllOAuthFlags };
 
 export type LoginWithGoogleOptions = {
   button: HTMLButtonElement;

@@ -9,7 +9,7 @@ import {
   releaseCombatActionLock,
   releaseForfeitInFlight,
 } from '../hud/index.js';
-import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
+import { USER_WS_CONNECT_FAILED } from '../../shared/brand.js';
 import { getGameStore } from '../state/GameStore.js';
 import {
   connectionPhaseLabel,
@@ -151,10 +151,8 @@ export function createBrowserCombatSocket(
     });
 
     ws.addEventListener('error', () => {
-      const hint = getClientRuntimeConfig()?.gameWsUrl
-        ? 'Falha no WebSocket — confira CORS_ORIGIN no Railway e se o servidor está online.'
-        : 'Falha no WebSocket — defina GAME_WS_URL na Vercel (wss://SEU-APP.railway.app/ws) e CORS_ORIGIN no Railway.';
-      for (const handler of store.errorHandlers) handler(hint);
+      console.warn('[CombatSocket] Falha no WebSocket — verifique GAME_WS_URL e CORS_ORIGIN.');
+      for (const handler of store.errorHandlers) handler(USER_WS_CONNECT_FAILED);
     });
 
     ws.addEventListener('close', (event) => {

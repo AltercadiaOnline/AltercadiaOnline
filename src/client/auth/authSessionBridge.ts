@@ -6,7 +6,10 @@ import { resolveAccountKey } from '../services/localSessionStore.js';
 
 import { resetGameStoreState, activateGameStoreAfterAuth } from '../state/GameStore.js';
 
+import { USER_OAUTH_FAILED } from '../../shared/brand.js';
+
 import {
+  clearAllOAuthFlags,
   clearOAuthRedirectPending,
   hasOAuthCallbackInUrl,
   isOAuthRedirectPending,
@@ -20,8 +23,13 @@ import {
   subscribeAuthStateChange,
 } from './supabaseAuth.js';
 
+export type AuthPostLoginOptions = {
+  readonly serverId?: string;
+  readonly oauthFlow?: boolean;
+};
+
 export type AuthSessionBridgeOptions = {
-  onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
+  onAuthenticated: (user: AuthUser, options?: AuthPostLoginOptions) => void | Promise<void>;
   onAuthError?: (message: string) => void;
   onSnapshotInitializing?: (message: string) => void;
   onSignedOut?: () => void;
@@ -57,7 +65,7 @@ async function completeGoogleOAuthSession(
   clearPendingLoginServerId();
   activateGameStoreAfterAuth();
 
-  await options.onAuthenticated(authUser);
+  await options.onAuthenticated(authUser, { oauthFlow: true });
   return true;
 }
 
@@ -74,13 +82,9 @@ export async function tryCompleteOAuthReturn(
 
   const user = await getUser();
   if (!user) {
-    clearOAuthRedirectPending();
+    clearAllOAuthFlags();
     resetGameStoreState();
-    options.onAuthError?.(
-      oauthCallback || pending
-        ? 'Login com Google não foi concluído. Verifique Redirect URLs no Supabase (seu domínio Vercel).'
-        : 'Login com Google não foi concluído. Tente novamente.',
-    );
+    options.onAuthError?.(USER_OAUTH_FAILED);
     return true;
   }
 

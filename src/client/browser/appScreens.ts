@@ -12,8 +12,9 @@ import {
   signOutSupabase,
 } from '../auth/supabaseAuth.js';
 import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameStore.js';
-import { initAuthSessionBridge, tryCompleteOAuthReturn } from '../auth/authSessionBridge.js';
+import { initAuthSessionBridge, tryCompleteOAuthReturn, type AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 import { isSupabaseConfigured, type PublicClientConfig } from '../../shared/publicClientConfig.js';
+import { redirectToCanonicalGameOriginIfNeeded } from '../net/canonicalGameOrigin.js';
 import { isGameServerReachable } from '../services/serverReachability.js';
 import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import {
@@ -28,6 +29,10 @@ import {
   type LocalSession,
 } from '../services/localSessionStore.js';
 import { setupCharacterCreatePanel } from '../components/characterCreatePanel.js';
+import {
+  clearOAuthAutoCharCreate,
+  shouldAutoOpenCharacterCreateAfterOAuth,
+} from '../services/auth/oauthPending.js';
 import { showAuthView } from '../services/authFlow.js';
 import { showScreen } from '../navigation.js';
 import { mountWorldMapScene } from './sceneManager.js';
@@ -47,6 +52,12 @@ import {
 import { clearSelectedServerId } from '../auth/resolveLoginServerId.js';
 import { currentUserNeedsProfileMetadata } from '../auth/profileMetadata.js';
 import { showProfileCompletePanel } from '../components/profileCompletePanel.js';
+import {
+  USER_AUTH_UNAVAILABLE,
+  USER_CONFIG_LOAD_FAILED,
+  USER_GOOGLE_CONNECTING,
+  USER_SERVER_OFFLINE,
+} from '../../shared/brand.js';
 import {
   hidePlayerInitLoading,
   showPlayerInitLoading,
@@ -71,13 +82,17 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
   }
 
   const config = await fetchPublicClientConfig();
+
+  if (redirectToCanonicalGameOriginIfNeeded(config)) {
+    throw new Error('Redirecionando para o servidor de jogo…');
+  }
+
   setClientRuntimeConfig(config);
 
   const serverOk = await isGameServerReachable(config);
   if (!serverOk) {
-    throw new Error(
-      'Servidor de jogo offline. Verifique o deploy Railway (/health) e GAME_WS_URL na Vercel.',
-    );
+    console.warn('[Auth] Servidor de jogo offline — verifique deploy e GAME_WS_URL.');
+    throw new Error(USER_SERVER_OFFLINE);
   }
 
   const supabaseConfigured = isSupabaseConfigured(config);
@@ -90,16 +105,14 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
   }
 
   if (!supabaseConfigured) {
-    throw new Error(
-      'Supabase não configurado em /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY.',
-    );
+    console.warn('[Auth] Supabase não configurado — defina SUPABASE_URL e SUPABASE_ANON_KEY.');
+    throw new Error(USER_AUTH_UNAVAILABLE);
   }
 
   const supabaseReady = await initSupabaseAuth(config);
   if (!supabaseReady || !getSupabaseClient()) {
-    throw new Error(
-      'Falha ao inicializar Supabase Auth no cliente. Verifique /config/client.',
-    );
+    console.warn('[Auth] Falha ao inicializar Supabase Auth no cliente.');
+    throw new Error(USER_AUTH_UNAVAILABLE);
   }
 
   await restorePersistedSession();
@@ -152,7 +165,7 @@ export const AppScreens = {
     showScreen('login-screen');
   },
 
-  async ensureProfileMetadataComplete(): Promise<boolean> {
+  async ensureProfileMetadataComplete(options?: { readonly oauthFlow?: boolean }): Promise<boolean> {
     if (!getSupabaseClient()) return true;
 
     const needsCompletion = await currentUserNeedsProfileMetadata();
@@ -173,15 +186,56 @@ export const AppScreens = {
     });
   },
 
-  async proceedAfterAuthentication(user?: AuthUser): Promise<void> {
+  findFirstEmptyCharacterSlotIndex(): number | null {
+    if (!this.characterHub) return 0;
+    for (let slotIndex = 0; slotIndex < CHARACTER_SLOT_COUNT; slotIndex += 1) {
+      if (this.characterHub.slots[slotIndex] === null) {
+        return slotIndex;
+      }
+    }
+    return null;
+  },
+
+  hubHasPlayableCharacter(): boolean {
+    return Boolean(this.characterHub?.slots.some((character) => character !== null));
+  },
+
+  openCharacterCreateForFirstEmptySlot(): void {
+    const slotIndex = this.findFirstEmptyCharacterSlotIndex();
+    if (slotIndex === null) return;
+    characterCreatePanel?.open(slotIndex);
+  },
+
+  async proceedAfterAuthentication(
+    user?: AuthUser,
+    options?: { readonly oauthFlow?: boolean },
+  ): Promise<void> {
+    const oauthFlow = options?.oauthFlow === true;
+
+    if (oauthFlow) {
+      showPlayerInitLoading('Preparando sua conta…');
+    }
+
     if (user && !this.currentSession) {
       await this.setAuthenticatedUser(user);
     }
 
-    const profileReady = await this.ensureProfileMetadataComplete();
-    if (!profileReady) return;
+    const profileReady = await this.ensureProfileMetadataComplete({ oauthFlow });
+    if (!profileReady) {
+      if (oauthFlow) hidePlayerInitLoading();
+      return;
+    }
 
     await this.showCharSelect();
+
+    if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth() && !this.hubHasPlayableCharacter()) {
+      this.openCharacterCreateForFirstEmptySlot();
+      clearOAuthAutoCharCreate();
+    }
+
+    if (oauthFlow) {
+      hidePlayerInitLoading();
+    }
   },
 
   async showCharSelect(): Promise<void> {
@@ -486,19 +540,16 @@ export const AppScreens = {
     if (!statusEl || statusEl.textContent.trim().length > 0) return;
 
     if (!config.serverOk) {
-      statusEl.textContent =
-        'Servidor de jogo offline. Confira o deploy Railway (/health) e GAME_WS_URL na Vercel.';
+      statusEl.textContent = USER_SERVER_OFFLINE;
       statusEl.classList.add('is-error');
       return;
     }
 
     if (!config.supabase) {
-      statusEl.textContent =
-        'Supabase ausente no /config/client. Defina SUPABASE_URL e SUPABASE_ANON_KEY nas Variables da Vercel.';
+      statusEl.textContent = USER_AUTH_UNAVAILABLE;
       statusEl.classList.add('is-error');
     } else if (!config.gameWsUrl) {
-      statusEl.textContent =
-        'Defina GAME_WS_URL na Vercel (ex.: wss://SEU-APP.railway.app/ws) para conectar ao servidor de jogo.';
+      statusEl.textContent = USER_SERVER_OFFLINE;
       statusEl.classList.add('is-error');
     }
   },
@@ -506,7 +557,7 @@ export const AppScreens = {
   async init(
     onEnterWorld: () => void,
     authCallbacks?: {
-      onAuthenticated: (user: AuthUser, serverId?: string) => void | Promise<void>;
+      onAuthenticated: (user: AuthUser, options?: AuthPostLoginOptions) => void | Promise<void>;
       onAuthError?: (message: string) => void;
       onSignedOut?: () => void;
     },
