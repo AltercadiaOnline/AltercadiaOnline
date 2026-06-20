@@ -1,5 +1,5 @@
 import type { AuthService } from '../../shared/authService.js';
-import { isSupabaseReady, loginWithGoogle } from '../auth/supabaseAuth.js';
+import { isSupabaseReady, signInWithGoogleOAuth } from '../auth/supabaseAuth.js';
 
 export type AuthFormOptions = {
   authService: AuthService;
@@ -172,7 +172,7 @@ export class AuthForm {
 
     this.setBusy(true);
     this.setStatus('Redirecionando para Google…', false);
-    await loginWithGoogle();
+    await signInWithGoogleOAuth();
     this.setBusy(false);
   }
 }

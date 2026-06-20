@@ -7,6 +7,10 @@ const SUPABASE_STORAGE_KEY = 'altercadia-supabase-auth';
 
 let supabase: SupabaseClient | null = null;
 
+function authRedirectUrl(): string {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
 /** Inicializa o client — URL e anon key vêm via GET /config/client (bootstrap estático). */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
   if (supabase) {
@@ -60,8 +64,8 @@ export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
 export type OAuthProvider = Extract<Provider, 'google'>;
 
 /**
- * Login social — exclusivamente via Supabase Auth (PKCE).
- * Redirect volta ao origin do front; sessão em localStorage (sem cookies Vercel).
+ * Login social — Supabase Auth PKCE.
+ * Redirect volta ao front (Vercel) — esperado; sessão fica em localStorage.
  */
 export async function signInWithOAuth(
   provider: OAuthProvider,
@@ -70,7 +74,7 @@ export async function signInWithOAuth(
     return { ok: false, message: 'Supabase não configurado no cliente.' };
   }
 
-  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const redirectTo = authRedirectUrl();
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -92,11 +96,6 @@ export async function signInWithGoogleOAuth(): Promise<{ ok: boolean; message?: 
   return signInWithOAuth('google');
 }
 
-/** @deprecated Use signInWithOAuth('google') */
-export async function loginWithGoogle(): Promise<void> {
-  await signInWithGoogleOAuth();
-}
-
 export function subscribeAuthStateChange(
   callback: (event: AuthChangeEvent, session: Session | null) => void,
 ): () => void {
@@ -106,17 +105,54 @@ export function subscribeAuthStateChange(
   return () => subscription.unsubscribe();
 }
 
-/** Restaura sessão persistida (localStorage) após reload ou retorno OAuth. */
-export async function restorePersistedSession(): Promise<Session | null> {
+export function clearAuthCallbackFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete('code');
+  url.searchParams.delete('state');
+  url.searchParams.delete('error');
+  url.searchParams.delete('error_description');
+  url.hash = '';
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+}
+
+/**
+ * Troca ?code= PKCE por sessão após redirect Google → Vercel.
+ * Deve rodar antes de getUser() no boot.
+ */
+export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> {
   if (!supabase) return null;
 
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error) {
-    console.warn('[Auth] Falha ao restaurar sessão persistida.');
+  const url = new URL(window.location.href);
+  const oauthError = url.searchParams.get('error_description') ?? url.searchParams.get('error');
+  if (oauthError) {
+    console.error('[Auth] OAuth cancelado ou recusado:', oauthError);
+    clearAuthCallbackFromUrl();
     return null;
   }
 
+  const code = url.searchParams.get('code');
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    clearAuthCallbackFromUrl();
+    if (error) {
+      console.error('[Auth] exchangeCodeForSession falhou:', error.message);
+      return null;
+    }
+    return data.session;
+  }
+
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) {
+    console.warn('[Auth] getSession falhou após boot.');
+    return null;
+  }
   return session;
+}
+
+/** Restaura sessão persistida (localStorage) após reload ou retorno OAuth. */
+export async function restorePersistedSession(): Promise<Session | null> {
+  return exchangeOAuthCallbackIfPresent();
 }
 
 /** Valida sessão com o Supabase (getUser) — fonte de verdade antes de entrar no jogo. */
@@ -155,6 +191,36 @@ export async function signOutSupabase(): Promise<void> {
   }
 }
 
+export async function resendSignupConfirmationEmail(
+  email: string,
+): Promise<{ ok: boolean; message: string }> {
+  if (!supabase) {
+    return { ok: false, message: 'Supabase não configurado no cliente.' };
+  }
+
+  const trimmed = email.trim();
+  if (!trimmed) {
+    return { ok: false, message: 'Informe seu email.' };
+  }
+
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: trimmed,
+    options: {
+      emailRedirectTo: authRedirectUrl(),
+    },
+  });
+
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+
+  return {
+    ok: true,
+    message: 'Email de confirmação reenviado. Verifique sua caixa de entrada e spam.',
+  };
+}
+
 export async function requestPasswordResetEmail(email: string): Promise<{ ok: boolean; message: string }> {
   if (!supabase) {
     return { ok: false, message: 'Supabase não configurado no cliente.' };
@@ -166,7 +232,7 @@ export async function requestPasswordResetEmail(email: string): Promise<{ ok: bo
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-    redirectTo: `${window.location.origin}${window.location.pathname}`,
+    redirectTo: authRedirectUrl(),
   });
 
   if (error) {
@@ -197,7 +263,6 @@ export async function updateAccountPassword(password: string): Promise<{ ok: boo
   return { ok: true, message: 'Senha atualizada com sucesso.' };
 }
 
-/** Detecta fluxo de recuperação (link do email Supabase). */
 export function isPasswordRecoverySession(): boolean {
   if (typeof window === 'undefined') return false;
   const hash = window.location.hash;
@@ -206,12 +271,7 @@ export function isPasswordRecoverySession(): boolean {
 }
 
 export function clearPasswordRecoveryUrl(): void {
-  if (typeof window === 'undefined') return;
-  const url = new URL(window.location.href);
-  url.hash = '';
-  url.searchParams.delete('type');
-  url.searchParams.delete('code');
-  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+  clearAuthCallbackFromUrl();
 }
 
 export function getSupabaseClient(): SupabaseClient | null {

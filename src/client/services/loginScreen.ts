@@ -10,7 +10,7 @@ import {
   registerAccount,
   startGoogleOAuth,
 } from './auth/GameAuthService.js';
-import { applyPasswordReset, requestPasswordReset } from '../auth.js';
+import { applyPasswordReset, requestPasswordReset, resendEmailConfirmation } from '../auth.js';
 import {
   clearPasswordRecoveryUrl,
   getSupabaseClient,
@@ -294,8 +294,12 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       }
 
       copyRegisterCredentialsToLoginForm();
-      setStatus(result.message ?? 'Conta criada! Confirme seu email e faça login.', false);
       showAuthView('login');
+      setStatus(
+        result.message
+        ?? 'Conta criada! Confirme seu email antes de fazer login.',
+        false,
+      );
     } catch (error) {
       logAuthApiResult('register', 'error', {
         message: error instanceof Error ? error.message : String(error),
@@ -386,6 +390,30 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
     }
   }
 
+  async function handleResendConfirmation(): Promise<void> {
+    if (busy) return;
+    if (!isSupabaseReady()) {
+      setStatus('Confirmação de email requer Supabase configurado.', true);
+      return;
+    }
+
+    const email = fields.email.value.trim() || fields.regEmail.value.trim();
+    if (!email) {
+      setStatus('Informe seu email na tela de login.', true);
+      return;
+    }
+
+    setBusy(true);
+    setStatus('Reenviando email de confirmação…', false);
+
+    try {
+      const result = await resendEmailConfirmation(email);
+      setStatus(result.message, !result.ok);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleGoogleLogin(): Promise<void> {
     if (busy) return;
     if (!requireAuthReady()) return;
@@ -422,6 +450,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
     onGoogleLogin: () => { void handleGoogleLogin(); },
     onShowForgotPassword: goToForgotPassword,
     onSendPasswordReset: () => { void handleSendPasswordReset(); },
+    onResendConfirmation: () => { void handleResendConfirmation(); },
     onApplyNewPassword: () => { void handleApplyNewPassword(); },
   });
 

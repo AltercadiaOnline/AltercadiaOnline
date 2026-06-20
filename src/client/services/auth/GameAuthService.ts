@@ -81,13 +81,13 @@ export async function loginWithEmailForServer(
   const result = await getAuthService().login(email, password);
   if (!result.success) {
     const message = result.message ?? 'Credenciais inválidas.';
-    reportTransactionFailure(null, message, 'Falha no login.');
+    reportTransactionFailure(null, message, 'Falha no login.', { silent: true });
     return { success: false, message };
   }
 
   if (!result.user) {
     const message = 'Login sem dados de usuário.';
-    reportTransactionFailure(null, message, 'Falha no login.');
+    reportTransactionFailure(null, message, 'Falha no login.', { silent: true });
     return { success: false, message };
   }
 

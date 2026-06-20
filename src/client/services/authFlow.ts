@@ -89,6 +89,7 @@ export function bindAuthNavigation(handlers: {
   onGoogleLogin?: () => void;
   onShowForgotPassword?: () => void;
   onSendPasswordReset?: () => void;
+  onResendConfirmation?: () => void;
   onApplyNewPassword?: () => void;
 }): boolean {
   const root = document.getElementById('login-screen');
@@ -116,6 +117,9 @@ export function bindAuthNavigation(handlers: {
   }
   if (handlers.onSendPasswordReset) {
     bindings.push(['btn-send-reset', handlers.onSendPasswordReset]);
+  }
+  if (handlers.onResendConfirmation) {
+    bindings.push(['btn-resend-confirmation', handlers.onResendConfirmation]);
   }
   if (handlers.onApplyNewPassword) {
     bindings.push(['btn-apply-new-password', handlers.onApplyNewPassword]);

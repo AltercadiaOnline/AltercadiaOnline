@@ -1,6 +1,7 @@
 import { getSupabaseClient } from './auth/supabaseAuth.js';
 import {
   requestPasswordResetEmail,
+  resendSignupConfirmationEmail,
   updateAccountPassword,
 } from './auth/supabaseAuth.js';
 import { logAuthApiAttempt, logAuthApiResult } from './auth/authDebug.js';
@@ -14,6 +15,7 @@ import {
 export type AuthResult = {
   ok: boolean;
   message: string;
+  readonly needsEmailConfirmation?: boolean;
 };
 
 export type AuthSignUpProfile = {
@@ -23,6 +25,30 @@ export type AuthSignUpProfile = {
 };
 
 export { ADULT_AGE_YEARS, computeAgeYears, isAtLeastAge };
+
+function mapSupabaseAuthError(error: { message?: string; code?: string | null | undefined }): AuthResult {
+  const code = String(error.code ?? '');
+  const message = error.message ?? '';
+
+  if (
+    code === 'email_not_confirmed'
+    || message.toLowerCase().includes('email not confirmed')
+  ) {
+    return {
+      ok: false,
+      needsEmailConfirmation: true,
+      message:
+        'Confirme seu email antes de entrar. Abra o link que enviamos (verifique spam) ou clique em "Reenviar confirmação".',
+    };
+  }
+
+  if (code === 'invalid_credentials' || message.toLowerCase().includes('invalid login credentials')) {
+    return { ok: false, message: 'Email ou senha incorretos.' };
+  }
+
+  return { ok: false, message: message || 'Falha na autenticação.' };
+}
+
 export async function signUpWithEmail(
   email: string,
   password: string,
@@ -70,7 +96,7 @@ export async function signUpWithEmail(
     email: trimmedEmail,
     password,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: `${window.location.origin}${window.location.pathname}`,
       data: {
         nome: fullName,
         dataNascimento: birthDate,
@@ -82,7 +108,7 @@ export async function signUpWithEmail(
 
   if (error) {
     logAuthApiResult('register', 'error', { message: error.message, code: error.code ?? null });
-    return { ok: false, message: error.message };
+    return mapSupabaseAuthError(error);
   }
 
   if (data.user && !data.session) {
@@ -92,7 +118,9 @@ export async function signUpWithEmail(
     });
     return {
       ok: true,
-      message: 'Cadastro realizado. Verifique seu email para confirmar a conta.',
+      needsEmailConfirmation: true,
+      message:
+        'Cadastro realizado! Abra o email de confirmação antes de fazer login (verifique spam).',
     };
   }
 
@@ -126,12 +154,16 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
   if (error) {
     logAuthApiResult('login', 'error', { message: error.message, code: error.code ?? null });
-    return { ok: false, message: error.message };
+    return mapSupabaseAuthError(error);
   }
 
   if (!data.session) {
     logAuthApiResult('login', 'error', { message: 'Sem sessão — confirme o email' });
-    return { ok: false, message: 'Confirme seu email antes de entrar.' };
+    return {
+      ok: false,
+      needsEmailConfirmation: true,
+      message: 'Confirme seu email antes de entrar.',
+    };
   }
 
   logAuthApiResult('login', 'success', {
@@ -143,6 +175,11 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
 export async function requestPasswordReset(email: string): Promise<AuthResult> {
   const result = await requestPasswordResetEmail(email);
+  return { ok: result.ok, message: result.message };
+}
+
+export async function resendEmailConfirmation(email: string): Promise<AuthResult> {
+  const result = await resendSignupConfirmationEmail(email);
   return { ok: result.ok, message: result.message };
 }
 
