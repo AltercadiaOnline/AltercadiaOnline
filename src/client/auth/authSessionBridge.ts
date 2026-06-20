@@ -25,7 +25,7 @@ import { clearPendingLoginServerId } from './resolveLoginServerId.js';
 import {
   exchangeOAuthCallbackIfPresent,
   getUser,
-  signOutSupabase,
+  clearLocalSupabaseSession,
   subscribeAuthStateChange,
 } from './supabaseAuth.js';
 import { isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
@@ -97,13 +97,13 @@ export async function tryCompleteEmailConfirmationReturn(
 
   if (!isSupabaseEmailConfirmed(user)) {
     resetGameStoreState();
-    await signOutSupabase();
+    clearLocalSupabaseSession();
     options.onAuthError?.('Não foi possível confirmar seu email. Tente reenviar o link.');
     return true;
   }
 
   const email = user.email ?? '';
-  await signOutSupabase();
+  clearLocalSupabaseSession();
   resetGameStoreState();
   options.onEmailConfirmed?.(email);
   return true;

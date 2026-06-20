@@ -10,6 +10,7 @@ import {
   resolveAuthCallbackPath,
 } from '../../shared/auth/authCallback.js';
 import { markOAuthCodeExchanged } from '../services/auth/oauthPending.js';
+import { withAuthDeadline } from './authDeadline.js';
 import { mergePublicClientConfigWithGameOrigin } from '../../shared/net/mergeGameOriginConfig.js';
 import type { GameOriginHints } from '../../shared/net/mergeGameOriginConfig.js';
 import {
@@ -263,9 +264,27 @@ export async function resolveSessionAccessToken(): Promise<string | null> {
 
 export async function signOutSupabase(): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    console.warn('[Auth] Falha ao encerrar sessão Supabase.');
+  try {
+    await withAuthDeadline(
+      supabase.auth.signOut(),
+      'Encerramento de sessão demorou demais.',
+      8_000,
+    );
+  } catch (error) {
+    console.warn('[Auth] Falha ao encerrar sessão Supabase.', error);
+    clearLocalSupabaseSession();
+  }
+}
+
+/** Limpa sessão local sem aguardar rede — evita travar cadastro/login. */
+export function clearLocalSupabaseSession(): void {
+  if (supabase) {
+    void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+  }
+  try {
+    localStorage.removeItem(SUPABASE_STORAGE_KEY);
+  } catch {
+    /* storage indisponível */
   }
 }
 

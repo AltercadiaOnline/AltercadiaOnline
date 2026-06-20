@@ -1,10 +1,11 @@
-import { getSupabaseClient, resolveAuthRedirectUrl } from './auth/supabaseAuth.js';
+import { getSupabaseClient, resolveAuthRedirectUrl, clearLocalSupabaseSession } from './auth/supabaseAuth.js';
 import {
   requestPasswordResetEmail,
   resendSignupConfirmationEmail,
   updateAccountPassword,
 } from './auth/supabaseAuth.js';
 import { logAuthApiAttempt, logAuthApiResult } from './auth/authDebug.js';
+import { withAuthDeadline } from './auth/authDeadline.js';
 import {
   USER_AUTH_NOT_CONFIGURED,
   USER_REGISTER_UNAVAILABLE,
@@ -97,19 +98,22 @@ export async function signUpWithEmail(
     consentimentoResponsavel,
   });
 
-  const { data, error } = await supabase.auth.signUp({
-    email: trimmedEmail,
-    password,
-    options: {
-      emailRedirectTo: resolveAuthRedirectUrl(),
-      data: {
-        nome: fullName,
-        dataNascimento: birthDate,
-        full_name: fullName,
-        consentimento_responsavel: consentimentoResponsavel,
+  const { data, error } = await withAuthDeadline(
+    supabase.auth.signUp({
+      email: trimmedEmail,
+      password,
+      options: {
+        emailRedirectTo: resolveAuthRedirectUrl(),
+        data: {
+          nome: fullName,
+          dataNascimento: birthDate,
+          full_name: fullName,
+          consentimento_responsavel: consentimentoResponsavel,
+        },
       },
-    },
-  });
+    }),
+    'Cadastro demorou demais. Verifique sua conexão e tente novamente.',
+  );
 
   if (error) {
     logAuthApiResult('register', 'error', { message: error.message, code: error.code ?? null });
@@ -130,7 +134,7 @@ export async function signUpWithEmail(
   }
 
   if (data.session && data.user && !isSupabaseEmailConfirmed(data.user)) {
-    await supabase.auth.signOut({ scope: 'local' });
+    clearLocalSupabaseSession();
     logAuthApiResult('register', 'success', {
       userId: data.user.id,
       needsEmailConfirm: true,
@@ -167,10 +171,13 @@ export async function signInWithEmail(email: string, password: string): Promise<
   }
 
   logAuthApiAttempt('login', { via: 'supabase.auth.signInWithPassword' });
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: trimmedEmail,
-    password,
-  });
+  const { data, error } = await withAuthDeadline(
+    supabase.auth.signInWithPassword({
+      email: trimmedEmail,
+      password,
+    }),
+    'Login demorou demais. Verifique sua conexão e tente novamente.',
+  );
 
   if (error) {
     logAuthApiResult('login', 'error', { message: error.message, code: error.code ?? null });
@@ -187,7 +194,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
   }
 
   if (data.user && !isSupabaseEmailConfirmed(data.user)) {
-    await supabase.auth.signOut({ scope: 'local' });
+    clearLocalSupabaseSession();
     logAuthApiResult('login', 'error', { message: 'Email não confirmado' });
     return {
       ok: false,

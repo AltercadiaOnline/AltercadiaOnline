@@ -13,7 +13,7 @@ import {
 import { applyPasswordReset, requestPasswordReset, resendEmailConfirmation } from '../auth.js';
 import {
   clearPasswordRecoveryUrl,
-  getSupabaseClient,
+  clearLocalSupabaseSession,
   isPasswordRecoverySession,
   isSupabaseReady,
   subscribeAuthStateChange,
@@ -37,6 +37,7 @@ import {
   markEmailCredentialAuthInFlight,
 } from './auth/oauthPending.js';
 import { hidePlayerInitLoading } from '../auth/playerInitLoading.js';
+import { AuthOperationTimeoutError } from '../auth/authDeadline.js';
 import { resetGameStoreState } from '../state/GameStore.js';
 
 import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
@@ -199,8 +200,15 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
 
   const setBusy = (next: boolean): void => {
     busy = next;
+    loginRoot.toggleAttribute('aria-busy', next);
+    loginRoot.style.cursor = next ? 'wait' : '';
     loginRoot.querySelectorAll('button').forEach((button) => {
       button.toggleAttribute('disabled', next);
+    });
+    loginRoot.querySelectorAll('input').forEach((input) => {
+      if (input instanceof HTMLInputElement) {
+        input.toggleAttribute('readonly', next);
+      }
     });
   };
 
@@ -339,13 +347,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       logAuthApiResult('register', 'success', { message: result.message ?? null });
 
       if (result.needsEmailConfirmation) {
-        if (getSupabaseClient()) {
-          try {
-            await getSupabaseClient()!.auth.signOut({ scope: 'local' });
-          } catch {
-            /* sessão local opcional — cadastro segue */
-          }
-        }
+        clearLocalSupabaseSession();
         clearAllOAuthFlags();
         resetGameStoreState();
         copyRegisterCredentialsToLoginForm();
@@ -359,13 +361,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
         return;
       }
 
-      if (getSupabaseClient()) {
-        try {
-          await getSupabaseClient()!.auth.signOut({ scope: 'local' });
-        } catch {
-          /* exige login manual mesmo se Supabase criou sessão */
-        }
-      }
+      clearLocalSupabaseSession();
       clearAllOAuthFlags();
       resetGameStoreState();
       copyRegisterCredentialsToLoginForm();
@@ -377,7 +373,11 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
         message: error instanceof Error ? error.message : String(error),
       });
       console.error('[LoginScreen] Erro no cadastro:', error);
-      setStatus('Erro inesperado ao cadastrar.', true);
+      if (error instanceof AuthOperationTimeoutError) {
+        setStatus(error.message, true);
+      } else {
+        setStatus('Erro inesperado ao cadastrar.', true);
+      }
     } finally {
       clearEmailCredentialAuthInFlight();
       hidePlayerInitLoading();
