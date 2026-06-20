@@ -3,21 +3,37 @@ import type { ServerEnv } from '../config/env.js';
 import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
 import { listCharSelectShardDefinitions } from '../../shared/world/serverInstanceCatalog.js';
 import type { ServerListResponse } from '../../shared/world/serverListProtocol.js';
+import {
+  loadShardEndpointsFromEnv,
+  resolveShardPublicEndpoints,
+} from '../config/shardEndpointsEnv.js';
 
-function buildPublicServerList(deployId: string): ServerListResponse['servers'] {
-  return listCharSelectShardDefinitions().map((definition) => ({
-    id: definition.id,
-    displayName: definition.displayName,
-    mapIds: definition.mapIds,
-    isCurrentDeploy: definition.id === deployId,
-    selectable: definition.charSelectSelectable === true,
-  }));
+function buildPublicServerList(env: ServerEnv, deployId: string): ServerListResponse['servers'] {
+  const endpointMap = loadShardEndpointsFromEnv(process.env, {
+    serverId: deployId,
+    gameHttpUrl: env.gameHttpUrl,
+    gameWsUrl: env.gameWsUrl,
+  });
+
+  return listCharSelectShardDefinitions().map((definition) => {
+    const endpoints = resolveShardPublicEndpoints(endpointMap, definition.id);
+    return {
+      id: definition.id,
+      displayName: definition.displayName,
+      mapIds: definition.mapIds,
+      isCurrentDeploy: definition.id === deployId,
+      selectable: definition.charSelectSelectable === true,
+      gameHttpUrl: endpoints.gameHttpUrl,
+      gameWsUrl: endpoints.gameWsUrl,
+    };
+  });
 }
 
 export async function handleServerListRoute(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   url: URL,
+  env: ServerEnv,
 ): Promise<boolean> {
   if (url.pathname !== '/api/servers') {
     return false;
@@ -33,7 +49,7 @@ export async function handleServerListRoute(
   const payload: ServerListResponse = {
     ok: true,
     defaultServerId: deployId,
-    servers: buildPublicServerList(deployId),
+    servers: buildPublicServerList(env, deployId),
   };
 
   res.writeHead(200, {
@@ -50,6 +66,6 @@ export function buildServerListPayload(env: ServerEnv): ServerListResponse {
   return {
     ok: true,
     defaultServerId: deployId,
-    servers: buildPublicServerList(deployId),
+    servers: buildPublicServerList(env, deployId),
   };
 }

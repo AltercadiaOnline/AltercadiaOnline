@@ -36,6 +36,14 @@ export async function fetchAuthoritativeServerList(): Promise<
   return { ok: true, list: body };
 }
 
+export function findServerEntryById(
+  servers: readonly PublicServerInstanceEntry[],
+  serverId: string,
+): PublicServerInstanceEntry | null {
+  const normalized = serverId.trim().toLowerCase();
+  return servers.find((entry) => entry.id === normalized) ?? null;
+}
+
 export function pickDefaultServerEntry(
   servers: readonly PublicServerInstanceEntry[],
   preferredId?: string | null,

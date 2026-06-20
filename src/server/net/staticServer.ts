@@ -178,7 +178,7 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
         return;
       }
 
-      if (await handleServerListRoute(req, res, url)) {
+      if (await handleServerListRoute(req, res, url, options.serverEnv)) {
         return;
       }
 
