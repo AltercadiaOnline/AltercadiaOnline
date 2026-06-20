@@ -96,6 +96,11 @@ import {
   setWorldSessionReady,
 } from '../world/worldSessionGate.js';
 import {
+  clearWorldLoginRetry,
+  scheduleWorldLoginRetry,
+} from '../world/worldLoginCoordinator.js';
+import { GAME_CANVAS_ID } from '../layout/gameLayout.js';
+import {
   beginWorldChroniclesSession,
   bindWorldLoreWsTransport,
   clearWorldLoreWsTransport,
@@ -271,31 +276,69 @@ const WORLD_AUTH_ERROR_MESSAGES: Record<string, string> = {
   AUTH_MISMATCH: 'Conta inconsistente. Faça login novamente.',
   WRONG_SERVER: 'Servidor incorreto. Escolha o shard correto na seleção de personagem.',
   PROFILE_NOT_READY: 'Personagem ainda não provisionado. Crie um personagem ou aguarde.',
+  WORLD_LOGIN_FAILED: 'Falha ao sincronizar personagem — tentando novamente…',
 };
+
+function requestWorldLoginIfPossible(): void {
+  if (!world || !positionGateway) return;
+  void positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
+}
+
+function beginWorldLoginHandshake(): void {
+  resetWorldSessionGate();
+  clearWorldLoginRetry();
+  scheduleWorldLoginRetry(requestWorldLoginIfPossible);
+}
+
+function focusGameCanvasForInput(): void {
+  const canvas = document.getElementById(GAME_CANVAS_ID);
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  canvas.tabIndex = 0;
+  if (!canvas.hasAttribute('role')) {
+    canvas.setAttribute('role', 'application');
+  }
+  canvas.focus({ preventScroll: true });
+}
 
 function handleWorldAuthError(reason: string): void {
   const msg = WORLD_AUTH_ERROR_MESSAGES[reason] ?? `Erro de conexão (${reason}).`;
-  setStatus(msg);
-  resetWorldSessionGate();
-  setWorldSessionActive(false);
 
   if (reason === 'AUTH_REQUIRED' || reason === 'AUTH_INVALID' || reason === 'AUTH_MISMATCH') {
+    setStatus(msg);
+    resetWorldSessionGate();
+    setWorldSessionActive(false);
+    clearWorldLoginRetry();
     AppScreens.returnToLogin();
     return;
   }
 
   if (reason === 'WRONG_SERVER' || reason === 'PROFILE_NOT_READY') {
+    setStatus(msg);
+    resetWorldSessionGate();
+    setWorldSessionActive(false);
+    clearWorldLoginRetry();
     void AppScreens.showCharSelect();
     AppScreens.renderCharacterHubError(msg);
+    return;
   }
+
+  if (reason === 'WORLD_LOGIN_FAILED') {
+    setStatus(msg);
+    requestWorldLoginIfPossible();
+    return;
+  }
+
+  setStatus(msg);
 }
 
 function handleWorldLoginResult(raw: unknown): void {
   if (!isWorldLoginResult(raw)) {
-    setStatus('Falha ao sincronizar posição do mundo.');
+    setStatus('Falha ao sincronizar posição do mundo — tentando novamente…');
+    requestWorldLoginIfPossible();
     return;
   }
 
+  clearWorldLoginRetry();
   initDataStore();
   getMutableDataStore().applyWorldSpawnFromServer({
     currentMapId: raw.currentMapId,
@@ -493,13 +536,13 @@ function connectSocket(): void {
   socket.onOpen(() => {
     attachOnlineEconomyLayer();
     setExplorationOnlineMode(true);
-    setStatus('Conectado — sincronizando posição…');
+    setStatus('Sincronizando personagem… (WASD após conectar)');
     if (!world) return;
     world.setCombatJoinHandler((monsterId) => {
       void startBattle(monsterId);
     });
     wirePortalTransitionBridge();
-    void positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
+    requestWorldLoginIfPossible();
   });
 
   socket.onError((message) => {
@@ -527,7 +570,7 @@ function connectSocket(): void {
 function enterWorld(): void {
   if (worldStarted) return;
 
-  resetWorldSessionGate();
+  beginWorldLoginHandshake();
   mountWorldMapScene();
   AppScreens.showGameWorld();
 
@@ -694,6 +737,7 @@ function enterWorld(): void {
 
   connectSocket();
   wirePortalTransitionBridge();
+  focusGameCanvasForInput();
 
   // Renderiza o mapa enquanto aguarda world-login do servidor.
   activeWorld.prepareFrame(0);
@@ -707,7 +751,7 @@ function enterWorld(): void {
   });
 
   if (selected) {
-    setStatus(`Conectando como ${selected.name}…`);
+    setStatus(`Sincronizando ${selected.name}… clique no mapa ou use WASD quando conectar.`);
   }
 
   const loreCreds = AppScreens.currentSession && selected
@@ -780,6 +824,7 @@ function clearGameState(): void {
   }
 
   resetWorldSessionGate();
+  clearWorldLoginRetry();
 
   if (socket) {
     socket.removeAllListeners();
