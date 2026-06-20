@@ -32,6 +32,7 @@ import {
   USER_PASSWORD_RESET_UNAVAILABLE,
 } from '../../shared/brand.js';
 import { clearAllOAuthFlags } from './auth/oauthPending.js';
+import { hidePlayerInitLoading } from '../auth/playerInitLoading.js';
 
 import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 
@@ -327,7 +328,11 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
 
       if (result.needsEmailConfirmation) {
         if (getSupabaseClient()) {
-          await getSupabaseClient()!.auth.signOut({ scope: 'local' });
+          try {
+            await getSupabaseClient()!.auth.signOut({ scope: 'local' });
+          } catch {
+            /* sessão local opcional — cadastro segue */
+          }
         }
         clearAllOAuthFlags();
         copyRegisterCredentialsToLoginForm();
@@ -352,6 +357,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       console.error('[LoginScreen] Erro no cadastro:', error);
       setStatus('Erro inesperado ao cadastrar.', true);
     } finally {
+      hidePlayerInitLoading();
       setBusy(false);
     }
   }

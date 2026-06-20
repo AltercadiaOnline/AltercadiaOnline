@@ -165,6 +165,7 @@ export const AppScreens = {
     const needsCompletion = await currentUserNeedsProfileMetadata();
     if (!needsCompletion) return true;
 
+    hidePlayerInitLoading();
     this.showLogin();
 
     return new Promise((resolve) => {
@@ -206,28 +207,29 @@ export const AppScreens = {
   ): Promise<void> {
     const oauthFlow = options?.oauthFlow === true;
 
-    if (oauthFlow) {
-      showPlayerInitLoading('Preparando sua conta…');
-    }
+    try {
+      if (user && !this.currentSession) {
+        await this.setAuthenticatedUser(user);
+      }
 
-    if (user && !this.currentSession) {
-      await this.setAuthenticatedUser(user);
-    }
+      const profileReady = await this.ensureProfileMetadataComplete({ oauthFlow });
+      if (!profileReady) {
+        return;
+      }
 
-    const profileReady = await this.ensureProfileMetadataComplete({ oauthFlow });
-    if (!profileReady) {
-      if (oauthFlow) hidePlayerInitLoading();
-      return;
-    }
+      if (oauthFlow) {
+        showPlayerInitLoading('Preparando sua conta…');
+      } else {
+        showPlayerInitLoading('Carregando personagens…');
+      }
 
-    await this.showCharSelect();
+      await this.showCharSelect();
 
-    if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth() && !this.hubHasPlayableCharacter()) {
-      this.openCharacterCreateForFirstEmptySlot();
-      clearOAuthAutoCharCreate();
-    }
-
-    if (oauthFlow) {
+      if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth() && !this.hubHasPlayableCharacter()) {
+        this.openCharacterCreateForFirstEmptySlot();
+        clearOAuthAutoCharCreate();
+      }
+    } finally {
       hidePlayerInitLoading();
     }
   },

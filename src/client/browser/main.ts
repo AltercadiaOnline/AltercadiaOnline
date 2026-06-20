@@ -730,15 +730,11 @@ function enterWorld(): void {
 }
 
 async function onLoginSuccess(user: AuthUser, options?: AuthPostLoginOptions): Promise<void> {
-  const oauthFlow = options?.oauthFlow === true;
   try {
-    if (!oauthFlow) {
-      showPlayerInitLoading('Carregando conta no servidor…');
-    }
     if (options?.serverId) {
       console.log(`[Auth] Init pós-login no shard: ${options.serverId}`);
     }
-    await AppScreens.proceedAfterAuthentication(user, { oauthFlow });
+    await AppScreens.proceedAfterAuthentication(user, { oauthFlow: options?.oauthFlow === true });
   } catch (error) {
     console.error('[Auth] Falha após login:', error);
     const message = error instanceof Error
@@ -752,9 +748,7 @@ async function onLoginSuccess(user: AuthUser, options?: AuthPostLoginOptions): P
       statusEl.classList.remove('is-success');
     }
   } finally {
-    if (!oauthFlow) {
-      hidePlayerInitLoading();
-    }
+    hidePlayerInitLoading();
   }
 }
 
@@ -939,9 +933,7 @@ async function bootstrap(): Promise<void> {
     ensureLoginHudBound();
     showBootstrapFatalError(resolveBootstrapFatalMessage(error));
   } finally {
-    if (!hasOAuthCallbackInUrl() && !isOAuthRedirectPending()) {
-      hidePlayerInitLoading();
-    }
+    hidePlayerInitLoading();
     if (!loginUiBound) {
       ensureLoginHudBound();
     }
