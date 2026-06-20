@@ -37,6 +37,21 @@ function mapSupabaseAuthError(error: { message?: string; code?: string | null | 
   const message = error.message ?? '';
 
   if (
+    code === 'user_already_registered'
+    || code === 'email_exists'
+    || message.toLowerCase().includes('already registered')
+    || message.toLowerCase().includes('already been registered')
+    || message.toLowerCase().includes('user already exists')
+  ) {
+    return {
+      ok: false,
+      needsEmailConfirmation: true,
+      message:
+        'Este email já foi cadastrado. Faça login ou use "Reenviar email de confirmação" se ainda não confirmou.',
+    };
+  }
+
+  if (
     code === 'email_not_confirmed'
     || message.toLowerCase().includes('email not confirmed')
   ) {
@@ -147,7 +162,7 @@ export async function signUpWithEmail(
       ok: false,
       needsEmailConfirmation: true,
       message:
-        'Este email já está cadastrado. Faça login, use "Esqueci minha senha" ou clique em "Reenviar email de confirmação" se ainda não confirmou.',
+        'Este email já foi cadastrado. Faça login ou use "Reenviar email de confirmação" se ainda não confirmou.',
     };
   }
 

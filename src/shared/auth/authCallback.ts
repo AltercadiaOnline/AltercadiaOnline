@@ -4,6 +4,20 @@ export const AUTH_CALLBACK_PATH = '/characters';
 /** Rotas legadas que redirecionamos para `/characters`. */
 export const AUTH_CALLBACK_LEGACY_PATHS = ['/game'] as const;
 
+export {
+  DEFAULT_PUBLIC_SITE_ORIGIN,
+  isVercelPreviewHostname,
+  resolveAuthRedirectOrigin,
+  resolveAuthCallbackLandingUrl,
+  type AuthRedirectOriginConfig,
+} from './authRedirectOrigin.js';
+
+import {
+  resolveAuthRedirectOrigin,
+  resolveAuthCallbackLandingUrl,
+  type AuthRedirectOriginConfig,
+} from './authRedirectOrigin.js';
+
 export function isAuthCallbackPath(pathname: string): boolean {
   const path = pathname.trim() || '/';
   if (path === AUTH_CALLBACK_PATH || path.startsWith(`${AUTH_CALLBACK_PATH}/`)) {
@@ -12,15 +26,12 @@ export function isAuthCallbackPath(pathname: string): boolean {
   return (AUTH_CALLBACK_LEGACY_PATHS as readonly string[]).includes(path);
 }
 
-/** Origin do front-end onde o jogador iniciou login (Vercel ou Railway). */
-export function resolvePublicFrontendOrigin(): string {
-  if (typeof window === 'undefined') return '';
-  return window.location.origin.replace(/\/+$/, '');
-}
-
 /** URL completa para redirectTo / emailRedirectTo do Supabase. */
-export function buildAuthRedirectUrl(origin?: string): string {
-  const base = (origin ?? resolvePublicFrontendOrigin()).replace(/\/+$/, '');
+export function buildAuthRedirectUrl(
+  origin?: string,
+  config?: AuthRedirectOriginConfig | null,
+): string {
+  const base = (origin ?? resolveAuthRedirectOrigin(config)).replace(/\/+$/, '');
   if (!base) return AUTH_CALLBACK_PATH;
   return `${base}${AUTH_CALLBACK_PATH}`;
 }
@@ -98,10 +109,18 @@ function parseAuthCallbackUrl(href?: string): URL | null {
   }
 }
 
-/** Se Supabase caiu na raiz com tokens, normaliza para `/characters` no mesmo host. */
-export function normalizeAuthCallbackLocationIfNeeded(): boolean {
+/** Se Supabase caiu na raiz/preview com tokens, normaliza para `/characters` no host correto. */
+export function normalizeAuthCallbackLocationIfNeeded(
+  config?: AuthRedirectOriginConfig | null,
+): boolean {
   if (typeof window === 'undefined') return false;
   if (!hasAuthTokensInUrl()) return false;
+
+  const previewTarget = resolveAuthCallbackLandingUrl(window.location.href, config);
+  if (previewTarget) {
+    window.location.replace(previewTarget);
+    return true;
+  }
 
   const path = window.location.pathname || '/';
   if (isAuthCallbackPath(path)) return false;

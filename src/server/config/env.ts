@@ -8,6 +8,7 @@ import {
   sanitizeEnvSecret,
   deriveGameHttpUrlFromWs,
 } from '../supabase/normalizeSupabaseUrl.js';
+import { normalizePublicSiteOrigin } from '../../shared/auth/authRedirectOrigin.js';
 import type { ServerInstanceDefinition } from '../../shared/world/serverInstanceCatalog.js';
 import { resolveServerInstanceFromEnv } from './serverInstanceEnv.js';
 
@@ -25,6 +26,8 @@ export type ServerEnv = {
   readonly gameWsUrl: string | null;
   /** URL HTTP do servidor de jogo — exposta via GET /config/client (ex.: https://app.railway.app). */
   readonly gameHttpUrl: string | null;
+  /** URL pública do front (redirect email/OAuth). */
+  readonly publicSiteUrl: string | null;
   /** Permite world-login sem JWT — apenas desenvolvimento local explícito. */
   readonly devAuthBypass: boolean;
   readonly database: DatabaseEnv;
@@ -83,6 +86,9 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   const gameHttpUrl =
     normalizeGameHttpUrl(env.GAME_HTTP_URL ?? env.PUBLIC_GAME_HTTP_URL)
     ?? deriveGameHttpUrlFromWs(gameWsUrl);
+  const publicSiteUrl = normalizePublicSiteOrigin(
+    env.PUBLIC_SITE_URL ?? env.AUTH_REDIRECT_ORIGIN ?? env.VERCEL_PROJECT_PRODUCTION_URL,
+  );
 
   return {
     nodeEnv,
@@ -95,6 +101,7 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     supabaseServiceRoleKey: sanitizeEnvSecret(env.SUPABASE_SERVICE_ROLE_KEY),
     gameWsUrl,
     gameHttpUrl,
+    publicSiteUrl,
     devAuthBypass:
       env.DEV_AUTH_BYPASS === '1'
       || env.DEV_AUTH_BYPASS === 'true',

@@ -23,9 +23,10 @@ const SUPABASE_STORAGE_KEY = 'altercadia-supabase-auth';
 
 let supabase: SupabaseClient | null = null;
 
-/** redirectTo / emailRedirectTo — sempre front-end atual + `/characters`. */
-export function resolveAuthRedirectUrl(_configOverride?: PublicClientConfig | null): string {
-  return buildAuthRedirectUrl();
+/** redirectTo / emailRedirectTo — URL pública de produção (nunca preview Vercel). */
+export function resolveAuthRedirectUrl(configOverride?: PublicClientConfig | null): string {
+  const config = configOverride ?? getClientRuntimeConfig();
+  return buildAuthRedirectUrl(undefined, config);
 }
 
 export { AUTH_CALLBACK_PATH };

@@ -15,7 +15,7 @@ import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameSt
 import { initAuthSessionBridge, tryCompleteOAuthReturn, type AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 import { isSupabaseConfigured, type PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { redirectToCanonicalGameOriginIfNeeded } from '../net/canonicalGameOrigin.js';
-import { hasAuthTokensInUrl } from '../../shared/auth/authCallback.js';
+import { hasAuthTokensInUrl, normalizeAuthCallbackLocationIfNeeded } from '../../shared/auth/authCallback.js';
 import { isGameServerReachable } from '../services/serverReachability.js';
 import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import {
@@ -84,6 +84,10 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
 
   const config = await fetchPublicClientConfig();
   setClientRuntimeConfig(config);
+
+  if (normalizeAuthCallbackLocationIfNeeded(config)) {
+    throw new Error('Redirecionando confirmação de email…');
+  }
 
   const authReturn = hasAuthTokensInUrl();
   if (!authReturn && redirectToCanonicalGameOriginIfNeeded(config)) {

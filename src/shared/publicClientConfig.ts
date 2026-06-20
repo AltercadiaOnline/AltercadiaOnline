@@ -2,6 +2,8 @@
  * Valores vêm de `.env.governance` → `loadProjectEnv()` → `createPublicClientConfig()` → GET `/config/client`.
  * `supabaseUrl` é endpoint de API Auth — usar só em `createClient()`; nunca exibir na UI (marca: Altercadia.online).
  * Apenas `SUPABASE_URL` + `SUPABASE_ANON_KEY` — nunca `SUPABASE_SERVICE_ROLE_KEY`. */
+import { DEFAULT_PUBLIC_SITE_ORIGIN, normalizePublicSiteOrigin } from './auth/authRedirectOrigin.js';
+
 export type PublicClientConfig = {
   readonly supabaseUrl: string | null;
   readonly supabaseAnonKey: string | null;
@@ -12,6 +14,8 @@ export type PublicClientConfig = {
   /** Shard ativo deste deploy — deve coincidir com SERVER_ID do Railway. */
   readonly serverId: string;
   readonly serverName: string;
+  /** URL pública do jogo (email/OAuth redirect) — ex.: https://altercadia-online.vercel.app */
+  readonly publicSiteUrl: string | null;
 };
 
 export function createPublicClientConfig(env: {
@@ -21,6 +25,7 @@ export function createPublicClientConfig(env: {
   readonly gameHttpUrl?: string;
   readonly serverId?: string;
   readonly serverName?: string;
+  readonly publicSiteUrl?: string;
 }): PublicClientConfig {
   const supabaseUrl = env.supabaseUrl?.trim() || null;
   const supabaseAnonKey = env.supabaseAnonKey?.trim() || null;
@@ -28,7 +33,8 @@ export function createPublicClientConfig(env: {
   const gameHttpUrl = env.gameHttpUrl?.trim() || null;
   const serverId = env.serverId?.trim().toLowerCase() || 'default';
   const serverName = env.serverName?.trim() || serverId;
-  return { supabaseUrl, supabaseAnonKey, gameWsUrl, gameHttpUrl, serverId, serverName };
+  const publicSiteUrl = normalizePublicSiteOrigin(env.publicSiteUrl) ?? DEFAULT_PUBLIC_SITE_ORIGIN;
+  return { supabaseUrl, supabaseAnonKey, gameWsUrl, gameHttpUrl, serverId, serverName, publicSiteUrl };
 }
 
 export function isSupabaseConfigured(config: PublicClientConfig): boolean {

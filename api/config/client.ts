@@ -9,6 +9,7 @@ export default function handler(_req: VercelRequest, res: VercelResponse): void 
     ...(env.supabaseAnonKey ? { supabaseAnonKey: env.supabaseAnonKey } : {}),
     ...(env.gameWsUrl ? { gameWsUrl: env.gameWsUrl } : {}),
     ...(env.gameHttpUrl ? { gameHttpUrl: env.gameHttpUrl } : {}),
+    ...(env.publicSiteUrl ? { publicSiteUrl: env.publicSiteUrl } : {}),
     serverId: env.serverInstance.id,
     serverName: env.serverInstance.displayName,
   });
