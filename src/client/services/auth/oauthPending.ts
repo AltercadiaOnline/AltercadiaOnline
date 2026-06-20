@@ -7,6 +7,44 @@ export const OAUTH_PENDING_KEY = 'altercadia.oauth_pending';
 export const OAUTH_PENDING_AT_KEY = 'altercadia.oauth_pending_at';
 export const OAUTH_AUTO_CHAR_CREATE_KEY = 'altercadia.oauth_auto_char_create';
 export const EMAIL_CONFIRM_RETURN_KEY = 'altercadia.email_confirm_return';
+export const OAUTH_CODE_EXCHANGED_KEY = 'altercadia.oauth_code_exchanged';
+
+/** Bloqueia bridge OAuth durante login/cadastro por email (evita corrida com SIGNED_IN). */
+let emailCredentialAuthInFlight = false;
+
+export function markEmailCredentialAuthInFlight(): void {
+  emailCredentialAuthInFlight = true;
+}
+
+export function clearEmailCredentialAuthInFlight(): void {
+  emailCredentialAuthInFlight = false;
+}
+
+export function isEmailCredentialAuthInFlight(): boolean {
+  return emailCredentialAuthInFlight;
+}
+
+/** sessionStorage — PKCE trocado; URL já limpa antes do bridge SIGNED_IN. */
+export function markOAuthCodeExchanged(): void {
+  sessionStorage.setItem(OAUTH_CODE_EXCHANGED_KEY, '1');
+}
+
+export function consumeOAuthCodeExchanged(): boolean {
+  if (sessionStorage.getItem(OAUTH_CODE_EXCHANGED_KEY) !== '1') return false;
+  sessionStorage.removeItem(OAUTH_CODE_EXCHANGED_KEY);
+  return true;
+}
+
+/** Sem tokens na URL: descarta flags OAuth/email obsoletas (ex.: Google cancelado). */
+export function clearStaleAuthReturnFlags(): void {
+  const hasAuthReturnInUrl =
+    hasOAuthCodeInUrl() || hasEmailConfirmationCallbackInUrl();
+  if (hasAuthReturnInUrl) return;
+
+  clearAllOAuthFlags();
+  sessionStorage.removeItem(EMAIL_CONFIRM_RETURN_KEY);
+  sessionStorage.removeItem(OAUTH_CODE_EXCHANGED_KEY);
+}
 
 /** sessionStorage — sobrevive ao exchange que limpa a URL antes do init. */
 export function markEmailConfirmationReturnPending(): void {

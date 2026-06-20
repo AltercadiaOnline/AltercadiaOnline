@@ -9,6 +9,7 @@ import {
   hasAuthTokensInUrl,
   resolveAuthCallbackPath,
 } from '../../shared/auth/authCallback.js';
+import { markOAuthCodeExchanged } from '../services/auth/oauthPending.js';
 import { mergePublicClientConfigWithGameOrigin } from '../../shared/net/mergeGameOriginConfig.js';
 import type { GameOriginHints } from '../../shared/net/mergeGameOriginConfig.js';
 import {
@@ -194,6 +195,7 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
       console.error('[Auth] exchangeCodeForSession falhou:', error.message);
       return null;
     }
+    markOAuthCodeExchanged();
     return data.session;
   }
 

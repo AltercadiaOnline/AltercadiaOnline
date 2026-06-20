@@ -31,8 +31,13 @@ import {
   USER_GOOGLE_REDIRECT,
   USER_PASSWORD_RESET_UNAVAILABLE,
 } from '../../shared/brand.js';
-import { clearAllOAuthFlags } from './auth/oauthPending.js';
+import {
+  clearAllOAuthFlags,
+  clearEmailCredentialAuthInFlight,
+  markEmailCredentialAuthInFlight,
+} from './auth/oauthPending.js';
 import { hidePlayerInitLoading } from '../auth/playerInitLoading.js';
+import { resetGameStoreState } from '../state/GameStore.js';
 
 import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 
@@ -239,6 +244,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
 
     setBusy(true);
     clearAllOAuthFlags();
+    markEmailCredentialAuthInFlight();
     setStatus('Validando credenciais…', false);
     logAuthApiAttempt('login', { email, via: 'GameAuthService.loginWithEmailForServer' });
 
@@ -270,6 +276,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       console.error('[LoginScreen] Erro no login:', error);
       setStatus('Erro inesperado ao fazer login.', true);
     } finally {
+      clearEmailCredentialAuthInFlight();
       setBusy(false);
     }
   }
@@ -310,6 +317,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
 
     setBusy(true);
     clearAllOAuthFlags();
+    markEmailCredentialAuthInFlight();
     setStatus('Criando conta…', false);
     logAuthApiAttempt('register', { email, via: 'GameAuthService.registerAccount' });
 
@@ -339,6 +347,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
           }
         }
         clearAllOAuthFlags();
+        resetGameStoreState();
         copyRegisterCredentialsToLoginForm();
         showAuthView('register');
         setStatus(
@@ -350,6 +359,15 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
         return;
       }
 
+      if (getSupabaseClient()) {
+        try {
+          await getSupabaseClient()!.auth.signOut({ scope: 'local' });
+        } catch {
+          /* exige login manual mesmo se Supabase criou sessão */
+        }
+      }
+      clearAllOAuthFlags();
+      resetGameStoreState();
       copyRegisterCredentialsToLoginForm();
       showAuthView('login');
       setStatus(result.message ?? 'Conta criada! Faça login para continuar.', false);
@@ -361,6 +379,7 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       console.error('[LoginScreen] Erro no cadastro:', error);
       setStatus('Erro inesperado ao cadastrar.', true);
     } finally {
+      clearEmailCredentialAuthInFlight();
       hidePlayerInitLoading();
       setBusy(false);
     }

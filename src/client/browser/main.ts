@@ -112,6 +112,7 @@ import {
 import {
   isOAuthRedirectPending,
   markEmailConfirmationReturnPending,
+  clearStaleAuthReturnFlags,
 } from '../services/auth/oauthPending.js';
 import {
   hasEmailConfirmationCallbackInUrl,
@@ -890,12 +891,15 @@ async function bootstrap(): Promise<void> {
 
   hideBootstrapFatalError();
 
+  clearStaleAuthReturnFlags();
+
   const emailConfirmReturn = hasEmailConfirmationCallbackInUrl();
-  const oauthReturn = hasOAuthCodeInUrl() || isOAuthRedirectPending();
+  const oauthCodeReturn = hasOAuthCodeInUrl();
+  const oauthPendingReturn = isOAuthRedirectPending();
   if (emailConfirmReturn) {
     markEmailConfirmationReturnPending();
     showPlayerInitLoading('Confirmando seu email…');
-  } else if (oauthReturn) {
+  } else if (oauthCodeReturn || oauthPendingReturn) {
     showPlayerInitLoading(USER_GOOGLE_CONNECTING);
   } else {
     showScreen('login-screen');

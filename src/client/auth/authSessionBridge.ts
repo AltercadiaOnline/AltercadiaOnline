@@ -12,8 +12,10 @@ import {
   clearAllOAuthFlags,
   clearOAuthRedirectPending,
   consumeEmailConfirmationReturn,
+  consumeOAuthCodeExchanged,
   hasEmailConfirmationCallbackInUrl,
   hasOAuthCallbackInUrl,
+  isEmailCredentialAuthInFlight,
   isOAuthRedirectPending,
 } from '../services/auth/oauthPending.js';
 import { isSupabaseEmailConfirmed } from '../../shared/auth/emailConfirmationPolicy.js';
@@ -126,7 +128,7 @@ export async function tryCompleteOAuthReturn(
   if (!user) {
     clearAllOAuthFlags();
     resetGameStoreState();
-    if (oauthCallback || pending) {
+    if (oauthCallback) {
       options.onAuthError?.(USER_OAUTH_FAILED);
       return true;
     }
@@ -134,6 +136,11 @@ export async function tryCompleteOAuthReturn(
   }
 
   if (!oauthCallback && !isGoogleAuthUser(user)) {
+    clearAllOAuthFlags();
+    return false;
+  }
+
+  if (!oauthCallback && !consumeOAuthCodeExchanged()) {
     clearAllOAuthFlags();
     return false;
   }
@@ -158,13 +165,24 @@ export function initAuthSessionBridge(options: AuthSessionBridgeOptions): () => 
       return;
     }
 
-    if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return;
+    if (event !== 'SIGNED_IN') return;
 
-    if (!isOAuthRedirectPending() && !hasOAuthCallbackInUrl()) return;
+    if (isEmailCredentialAuthInFlight()) return;
+
+    const oauthCallback = hasOAuthCallbackInUrl();
+    const oauthJustExchanged = consumeOAuthCodeExchanged();
+    const pending = isOAuthRedirectPending();
+
+    if (!oauthCallback && !oauthJustExchanged && !pending) return;
 
     if (!session?.user) return;
 
     if (!isGoogleAuthUser(session.user)) {
+      clearAllOAuthFlags();
+      return;
+    }
+
+    if (!oauthCallback && !oauthJustExchanged) {
       clearAllOAuthFlags();
       return;
     }

@@ -62,7 +62,7 @@ import {
   hidePlayerInitLoading,
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
-import { isSupabaseEmailConfirmed } from '../../shared/auth/emailConfirmationPolicy.js';
+import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
 
 let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
 let appShellListenersBound = false;
@@ -503,6 +503,10 @@ export const AppScreens = {
 
     const user = await getUser({ silent: true, clearInvalidSession: true });
     if (!user?.email) return false;
+
+    if (isGoogleAuthUser(user)) {
+      return false;
+    }
 
     if (!isSupabaseEmailConfirmed(user)) {
       await client.auth.signOut({ scope: 'local' });
