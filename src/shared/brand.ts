@@ -36,3 +36,6 @@ export const USER_GOOGLE_CONNECTING = `Conectando com Google em ${GAME_BRAND_NAM
 
 export const USER_WS_CONNECT_FAILED =
   `Não foi possível conectar a ${GAME_BRAND_NAME}. Tente novamente em instantes.`;
+
+export const USER_GAME_HOST_MISSING =
+  `${GAME_BRAND_NAME} não está configurado neste link. Use o endereço oficial do jogo (servidor Railway), não apenas a página estática da Vercel.`;

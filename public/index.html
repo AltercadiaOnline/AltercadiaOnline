@@ -6,6 +6,49 @@
     <title>Altercadia.online</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
+    <script>
+      (function () {
+        var search = window.location.search;
+        var hash = window.location.hash || '';
+        var isAuthReturn =
+          /(?:[?&]code=|[?&]error=)/.test(search) ||
+          /access_token=/.test(hash) ||
+          /type=(signup|recovery|email|magiclink)/.test(hash);
+        if (!isAuthReturn) return;
+
+        function deriveHttp(ws) {
+          if (!ws) return '';
+          try {
+            var u = new URL(ws);
+            var proto = u.protocol === 'wss:' ? 'https:' : u.protocol === 'ws:' ? 'http:' : u.protocol;
+            return (proto + '//' + u.host).replace(/\/+$/, '');
+          } catch (e) {
+            return '';
+          }
+        }
+
+        function redirectIfNeeded(cfg) {
+          if (!cfg) return;
+          var http = (cfg.gameHttpUrl || deriveHttp(cfg.gameWsUrl) || '').replace(/\/+$/, '');
+          if (!http) return;
+          if (window.location.origin.replace(/\/+$/, '') === http) return;
+          window.location.replace(http + window.location.pathname + search + hash);
+        }
+
+        fetch('/config/client', { credentials: 'omit' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (cfg) {
+            redirectIfNeeded(cfg);
+            if (cfg && (cfg.gameHttpUrl || cfg.gameWsUrl)) return null;
+            return fetch('/config/game-origin.json', { credentials: 'omit' })
+              .then(function (r) { return r.ok ? r.json() : null; });
+          })
+          .then(function (fallback) {
+            redirectIfNeeded(fallback);
+          })
+          .catch(function () {});
+      })();
+    </script>
   </head>
   <body>
     <div id="login-screen" class="screen full-screen">
@@ -25,8 +68,7 @@
             <button id="btn-login" type="button">LOGIN</button>
             <button id="btn-show-register" type="button">CADASTRAR</button>
           </div>
-          <button id="btn-forgot-password" type="button" class="auth-link-btn">Esqueci minha senha</button>
-          <button id="btn-resend-confirmation" type="button" class="auth-link-btn">Reenviar email de confirmação</button>
+          <button id="btn-forgot-password" type="button" class="auth-link-btn">ESQUECI MINHA SENHA</button>
           <button id="btn-login-google" type="button" class="auth-google-btn">ENTRAR COM GOOGLE</button>
         </section>
 
@@ -105,6 +147,10 @@
             <span>Email</span>
             <input id="reg-email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
           </label>
+          <p class="auth-panel-hint auth-resend-hint">
+            Conta já criada? Preencha nome e data de nascimento acima, informe o email e reenvie o link de confirmação.
+          </p>
+          <button id="btn-resend-confirmation" type="button" class="auth-link-btn">Reenviar email de confirmação</button>
           <label class="auth-field">
             <span>Senha</span>
             <input id="reg-pass-input" type="password" autocomplete="new-password" placeholder="••••••" />

@@ -20,6 +20,7 @@ import {
   subscribeAuthStateChange,
 } from '../auth/supabaseAuth.js';
 import { ADULT_AGE_YEARS, computeAgeYears, isAtLeastAge } from '../auth.js';
+import { parseBirthDateIso } from '../../shared/auth/accountAgePolicy.js';
 import {
   logAuthApiAttempt,
   logAuthApiResult,
@@ -79,6 +80,41 @@ function syncParentalConsentVisibility(
 function isMinorBirthDate(birthDate: string): boolean {
   const age = computeAgeYears(birthDate);
   return age !== null && !isAtLeastAge(birthDate, ADULT_AGE_YEARS);
+}
+
+type RegisterProfileFields = {
+  readonly name: HTMLInputElement;
+  readonly birth: HTMLInputElement;
+  readonly guardianConsent: HTMLInputElement;
+};
+
+/** Exige nome + data (+ consentimento se menor) antes de cadastro ou reenvio de confirmação. */
+function validateRegisterProfileStep(
+  profile: RegisterProfileFields,
+): { ok: true } | { ok: false; message: string } {
+  const fullName = profile.name.value.trim();
+  const birthDate = profile.birth.value.trim();
+
+  if (!fullName) {
+    return { ok: false, message: 'Informe seu nome.' };
+  }
+
+  if (!birthDate) {
+    return { ok: false, message: 'Informe sua data de nascimento.' };
+  }
+
+  if (!parseBirthDateIso(birthDate)) {
+    return { ok: false, message: 'Data de nascimento inválida.' };
+  }
+
+  if (isMinorBirthDate(birthDate) && !profile.guardianConsent.checked) {
+    return {
+      ok: false,
+      message: 'Marque o consentimento do responsável (conta de menor).',
+    };
+  }
+
+  return { ok: true };
 }
 
 export function setupLoginScreen(options: LoginScreenOptions): boolean {
@@ -206,7 +242,16 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       const result = await loginWithEmailForServer(email, password);
       if (!result.success || !result.user) {
         logAuthApiResult('login', 'error', { message: result.message ?? 'Credenciais inválidas.' });
-        setStatus(result.message ?? 'Credenciais inválidas.', true);
+        const message = result.message ?? 'Credenciais inválidas.';
+        if (message.toLowerCase().includes('confirme seu email')) {
+          fields.regEmail.value = email;
+          showAuthView('register');
+          refreshConsentVisibility();
+          setStatus(`${message} Reenvie o link na tela de cadastro.`, true);
+          fields.regEmail.focus();
+          return;
+        }
+        setStatus(message, true);
         return;
       }
 
@@ -235,16 +280,10 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
 
     const email = fields.regEmail.value.trim();
     const password = fields.regPass.value;
-    const fullName = fields.name.value.trim();
-    const birthDate = fields.birth.value.trim();
 
-    if (!fullName) {
-      setStatus('Informe seu nome.', true);
-      return;
-    }
-
-    if (!birthDate) {
-      setStatus('Informe sua data de nascimento.', true);
+    const profileCheck = validateRegisterProfileStep(fields);
+    if (!profileCheck.ok) {
+      setStatus(profileCheck.message, true);
       return;
     }
 
@@ -252,6 +291,9 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       setStatus('Preencha email e senha.', true);
       return;
     }
+
+    const fullName = fields.name.value.trim();
+    const birthDate = fields.birth.value.trim();
 
     if (password.length < MIN_PASSWORD_LENGTH) {
       setStatus(`A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`, true);
@@ -302,12 +344,13 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       }
 
       copyRegisterCredentialsToLoginForm();
-      showAuthView('login');
+      showAuthView('register');
       setStatus(
         result.message
-        ?? 'Conta criada! Confirme seu email antes de fazer login.',
+        ?? 'Conta criada! Abra o email de confirmação (verifique spam) ou use o botão abaixo para reenviar.',
         false,
       );
+      fields.regEmail.focus();
     } catch (error) {
       logAuthApiResult('register', 'error', {
         message: error instanceof Error ? error.message : String(error),
@@ -405,9 +448,23 @@ export function setupLoginScreen(options: LoginScreenOptions): boolean {
       return;
     }
 
-    const email = fields.email.value.trim() || fields.regEmail.value.trim();
+    showAuthView('register');
+
+    const profileCheck = validateRegisterProfileStep(fields);
+    if (!profileCheck.ok) {
+      setStatus(`${profileCheck.message} Depois informe o email e reenvie.`, true);
+      if (!fields.name.value.trim()) {
+        fields.name.focus();
+      } else {
+        fields.birth.focus();
+      }
+      return;
+    }
+
+    const email = fields.regEmail.value.trim();
     if (!email) {
-      setStatus('Informe seu email na tela de login.', true);
+      setStatus('Informe o email usado no cadastro.', true);
+      fields.regEmail.focus();
       return;
     }
 

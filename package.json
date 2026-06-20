@@ -8,7 +8,7 @@
     "dev:client": "tsx watch src/client/index.ts",
     "build:compile": "npx tsc",
     "build:sync": "node ./scripts/sync-vercel-public.mjs",
-    "build": "npm run build:compile && npm run build:sync",
+    "build": "npm run build:compile && npm run build:sync && node ./scripts/write-game-origin-config.mjs",
     "vercel-build": "npm run build",
     "start": "node dist/server/index.js",
     "test": "node -e \"console.log('Test suite removed — run npm run typecheck && npm run build')\"",

@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './auth/supabaseAuth.js';
+import { getSupabaseClient, resolveAuthRedirectUrl } from './auth/supabaseAuth.js';
 import {
   requestPasswordResetEmail,
   resendSignupConfirmationEmail,
@@ -100,7 +100,7 @@ export async function signUpWithEmail(
     email: trimmedEmail,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}${window.location.pathname}`,
+      emailRedirectTo: resolveAuthRedirectUrl(),
       data: {
         nome: fullName,
         dataNascimento: birthDate,

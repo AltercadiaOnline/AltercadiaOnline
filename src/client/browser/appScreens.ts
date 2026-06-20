@@ -54,8 +54,7 @@ import { currentUserNeedsProfileMetadata } from '../auth/profileMetadata.js';
 import { showProfileCompletePanel } from '../components/profileCompletePanel.js';
 import {
   USER_AUTH_UNAVAILABLE,
-  USER_CONFIG_LOAD_FAILED,
-  USER_GOOGLE_CONNECTING,
+  USER_GAME_HOST_MISSING,
   USER_SERVER_OFFLINE,
 } from '../../shared/brand.js';
 import {
@@ -549,7 +548,10 @@ export const AppScreens = {
       statusEl.textContent = USER_AUTH_UNAVAILABLE;
       statusEl.classList.add('is-error');
     } else if (!config.gameWsUrl) {
-      statusEl.textContent = USER_SERVER_OFFLINE;
+      const onVercelEntry = window.location.hostname.includes('vercel.app');
+      statusEl.textContent = onVercelEntry
+        ? USER_GAME_HOST_MISSING
+        : USER_SERVER_OFFLINE;
       statusEl.classList.add('is-error');
     }
   },

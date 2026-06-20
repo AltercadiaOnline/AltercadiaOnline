@@ -4,6 +4,8 @@ import { isSupabaseConfigured } from '../../shared/publicClientConfig.js';
 import { logAuthEnvironment } from './authDebug.js';
 import { resolveCanonicalGameOrigin } from '../net/canonicalGameOrigin.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
+import { mergePublicClientConfigWithGameOrigin } from '../../shared/net/mergeGameOriginConfig.js';
+import type { GameOriginHints } from '../../shared/net/mergeGameOriginConfig.js';
 import {
   USER_AUTH_NOT_CONFIGURED,
   USER_GOOGLE_LOGIN_UNAVAILABLE,
@@ -14,13 +16,17 @@ const SUPABASE_STORAGE_KEY = 'altercadia-supabase-auth';
 
 let supabase: SupabaseClient | null = null;
 
-/** Redirect OAuth/cadastro — host do jogo (Railway). Marca visível: Altercadia.online. */
-function authRedirectUrl(): string {
+/** URL de retorno pós-OAuth / confirmação de email — host do jogo (Railway), não Vercel. */
+export function resolveAuthRedirectUrl(): string {
   const config = getClientRuntimeConfig();
   const origin = config
     ? resolveCanonicalGameOrigin(config)
     : window.location.origin.replace(/\/+$/, '');
   return `${origin}${window.location.pathname || '/'}`;
+}
+
+function authRedirectUrl(): string {
+  return resolveAuthRedirectUrl();
 }
 
 /** Inicializa o client Supabase — `config.supabaseUrl` é endpoint de API; nunca exibir na UI. */
@@ -55,6 +61,16 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
   return true;
 }
 
+async function fetchStaticGameOriginHints(): Promise<GameOriginHints | null> {
+  try {
+    const response = await fetch('/config/game-origin.json', { credentials: 'omit' });
+    if (!response.ok) return null;
+    return await response.json() as GameOriginHints;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
   console.log('[AuthDebug:api] Bootstrap — GET /config/client');
   const response = await fetch('/config/client', { credentials: 'omit' });
@@ -62,12 +78,17 @@ export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
     console.error('[AuthDebug:api] Erro GET /config/client', { status: response.status });
     throw new Error(`Falha ao carregar /config/client (${response.status})`);
   }
-  const config = await response.json() as PublicClientConfig;
+  const raw = await response.json() as PublicClientConfig;
+  const needsOrigin = !raw.gameWsUrl?.trim() && !raw.gameHttpUrl?.trim();
+  const config = needsOrigin
+    ? mergePublicClientConfigWithGameOrigin(raw, await fetchStaticGameOriginHints())
+    : raw;
   console.log('[AuthDebug:api] Sucesso GET /config/client', {
     supabaseConfigured: Boolean(config.supabaseUrl && config.supabaseAnonKey),
-    gameWsUrl: config.gameWsUrl ?? null,
-    gameHttpUrl: config.gameHttpUrl ?? null,
+    gameWsConfigured: Boolean(config.gameWsUrl),
+    gameHttpConfigured: Boolean(config.gameHttpUrl),
     serverId: config.serverId ?? null,
+    mergedGameOrigin: needsOrigin && Boolean(config.gameWsUrl || config.gameHttpUrl),
   });
   return config;
 }

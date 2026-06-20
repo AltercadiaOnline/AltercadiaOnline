@@ -150,6 +150,18 @@ body {
   gap: 1rem;
 }
 
+.auth-panel-hint {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #a89070;
+  margin: 0 0 0.5rem;
+}
+
+.auth-resend-hint {
+  margin-top: -0.25rem;
+  margin-bottom: 0;
+}
+
 .auth-panel.hidden {
   display: none !important;
 }
@@ -210,13 +222,6 @@ body {
 
 .auth-field input:focus {
   outline: 1px solid #58a6ff;
-}
-
-.auth-panel-hint {
-  font-size: 0.82rem;
-  line-height: 1.35;
-  color: #a89070;
-  margin: 0 0 0.5rem;
 }
 
 .auth-link-btn {
