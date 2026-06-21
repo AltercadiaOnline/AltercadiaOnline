@@ -30,17 +30,13 @@ body {
   overflow: hidden;
 }
 
-body[data-react-game-hud-ui="1"] #log-service-panel,
-body[data-react-game-hud-ui="1"] #sidebar-wallet,
-body[data-react-game-hud-ui="1"] #chat-box,
-body[data-react-game-hud-ui="1"] #sidebar-minimap,
-body[data-react-game-hud-ui="1"] #equipment-sidebar {
-  visibility: hidden;
-  pointer-events: none;
-}
-
 body[data-react-game-hud-ui="1"] #game-ui-overlay > #ui-layer {
   display: none !important;
+}
+
+body[data-react-game-hud-ui="1"] #game-ui-overlay > .portal-modal {
+  pointer-events: auto;
+  z-index: 50;
 }
 
 body[data-react-game-hud-ui="1"] .ui-panels-react-host {
@@ -97,17 +93,12 @@ body[data-react-battle-hud-ui="1"] #scene-combat .battle-turn-hub {
   display: block !important;
 }
 
-body[data-react-char-select-ui="1"] #char-select-screen > :not(.hidden) {
+body[data-react-char-select-ui="1"][data-react-screen-ready="1"] #char-select-screen {
   visibility: hidden;
   pointer-events: none;
 }
 
 body[data-react-auth-ui="1"][data-react-screen-ready="1"] #login-screen {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-body[data-react-char-select-ui="1"][data-react-screen-ready="1"] #char-select-screen {
   visibility: hidden;
   pointer-events: none;
 }

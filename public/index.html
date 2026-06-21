@@ -42,162 +42,9 @@
     </script>
   </head>
   <body data-react-auth-ui="1" data-react-char-select-ui="1">
-    <div id="login-screen" class="screen full-screen">
-      <div class="login-box vortex-panel auth-form">
-        <h1>ALTERCADIA.ONLINE</h1>
+    <div id="login-screen" class="screen full-screen hidden" aria-hidden="true"></div>
 
-        <section id="auth-login-panel" class="auth-panel">
-          <label class="auth-field">
-            <span>Email</span>
-            <input id="email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
-          </label>
-          <label class="auth-field">
-            <span>Senha</span>
-            <input id="pass-input" type="password" autocomplete="current-password" placeholder="••••••" />
-          </label>
-          <div class="auth-actions">
-            <button id="btn-login" type="button">LOGIN</button>
-            <button id="btn-show-register" type="button">CADASTRAR</button>
-          </div>
-          <button id="btn-forgot-password" type="button" class="auth-link-btn">ESQUECI MINHA SENHA</button>
-          <button id="btn-login-google" type="button" class="auth-google-btn">ENTRAR COM GOOGLE</button>
-        </section>
-
-        <section id="auth-forgot-panel" class="auth-panel hidden">
-          <h2 class="auth-panel-title">RECUPERAR SENHA</h2>
-          <p class="auth-panel-hint">Enviaremos um link para redefinir sua senha.</p>
-          <label class="auth-field">
-            <span>Email</span>
-            <input id="forgot-email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
-          </label>
-          <div class="auth-actions">
-            <button id="btn-send-reset" type="button">ENVIAR LINK</button>
-            <button id="btn-back-login-from-forgot" type="button">VOLTAR</button>
-          </div>
-        </section>
-
-        <section id="auth-reset-panel" class="auth-panel hidden">
-          <h2 class="auth-panel-title">NOVA SENHA</h2>
-          <p class="auth-panel-hint">Defina uma nova senha para sua conta.</p>
-          <label class="auth-field">
-            <span>Nova senha</span>
-            <input id="reset-pass-input" type="password" autocomplete="new-password" placeholder="••••••" />
-          </label>
-          <label class="auth-field">
-            <span>Confirmar senha</span>
-            <input id="reset-confirm-input" type="password" autocomplete="new-password" placeholder="••••••" />
-          </label>
-          <div class="auth-actions">
-            <button id="btn-apply-new-password" type="button">SALVAR SENHA</button>
-            <button id="btn-back-login-from-reset" type="button">VOLTAR</button>
-          </div>
-        </section>
-
-        <section id="auth-profile-complete-panel" class="auth-panel hidden">
-          <h2 class="auth-panel-title">COMPLETAR PERFIL</h2>
-          <p class="auth-panel-hint">Informe sua data de nascimento para continuar (contas Google ou novas).</p>
-          <label class="auth-field">
-            <span>Nome</span>
-            <input id="profile-name-input" type="text" autocomplete="name" placeholder="Seu nome" />
-          </label>
-          <label class="auth-field">
-            <span>Data de nascimento</span>
-            <input id="profile-birth-input" type="date" autocomplete="bday" />
-          </label>
-          <label id="profile-guardian-consent-field" class="auth-field auth-consent-field hidden">
-            <span class="auth-consent-heading">Consentimento de Responsável</span>
-            <span class="auth-consent-label">
-              <input id="profile-guardian-consent-input" type="checkbox" />
-              Declaro que tenho permissão dos meus pais ou responsáveis para jogar e para o processamento dos meus dados.
-            </span>
-          </label>
-          <div class="auth-actions">
-            <button id="btn-profile-complete" type="button">CONTINUAR</button>
-            <button id="btn-profile-cancel" type="button">SAIR</button>
-          </div>
-        </section>
-
-        <section id="auth-register-panel" class="auth-panel hidden">
-          <h2 class="auth-panel-title">CRIAR CONTA</h2>
-          <label class="auth-field">
-            <span>Nome</span>
-            <input id="reg-name-input" type="text" autocomplete="name" placeholder="Seu nome" />
-          </label>
-          <label class="auth-field">
-            <span>Data de nascimento</span>
-            <input id="reg-birth-input" type="date" required autocomplete="bday" />
-          </label>
-          <label id="reg-guardian-consent-field" class="auth-field auth-consent-field hidden">
-            <span class="auth-consent-heading">Consentimento de Responsável</span>
-            <span class="auth-consent-label">
-              <input id="reg-guardian-consent-input" type="checkbox" />
-              Declaro que tenho permissão dos meus pais ou responsáveis para jogar e para o processamento dos meus dados.
-            </span>
-          </label>
-          <label class="auth-field">
-            <span>Email</span>
-            <input id="reg-email-input" type="email" autocomplete="email" placeholder="seu@email.com" />
-          </label>
-          <label class="auth-field">
-            <span>Senha</span>
-            <input id="reg-pass-input" type="password" autocomplete="new-password" placeholder="••••••" />
-          </label>
-          <label class="auth-field">
-            <span>Confirmar senha</span>
-            <input id="reg-confirm-input" type="password" autocomplete="new-password" placeholder="••••••" />
-          </label>
-          <div class="auth-actions">
-            <button id="btn-create-account" type="button">CRIAR CONTA</button>
-            <button id="btn-back-login" type="button">VOLTAR</button>
-          </div>
-          <button id="btn-resend-confirmation" type="button" class="auth-link-btn">Reenviar email de confirmação</button>
-          <button id="btn-google-register" type="button" class="auth-google-btn">CADASTRAR COM GOOGLE</button>
-        </section>
-
-        <p id="auth-status" class="auth-status" aria-live="polite"></p>
-      </div>
-    </div>
-
-    <div id="char-select-screen" class="screen full-screen">
-      <h1>ESCOLHA SEU PERSONAGEM</h1>
-      <p id="char-select-account" class="char-select-account"></p>
-      <label class="auth-field char-select-server-field">
-        <span id="char-select-server-label">Servidor</span>
-        <select id="char-select-server-input" aria-label="Servidor"></select>
-      </label>
-      <p id="char-select-server-hint" class="char-select-server-hint" aria-live="polite"></p>
-      <div id="char-slots" class="char-container"></div>
-      <div class="char-select-actions">
-        <button id="btn-back-to-login" type="button">VOLTAR AO LOGIN</button>
-        <button id="btn-enter-world" type="button" disabled>ENTRAR NO MUNDO</button>
-      </div>
-
-      <div id="char-create-panel" class="char-create-overlay hidden" aria-hidden="true">
-        <div class="char-create-box vortex-panel auth-form">
-          <h2 class="auth-panel-title">CRIAR PERSONAGEM</h2>
-          <p id="char-create-slot-label" class="char-create-slot-label"></p>
-          <label class="auth-field">
-            <span>Nome do personagem</span>
-            <input
-              id="char-create-name-input"
-              type="text"
-              maxlength="16"
-              autocomplete="off"
-              placeholder="Ex: CaelMartins"
-            />
-          </label>
-          <fieldset class="char-class-field">
-            <legend>Classe</legend>
-            <div id="char-class-picker" class="char-class-picker"></div>
-          </fieldset>
-          <p id="char-create-status" class="auth-status" aria-live="polite"></p>
-          <div class="auth-actions">
-            <button id="btn-char-create-confirm" type="button">CRIAR</button>
-            <button id="btn-char-create-cancel" type="button">CANCELAR</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="char-select-screen" class="screen full-screen hidden" aria-hidden="true"></div>
 
     <div id="screen-react-root" class="screen-react-root hidden" aria-hidden="true"></div>
 
@@ -222,35 +69,12 @@
               <div id="npc-names-layer" class="npc-names-layer" aria-hidden="true"></div>
               <div id="speech-bubbles-layer" class="speech-bubbles-layer" aria-hidden="true"></div>
               <div id="game-ui-overlay" class="game-ui-overlay" aria-label="HUD do mundo">
-                <div id="ui-layer" class="ui-layer" aria-label="Camada de interface"></div>
-                <div id="exploration-comms-stack" class="exploration-comms-stack">
-                  <div id="log-service-panel" class="log-service-panel">
-                    <div class="log-service-panel__header">
-                      <span class="log-service-panel__title">Log do Sistema</span>
-                      <button type="button" id="log-service-toggle" class="log-service-panel__toggle" aria-expanded="true" aria-controls="log-service">−</button>
-                    </div>
-                    <div id="log-service" class="log-service__feed" role="log" aria-live="polite" aria-label="Mensagens do sistema"></div>
-                  </div>
-                  <div id="chat-box" class="vortex-panel">
-                    <div class="chat-header">Chat Global</div>
-                    <div class="chat-content"></div>
-                    <input
-                      type="text"
-                      placeholder="Digite sua mensagem… (máx. 72)"
-                      aria-label="Mensagem do chat"
-                      maxlength="72"
-                    />
-                  </div>
-                </div>
+                <div id="ui-layer" class="ui-layer" aria-label="Camada de interface legado"></div>
               </div>
             </div>
           </div>
 
-          <aside id="sidebar" class="sidebar game-layout__sidebar hud-sidebar equipment-sidebar-host" aria-label="HUD lateral">
-            <div id="sidebar-minimap" class="sidebar-minimap" aria-label="Minimapa"></div>
-            <div id="sidebar-wallet" class="sidebar-wallet" aria-label="Carteira"></div>
-            <div id="equipment-sidebar" class="equipment-sidebar__mount"></div>
-          </aside>
+          <aside id="sidebar" class="sidebar game-layout__sidebar hidden" aria-hidden="true"></aside>
         </div>
       </div>
 

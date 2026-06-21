@@ -1,5 +1,5 @@
 import { resolveGameUiLayer } from '../layout/gameLayout.js';
-import type { UIComponent } from './UIComponent.js';
+import type { BaseUIComponent, UIComponent } from './UIComponent.js';
 import { BankPanel } from './components/BankPanel.js';
 import { CentralHubPanel } from './components/CentralHubPanel.js';
 import { CharactersPanel } from './components/CharactersPanel.js';
@@ -60,6 +60,7 @@ import {
 } from './world/WorldGameClock.js';
 import { attachHubSocialLayoutSync } from './layout/hubSocialLayout.js';
 import { bindReactWorldPanelLegacyBypass } from '../app/panels/reactWorldPanelLegacyBypass.js';
+import { isReactGamePanelsEnabled } from '../app/bridge/panelsBridge.js';
 
 export type UIManagerOptions = {
   readonly layer: HTMLElement;
@@ -131,19 +132,6 @@ export class UIManager {
     this.diary = new DiaryPanel();
     this.keyFeatureObserver = new KeyFeatureObserver();
 
-    bindReactWorldPanelLegacyBypass(this.characters, 'characters');
-    bindReactWorldPanelLegacyBypass(this.moveset, 'moveset');
-    bindReactWorldPanelLegacyBypass(this.marcos, 'marcos');
-    bindReactWorldPanelLegacyBypass(this.market, 'market');
-    bindReactWorldPanelLegacyBypass(this.bank, 'bank');
-    bindReactWorldPanelLegacyBypass(this.petLove, 'petLove');
-    bindReactWorldPanelLegacyBypass(this.shop, 'shop');
-    bindReactWorldPanelLegacyBypass(this.quest, 'quest');
-    bindReactWorldPanelLegacyBypass(this.social, 'social');
-    bindReactWorldPanelLegacyBypass(this.petMemorial, 'petMemorial');
-    bindReactWorldPanelLegacyBypass(this.diary, 'diary');
-    bindReactWorldPanelLegacyBypass(this.marketHub, 'marketHub');
-
     this.panels = new Map<UiWindowId, UIComponent>([
       ['hub', this.hub],
       ['inventory', this.inventory],
@@ -169,6 +157,11 @@ export class UIManager {
       ['diary', this.diary],
     ]);
 
+    for (const [windowId, panel] of this.panels) {
+      if (windowId === 'hub') continue;
+      bindReactWorldPanelLegacyBypass(panel as BaseUIComponent, windowId);
+    }
+
     this.windows = new WindowManager({
       panels: this.panels,
       hub: this.hub,
@@ -187,8 +180,10 @@ export class UIManager {
       attachOnlineEconomyLayer();
     }
 
-    for (const panel of this.panels.values()) {
-      panel.mount(this.layer);
+    if (!isReactGamePanelsEnabled()) {
+      for (const panel of this.panels.values()) {
+        panel.mount(this.layer);
+      }
     }
 
     this.keyFeatureObserver.attachHub(this.hub);
@@ -196,11 +191,52 @@ export class UIManager {
     initHudEventBridge();
     this.unsubscribers.push(initDiaryEventBridge());
     initTooltip(document.body);
-    initPortalModal(this.layer);
+    const portalParent = isReactGamePanelsEnabled()
+      ? (this.layer.parentElement ?? this.layer)
+      : this.layer;
+    initPortalModal(portalParent);
     WindowManager.register(this.windows);
     initKeyboardManager();
-    this.worldGameClock = mountWorldGameClock(this.layer);
-    this.hubLayoutDisposer = attachHubSocialLayoutSync(this.layer);
+    if (!isReactGamePanelsEnabled()) {
+      this.worldGameClock = mountWorldGameClock(this.layer);
+      this.hubLayoutDisposer = attachHubSocialLayoutSync(this.layer);
+    }
+
+    const contextualPanelEvents = isReactGamePanelsEnabled()
+      ? [
+          uiEvents.on(UIEventType.REFRACTION_CHALLENGE_ACCEPT, () => {
+            this.refractionBooth.startChallengeFromNpc();
+          }),
+        ]
+      : [
+          uiEvents.on(UIEventType.SHOW_DIALOGUE, (payload) => {
+            this.dialogue.showDialogue(payload);
+          }),
+          uiEvents.on(UIEventType.SHOW_VENDOR_SHOP, (payload) => {
+            this.vendorShop.openForVendor(payload);
+          }),
+          uiEvents.on(UIEventType.SHOW_LAB_SHOP, (payload) => {
+            this.laboratoryShop.openForVendor(payload);
+          }),
+          uiEvents.on(UIEventType.SHOW_PET_SHOP, (payload) => {
+            this.petTrainerShop.openForVendor(payload);
+          }),
+          uiEvents.on(UIEventType.SHOW_CRAFT_STATION, (payload) => {
+            this.craft.openForStation(payload);
+          }),
+          uiEvents.on(UIEventType.SHOW_TOURNAMENT_BET, (payload) => {
+            this.tournamentBet.openForPulpit(payload);
+          }),
+          uiEvents.on(UIEventType.SHOW_RANKING_MONITOR, (payload) => {
+            this.rankingMonitor.openForMonitor(payload);
+          }),
+          uiEvents.on(UIEventType.SHOW_REFRACTION_BOOTH, (payload) => {
+            this.refractionBooth.openForBooth(payload);
+          }),
+          uiEvents.on(UIEventType.REFRACTION_CHALLENGE_ACCEPT, () => {
+            this.refractionBooth.startChallengeFromNpc();
+          }),
+        ];
 
     this.unsubscribers.push(
       uiEvents.on(UIEventType.OPEN_WINDOW, ({ windowId }) => {
@@ -212,38 +248,14 @@ export class UIManager {
       uiEvents.on(UIEventType.TOGGLE_WINDOW, ({ windowId }) => {
         this.toggleWindow(windowId);
       }),
-      uiEvents.on(UIEventType.SHOW_DIALOGUE, (payload) => {
-        this.dialogue.showDialogue(payload);
-      }),
-      uiEvents.on(UIEventType.SHOW_VENDOR_SHOP, (payload) => {
-        this.vendorShop.openForVendor(payload);
-      }),
-      uiEvents.on(UIEventType.SHOW_LAB_SHOP, (payload) => {
-        this.laboratoryShop.openForVendor(payload);
-      }),
-      uiEvents.on(UIEventType.SHOW_PET_SHOP, (payload) => {
-        this.petTrainerShop.openForVendor(payload);
-      }),
-      uiEvents.on(UIEventType.SHOW_CRAFT_STATION, (payload) => {
-        this.craft.openForStation(payload);
-      }),
-      uiEvents.on(UIEventType.SHOW_TOURNAMENT_BET, (payload) => {
-        this.tournamentBet.openForPulpit(payload);
-      }),
-      uiEvents.on(UIEventType.SHOW_RANKING_MONITOR, (payload) => {
-        this.rankingMonitor.openForMonitor(payload);
-      }),
-      uiEvents.on(UIEventType.SHOW_REFRACTION_BOOTH, (payload) => {
-        this.refractionBooth.openForBooth(payload);
-      }),
-      uiEvents.on(UIEventType.REFRACTION_CHALLENGE_ACCEPT, () => {
-        this.refractionBooth.startChallengeFromNpc();
-      }),
+      ...contextualPanelEvents,
     );
 
-    this.launcher?.addEventListener('click', () => {
-      this.windows.toggleWindow('hub');
-    });
+    if (!isReactGamePanelsEnabled()) {
+      this.launcher?.addEventListener('click', () => {
+        this.windows.toggleWindow('hub');
+      });
+    }
   }
 
   openWindow(windowId: UiWindowId): void {

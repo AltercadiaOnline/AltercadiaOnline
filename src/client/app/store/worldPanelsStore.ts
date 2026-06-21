@@ -23,6 +23,7 @@ type WorldPanelsStoreActions = {
   toggleHub: () => void;
   closeAllPanels: () => void;
   resetWorldPanels: () => void;
+  closeTopmostPanel: () => UiWindowId | null;
 };
 
 export type WorldPanelsStore = WorldPanelsStoreState & WorldPanelsStoreActions;
@@ -143,6 +144,21 @@ export const useWorldPanelsStore = create<WorldPanelsStore>((set, get) => ({
     focusedWindowId: null,
     hubOpen: false,
   }),
+
+  closeTopmostPanel: () => {
+    const state = get();
+    if (state.openPanels.length === 0) {
+      if (!state.hubOpen) return null;
+      set({ hubOpen: false, focusedWindowId: null });
+      return 'hub' as UiWindowId;
+    }
+
+    const top = state.openPanels.reduce((current, panel) => (
+      panel.zIndex >= current.zIndex ? panel : current
+    ));
+    get().closePanel(top.windowId);
+    return top.windowId;
+  },
 }));
 
 export function isWorldPanelOpen(windowId: UiWindowId): boolean {

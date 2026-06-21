@@ -58,6 +58,17 @@ export function tryFocusReactWorldPanel(windowId: UiWindowId): boolean {
   return true;
 }
 
+/** ESC — fecha painel React com maior z-index (ou hub). */
+export function tryCloseTopmostReactWorldPanel(): boolean {
+  if (!isReactGamePanelsEnabled()) return false;
+
+  const closed = useWorldPanelsStore.getState().closeTopmostPanel();
+  if (!closed) return false;
+
+  getPanelsBridge().notifyPanelClosed(closed);
+  return true;
+}
+
 /** Escuta uiEvents e espelha painéis contextuais na camada React. */
 export function initWorldPanelsBridge(): void {
   teardownWorldPanelsBridge();

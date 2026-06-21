@@ -4,6 +4,7 @@ import {
 } from '../services/serverListClient.js';
 import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
 import { redirectToShardOrigin } from '../net/shardRedirect.js';
+import { isReactCharSelectScreenEnabled } from '../app/shell/screenSurface.js';
 import type { ServerListResponse } from '../../shared/world/serverListProtocol.js';
 
 let cachedServerList: ServerListResponse | null = null;
@@ -118,6 +119,8 @@ export function getCharSelectServerUiState(): CharSelectServerUiState | null {
 }
 
 function applyServerUiStateToDom(state: CharSelectServerUiState): void {
+  if (isReactCharSelectScreenEnabled()) return;
+
   const select = document.getElementById('char-select-server-input');
   const label = document.getElementById('char-select-server-label');
   const hint = document.getElementById('char-select-server-hint');
@@ -212,6 +215,7 @@ export async function handleCharSelectServerChange(
 export function bindCharSelectServerSelector(
   onServerChanged: () => void | Promise<void>,
 ): void {
+  if (isReactCharSelectScreenEnabled()) return;
   if (selectorBound) return;
   selectorBound = true;
 

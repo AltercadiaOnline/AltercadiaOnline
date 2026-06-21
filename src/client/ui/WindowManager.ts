@@ -8,9 +8,11 @@ import { uiEvents, UIEventType, type UiWindowId } from './uiEvents.js';
 
 import {
   tryCloseReactWorldPanel,
+  tryCloseTopmostReactWorldPanel,
   tryOpenReactWorldPanel,
   tryToggleReactWorldPanel,
 } from '../app/panels/initWorldPanelsBridge.js';
+import { isReactGamePanelsEnabled } from '../app/bridge/panelsBridge.js';
 
 
 
@@ -215,6 +217,20 @@ export class WindowManager {
 
 
   closeTopmostOpenMovableWindow(): boolean {
+
+    if (tryCloseTopmostReactWorldPanel()) {
+
+      return true;
+
+    }
+
+    if (isReactGamePanelsEnabled()) {
+
+      return false;
+
+    }
+
+
 
     let topPanel: UIComponent | null = null;
 
