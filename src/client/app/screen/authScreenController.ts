@@ -160,7 +160,7 @@ class AuthScreenController {
     profileGuardianConsent: false,
     showProfileGuardianConsent: false,
     bootstrapFatalVisible: false,
-    authBootstrapPending: getAuthBootstrapPhase() === 'pending' || getAuthBootstrapPhase() === 'idle',
+    authBootstrapPending: getAuthBootstrapPhase() === 'pending',
   };
 
   subscribe(listener: AuthScreenListener): () => void {
@@ -735,7 +735,7 @@ export function initAuthScreenController(options: AuthScreenBootstrapOptions): b
 
   const syncBootstrapPhase = (): void => {
     const phase = getAuthBootstrapPhase();
-    controller.patchAuthBootstrapPending(phase === 'pending' || phase === 'idle');
+    controller.patchAuthBootstrapPending(phase === 'pending');
   };
   syncBootstrapPhase();
   subscribeAuthBootstrap(syncBootstrapPhase);

@@ -31,7 +31,7 @@ function AuthField({
 export function AuthScreen() {
   const state = useAuthScreen();
   const actions = useAuthScreenActions();
-  const disabled = state.busy || state.authBootstrapPending;
+  const disabled = state.busy;
 
   return (
     <div

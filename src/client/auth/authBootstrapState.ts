@@ -87,6 +87,15 @@ export function registerAuthBootstrapPromise(promise: Promise<unknown>): void {
       markAuthBootstrapFailed('Falha ao preparar autenticação.');
     }
   });
+
+  void sleep(60_000).then(() => {
+    if (getState().phase !== 'pending') return;
+    if (isSupabaseReady()) {
+      markAuthBootstrapReady();
+      return;
+    }
+    markAuthBootstrapFailed('Autenticação demorou demais. Recarregue a página (Ctrl+F5) e tente de novo.');
+  });
 }
 
 const AUTH_BOOTSTRAP_WAIT_MS = 45_000;
