@@ -37,7 +37,7 @@ import { beginWorldHudInteractionSession } from '../world/worldHudInteractionSes
 import { isWorldHudInteractionLocked } from '../world/worldHudInteractionSession.js';
 import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { uiEvents, UIEventType, type UiWindowId } from '../ui/uiEvents.js';
-import { windowManager } from '../ui/WindowManager.js';
+import { windowManager } from '../app/panels/worldWindowController.js';
 import { postSystemNotification } from '../ui/logService.js';
 import {
   buildNpcRenderSnapshot,

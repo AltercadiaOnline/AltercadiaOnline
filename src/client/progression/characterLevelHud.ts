@@ -1,19 +1,4 @@
-import { resolveCharacterLevelXpBar } from '../../shared/character/characterLevelProgression.js';
-import { getMutableDataStore } from '../PlayerDataStore.js';
-import { getPlayerProfileStore } from '../ui/character/playerProfileStore.js';
-import { patchSidebarLevelProgression } from '../ui/character/levelProgressionSection.js';
-import { getEquipmentSidebar } from '../ui/components/EquipmentSidebar.js';
-
-/** Atualiza barras de XP na HUD usando xpCurrent vs getRequiredXpForNextLevel(level). */
+/** Atualiza barras de XP na HUD — React sidebar espelha PlayerProfileStore (SSOT). */
 export function refreshCharacterLevelProgressHud(): void {
-  const levelState = getMutableDataStore().getCharacterLevel();
-  const bar = resolveCharacterLevelXpBar(levelState.level, levelState.xpCurrent);
-  const profile = getPlayerProfileStore().getSnapshot();
-
-  const sidebar = getEquipmentSidebar();
-  if (sidebar) {
-    sidebar.refreshLevelXpBar(profile, bar);
-  }
+  // No-op: WorldEquipmentSidebar re-renderiza via getPlayerProfileStore + PlayerDataStore mirror.
 }
-
-export { resolveCharacterLevelXpBar };

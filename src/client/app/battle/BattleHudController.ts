@@ -138,5 +138,5 @@ export function getBattleHudBridge(): BattleHudController {
 }
 
 export function isReactBattleHudEnabled(): boolean {
-  return document.body.dataset.reactBattleHudUi === '1';
+  return useBattleHudStore.getState().controllerReady;
 }

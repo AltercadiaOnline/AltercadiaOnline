@@ -115,7 +115,3 @@ export function getLootCasinoHudBridge(): LootCasinoHudBridge {
   }
   return globalBridge.__ALTERCADIA_LOOT_CASINO_HUD_BRIDGE__;
 }
-
-export function isReactLootCasinoEnabled(): boolean {
-  return document.body.dataset.reactBattleHudUi === '1';
-}

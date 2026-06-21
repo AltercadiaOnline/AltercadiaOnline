@@ -10,6 +10,8 @@ type ConnectionMoveState = {
   lastProcessedRotateSeq: number;
 };
 
+const MAX_MOVE_QUEUE_DEPTH = 8;
+
 /**
  * Acumula intenções MOVE e processa no WorldTick (1 por tick por conexão).
  */
@@ -23,6 +25,9 @@ export class MovementIntentHandler {
       lastProcessedSeq: 0,
       lastProcessedRotateSeq: 0,
     };
+    if (state.queue.length >= MAX_MOVE_QUEUE_DEPTH) {
+      state.queue.shift();
+    }
     state.queue.push(payload);
     this.byConnection.set(connectionId, state);
   }

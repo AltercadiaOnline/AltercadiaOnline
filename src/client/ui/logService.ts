@@ -5,69 +5,12 @@ import {
   SystemMessageKind,
 } from '../../shared/world/logServiceTypes.js';
 import { getWorldHudBridge } from '../app/bridge/worldHudBridge.js';
-import { isReactGameHudUiEnabled } from '../app/shell/gameHudSurface.js';
 
-const LOG_FEED_ID = 'log-service';
-const LOG_PANEL_ID = 'log-service-panel';
-const LOG_TOGGLE_ID = 'log-service-toggle';
-const TOAST_ID = 'log-service-toast';
 const MAX_LOG_LINES = 48;
+const TOAST_ID = 'log-service-toast';
 
 const pendingBuffer: LogServicePayload[] = [];
 let unreadCount = 0;
-
-function getLogFeed(): HTMLElement | null {
-  if (typeof document === 'undefined') return null;
-  return document.getElementById(LOG_FEED_ID);
-}
-
-function getLogPanel(): HTMLElement | null {
-  if (typeof document === 'undefined') return null;
-  return document.getElementById(LOG_PANEL_ID);
-}
-
-function isLogPanelCollapsed(): boolean {
-  const panel = getLogPanel();
-  return panel?.classList.contains('log-service-panel--collapsed') ?? false;
-}
-
-function isLogFeedVisible(): boolean {
-  const feed = getLogFeed();
-  if (!feed) return false;
-  if (isLogPanelCollapsed()) return false;
-  return feed.offsetParent !== null;
-}
-
-function kindLabel(kind: LogServicePayload['kind']): string {
-  return kind === SystemMessageKind.SYSTEM_TIP ? 'Dica' : 'Sistema';
-}
-
-function renderLogLine(payload: LogServicePayload): void {
-  const feed = getLogFeed();
-  if (!feed) return;
-
-  const line = document.createElement('p');
-  line.className = `log-service__line log-service__line--${payload.kind === SystemMessageKind.SYSTEM_TIP ? 'tip' : 'notify'}`;
-  line.dataset.kind = payload.kind;
-  line.textContent = `[${kindLabel(payload.kind)}] ${payload.message}`;
-  feed.appendChild(line);
-
-  while (feed.children.length > MAX_LOG_LINES) {
-    feed.firstChild?.remove();
-  }
-
-  feed.scrollTop = feed.scrollHeight;
-}
-
-function updateUnreadBadge(): void {
-  const toggle = document.getElementById(LOG_TOGGLE_ID);
-  if (!toggle) return;
-  if (unreadCount <= 0) {
-    toggle.removeAttribute('data-unread');
-    return;
-  }
-  toggle.setAttribute('data-unread', String(unreadCount));
-}
 
 function showImportantToast(message: string, variant: 'default' | 'error' = 'default'): void {
   if (typeof document === 'undefined') return;
@@ -103,6 +46,7 @@ function shouldToastWhileHidden(payload: LogServicePayload): boolean {
 
 /**
  * Publica no LogService (canal de sistema). Não toca no ChatGlobal.
+ * Render: WorldLogServiceWidget via worldHudBridge.
  */
 export function publishLogServiceMessage(payload: LogServicePayload): void {
   pendingBuffer.push(payload);
@@ -110,33 +54,17 @@ export function publishLogServiceMessage(payload: LogServicePayload): void {
     pendingBuffer.shift();
   }
 
-  if (isReactGameHudUiEnabled()) {
-    const bridge = getWorldHudBridge();
-    const feedVisible = bridge.isLogPanelExpanded();
-    if (!feedVisible) {
-      unreadCount += 1;
-      if (shouldToastWhileHidden(payload)) {
-        showImportantToast(payload.message);
-      }
-    } else {
-      unreadCount = 0;
-    }
-    bridge.publishLogMessage(payload);
-    return;
-  }
-
-  if (!isLogFeedVisible()) {
+  const bridge = getWorldHudBridge();
+  const feedVisible = bridge.isLogPanelExpanded();
+  if (!feedVisible) {
     unreadCount += 1;
-    updateUnreadBadge();
     if (shouldToastWhileHidden(payload)) {
       showImportantToast(payload.message);
     }
   } else {
     unreadCount = 0;
-    updateUnreadBadge();
   }
-
-  renderLogLine(payload);
+  bridge.publishLogMessage(payload);
 }
 
 export function postSystemNotification(message: string, priority: 'normal' | 'high' = 'high'): void {
@@ -157,34 +85,14 @@ export function handleInboundLogService(raw: unknown): void {
   publishLogServiceMessage(raw);
 }
 
+/** @deprecated React consome o buffer via worldHudBridge — no-op. */
 export function flushLogServiceBuffer(): void {
-  if (!isLogFeedVisible()) return;
   unreadCount = 0;
-  updateUnreadBadge();
-  const feed = getLogFeed();
-  if (!feed || feed.childElementCount > 0) return;
-  for (const entry of pendingBuffer) {
-    renderLogLine(entry);
-  }
 }
 
+/** @deprecated Log UI montada em WorldLogServiceWidget — no-op. */
 export function initLogServiceUi(): void {
-  if (typeof document === 'undefined' || isReactGameHudUiEnabled()) return;
-
-  const toggle = document.getElementById(LOG_TOGGLE_ID);
-  const panel = getLogPanel();
-  if (!toggle || !panel) return;
-
-  toggle.addEventListener('click', () => {
-    const collapsed = panel.classList.toggle('log-service-panel--collapsed');
-    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    toggle.textContent = collapsed ? '+' : '−';
-    if (!collapsed) {
-      flushLogServiceBuffer();
-    }
-  });
-
-  flushLogServiceBuffer();
+  /* noop — online-react-v1 */
 }
 
 export { isLogServicePayload };

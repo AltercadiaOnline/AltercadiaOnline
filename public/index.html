@@ -41,18 +41,14 @@
       })();
     </script>
   </head>
-  <body data-react-auth-ui="1" data-react-char-select-ui="1">
-    <div id="login-screen" class="screen full-screen hidden" aria-hidden="true"></div>
+  <body data-ui-architecture="online-react-v1">
+    <div id="login-screen" class="screen hidden" aria-hidden="true" hidden></div>
 
-    <div id="char-select-screen" class="screen full-screen hidden" aria-hidden="true"></div>
+    <div id="char-select-screen" class="screen hidden" aria-hidden="true" hidden></div>
 
     <div id="screen-react-root" class="screen-react-root hidden" aria-hidden="true"></div>
 
-    <div id="auth-bootstrap-retry" class="auth-bootstrap-retry hidden" aria-hidden="true">
-      <button type="button" data-auth-bootstrap-retry>Tentar novamente</button>
-    </div>
-
-    <div id="game-container" class="screen">
+    <div id="game-container" class="screen hidden" aria-hidden="true">
       <!-- Coluna de render compartilhada — persiste entre exploração e combate (Phaser não é destruído). -->
       <div id="game-render-column" class="game-render-column" aria-label="Viewport do jogo">
         <div id="game-viewport" class="game-viewport-container game-layout__viewport">
@@ -81,36 +77,19 @@
       <div id="scene-exploration" class="scene hidden">
         <div id="vortex-app" class="app-wrapper game-layout">
           <div class="game-layout__viewport-spacer" aria-hidden="true"></div>
-          <aside id="sidebar" class="sidebar game-layout__sidebar hidden" aria-hidden="true"></aside>
         </div>
       </div>
 
-      <div id="scene-combat" class="scene hidden">
+      <div id="scene-combat" class="scene hidden" aria-hidden="true">
         <div id="battle-fade-overlay" class="battle-fade-overlay hidden" aria-hidden="true"></div>
-
-        <div class="battle-screen battle-screen--terminal battle-screen--side-view" data-battle-hud>
+        <div
+          class="battle-screen battle-screen--terminal battle-screen--side-view battle-screen--phaser-shell"
+          data-battle-hud
+          aria-hidden="true"
+        >
           <section class="battle-combat-top" aria-label="Área de combate">
-            <div class="battle-arena" aria-label="Cenário de combate">
-              <div class="battle-arena__floor" aria-hidden="true"></div>
+            <div class="battle-arena battle-arena--shell" aria-label="Cenário de combate">
               <div class="battle-arena__effects" data-battle-effects-layer aria-hidden="true"></div>
-              <div class="battle-arena__stage">
-                <div class="battle-platform battle-platform--ally" data-battle-platform="ally">
-                  <div class="battle-arena__ally-group">
-                    <div class="battle-ally-formation">
-                      <div id="battle-player-portrait" class="battle-portrait battle-portrait--player battle-fighter" data-side="player">
-                        <span class="battle-portrait__silhouette" aria-hidden="true"></span>
-                      </div>
-                      <div id="battle-pet-panel" class="battle-pet-fighter hidden" data-side="pet" aria-hidden="true"></div>
-                    </div>
-                  </div>
-                </div>
-                <p class="battle-vs-label" aria-hidden="true">VS</p>
-                <div class="battle-platform battle-platform--foe" data-battle-platform="foe">
-                  <div id="battle-opponent-portrait" class="battle-portrait battle-portrait--opponent battle-fighter" data-side="opponent">
-                    <span class="battle-portrait__silhouette" aria-hidden="true"></span>
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
         </div>
@@ -120,14 +99,6 @@
         <div class="scene-transition__inner">
           <div class="scene-transition__spinner" aria-hidden="true"></div>
           <p class="scene-transition__label">Carregando…</p>
-        </div>
-      </div>
-
-      <div id="pause-menu" class="hidden" aria-hidden="true">
-        <div class="pause-menu-panel vortex-panel">
-          <h2>PAUSA</h2>
-          <button id="btn-pause-settings" type="button">Configurações</button>
-          <button id="btn-pause-exit" type="button">Sair do Jogo</button>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { HUB_PANEL_ACTIONS } from '../../../../ui/hub/hubPanelConfig.js';
 import { HUD_WINDOW_SHORTCUT_LABEL } from '../../../../ui/keyboardShortcuts.js';
-import { windowManager } from '../../../../ui/WindowManager.js';
+import { windowManager } from '../../../panels/worldWindowController.js';
 import { tryCloseReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
 
 type WorldHubPanelProps = {

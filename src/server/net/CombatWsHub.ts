@@ -129,6 +129,10 @@ export type CombatWsHubOptions = {
   readonly serverEnv: ServerEnv;
 };
 
+
+/** Limite de payload WS — protege parse/memória sob carga (100+ players). */
+const MAX_WS_INBOUND_BYTES = 65_536;
+
 export class CombatWsHub implements CombatWsRouteHost {
   private readonly wss: WebSocketServer;
   private readonly sessions = new Map<string, CombatSession>();
@@ -300,6 +304,11 @@ export class CombatWsHub implements CombatWsRouteHost {
   }
 
   private async dispatchInboundMessage(ws: LiveSocket, connectionId: string, raw: string): Promise<void> {
+    if (raw.length > MAX_WS_INBOUND_BYTES) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'PAYLOAD_TOO_LARGE' } });
+      return;
+    }
+
     this.touchBattleSessionActivity(connectionId);
 
     const message = parseWsInbound(raw);
@@ -1194,6 +1203,8 @@ export class CombatWsHub implements CombatWsRouteHost {
       getOrCreatePlayerSession(authUserId, payload.characterId).enterExploration();
       this.releaseOrphanBattleFlag(authUserId, payload.characterId);
 
+      this.evictDuplicateWorldSession(authUserId, payload.characterId, connectionId);
+
       this.worldConnections.set(connectionId, {
         playerId: authUserId,
         characterId: payload.characterId,
@@ -1490,8 +1501,27 @@ export class CombatWsHub implements CombatWsRouteHost {
   }
 
   send(ws: WebSocket, message: WsOutboundMessage): void {
-    if (ws.readyState === ws.OPEN) {
+    if (ws.readyState !== ws.OPEN) return;
+    try {
       ws.send(serializeWsOutbound(message));
+    } catch (error) {
+      console.warn('[WS] Falha ao enviar mensagem', error);
+    }
+  }
+
+  /** Encerra sessão anterior do mesmo personagem (evita ghost connections em 100+ online). */
+  private evictDuplicateWorldSession(
+    playerId: string,
+    characterId: number,
+    keepConnectionId: string,
+  ): void {
+    const existing = this.gameState.getByPlayer(playerId, characterId);
+    if (!existing || existing.connectionId === keepConnectionId) return;
+
+    const staleWs = this.socketsByConnectionId.get(existing.connectionId);
+    if (staleWs) {
+      this.send(staleWs, { type: 'combat-error', payload: { reason: 'SESSION_REPLACED' } });
+      staleWs.close();
     }
   }
 }

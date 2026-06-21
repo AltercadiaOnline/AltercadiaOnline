@@ -68,10 +68,7 @@ import {
   getPlayerProfileStore,
   getPlayerWalletStore,
   getUiManager,
-  initEquipmentSidebar,
   initPlayerWalletStore,
-  initSidebarMinimap,
-  initSidebarWallet,
   initUiLayer,
   removeLegacyTopLogOverlay,
 } from '../ui/index.js';
@@ -141,7 +138,7 @@ import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
-import { enablePhaserHybridForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
+import { enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
 import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 
@@ -551,7 +548,7 @@ function connectSocket(): void {
   socket.onOpen(() => {
     attachOnlineEconomyLayer();
     setExplorationOnlineMode(true);
-    enablePhaserHybridForOnlineSession();
+    enablePhaserForOnlineSession();
     setStatus('Sincronizando personagem… (WASD após conectar)');
     if (!world) return;
     world.setCombatJoinHandler((monsterId) => {
@@ -615,9 +612,6 @@ function enterWorldAfterHudReady(): void {
     });
   removeLegacyTopLogOverlay();
   initLogServiceUi();
-  initEquipmentSidebar();
-  initSidebarMinimap();
-  initSidebarWallet();
   initGlobalPlayerStore();
   initPlayerWalletStore();
   initPlayerPetStore();

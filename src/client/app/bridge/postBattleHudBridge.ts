@@ -1,5 +1,6 @@
 import type { BattleVictoryUiReadyPayload } from '../../combat/battleUiEvents.js';
 import type { PostBattleRewardsLootStatus } from '../../../shared/types/postBattleHub.js';
+import { getGameUiBridge } from './gameUiBridge.js';
 
 export type PostBattleHudSnapshot = {
   readonly active: boolean;
@@ -91,5 +92,5 @@ export function getPostBattleHudBridge(): PostBattleHudBridge {
 }
 
 export function isReactPostBattleHudEnabled(): boolean {
-  return document.body.dataset.reactBattleHudUi === '1';
+  return getGameUiBridge().isSurfaceMounted('overlay');
 }

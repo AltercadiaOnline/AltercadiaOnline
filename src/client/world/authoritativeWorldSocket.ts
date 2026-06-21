@@ -99,8 +99,6 @@ export function createAuthoritativeWorldSocket(
       const targetX = predictedTileX + stepX;
       const targetY = predictedTileY + stepY;
       const seq = ++localSeq;
-      predictedTileX = targetX;
-      predictedTileY = targetY;
 
       transport.onMove({ targetX, targetY, seq });
       return;

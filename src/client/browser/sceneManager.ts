@@ -1,7 +1,7 @@
 import type { GameState } from '../../shared/game/gameState.js';
 import { GameState as GameStateValue } from '../../shared/game/gameState.js';
 import { getGameStateManager } from '../../shared/state/GameStateManager.js';
-import { syncReactBattleHudVisibility } from '../app/shell/clientArchitecture.js';
+import { syncReactBattleHudVisibility, syncReactHudVisibility } from '../app/shell/clientArchitecture.js';
 import { syncPhaserSceneForGameState } from '../phaser/phaserSceneRouter.js';
 import {
   beginBattleEnterSceneFade,
@@ -91,6 +91,7 @@ export function applyGameStateToScenes(state: GameState): void {
     transition?.classList.add('hidden');
     combat?.setAttribute('aria-hidden', 'true');
     transition?.setAttribute('aria-hidden', 'true');
+    syncReactHudVisibility('game-container');
     syncReactBattleHudVisibility('game-container');
     syncPhaserSceneForGameState(state);
     return;
@@ -104,6 +105,8 @@ export function applyGameStateToScenes(state: GameState): void {
     transition?.classList.remove('hidden');
     combat?.setAttribute('aria-hidden', 'true');
     transition?.setAttribute('aria-hidden', 'false');
+    syncReactHudVisibility('game-container');
+    syncReactBattleHudVisibility('game-container');
     return;
   }
 
@@ -112,6 +115,7 @@ export function applyGameStateToScenes(state: GameState): void {
     transition?.classList.add('hidden');
     combat?.setAttribute('aria-hidden', 'false');
     transition?.setAttribute('aria-hidden', 'true');
+    syncReactHudVisibility('game-container');
     syncReactBattleHudVisibility('game-container');
     syncPhaserSceneForGameState(state);
     void completeBattleEnterSceneFadeIfPending();

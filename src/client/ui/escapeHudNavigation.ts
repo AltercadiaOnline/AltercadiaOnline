@@ -7,7 +7,7 @@ import {
 import { getGameStateManager } from '../../shared/state/GameStateManager.js';
 import { getPortalModal } from './components/PortalModal.js';
 import { uiEvents, UIEventType } from './uiEvents.js';
-import { getWindowManager } from './WindowManager.js';
+import { closeTopmostWorldWindow } from '../app/panels/worldWindowController.js';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return (
@@ -20,10 +20,6 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 function isExplorationEscapeContext(): boolean {
   if (!isInActiveGameSession()) return false;
-
-  const gameContainer = document.getElementById('game-container');
-  if (!gameContainer || gameContainer.style.display === 'none') return false;
-
   if (isPauseMenuOpen()) return true;
 
   try {
@@ -44,7 +40,6 @@ export function handleExplorationEscapeKey(event: KeyboardEvent): boolean {
 
   if (isPauseMenuOpen()) {
     hidePauseMenu();
-    syncPauseMenuAria(true);
     return true;
   }
 
@@ -54,18 +49,10 @@ export function handleExplorationEscapeKey(event: KeyboardEvent): boolean {
     return true;
   }
 
-  const manager = getWindowManager();
-  if (manager?.closeTopmostOpenMovableWindow()) {
+  if (closeTopmostWorldWindow()) {
     return true;
   }
 
   showPauseMenu();
-  syncPauseMenuAria(false);
   return true;
-}
-
-function syncPauseMenuAria(hidden: boolean): void {
-  const menu = document.getElementById('pause-menu');
-  if (!menu) return;
-  menu.setAttribute('aria-hidden', hidden ? 'true' : 'false');
 }

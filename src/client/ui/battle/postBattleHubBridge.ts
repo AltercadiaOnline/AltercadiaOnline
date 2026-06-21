@@ -96,7 +96,7 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
           postSystemNotification('Relatório indisponível para esta batalha.', 'normal');
           return;
         }
-        showBattleStatisticsPanel(report, overlayMount);
+        showBattleStatisticsPanel(report);
       },
       onRewards: () => {
         if (!hasValidPendingBattleLoot(payload.battleId)) {

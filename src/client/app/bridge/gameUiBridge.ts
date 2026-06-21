@@ -1,20 +1,21 @@
 import { getRenderLayerBridge } from './renderLayerBridge.js';
+import type { UiRuntimeMode, UiSurface } from '../types/uiSurfaces.js';
+import { CLIENT_ARCHITECTURE_VERSION } from '../shell/uiLayers.js';
 
-export type UiRuntimeMode = 'legacy-dom' | 'react-hybrid' | 'phaser-hybrid';
-
-export type HudSurface = 'screen' | 'hud' | 'overlay';
+export type { UiRuntimeMode };
+export type MountedUiSurface = Exclude<UiSurface, 'render'>;
 
 export type GameUiBridgeSnapshot = {
   readonly mode: UiRuntimeMode;
-  readonly mountedSurfaces: ReadonlySet<HudSurface>;
+  readonly mountedSurfaces: ReadonlySet<MountedUiSurface>;
 };
 
 type GameUiBridgeListener = (snapshot: GameUiBridgeSnapshot) => void;
 
 class GameUiBridge {
-  private mode: UiRuntimeMode = 'legacy-dom';
+  private mode: UiRuntimeMode = CLIENT_ARCHITECTURE_VERSION as UiRuntimeMode;
 
-  private readonly mountedSurfaces = new Set<HudSurface>();
+  private readonly mountedSurfaces = new Set<MountedUiSurface>();
 
   private readonly listeners = new Set<GameUiBridgeListener>();
 
@@ -31,15 +32,19 @@ class GameUiBridge {
     this.emit();
   }
 
-  mountSurface(surface: HudSurface): void {
+  mountSurface(surface: MountedUiSurface): void {
     if (this.mountedSurfaces.has(surface)) return;
     this.mountedSurfaces.add(surface);
     this.emit();
   }
 
-  unmountSurface(surface: HudSurface): void {
+  unmountSurface(surface: MountedUiSurface): void {
     if (!this.mountedSurfaces.delete(surface)) return;
     this.emit();
+  }
+
+  isSurfaceMounted(surface: MountedUiSurface): boolean {
+    return this.mountedSurfaces.has(surface);
   }
 
   snapshot(): GameUiBridgeSnapshot {

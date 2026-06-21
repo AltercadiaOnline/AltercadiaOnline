@@ -1,20 +1,14 @@
+import { CLIENT_ARCHITECTURE_VERSION } from '../shell/uiLayers.js';
 import { getGameUiBridge } from '../bridge/gameUiBridge.js';
 import { ensureClientArchitectureRoots, syncReactScreenShellVisibility } from '../shell/clientArchitecture.js';
-import {
-  enableReactAuthScreen,
-  enableReactCharSelectScreen,
-} from '../shell/screenSurface.js';
+import { showScreen } from '../../navigation.js';
 
-/**
- * Host leve para montagem React — reserva superfícies e ativa auth/char select React.
- */
+/** Boot oficial online-react-v1 — reserva roots React e ativa superfícies screen/hud/overlay. */
 export function initReactHudHost(root: ParentNode = document): void {
-  enableReactAuthScreen();
-  enableReactCharSelectScreen();
+  const { screenRoot, hudRoot, overlayRoot } = ensureClientArchitectureRoots(root);
+  const bridge = getGameUiBridge();
 
-  const { screenRoot, hudRoot, overlayRoot } = ensureClientArchitectureRoots(root);  const bridge = getGameUiBridge();
-
-  bridge.setMode('react-hybrid');
+  bridge.setMode(CLIENT_ARCHITECTURE_VERSION);
   bridge.mountSurface('screen');
   bridge.mountSurface('hud');
   bridge.mountSurface('overlay');
@@ -23,5 +17,5 @@ export function initReactHudHost(root: ParentNode = document): void {
   hudRoot.dataset.reactHost = 'ready';
   overlayRoot.dataset.reactHost = 'ready';
 
-  syncReactScreenShellVisibility('login-screen');
+  showScreen('login-screen');
 }

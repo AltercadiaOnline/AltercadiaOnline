@@ -12,11 +12,21 @@ import {
   useGameStore,
   type ViewMode,
 } from './gameStore.js';
+import { useWorldPanelsStore } from './worldPanelsStore.js';
 
 let teardownFns: Array<() => void> = [];
 
 function resolveViewModeFromGameState(state: GameState): ViewMode {
-  return state === GameStateValue.Battle ? 'battle' : 'world';
+  return state === GameStateValue.Exploration ? 'world' : 'battle';
+}
+
+function syncWorldHudActiveFromGameState(state: GameState): void {
+  useGameStore.getState().setWorldHudActive(state === GameStateValue.Exploration);
+}
+
+function closeWorldPanelsIfLeavingExploration(state: GameState): void {
+  if (state === GameStateValue.Exploration) return;
+  useWorldPanelsStore.getState().closeAllPanels();
 }
 
 function syncPlayerDataFromAuthoritativeStores(): void {
@@ -62,7 +72,9 @@ function applyViewMode(state: GameState): void {
 export function initGameStoreBridge(): void {
   teardownGameStoreBridge();
 
-  applyViewMode(getGameStateManager().getState());
+  const initialState = getGameStateManager().getState();
+  applyViewMode(initialState);
+  syncWorldHudActiveFromGameState(initialState);
   syncInGameFromScreen(getAppScreenBridge().snapshot().activeScreen);
   syncWorldHudActive(getHudBridge().snapshot().gameHudActive);
   syncRenderEngine();
@@ -72,6 +84,8 @@ export function initGameStoreBridge(): void {
   teardownFns.push(
     getGameStateManager().subscribe((state) => {
       applyViewMode(state);
+      syncWorldHudActiveFromGameState(state);
+      closeWorldPanelsIfLeavingExploration(state);
     }),
   );
 
@@ -125,7 +139,9 @@ export function resetGameUiStoreSession(): void {
 
 /** Sincronização manual — útil após bootstrap de sessão. */
 export function syncGameUiStoreFromLegacy(): void {
-  applyViewMode(getGameStateManager().getState());
+  const state = getGameStateManager().getState();
+  applyViewMode(state);
+  syncWorldHudActiveFromGameState(state);
   syncInGameFromScreen(getAppScreenBridge().snapshot().activeScreen);
   syncWorldHudActive(getHudBridge().snapshot().gameHudActive);
   syncRenderEngine();

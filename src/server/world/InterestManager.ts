@@ -1,3 +1,4 @@
+import { worldPixelToTile } from '../../shared/world/portals.js';
 import { WORLD_INTEREST_RADIUS_TILES } from '../../shared/world/worldGameLoopConfig.js';
 import type { ActivePlayerState } from './WorldGameState.js';
 
@@ -11,13 +12,27 @@ export function chebyshevTileDistance(
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 }
 
+function playerTileCoords(player: Pick<ActivePlayerState, 'x' | 'y'>): {
+  readonly tileX: number;
+  readonly tileY: number;
+} {
+  return worldPixelToTile(player.x, player.y);
+}
+
 export function isWithinInterestRadius(
   observer: Pick<ActivePlayerState, 'mapId' | 'x' | 'y'>,
   target: Pick<ActivePlayerState, 'mapId' | 'x' | 'y'>,
   radiusTiles = WORLD_INTEREST_RADIUS_TILES,
 ): boolean {
   if (observer.mapId !== target.mapId) return false;
-  return chebyshevTileDistance(observer.x, observer.y, target.x, target.y) <= radiusTiles;
+  const observerTile = playerTileCoords(observer);
+  const targetTile = playerTileCoords(target);
+  return chebyshevTileDistance(
+    observerTile.tileX,
+    observerTile.tileY,
+    targetTile.tileX,
+    targetTile.tileY,
+  ) <= radiusTiles;
 }
 
 /**

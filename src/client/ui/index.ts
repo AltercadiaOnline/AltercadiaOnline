@@ -4,7 +4,14 @@ export type { UiEventMap, UiWindowId } from './uiEvents.js';
 export type { UIComponent } from './UIComponent.js';
 export { BaseUIComponent } from './UIComponent.js';
 
-export { HubPanelController } from './components/HubPanelController.js';
+export {
+  windowManager,
+  openWorldWindow,
+  closeWorldWindow,
+  toggleWorldWindow,
+  focusWorldWindow,
+  closeTopmostWorldWindow,
+} from '../app/panels/worldWindowController.js';
 export {
   getGlobalPlayerStore,
   initGlobalPlayerStore,
@@ -67,12 +74,6 @@ export type {
 } from '../../shared/playerDataSnapshots.js';
 
 export {
-  WindowManager,
-  getWindowManager,
-  windowManager,
-} from './WindowManager.js';
-
-export {
   KeyboardManager,
   initKeyboardManager,
   destroyKeyboardManager,
@@ -113,19 +114,6 @@ export {
   resolveHudWindowFromKeyboard,
 } from './keyboardShortcuts.js';
 
-export { EquipmentSidebar, initEquipmentSidebar, getEquipmentSidebar } from './components/EquipmentSidebar.js';
-export {
-  SidebarMinimap,
-  initSidebarMinimap,
-  getSidebarMinimap,
-  destroySidebarMinimap,
-} from './components/SidebarMinimap.js';
-export {
-  SidebarWallet,
-  initSidebarWallet,
-  getSidebarWallet,
-  destroySidebarWallet,
-} from './components/SidebarWallet.js';
 export {
   getPlayerEquipmentStore,
   resetPlayerEquipmentStore,

@@ -2,7 +2,6 @@ import type { AuthUser } from '../../shared/authService.js';
 import { CHARACTER_SLOT_COUNT, createEmptyCharacterHub } from '../../shared/characterHub.js';
 import type { AccountCharacter } from '../../shared/types/account.js';
 import type { AccountCharacterHub } from '../../shared/characterHub.js';
-import { CLASS_CATALOG } from '../../shared/types/classes.js';
 import { createAuthService } from '../auth/createAuthService.js';
 import {
   fetchPublicClientConfig,
@@ -32,7 +31,6 @@ import {
   setLocalSession,
   type LocalSession,
 } from '../services/localSessionStore.js';
-import { setupCharacterCreatePanel } from '../components/characterCreatePanel.js';
 import {
   clearOAuthAutoCharCreate,
   shouldAutoOpenCharacterCreateAfterOAuth,
@@ -41,7 +39,6 @@ import { showAuthView } from '../services/authFlow.js';
 import { showScreen } from '../navigation.js';
 import { mountWorldMapScene } from './sceneManager.js';
 import {
-  getCharacterSelectPreviewManager,
   resetCharacterSelectPreviewManager,
 } from './characterSelectPreview.js';
 import {
@@ -50,7 +47,6 @@ import {
 } from '../services/characterAppearancePersistence.js';
 import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
 import {
-  bindCharSelectServerSelector,
   getCharSelectServerUiState,
   syncCharSelectServerSelector,
 } from './charSelectServerSelector.js';
@@ -67,13 +63,10 @@ import {
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
 import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
-import { isReactCharSelectScreenEnabled } from '../app/shell/screenSurface.js';
 import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
 import { getAuthScreenController } from '../app/screen/authScreenController.js';
 import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
-import { isReactAuthUiEnabled } from '../services/authFlow.js';
 
-let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
 let appShellListenersBound = false;
 
 export type ClientAuthBootstrapResult = {
@@ -143,39 +136,13 @@ function bindAppShellListeners(onEnterWorld: () => void): void {
   if (appShellListenersBound) return;
   appShellListenersBound = true;
 
-  if (isReactCharSelectScreenEnabled()) {
-    const bridge = getCharSelectBridge();
-    bridge.bindEnterWorld(() => {
-      if (AppScreens.selectedCharacterId === null) return;
-      void AppScreens.enterWorldWithAuthoritativeSnapshot(onEnterWorld);
-    });
-    bridge.bindReturnToLogin(() => {
-      AppScreens.returnToLogin();
-    });
-    return;
-  }
-
-  document.getElementById('btn-enter-world')?.addEventListener('click', () => {
+  const bridge = getCharSelectBridge();
+  bridge.bindEnterWorld(() => {
     if (AppScreens.selectedCharacterId === null) return;
     void AppScreens.enterWorldWithAuthoritativeSnapshot(onEnterWorld);
   });
-
-  document.getElementById('btn-back-to-login')?.addEventListener('click', () => {
+  bridge.bindReturnToLogin(() => {
     AppScreens.returnToLogin();
-  });
-
-  bindCharSelectServerSelector(async () => {
-    AppScreens.selectedCharacterId = null;
-    AppScreens.clearCharacterHubError();
-    const hubResult = await AppScreens.loadCharacterHub();
-    if (!hubResult.ok) {
-      AppScreens.renderCharacterHubError(
-        hubResult.message ?? 'Erro ao carregar personagens deste servidor.',
-      );
-      return;
-    }
-    AppScreens.renderCharacterSlots();
-    AppScreens.syncCharacterSelectionUi();
   });
 }
 
@@ -200,20 +167,7 @@ export const AppScreens = {
     resetGameStoreState();
     resetCharacterSelectPreviewManager();
 
-    if (isReactAuthUiEnabled()) {
-      getAuthScreenController().resetForFreshLogin();
-    } else {
-      showAuthView('login');
-      const emailField = document.getElementById('email-input');
-      const passField = document.getElementById('pass-input');
-      if (emailField instanceof HTMLInputElement) emailField.value = '';
-      if (passField instanceof HTMLInputElement) passField.value = '';
-      const statusEl = document.getElementById('auth-status');
-      if (statusEl) {
-        statusEl.textContent = '';
-        statusEl.classList.remove('is-error', 'is-success');
-      }
-    }
+    getAuthScreenController().resetForFreshLogin();
   },
 
   async ensureProfileMetadataComplete(options?: { readonly oauthFlow?: boolean }): Promise<boolean> {
@@ -255,11 +209,7 @@ export const AppScreens = {
   openCharacterCreateForFirstEmptySlot(): void {
     const slotIndex = this.findFirstEmptyCharacterSlotIndex();
     if (slotIndex === null) return;
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().openCreate(slotIndex);
-      return;
-    }
-    characterCreatePanel?.open(slotIndex);
+    getCharSelectBridge().openCreate(slotIndex);
   },
 
   async proceedAfterAuthentication(
@@ -305,9 +255,7 @@ export const AppScreens = {
     this.clearCharacterHubError();
 
     const serverSync = await syncCharSelectServerSelector();
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().setServerState(getCharSelectServerUiState());
-    }
+    getCharSelectBridge().setServerState(getCharSelectServerUiState());
     if (!serverSync.ok) {
       this.renderCharacterHubError(
         serverSync.message ?? 'Erro ao carregar servidores disponíveis.',
@@ -363,46 +311,15 @@ export const AppScreens = {
   },
 
   clearCharacterHubError(): void {
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().clearHubStatus();
-    }
-    const statusEl = document.getElementById('char-select-status');
-    if (!statusEl) return;
-    statusEl.textContent = '';
-    statusEl.classList.remove('is-error');
+    getCharSelectBridge().clearHubStatus();
   },
 
   renderCharacterHubError(message: string): void {
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().setHubStatus(message, true);
-    }
-    let statusEl = document.getElementById('char-select-status');
-    if (!statusEl) {
-      statusEl = document.createElement('p');
-      statusEl.id = 'char-select-status';
-      statusEl.className = 'auth-status';
-      statusEl.setAttribute('aria-live', 'polite');
-      const container = document.getElementById('char-select-screen');
-      const slots = document.getElementById('char-slots');
-      if (container && slots) {
-        container.insertBefore(statusEl, slots);
-      }
-    }
-    statusEl.textContent = message;
-    statusEl.classList.add('is-error');
-    statusEl.classList.remove('is-success');
+    getCharSelectBridge().setHubStatus(message, true);
   },
 
   renderAccountLabel(): void {
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().syncFromAppScreens();
-      return;
-    }
-    const label = document.getElementById('char-select-account');
-    if (!label) return;
-
-    const email = this.currentSession?.email;
-    label.textContent = email ? `Conta: ${email}` : '';
+    getCharSelectBridge().syncFromAppScreens();
   },
 
   signOut(): void {
@@ -419,19 +336,9 @@ export const AppScreens = {
   },
 
   returnToLogin(): void {
-    characterCreatePanel?.close();
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().closeCreate();
-    }
+    getCharSelectBridge().closeCreate();
     this.signOut();
     showAuthView('login');
-
-    const statusEl = document.getElementById('auth-status');
-    if (statusEl) {
-      statusEl.textContent = '';
-      statusEl.classList.remove('is-error', 'is-success');
-    }
-
     this.showLogin();
   },
 
@@ -451,69 +358,7 @@ export const AppScreens = {
   },
 
   renderCharacterSlots(): void {
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().syncFromAppScreens();
-      return;
-    }
-
-    const container = document.getElementById('char-slots');
-    if (!container || !this.characterHub) return;
-
-    container.replaceChildren();
-
-    for (let slotIndex = 0; slotIndex < CHARACTER_SLOT_COUNT; slotIndex += 1) {
-      const character = this.characterHub.slots[slotIndex];
-
-      if (character) {
-        const slot = document.createElement('div');
-        slot.className = 'char-slot vortex-panel';
-        slot.dataset.charId = String(character.id);
-        slot.dataset.slotIndex = String(slotIndex);
-        slot.setAttribute('role', 'button');
-        slot.tabIndex = 0;
-        slot.innerHTML = `
-          <div class="char-slot-preview" aria-hidden="true">
-            <canvas
-              class="char-slot-preview__canvas"
-              data-char-avatar-canvas
-              width="170"
-              height="264"
-              aria-hidden="true"
-            ></canvas>
-          </div>
-          <div class="char-slot-body">
-            <strong class="char-name">${character.name}</strong>
-            <span class="char-class">${CLASS_CATALOG[character.class].name} · ${CLASS_CATALOG[character.class].trait}</span>
-            <span class="char-level">LVL ${character.level}</span>
-          </div>
-        `;
-
-        slot.addEventListener('click', () => {
-          this.selectCharacter(character.id);
-        });
-
-        container.appendChild(slot);
-        continue;
-      }
-
-      const emptySlot = document.createElement('div');
-      emptySlot.className = 'char-slot vortex-panel empty';
-      emptySlot.dataset.slotIndex = String(slotIndex);
-      emptySlot.setAttribute('role', 'button');
-      emptySlot.tabIndex = 0;
-      emptySlot.innerHTML = `
-        <div class="char-slot-body">
-          <span class="char-empty-label">Slot ${slotIndex + 1}</span>
-          <span class="char-empty-action">Criar Novo</span>
-        </div>
-      `;
-      emptySlot.addEventListener('click', () => {
-        characterCreatePanel?.open(slotIndex);
-      });
-      container.appendChild(emptySlot);
-    }
-
-    getCharacterSelectPreviewManager().bindFromHub(container, this.characterHub);
+    getCharSelectBridge().syncFromAppScreens();
   },
 
   async createCharacter(
@@ -547,42 +392,15 @@ export const AppScreens = {
   },
 
   setupCharacterCreation(): void {
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().bindCreateSubmit(async (payload) => this.createCharacter(
-        payload.slotIndex,
-        payload.name,
-        payload.class,
-      ));
-      return;
-    }
-
-    if (characterCreatePanel) return;
-
-    characterCreatePanel = setupCharacterCreatePanel({
-      onSubmit: async (payload) => this.createCharacter(
-        payload.slotIndex,
-        payload.name,
-        payload.class,
-      ),
-      onClose: () => {},
-    });
+    getCharSelectBridge().bindCreateSubmit(async (payload) => this.createCharacter(
+      payload.slotIndex,
+      payload.name,
+      payload.class,
+    ));
   },
 
   syncCharacterSelectionUi(): void {
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().syncFromAppScreens();
-      return;
-    }
-
-    document.querySelectorAll<HTMLElement>('.char-slot[data-char-id]').forEach((el) => {
-      const characterId = Number(el.dataset.charId);
-      el.classList.toggle('is-selected', characterId === this.selectedCharacterId);
-    });
-
-    const enterBtn = document.getElementById('btn-enter-world');
-    if (enterBtn instanceof HTMLButtonElement) {
-      enterBtn.disabled = this.selectedCharacterId === null;
-    }
+    getCharSelectBridge().syncFromAppScreens();
   },
 
   restoreSessionFromStorage(): boolean {
@@ -624,14 +442,7 @@ export const AppScreens = {
     const character = this.getSelectedCharacter();
     if (!character || !this.currentSession) return;
 
-    if (isReactCharSelectScreenEnabled()) {
-      getCharSelectBridge().setEnterWorldBusy(true);
-    }
-
-    const enterBtn = document.getElementById('btn-enter-world');
-    if (enterBtn instanceof HTMLButtonElement) {
-      enterBtn.disabled = true;
-    }
+    getCharSelectBridge().setEnterWorldBusy(true);
 
     this.clearCharacterHubError();
     showPlayerInitLoading('Carregando perfil no servidor…');
@@ -650,52 +461,27 @@ export const AppScreens = {
       this.renderCharacterHubError('Erro inesperado ao carregar o perfil.');
     } finally {
       hidePlayerInitLoading();
-      if (isReactCharSelectScreenEnabled()) {
-        getCharSelectBridge().setEnterWorldBusy(false);
-      }
+      getCharSelectBridge().setEnterWorldBusy(false);
       this.syncCharacterSelectionUi();
     }
   },
 
   showLoginEnvironmentHint(config: { supabase: boolean; serverOk: boolean; gameWsUrl?: boolean }): void {
-    if (isReactAuthUiEnabled()) {
-      if (getAuthScreenController().snapshot().statusMessage.trim().length > 0) return;
-
-      if (!config.serverOk) {
-        getAuthScreenController().showEnvironmentHint(USER_SERVER_OFFLINE, true);
-        return;
-      }
-
-      if (!config.supabase) {
-        getAuthScreenController().showEnvironmentHint(USER_AUTH_UNAVAILABLE, true);
-      } else if (!config.gameWsUrl) {
-        const onVercelEntry = window.location.hostname.includes('vercel.app');
-        getAuthScreenController().showEnvironmentHint(
-          onVercelEntry ? USER_GAME_HOST_MISSING : USER_SERVER_OFFLINE,
-          true,
-        );
-      }
-      return;
-    }
-
-    const statusEl = document.getElementById('auth-status');
-    if (!statusEl || statusEl.textContent.trim().length > 0) return;
+    if (getAuthScreenController().snapshot().statusMessage.trim().length > 0) return;
 
     if (!config.serverOk) {
-      statusEl.textContent = USER_SERVER_OFFLINE;
-      statusEl.classList.add('is-error');
+      getAuthScreenController().showEnvironmentHint(USER_SERVER_OFFLINE, true);
       return;
     }
 
     if (!config.supabase) {
-      statusEl.textContent = USER_AUTH_UNAVAILABLE;
-      statusEl.classList.add('is-error');
+      getAuthScreenController().showEnvironmentHint(USER_AUTH_UNAVAILABLE, true);
     } else if (!config.gameWsUrl) {
       const onVercelEntry = window.location.hostname.includes('vercel.app');
-      statusEl.textContent = onVercelEntry
-        ? USER_GAME_HOST_MISSING
-        : USER_SERVER_OFFLINE;
-      statusEl.classList.add('is-error');
+      getAuthScreenController().showEnvironmentHint(
+        onVercelEntry ? USER_GAME_HOST_MISSING : USER_SERVER_OFFLINE,
+        true,
+      );
     }
   },
 
@@ -726,39 +512,11 @@ export const AppScreens = {
             hidePlayerInitLoading();
             this.showLogin();
             showAuthView('login');
-
-            if (isReactAuthUiEnabled()) {
-              getAuthScreenController().applyEmailConfirmedReturn(email);
-              return;
-            }
-
-            const emailField = document.getElementById('email-input');
-            const passField = document.getElementById('pass-input');
-            if (emailField instanceof HTMLInputElement && email) {
-              emailField.value = email;
-            }
-            if (passField instanceof HTMLInputElement) {
-              passField.value = '';
-              passField.focus();
-            } else {
-              emailField?.focus();
-            }
-
-            const statusEl = document.getElementById('auth-status');
-            if (statusEl) {
-              statusEl.textContent = 'Email confirmado! Entre com sua senha para continuar.';
-              statusEl.classList.add('is-success');
-              statusEl.classList.remove('is-error');
-            }
+            getAuthScreenController().applyEmailConfirmedReturn(email);
           },
           onSnapshotInitializing: (message) => {
             showPlayerInitLoading(message);
             setAuthStatusMessage(message, { isError: false });
-            const statusEl = document.getElementById('auth-status');
-            if (!statusEl) return;
-            statusEl.textContent = message;
-            statusEl.classList.remove('is-error');
-            statusEl.classList.add('is-success');
           },
           onAuthError: (message) => {
             hidePlayerInitLoading();

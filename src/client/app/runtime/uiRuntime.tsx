@@ -1,3 +1,4 @@
+import { showScreen } from '../../navigation.js';
 import { initClientApp } from '../bootstrap/initClientApp.js';
 import { ensureClientArchitectureRoots } from '../shell/clientArchitecture.js';
 import { mountOverlayRuntime } from './mountOverlayRuntime.js';
@@ -14,6 +15,9 @@ export function mountReactUiRuntime(root: ParentNode = document): void {
 
   mountScreenRuntime(screenRoot);
   mountOverlayRuntime(overlayRoot);
+
+  // Login React visível antes do main.js — evita tela preta entre ui-runtime e bootstrap.
+  showScreen('login-screen');
 }
 
 mountReactUiRuntime(document);

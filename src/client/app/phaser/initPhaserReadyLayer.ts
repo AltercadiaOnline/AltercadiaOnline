@@ -19,16 +19,22 @@ export function isPhaserHybridDevRequested(): boolean {
   }
 }
 
-export function maybeEnablePhaserHybridFromDevFlags(): void {
+export function maybeEnablePhaserFromDevFlags(): void {
   if (isPhaserHybridDevRequested()) {
-    enablePhaserHybridMode();
+    enablePhaserRenderMode();
   }
 }
 
-/** Ativa Phaser no fluxo online (WebSocket autoritativo conectado). */
-export function enablePhaserHybridForOnlineSession(): void {
-  enablePhaserHybridMode();
+/** @deprecated Use maybeEnablePhaserFromDevFlags */
+export const maybeEnablePhaserHybridFromDevFlags = maybeEnablePhaserFromDevFlags;
+
+/** Ativa motor Phaser (render oficial online). */
+export function enablePhaserForOnlineSession(): void {
+  enablePhaserRenderMode();
 }
+
+/** @deprecated Use enablePhaserForOnlineSession */
+export const enablePhaserHybridForOnlineSession = enablePhaserForOnlineSession;
 
 /**
  * Prepara camada de render Phaser sem ativar por padrão (canvas legado permanece ativo).
@@ -51,7 +57,7 @@ export function initPhaserReadyLayer(): void {
     document.body.dataset.renderEngine = snapshot.renderEngine;
   });
 
-  maybeEnablePhaserHybridFromDevFlags();
+  maybeEnablePhaserFromDevFlags();
 }
 
 export function teardownPhaserReadyLayer(): void {
@@ -61,12 +67,18 @@ export function teardownPhaserReadyLayer(): void {
   delete document.body.dataset.renderEngine;
 }
 
-/** Ativa modo phaser-hybrid — canvas legado oculto; loop de simulação permanece ativo. */
-export function enablePhaserHybridMode(): void {
-  getGameUiBridge().setMode('phaser-hybrid');
+/** Ativa modo phaser-v1 — render Phaser oficial. */
+export function enablePhaserRenderMode(): void {
+  getGameUiBridge().setMode('phaser-v1');
 }
 
-/** Volta ao render canvas legado mantendo UI React. */
-export function disablePhaserHybridMode(): void {
-  getGameUiBridge().setMode('react-hybrid');
+/** @deprecated Use enablePhaserRenderMode */
+export const enablePhaserHybridMode = enablePhaserRenderMode;
+
+/** Volta ao render canvas legado (somente dev). */
+export function disablePhaserRenderMode(): void {
+  getGameUiBridge().setMode('online-react-v1');
 }
+
+/** @deprecated Use disablePhaserRenderMode */
+export const disablePhaserHybridMode = disablePhaserRenderMode;

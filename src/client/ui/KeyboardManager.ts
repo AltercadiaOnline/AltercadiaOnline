@@ -1,9 +1,10 @@
+import { getAppScreenBridge } from '../app/bridge/appScreenBridge.js';
 import { getGameStateManager } from '../../shared/state/GameStateManager.js';
 import { isMovementKey } from '../../shared/world/movementInput.js';
 import { isPauseMenuOpen } from '../components/pauseMenu.js';
 import { handleExplorationEscapeKey } from './escapeHudNavigation.js';
 import { isMovementReservedKeyCode, resolveHudWindowFromKeyboard } from './keyboardShortcuts.js';
-import { windowManager } from './WindowManager.js';
+import { windowManager } from '../app/panels/worldWindowController.js';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return (
@@ -15,8 +16,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 function isHudShortcutContextActive(): boolean {
-  const gameContainer = document.getElementById('game-container');
-  if (!gameContainer || gameContainer.style.display === 'none') return false;
+  if (getAppScreenBridge().snapshot().activeScreen !== 'game-container') return false;
   if (isPauseMenuOpen()) return false;
   try {
     return getGameStateManager().isExploration();

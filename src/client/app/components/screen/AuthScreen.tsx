@@ -300,6 +300,21 @@ export function AuthScreen() {
         )}
 
         <AuthStatus message={state.statusMessage} isError={state.statusIsError} />
+
+        {state.bootstrapFatalVisible ? (
+          <div className="bootstrap-fatal-overlay mt-4 flex flex-col gap-3">
+            <p className="bootstrap-fatal-overlay__message m-0">
+              Falha ao iniciar o cliente. Verifique a conexão e tente novamente.
+            </p>
+            <button
+              type="button"
+              className="bootstrap-fatal-overlay__retry"
+              onClick={actions.retryBootstrap}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { getAppScreenBridge } from '../bridge/appScreenBridge.js';
 import { initClientAppGameLayer } from '../bootstrap/initClientApp.js';
 import { syncReactHudVisibility } from '../shell/clientArchitecture.js';
+import { syncGameUiStoreFromLegacy } from '../store/gameStoreBridge.js';
 import { resolveHudRuntimeHost } from './mountHudRuntime.js';
 
 let hudMountPromise: Promise<void> | null = null;
@@ -25,6 +26,7 @@ export function ensureGameHudRuntime(root: ParentNode = document): Promise<void>
 
     mountHudRuntime(host);
     syncReactHudVisibility(getAppScreenBridge().snapshot().activeScreen);
+    syncGameUiStoreFromLegacy();
   })().catch((error) => {
     hudMountPromise = null;
     throw error;

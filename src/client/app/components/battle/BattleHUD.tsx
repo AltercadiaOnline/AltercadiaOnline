@@ -10,7 +10,7 @@ import { BattleMovesetPalette } from './BattleMovesetPalette.js';
 import { BattleVitalsRow } from './BattleVitalsRow.js';
 
 /**
- * HUD de combate — overlay sobre a arena legado (#scene-combat).
+ * HUD de combate — overlay React sobre Phaser (#game-react-hud-root).
  * Estado unificado via `useBattleHud` (Zustand + BattleHudController).
  */
 export function BattleHUD() {

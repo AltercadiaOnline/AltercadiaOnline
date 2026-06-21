@@ -1,4 +1,4 @@
-import type { UiRuntimeMode } from './gameUiBridge.js';
+import type { UiRuntimeMode } from '../types/uiSurfaces.js';
 
 export type RenderEngine = 'canvas-legacy' | 'phaser';
 
@@ -23,7 +23,7 @@ class RenderLayerBridge {
 
   private activePhaserScene: ActivePhaserScene = null;
 
-  private uiRuntimeMode: UiRuntimeMode = 'react-hybrid';
+  private uiRuntimeMode: UiRuntimeMode = 'online-react-v1';
 
   private readonly listeners = new Set<RenderLayerListener>();
 
@@ -46,7 +46,7 @@ class RenderLayerBridge {
   setUiRuntimeMode(mode: UiRuntimeMode): void {
     if (this.uiRuntimeMode === mode) return;
     this.uiRuntimeMode = mode;
-    this.renderEngine = mode === 'phaser-hybrid' ? 'phaser' : 'canvas-legacy';
+    this.renderEngine = mode === 'phaser-v1' ? 'phaser' : 'canvas-legacy';
     this.emit();
   }
 

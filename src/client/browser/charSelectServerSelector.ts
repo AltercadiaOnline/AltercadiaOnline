@@ -4,11 +4,9 @@ import {
 } from '../services/serverListClient.js';
 import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
 import { redirectToShardOrigin } from '../net/shardRedirect.js';
-import { isReactCharSelectScreenEnabled } from '../app/shell/screenSurface.js';
 import type { ServerListResponse } from '../../shared/world/serverListProtocol.js';
 
 let cachedServerList: ServerListResponse | null = null;
-let selectorBound = false;
 let lastServerUiState: CharSelectServerUiState | null = null;
 let lastServerSyncError: string | null = null;
 
@@ -51,16 +49,6 @@ function formatServerOptionLabel(
     return `${entry.displayName} — Em breve`;
   }
   return entry.displayName;
-}
-
-function updateServerSelectorHint(
-  list: ServerListResponse,
-  activeId: string,
-  hint: HTMLElement | null,
-): void {
-  if (!hint) return;
-  hint.textContent = buildServerHint(list, activeId);
-  hint.classList.remove('is-warning');
 }
 
 function buildServerHint(list: ServerListResponse, activeId: string): string {
@@ -118,44 +106,12 @@ export function getCharSelectServerUiState(): CharSelectServerUiState | null {
   return null;
 }
 
-function applyServerUiStateToDom(state: CharSelectServerUiState): void {
-  if (isReactCharSelectScreenEnabled()) return;
-
-  const select = document.getElementById('char-select-server-input');
-  const label = document.getElementById('char-select-server-label');
-  const hint = document.getElementById('char-select-server-hint');
-
-  if (select instanceof HTMLSelectElement && state.options.length > 0) {
-    select.replaceChildren();
-    for (const option of state.options) {
-      const el = document.createElement('option');
-      el.value = option.id;
-      el.textContent = option.label;
-      el.disabled = option.disabled;
-      select.appendChild(el);
-    }
-    select.value = state.activeId;
-    select.disabled = state.selectorDisabled;
-    select.removeAttribute('aria-readonly');
-  }
-
-  if (label) {
-    label.textContent = state.label;
-  }
-
-  if (hint) {
-    hint.textContent = state.hint;
-    hint.classList.toggle('is-warning', state.hintWarning);
-  }
-}
-
-/** Carrega catálogo autoritativo e sincroniza o seletor de shard na char select. */
+/** Carrega catálogo autoritativo e sincroniza o seletor de shard (React char select). */
 export async function syncCharSelectServerSelector(): Promise<{ ok: boolean; message?: string }> {
   const listResult = await fetchAuthoritativeServerList();
   if (!listResult.ok) {
     lastServerSyncError = listResult.message ?? 'Erro ao carregar servidores.';
     lastServerUiState = null;
-    applyServerUiStateToDom(getCharSelectServerUiState()!);
     return listResult;
   }
 
@@ -163,7 +119,6 @@ export async function syncCharSelectServerSelector(): Promise<{ ok: boolean; mes
   lastServerSyncError = null;
   const activeId = resolveCurrentServerId(listResult.list.defaultServerId);
   lastServerUiState = buildServerUiState(listResult.list, activeId);
-  applyServerUiStateToDom(lastServerUiState);
   return { ok: true };
 }
 
@@ -209,20 +164,4 @@ export async function handleCharSelectServerChange(
       hintWarning: true,
     };
   }
-}
-
-/** Troca de shard: redirect para outro host ou recarrega hub no deploy atual. */
-export function bindCharSelectServerSelector(
-  onServerChanged: () => void | Promise<void>,
-): void {
-  if (isReactCharSelectScreenEnabled()) return;
-  if (selectorBound) return;
-  selectorBound = true;
-
-  const select = document.getElementById('char-select-server-input');
-  if (!(select instanceof HTMLSelectElement)) return;
-
-  select.addEventListener('change', () => {
-    void handleCharSelectServerChange(select.value, onServerChanged);
-  });
 }

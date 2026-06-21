@@ -20,13 +20,18 @@ export function LootCasinoHudMount() {
     return null;
   }
 
+  let content;
   if (snapshot.view === 'loading') {
-    return <LootCasinoLoadingPanel snapshot={snapshot} />;
+    content = <LootCasinoLoadingPanel snapshot={snapshot} />;
+  } else if (snapshot.view === 'error') {
+    content = <LootCasinoErrorPanel snapshot={snapshot} />;
+  } else {
+    content = <LootCasinoScreenPanel snapshot={snapshot} />;
   }
 
-  if (snapshot.view === 'error') {
-    return <LootCasinoErrorPanel snapshot={snapshot} />;
-  }
-
-  return <LootCasinoScreenPanel snapshot={snapshot} />;
+  return (
+    <div className="loot-casino-hud-root pointer-events-auto fixed inset-0 z-[1000002]">
+      {content}
+    </div>
+  );
 }

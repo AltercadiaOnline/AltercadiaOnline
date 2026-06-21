@@ -2,6 +2,7 @@ import {
   encodePeerTuple,
   type WorldPeersCompactPayload,
 } from '../../shared/world/worldPeerWire.js';
+import { worldPixelToTile } from '../../shared/world/portals.js';
 import { WORLD_PEERS_FULL_RESYNC_TICKS } from '../../shared/world/worldGameLoopConfig.js';
 import { selectPeersInInterest } from './InterestManager.js';
 import type { ActivePlayerState, WorldGameState } from './WorldGameState.js';
@@ -36,9 +37,10 @@ export class WorldBroadcastHub {
       const payload: WorldPeersCompactPayload = {
         t: tick,
         m: observer.mapId,
-        p: visiblePeers.map((peer) =>
-          encodePeerTuple(peer.characterId, peer.x, peer.y, peer.facing),
-        ),
+        p: visiblePeers.map((peer) => {
+          const tile = worldPixelToTile(peer.x, peer.y);
+          return encodePeerTuple(peer.characterId, tile.tileX, tile.tileY, peer.facing);
+        }),
       };
 
       const signature = JSON.stringify(payload.p);

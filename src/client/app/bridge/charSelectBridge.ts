@@ -1,6 +1,6 @@
 import type { AccountCharacterHub } from '../../../shared/characterHub.js';
 import type { ClassType } from '../../../shared/types/classes.js';
-import type { CharacterCreatePayload } from '../../components/characterCreatePanel.js';
+import type { CharacterCreatePayload } from '../../../shared/types/characterCreate.js';
 import { AppScreens } from '../../browser/appScreens.js';
 import {
   getCharSelectServerUiState,
@@ -179,10 +179,8 @@ class CharSelectBridge {
 
     return {
       accountEmail: email ? `Conta: ${email}` : '',
-      statusMessage: this.statusMessage || this.readStatusMessage(),
-      statusIsError: this.statusMessage.length > 0
-        ? this.statusIsError
-        : this.readStatusIsError(),
+      statusMessage: this.statusMessage,
+      statusIsError: this.statusIsError,
       selectedCharacterId: AppScreens.selectedCharacterId,
       slots,
       server: this.serverState ?? getCharSelectServerUiState(),
@@ -191,16 +189,6 @@ class CharSelectBridge {
       enterWorldDisabled: AppScreens.selectedCharacterId === null || this.enterWorldBusy,
       enterWorldBusy: this.enterWorldBusy,
     };
-  }
-
-  private readStatusMessage(): string {
-    const statusEl = document.getElementById('char-select-status');
-    return statusEl?.textContent?.trim() ?? '';
-  }
-
-  private readStatusIsError(): boolean {
-    const statusEl = document.getElementById('char-select-status');
-    return statusEl?.classList.contains('is-error') === true;
   }
 
   private emit(): void {

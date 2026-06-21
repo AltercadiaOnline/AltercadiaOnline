@@ -36,7 +36,19 @@ export { getBattleHudBridge, getBattleHudController } from './bridge/battleHudBr
 export {
   tryOpenReactWorldPanel,
   tryCloseReactWorldPanel,
+  tryToggleReactWorldPanel,
+  tryFocusReactWorldPanel,
+  tryCloseTopmostReactWorldPanel,
 } from './panels/initWorldPanelsBridge.js';
+export {
+  windowManager,
+  openWorldWindow,
+  closeWorldWindow,
+  toggleWorldWindow,
+  focusWorldWindow,
+  closeTopmostWorldWindow,
+} from './panels/worldWindowController.js';
+export { initWorldPanelsBridge, teardownWorldPanelsBridge } from './panels/initWorldPanelsBridge.js';
 
 export {
   enablePhaserHybridMode,

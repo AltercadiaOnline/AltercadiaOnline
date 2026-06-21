@@ -91,6 +91,15 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
+  process.on('unhandledRejection', (reason) => {
+    console.error('[server] unhandledRejection:', reason);
+  });
+
+  process.on('uncaughtException', (error) => {
+    console.error('[server] uncaughtException:', error);
+    shutdown('uncaughtException');
+  });
+
   const distCheck = verifyClientDistArtifacts(dirs.distDir);
   console.log('[bootstrap] Pronto para escutar', {
     port: env.port,

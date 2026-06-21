@@ -1,22 +1,24 @@
-/** Feature flags da camada screen (login / char select). Desligadas por padrão — legado HTML ativo. */
+/** Camada screen (login / char select) — sempre React em online-react-v1. */
 export function isReactAuthScreenEnabled(): boolean {
-  return document.body.dataset.reactAuthUi === '1';
+  return true;
 }
 
 export function isReactCharSelectScreenEnabled(): boolean {
-  return document.body.dataset.reactCharSelectUi === '1';
+  return true;
 }
 
 export function isReactScreenSurfaceActive(): boolean {
-  return isReactAuthScreenEnabled() || isReactCharSelectScreenEnabled();
+  return true;
 }
 
+/** @deprecated No-op — screen React é padrão oficial. */
 export function enableReactAuthScreen(): void {
-  document.body.dataset.reactAuthUi = '1';
+  /* noop */
 }
 
+/** @deprecated No-op — screen React é padrão oficial. */
 export function enableReactCharSelectScreen(): void {
-  document.body.dataset.reactCharSelectUi = '1';
+  /* noop */
 }
 
 export function markReactScreenRuntimeReady(ready: boolean): void {

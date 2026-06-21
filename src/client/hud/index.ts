@@ -32,12 +32,7 @@ import {
   clearBattlePaletteHandlers,
   registerBattlePaletteHandlers,
 } from '../app/battle/battlePaletteHandlers.js';
-import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
-import {
-  getPostBattleHudBridge,
-  isReactPostBattleHudEnabled,
-} from '../app/bridge/postBattleHudBridge.js';
-import { clearPostBattleHubHandlers } from '../app/battle/postBattleHubHandlers.js';
+import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
 import {
   initPostBattleHubBridge,
   resetPostBattleHubBridgeSession,
@@ -508,10 +503,6 @@ function removePostBattleHubUi(): void {
   clearPostBattleHonorContext();
   clearBattleObservationState();
   configurePostBattleHonorOpener(null);
-  if (isReactPostBattleHudEnabled()) {
-    getPostBattleHudBridge().dismiss();
-    clearPostBattleHubHandlers();
-  }
   dismissPostBattleHubUi();
   unmountEmergencyBattleExit();
   if (typeof document === 'undefined') return;

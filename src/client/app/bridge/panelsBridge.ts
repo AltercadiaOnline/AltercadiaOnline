@@ -1,5 +1,7 @@
 import type { UiWindowId } from '../../ui/uiEvents.js';
 import { useWorldPanelsStore } from '../store/worldPanelsStore.js';
+import { getGameUiBridge } from './gameUiBridge.js';
+import { isOnlineReactFrontend } from '../shell/clientArchitecture.js';
 
 type PanelsBridgeListener = (snapshot: PanelsBridgeSnapshot) => void;
 
@@ -57,22 +59,16 @@ class PanelsBridge {
     this.syncFromStore();
   }
 
-  notifyPanelOpened(windowId: UiWindowId): void {
-    if (windowId === 'hub') {
-      useWorldPanelsStore.getState().setHubOpen(true);
-    } else {
-      useWorldPanelsStore.getState().openPanel(windowId);
-    }
+  /** Espelha snapshot — mutação fica em worldWindowController / worldPanelsStore. */
+  notifyPanelOpened(_windowId: UiWindowId): void {
     this.syncFromStore();
   }
 
-  notifyPanelClosed(windowId: UiWindowId): void {
-    useWorldPanelsStore.getState().closePanel(windowId);
+  notifyPanelClosed(_windowId: UiWindowId): void {
     this.syncFromStore();
   }
 
-  notifyPanelFocused(windowId: UiWindowId): void {
-    useWorldPanelsStore.getState().focusPanel(windowId);
+  notifyPanelFocused(_windowId: UiWindowId): void {
     this.syncFromStore();
   }
 
@@ -118,5 +114,5 @@ export function getPanelsBridge(): PanelsBridge {
 }
 
 export function isReactGamePanelsEnabled(): boolean {
-  return document.body.dataset.reactGameHudUi === '1';
+  return isOnlineReactFrontend() && getGameUiBridge().isSurfaceMounted('hud');
 }

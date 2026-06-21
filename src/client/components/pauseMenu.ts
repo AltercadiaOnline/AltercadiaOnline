@@ -1,53 +1,29 @@
-export type PauseMenuOptions = {
-  onExit: () => void;
-  onSettings?: () => void;
-};
+import { getAppScreenBridge } from '../app/bridge/appScreenBridge.js';
+import {
+  getPauseMenuBridge,
+  type PauseMenuHandlers,
+} from '../app/bridge/pauseMenuBridge.js';
+
+export type PauseMenuOptions = PauseMenuHandlers;
 
 export function setupPauseMenu(options: PauseMenuOptions): void {
-  const menu = document.getElementById('pause-menu');
-  const settingsBtn = document.getElementById('btn-pause-settings');
-  const exitBtn = document.getElementById('btn-pause-exit');
-
-  if (!menu || !settingsBtn || !exitBtn) {
-    console.warn('[PauseMenu] Elementos do menu de pausa ausentes.');
-    return;
-  }
-
-  settingsBtn.addEventListener('click', () => {
-    if (options.onSettings) {
-      options.onSettings();
-      return;
-    }
-    window.alert('Configurações em breve.');
-  });
-
-  exitBtn.addEventListener('click', () => {
-    hidePauseMenu();
-    options.onExit();
-  });
+  getPauseMenuBridge().bindHandlers(options);
 }
 
 export function togglePauseMenu(): void {
-  document.getElementById('pause-menu')?.classList.toggle('hidden');
+  getPauseMenuBridge().toggle();
 }
 
 export function showPauseMenu(): void {
-  const menu = document.getElementById('pause-menu');
-  if (!menu) return;
-  menu.classList.remove('hidden');
-  menu.setAttribute('aria-hidden', 'false');
+  getPauseMenuBridge().show();
 }
 
 export function hidePauseMenu(): void {
-  const menu = document.getElementById('pause-menu');
-  if (!menu) return;
-  menu.classList.add('hidden');
-  menu.setAttribute('aria-hidden', 'true');
+  getPauseMenuBridge().hide();
 }
 
 export function isPauseMenuOpen(): boolean {
-  const menu = document.getElementById('pause-menu');
-  return menu !== null && !menu.classList.contains('hidden');
+  return getPauseMenuBridge().isOpen();
 }
 
 let worldSessionActive = false;
@@ -63,18 +39,5 @@ export function isWorldSessionActive(): boolean {
 
 export function isInActiveGameSession(): boolean {
   if (!worldSessionActive) return false;
-
-  const gameContainer = document.getElementById('game-container');
-  if (!gameContainer) return false;
-
-  return gameContainer.style.display !== 'none';
+  return getAppScreenBridge().snapshot().activeScreen === 'game-container';
 }
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement
-    || target instanceof HTMLTextAreaElement
-    || (target instanceof HTMLElement && target.isContentEditable)
-  );
-}
-

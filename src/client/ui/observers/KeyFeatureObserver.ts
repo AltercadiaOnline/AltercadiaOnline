@@ -1,5 +1,3 @@
-import type { HubPanelController } from '../components/HubPanelController.js';
-
 export type KeyFeatureMount = {
   readonly id: string;
   mount(anchor: HTMLElement): void;
@@ -13,7 +11,7 @@ export class KeyFeatureObserver {
   private anchor: HTMLElement | null = null;
   private active: KeyFeatureMount | null = null;
 
-  attachHub(_hub: HubPanelController): void {
+  attachHub(): void {
     this.detach();
     this.anchor = null;
   }

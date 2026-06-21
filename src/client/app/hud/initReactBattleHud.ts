@@ -4,7 +4,6 @@ import { syncReactBattleHudVisibility } from '../shell/clientArchitecture.js';
 
 /** Marca a HUD React de combate como pronta e sincroniza visibilidade com a cena ativa. */
 export function initReactBattleHud(): void {
-  document.body.dataset.reactBattleHudUi = '1';
   getBattleHudController().markControllerReady();
   syncReactBattleHudVisibility(getAppScreenBridge().snapshot().activeScreen);
 }

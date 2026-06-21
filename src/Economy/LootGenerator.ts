@@ -165,7 +165,7 @@ function bundleFromReveal(
 }
 
 /**
- * Gera 4 slots da VictoryScreen + bundle pendente (autoritativo).
+ * Gera 4 slots do loot cassino pós-batalha + bundle pendente (autoritativo).
  */
 export function generateBattleLoot(options: LootGeneratorOptions): BattleLootGeneration | null {
   const rng = options.rng ?? Math.random;

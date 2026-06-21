@@ -56,56 +56,6 @@ function patchPlayerLevelTooltipAttrs(
   patchProgressionTooltipAttrs(bar, buildPlayerLevelProgressionTooltip(profile, barView));
 }
 
-/** Barra compacta de XP para a sidebar de equipamentos. */
-export function renderSidebarLevelProgression(profile: PlayerProfileSnapshot): string {
-  const bar = resolveCharacterLevelXpBar(profile.level, profile.xpCurrent);
-  const progressionAttrs = playerLevelTooltipAttrs(profile, bar);
-
-  return `
-    <p class="equipment-sidebar__progression-level" data-sidebar-level>Nv. ${profile.level}</p>
-    <div
-      class="equipment-sidebar__xp-bar"
-      role="progressbar"
-      ${progressionAttrs}
-      aria-valuenow="${bar.xpCurrent}"
-      aria-valuemax="${bar.xpToNext}"
-      aria-label="Experiência até o próximo nível"
-    >
-      <div class="equipment-sidebar__xp-fill" data-sidebar-xp-fill style="width:${bar.percent}%"></div>
-    </div>
-    <p class="equipment-sidebar__xp-text" data-sidebar-xp-text>${bar.xpCurrent} / ${bar.xpToNext} XP</p>
-    <p class="equipment-sidebar__xp-hint" data-sidebar-xp-hint>Faltam ${bar.remaining} XP para up</p>
-  `;
-}
-
-export function patchSidebarLevelProgression(
-  host: HTMLElement,
-  profile: PlayerProfileSnapshot,
-  barView?: CharacterLevelXpBarView,
-): void {
-  const bar = barView ?? resolveCharacterLevelXpBar(profile.level, profile.xpCurrent);
-
-  const levelEl = host.querySelector<HTMLElement>('[data-sidebar-level]');
-  if (levelEl) levelEl.textContent = `Nv. ${bar.level}`;
-
-  const fill = host.querySelector<HTMLElement>('[data-sidebar-xp-fill]');
-  if (fill) fill.style.width = `${bar.percent}%`;
-
-  const xpText = host.querySelector<HTMLElement>('[data-sidebar-xp-text]');
-  if (xpText) xpText.textContent = `${bar.xpCurrent} / ${bar.xpToNext} XP`;
-
-  const hint = host.querySelector<HTMLElement>('[data-sidebar-xp-hint]');
-  if (hint) hint.textContent = `Faltam ${bar.remaining} XP para up`;
-
-  const barEl = host.querySelector<HTMLElement>('.equipment-sidebar__xp-bar');
-  if (barEl) {
-    barEl.setAttribute('aria-valuenow', String(bar.xpCurrent));
-    barEl.setAttribute('aria-valuemax', String(bar.xpToNext));
-  }
-
-  patchPlayerLevelTooltipAttrs(host, profile, bar);
-}
-
 function resolveMoveSpeedView(model: LevelProgressionSectionModel): WorldExplorationMoveSpeedSnapshot {
   return resolveWorldExplorationMoveSpeed(model.speedBonusTotal, model.isEncumbered);
 }

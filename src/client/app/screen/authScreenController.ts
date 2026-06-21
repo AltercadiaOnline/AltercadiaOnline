@@ -1,5 +1,5 @@
 import type { AuthUser } from '../../../shared/authService.js';
-import type { AuthView } from '../../services/authFlow.js';
+import type { AuthView, AuthScreenBootstrapOptions } from '../auth/authView.js';
 import {
   copyLoginCredentialsToRegisterForm,
   copyRegisterCredentialsToLoginForm,
@@ -42,7 +42,6 @@ import { AuthOperationTimeoutError } from '../../auth/authDeadline.js';
 import { resetGameStoreState } from '../../state/GameStore.js';
 import { updateUserProfileMetadata } from '../../auth/profileMetadata.js';
 import { getUser } from '../../auth/supabaseAuth.js';
-import type { LoginScreenOptions } from '../../services/loginScreen.js';
 import { getAuthBridge } from '../bridge/authBridge.js';
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -68,6 +67,7 @@ type AuthScreenMutableState = {
   profileBirth: string;
   profileGuardianConsent: boolean;
   showProfileGuardianConsent: boolean;
+  bootstrapFatalVisible: boolean;
 };
 
 export type AuthScreenSnapshot = Readonly<AuthScreenMutableState>;
@@ -124,9 +124,11 @@ function validateRegisterProfile(input: {
 }
 
 class AuthScreenController {
-  private options: LoginScreenOptions | null = null;
+  private options: AuthScreenBootstrapOptions | null = null;
 
   private profileCompleteHandlers: ProfileCompleteHandlers | null = null;
+
+  private bootstrapRetryHandler: (() => void) | null = null;
 
   private readonly listeners = new Set<AuthScreenListener>();
 
@@ -151,6 +153,7 @@ class AuthScreenController {
     profileBirth: '',
     profileGuardianConsent: false,
     showProfileGuardianConsent: false,
+    bootstrapFatalVisible: false,
   };
 
   subscribe(listener: AuthScreenListener): () => void {
@@ -235,6 +238,23 @@ class AuthScreenController {
   showEnvironmentHint(message: string, isError: boolean): void {
     if (this.state.statusMessage.trim().length > 0) return;
     this.setStatus(message, isError);
+  }
+
+  showBootstrapFatal(onRetry: () => void): void {
+    this.bootstrapRetryHandler = onRetry;
+    this.patch({ bootstrapFatalVisible: true });
+  }
+
+  hideBootstrapFatal(): void {
+    this.bootstrapRetryHandler = null;
+    this.patch({ bootstrapFatalVisible: false });
+  }
+
+  triggerBootstrapRetry(): void {
+    const handler = this.bootstrapRetryHandler;
+    if (!handler) return;
+    this.hideBootstrapFatal();
+    handler();
   }
 
   resetForFreshLogin(): void {
@@ -661,7 +681,7 @@ class AuthScreenController {
     handlers?.onCancel?.();
   }
 
-  bind(options: LoginScreenOptions): void {
+  bind(options: AuthScreenBootstrapOptions): void {
     this.options = options;
   }
 }
@@ -678,7 +698,7 @@ export function getAuthScreenController(): AuthScreenController {
   return globalRef.__ALTERCADIA_AUTH_SCREEN_CONTROLLER__;
 }
 
-export function initAuthScreenController(options: LoginScreenOptions): boolean {
+export function initAuthScreenController(options: AuthScreenBootstrapOptions): boolean {
   const controller = getAuthScreenController();
   controller.bind(options);
   getAuthBridge().attachController(controller);

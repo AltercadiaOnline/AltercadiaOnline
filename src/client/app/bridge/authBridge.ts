@@ -39,15 +39,11 @@ class AuthBridge {
   }
 
   hideBootstrapRetry(): void {
-    document.getElementById('auth-bootstrap-retry')?.classList.add('hidden');
+    this.controller?.hideBootstrapFatal();
   }
 
   showBootstrapRetry(onRetry: () => void): void {
-    const host = document.getElementById('auth-bootstrap-retry');
-    host?.classList.remove('hidden');
-    const btn = host?.querySelector<HTMLButtonElement>('[data-auth-bootstrap-retry]');
-    if (!btn) return;
-    btn.onclick = () => onRetry();
+    this.controller?.showBootstrapFatal(onRetry);
   }
 }
 
@@ -70,19 +66,5 @@ export function setAuthStatusMessage(
   const controller = getAuthBridge().getController();
   if (controller) {
     controller.setStatus(message, options.isError === true);
-    return;
   }
-
-  const el = document.getElementById('auth-status-message');
-  if (el) {
-    el.textContent = message;
-    el.classList.toggle('auth-status-message--error', options.isError === true);
-    return;
-  }
-
-  const legacyEl = document.getElementById('auth-status');
-  if (!legacyEl) return;
-  legacyEl.textContent = message;
-  legacyEl.classList.toggle('is-error', options.isError === true);
-  legacyEl.classList.toggle('is-success', options.isError !== true && message.length > 0);
 }

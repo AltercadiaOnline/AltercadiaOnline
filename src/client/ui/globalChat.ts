@@ -1,7 +1,6 @@
 import { getMapChatLabel } from '../../shared/world/mapChatLabels.js';
 import { isPlayerOrGmChatPayload } from '../../shared/world/globalChatTypes.js';
 import { getWorldHudBridge } from '../app/bridge/worldHudBridge.js';
-import { isReactGameHudUiEnabled } from '../app/shell/gameHudSurface.js';
 
 export type GlobalChatLineOptions = {
   /** Zona de origem da mensagem (ex.: Cidade, Periferia). */
@@ -21,7 +20,7 @@ function resolveZonePrefix(options?: GlobalChatLineOptions): string {
 
 /**
  * Linha de jogador no Chat Global — apenas origem PLAYER ou GM.
- * Mensagens SYSTEM_* devem usar logService (não passam por aqui).
+ * Render: WorldGlobalChatWidget via worldHudBridge.
  */
 export function postGlobalChatLine(
   displayName: string,
@@ -30,30 +29,7 @@ export function postGlobalChatLine(
 ): void {
   const prefix = resolveZonePrefix(options);
   const lineText = `${prefix}${displayName}: ${message}`;
-
-  if (isReactGameHudUiEnabled()) {
-    getWorldHudBridge().pushChatLine(lineText, 'player');
-    return;
-  }
-
-  if (typeof document === 'undefined') {
-    console.log(`[Altercadia/chat] ${lineText}`);
-    return;
-  }
-
-  const content = document.querySelector<HTMLElement>('.chat-content');
-  if (!content) return;
-
-  const line = document.createElement('p');
-  line.className = 'chat-line chat-line--player';
-  line.textContent = lineText;
-  content.appendChild(line);
-
-  while (content.children.length > 40) {
-    content.firstChild?.remove();
-  }
-
-  content.scrollTop = content.scrollHeight;
+  getWorldHudBridge().pushChatLine(lineText, 'player');
 }
 
 /**

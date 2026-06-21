@@ -1,4 +1,4 @@
-import { windowManager } from './WindowManager.js';
+import { windowManager } from '../app/panels/worldWindowController.js';
 import { getReactDialogueHandle } from '../app/panels/dialogueReactBridge.js';
 import { closeSurvivalGuideCard } from './components/SurvivalGuideCard.js';
 import {

@@ -1,82 +1,41 @@
 import { uiEvents, UIEventType } from '../../ui/uiEvents.js';
-import type { UiWindowId } from '../../ui/uiEvents.js';
 import { getPanelsBridge } from '../bridge/panelsBridge.js';
-import { isReactManagedWorldPanel } from '../panels/worldPanelRegistry.js';
 import { useWorldPanelsStore } from '../store/worldPanelsStore.js';
-import type { WorldPanelContext } from '../store/worldPanelContext.js';
-import { isReactGamePanelsEnabled } from '../bridge/panelsBridge.js';
 import { requestReactRefractionNpcStart } from '../panels/refractionBoothBridge.js';
+import {
+  closeTopmostWorldWindow,
+  closeWorldWindow,
+  focusWorldWindow,
+  openWorldWindow,
+  toggleWorldWindow,
+} from './worldWindowController.js';
+
+export {
+  closeTopmostWorldWindow as tryCloseTopmostReactWorldPanel,
+  closeWorldWindow as tryCloseReactWorldPanel,
+  focusWorldWindow as tryFocusReactWorldPanel,
+  openWorldWindow as tryOpenReactWorldPanel,
+  toggleWorldWindow as tryToggleReactWorldPanel,
+} from './worldWindowController.js';
 
 let teardownFns: Array<() => void> = [];
 
-export function tryOpenReactWorldPanel(
-  windowId: UiWindowId,
-  context?: WorldPanelContext,
-): boolean {
-  if (!isReactGamePanelsEnabled()) return false;
-  if (!isReactManagedWorldPanel(windowId)) return false;
-
-  useWorldPanelsStore.getState().openPanel(windowId, context);
-  getPanelsBridge().notifyPanelOpened(windowId);
-  return true;
-}
-
-export function tryCloseReactWorldPanel(windowId: UiWindowId): boolean {
-  if (!isReactGamePanelsEnabled()) return false;
-  if (!isReactManagedWorldPanel(windowId)) return false;
-
-  useWorldPanelsStore.getState().closePanel(windowId);
-  getPanelsBridge().notifyPanelClosed(windowId);
-  return true;
-}
-
-export function tryToggleReactWorldPanel(
-  windowId: UiWindowId,
-  context?: WorldPanelContext,
-): boolean {
-  if (!isReactGamePanelsEnabled()) return false;
-  if (!isReactManagedWorldPanel(windowId)) return false;
-
-  useWorldPanelsStore.getState().togglePanel(windowId, context);
-  const open = windowId === 'hub'
-    ? useWorldPanelsStore.getState().hubOpen
-    : useWorldPanelsStore.getState().openPanels.some((panel) => panel.windowId === windowId);
-
-  if (open) {
-    getPanelsBridge().notifyPanelOpened(windowId);
-  } else {
-    getPanelsBridge().notifyPanelClosed(windowId);
-  }
-  return true;
-}
-
-export function tryFocusReactWorldPanel(windowId: UiWindowId): boolean {
-  if (!isReactGamePanelsEnabled()) return false;
-  if (!isReactManagedWorldPanel(windowId)) return false;
-
-  useWorldPanelsStore.getState().focusPanel(windowId);
-  getPanelsBridge().notifyPanelFocused(windowId);
-  return true;
-}
-
-/** ESC — fecha painel React com maior z-index (ou hub). */
-export function tryCloseTopmostReactWorldPanel(): boolean {
-  if (!isReactGamePanelsEnabled()) return false;
-
-  const closed = useWorldPanelsStore.getState().closeTopmostPanel();
-  if (!closed) return false;
-
-  getPanelsBridge().notifyPanelClosed(closed);
-  return true;
-}
-
-/** Escuta uiEvents e espelha painéis contextuais na camada React. */
+/** Escuta uiEvents e roteia painéis de exploração para a camada React. */
 export function initWorldPanelsBridge(): void {
   teardownWorldPanelsBridge();
 
   teardownFns.push(
+    uiEvents.on(UIEventType.OPEN_WINDOW, ({ windowId }) => {
+      openWorldWindow(windowId);
+    }),
+    uiEvents.on(UIEventType.CLOSE_WINDOW, ({ windowId }) => {
+      closeWorldWindow(windowId);
+    }),
+    uiEvents.on(UIEventType.TOGGLE_WINDOW, ({ windowId }) => {
+      toggleWorldWindow(windowId);
+    }),
     uiEvents.on(UIEventType.SHOW_DIALOGUE, (payload) => {
-      tryOpenReactWorldPanel('dialogue', {
+      openWorldWindow('dialogue', {
         kind: 'dialogue',
         npcId: payload.npcId,
         npcName: payload.npcName,
@@ -84,49 +43,49 @@ export function initWorldPanelsBridge(): void {
       });
     }),
     uiEvents.on(UIEventType.SHOW_VENDOR_SHOP, (payload) => {
-      tryOpenReactWorldPanel('vendorShop', {
+      openWorldWindow('vendorShop', {
         kind: 'vendorShop',
         vendorId: payload.vendorId,
         vendorName: payload.vendorName,
       });
     }),
     uiEvents.on(UIEventType.SHOW_LAB_SHOP, (payload) => {
-      tryOpenReactWorldPanel('laboratoryShop', {
+      openWorldWindow('laboratoryShop', {
         kind: 'laboratoryShop',
         vendorId: payload.vendorId,
         vendorName: payload.vendorName,
       });
     }),
     uiEvents.on(UIEventType.SHOW_PET_SHOP, (payload) => {
-      tryOpenReactWorldPanel('petTrainerShop', {
+      openWorldWindow('petTrainerShop', {
         kind: 'petTrainerShop',
         vendorId: payload.vendorId,
         vendorName: payload.vendorName,
       });
     }),
     uiEvents.on(UIEventType.SHOW_CRAFT_STATION, (payload) => {
-      tryOpenReactWorldPanel('craft', {
+      openWorldWindow('craft', {
         kind: 'craftStation',
         craftStationId: payload.craftStationId,
         stationName: payload.stationName,
       });
     }),
     uiEvents.on(UIEventType.SHOW_TOURNAMENT_BET, (payload) => {
-      tryOpenReactWorldPanel('tournamentBet', {
+      openWorldWindow('tournamentBet', {
         kind: 'tournamentBet',
         pulpitId: payload.pulpitId,
         pulpitName: payload.pulpitName,
       });
     }),
     uiEvents.on(UIEventType.SHOW_RANKING_MONITOR, (payload) => {
-      tryOpenReactWorldPanel('rankingMonitor', {
+      openWorldWindow('rankingMonitor', {
         kind: 'rankingMonitor',
         objectId: payload.objectId,
         label: payload.label,
       });
     }),
     uiEvents.on(UIEventType.SHOW_REFRACTION_BOOTH, (payload) => {
-      tryOpenReactWorldPanel('refractionBooth', {
+      openWorldWindow('refractionBooth', {
         kind: 'refractionBooth',
         objectId: payload.objectId,
         label: payload.label,
