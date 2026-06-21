@@ -7,7 +7,6 @@ import { WorldDialoguePanel } from '../components/world/panels/WorldDialoguePane
 import { WorldDiaryPanel } from '../components/world/panels/WorldDiaryPanel.js';
 import { WorldInventoryPanel } from '../components/world/panels/WorldInventoryPanel.js';
 import { WorldLaboratoryShopPanel } from '../components/world/panels/WorldLaboratoryShopPanel.js';
-import { WorldLegacyPanelHost } from '../components/world/panels/WorldLegacyPanelHost.js';
 import { WorldMarketHubPanel } from '../components/world/panels/WorldMarketHubPanel.js';
 import { WorldPetMemorialPanel } from '../components/world/panels/WorldPetMemorialPanel.js';
 import { WorldPetTrainerShopPanel } from '../components/world/panels/WorldPetTrainerShopPanel.js';
@@ -34,18 +33,27 @@ const LazyWorldMarketPanel = lazy(async () => {
   return { default: module.WorldMarketPanel };
 });
 
+const LazyWorldCharactersPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldCharactersPanel.js');
+  return { default: module.WorldCharactersPanel };
+});
+
+const LazyWorldBankPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldBankPanel.js');
+  return { default: module.WorldBankPanel };
+});
+
+const LazyWorldPetLovePanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldPetLovePanel.js');
+  return { default: module.WorldPetLovePanel };
+});
+
 export type WorldPanelRenderProps = {
   readonly entry: OpenWorldPanelEntry;
   readonly focused: boolean;
 };
 
 export type WorldPanelRenderer = (props: WorldPanelRenderProps) => ReactNode;
-
-const LEGACY_HOST_PANELS = new Set<UiWindowId>([
-  'characters',
-  'bank',
-  'petLove',
-]);
 
 function withSuspense(renderer: WorldPanelRenderer): WorldPanelRenderer {
   return (props) => (
@@ -88,16 +96,6 @@ function renderDialoguePanel({ entry, focused }: WorldPanelRenderProps): ReactNo
       zIndex={entry.zIndex}
       focused={focused}
       onFocus={() => tryFocusReactWorldPanel('dialogue')}
-    />
-  );
-}
-
-function renderLegacyHostPanel(props: WorldPanelRenderProps): ReactNode {
-  return (
-    <WorldLegacyPanelHost
-      key={props.entry.windowId}
-      entry={props.entry}
-      focused={props.focused}
     />
   );
 }
@@ -191,17 +189,17 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
   )),
   marcos: withSuspense((props) => <LazyWorldMarcosPanel {...props} />),
   market: withSuspense((props) => <LazyWorldMarketPanel {...props} />),
-  characters: renderLegacyHostPanel,
-  bank: renderLegacyHostPanel,
-  petLove: renderLegacyHostPanel,
+  characters: withSuspense((props) => <LazyWorldCharactersPanel {...props} />),
+  bank: withSuspense((props) => <LazyWorldBankPanel {...props} />),
+  petLove: withSuspense((props) => <LazyWorldPetLovePanel {...props} />),
 };
 
 export function hasDedicatedWorldPanelRenderer(windowId: UiWindowId): boolean {
   return Boolean(WORLD_PANEL_RENDERERS[windowId]);
 }
 
-export function isLegacyHostedWorldPanel(windowId: UiWindowId): boolean {
-  return LEGACY_HOST_PANELS.has(windowId);
+export function isLegacyHostedWorldPanel(_windowId: UiWindowId): boolean {
+  return false;
 }
 
 export function renderDedicatedWorldPanel(props: WorldPanelRenderProps): ReactNode {
