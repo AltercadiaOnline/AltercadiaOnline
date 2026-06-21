@@ -4,14 +4,17 @@ import {
   type BattleVictoryUiReadyPayload,
 } from '../../combat/battleUiEvents.js';
 import { traceBattleFinish } from '../../hud/battleFinishProbe.js';
-import { getPostBattleHudBridge, isReactPostBattleHudEnabled } from '../../app/bridge/postBattleHudBridge.js';
+import { getPostBattleHudBridge } from '../../app/bridge/postBattleHudBridge.js';
+import type { PostBattleRewardsLootStatus } from '../../../shared/types/postBattleHub.js';
 import {
   clearPostBattleHubHandlers,
   registerPostBattleHubHandlers,
 } from '../../app/battle/postBattleHubHandlers.js';
-import { resolvePostBattleHubMountTarget } from './PostBattleHub.js';
-import { isPostBattleHubInteractive } from './battleSceneMount.js';
-import { mountPostBattleHub, unmountPostBattleHub } from './PostBattleHub.js';
+import { dismissPostBattleHubUi } from '../../app/battle/dismissPostBattleHubUi.js';
+import {
+  ensurePostBattleOverlayMount,
+  isPostBattleHubInteractive,
+} from './battleSceneMount.js';
 import { showBattleStatisticsPanel, closeBattleStatisticsPanel } from './BattleStatisticsPanel.js';
 import {
   getPersistedBattleReport,
@@ -48,7 +51,7 @@ function mapLootStageToHubStatus(
   battleId: string,
   victory: boolean,
   isPvp: boolean,
-): import('./PostBattleHub.js').PostBattleRewardsLootStatus {
+): PostBattleRewardsLootStatus {
   if (!victory || isPvp) return 'unavailable';
   const stage = resolveBattleLootStageStatus(battleId);
   if (stage === 'READY') return 'ready';
@@ -75,24 +78,16 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
   bridgeDeps.clearSafety();
   bridgeDeps.onPresenting(payload.battleId);
 
-  const overlayMount = resolvePostBattleHubMountTarget();
+  const overlayMount = ensurePostBattleOverlayMount();
   lastPresentedBattleId = payload.battleId;
 
-  traceBattleFinish('mount.dom.start', {
-    battleId: payload.battleId,
-    mountTag: overlayMount.tagName,
-    mountId: overlayMount.id,
-  });
-
-  console.log('DEBUG: Tentando montar PostBattleHub...', { battleId: payload.battleId });
+  traceBattleFinish('mount.react.start', { battleId: payload.battleId });
 
   try {
     const isPvp = payload.battleType === BattleType.PVP;
     const rewardsLootStatus = mapLootStageToHubStatus(payload.battleId, payload.victory, isPvp);
 
-    const handlerBundle = {
-      rewardsLootStatus,
-      battleId: payload.battleId,
+    registerPostBattleHubHandlers({
       onStatistics: () => {
         const report =
           getPersistedBattleReport(payload.battleId)
@@ -127,40 +122,22 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
         teardownBattleLootCasinoState(payload.battleId);
         await bridgeDeps!.onExit(payload);
         lastPresentedBattleId = null;
-        if (isReactPostBattleHudEnabled()) {
-          getPostBattleHudBridge().dismiss();
-          clearPostBattleHubHandlers();
-        }
+        dismissPostBattleHubUi();
       },
-    };
+    });
 
-    if (isReactPostBattleHudEnabled()) {
-      registerPostBattleHubHandlers(handlerBundle);
-      getPostBattleHudBridge().present(payload, rewardsLootStatus);
-    } else {
-      mountPostBattleHub(
-        {
-          battleType: payload.battleType,
-          victory: payload.victory,
-          xpGain: payload.xpGain,
-          ...(payload.endReason !== undefined ? { endReason: payload.endReason } : {}),
-          ...(payload.rankingResult !== undefined ? { rankingResult: payload.rankingResult } : {}),
-        },
-        handlerBundle,
-        overlayMount,
-      );
-    }
+    getPostBattleHudBridge().present(payload, rewardsLootStatus);
   } catch (error) {
-    console.error('DEBUG: Erro na montagem:', error);
+    console.error('[PostBattleHubBridge] Falha ao montar hub React:', error);
     throw error;
   }
 
   if (!isPostBattleHubInteractive()) {
-    traceBattleFinish('mount.dom.fail.noExitButton', { battleId: payload.battleId });
-    throw new Error('PostBattleHub montado sem botões interativos');
+    traceBattleFinish('mount.react.fail.inactive', { battleId: payload.battleId });
+    throw new Error('PostBattleHub React inativo após present()');
   }
 
-  traceBattleFinish('mount.dom.ok', { battleId: payload.battleId });
+  traceBattleFinish('mount.react.ok', { battleId: payload.battleId });
   bridgeDeps.releaseInput();
 
   if (payload.victory) {
@@ -172,15 +149,13 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
 }
 
 function handleBattleVictoryUiReady(payload: BattleVictoryUiReadyPayload): void {
-  console.log('DEBUG: Evento recebido em PostBattleHubBridge', { battleId: payload.battleId });
   traceBattleFinish('event.BATTLE_VICTORY_UI_READY', { battleId: payload.battleId });
   if (!bridgeDeps || bridgeDeps.isBlocked()) return;
 
   try {
     mountHubForPayload(payload, true);
   } catch (error) {
-    console.error('DEBUG: Erro na montagem:', error);
-    console.error('[PostBattleHub] Falha ao montar hub (evento):', error);
+    console.error('[PostBattleHubBridge] Falha ao montar hub (evento):', error);
     traceBattleFinish('event.mount.error', { error: String(error) });
     lastPresentedBattleId = null;
   }
@@ -198,9 +173,6 @@ export function initPostBattleHubBridge(deps: PostBattleHubBridgeDeps): void {
 
 /** Caminho direto — preferido sobre o evento. */
 export function presentPostBattleHub(payload: BattleVictoryUiReadyPayload): boolean {
-  console.log('DEBUG: Evento recebido em PostBattleHubBridge.presentPostBattleHub', {
-    battleId: payload.battleId,
-  });
   traceBattleFinish('present.direct', { battleId: payload.battleId });
   if (!bridgeDeps || bridgeDeps.isBlocked()) {
     traceBattleFinish('present.direct.noBridge');
@@ -210,8 +182,7 @@ export function presentPostBattleHub(payload: BattleVictoryUiReadyPayload): bool
     mountHubForPayload(payload, false);
     return isPostBattleHubInteractive();
   } catch (error) {
-    console.error('DEBUG: Erro na montagem:', error);
-    console.error('[PostBattleHub] presentPostBattleHub falhou:', error);
+    console.error('[PostBattleHubBridge] presentPostBattleHub falhou:', error);
     traceBattleFinish('present.direct.error', { error: String(error) });
     lastPresentedBattleId = null;
     return false;
@@ -228,21 +199,13 @@ export function teardownPostBattleHubBridge(): void {
   unsubscribeVictoryReady = null;
   bridgeDeps = null;
   lastPresentedBattleId = null;
-  if (isReactPostBattleHudEnabled()) {
-    getPostBattleHudBridge().dismiss();
-    clearPostBattleHubHandlers();
-  }
-  unmountPostBattleHub();
+  dismissPostBattleHubUi();
   destroyActiveLootCasino();
 }
 
 export function resetPostBattleHubBridgeSession(): void {
   lastPresentedBattleId = null;
-  if (isReactPostBattleHudEnabled()) {
-    getPostBattleHudBridge().dismiss();
-    clearPostBattleHubHandlers();
-  }
-  unmountPostBattleHub();
+  dismissPostBattleHubUi();
   destroyActiveLootCasino();
 }
 

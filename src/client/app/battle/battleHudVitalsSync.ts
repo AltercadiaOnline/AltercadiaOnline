@@ -10,7 +10,6 @@ import { readCombatantVital } from '../../combat/combatVitalsDisplay.js';
 import { readActiveStatusesFromCombatant } from '../../hud/activeStatusAdapter.js';
 import {
   getBattleHudController,
-  isReactBattleHudEnabled,
 } from '../battle/BattleHudController.js';
 import type {
   BattleHudFighterSnapshot,
@@ -76,8 +75,6 @@ function buildPetSnapshot(pet: CombatState['combatants'][string] | null): Battle
 
 /** Espelha vitals autoritativos do snapshot de combate na HUD React. */
 export function syncBattleHudVitalsFromState(state: CombatState, ui: CombatUiHints): void {
-  if (!isReactBattleHudEnabled()) return;
-
   const player = state.combatants[ui.playerActorId];
   const opponentId = resolveBattleOpponentActorId(
     state.combatants,

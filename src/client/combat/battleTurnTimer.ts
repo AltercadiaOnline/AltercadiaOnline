@@ -1,6 +1,6 @@
 import { BATTLE_TURN_TIMER_SEC } from '../../shared/combat/battleScreenConstants.js';
 import { BATTLE_TURN_CHOICE_BUDGET_MS } from '../../shared/combatWire.js';
-import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
+import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
 
 export const BATTLE_TURN_TIMER_TICK_MS = 100;
 
@@ -14,23 +14,15 @@ export function resolveBattleTurnDisplaySec(
   return Math.min(maxDisplaySec, Math.ceil(remainingMs / 1000));
 }
 
-export type BattleTurnTimerUi = {
-  readonly label: HTMLElement | null;
-  readonly barFill: HTMLElement | null;
-};
-
 export type BattleTurnTimerSync = {
   readonly enabled: boolean;
   readonly deadlineMs?: number;
-  /** Orçamento de escolha — travado ao abrir a janela (ex.: 10s). */
   readonly choiceBudgetMs?: number;
-  /** Grace de animação antes do countdown — travado ao abrir a janela. */
   readonly playbackGraceMs?: number;
 };
 
 /**
- * Cronômetro autoritativo do turno — isolado da paleta/moveset/mastery.
- * Só reinicia o intervalo quando a janela de escolha muda (deadline ou on/off).
+ * Cronômetro autoritativo do turno — espelha battleHudStore (React).
  */
 export class BattleTurnTimer {
   private timerHandle: ReturnType<typeof setInterval> | null = null;
@@ -41,22 +33,14 @@ export class BattleTurnTimer {
   private onExpired: (() => void) | null = null;
   private expiredNotified = false;
 
-  constructor(
-    private ui: BattleTurnTimerUi,
-    choiceBudgetMs = BATTLE_TURN_CHOICE_BUDGET_MS,
-  ) {
+  constructor(choiceBudgetMs = BATTLE_TURN_CHOICE_BUDGET_MS) {
     this.choiceBudgetMs = choiceBudgetMs;
-  }
-
-  bindUi(ui: BattleTurnTimerUi): void {
-    this.ui = ui;
   }
 
   setOnExpired(handler: (() => void) | null): void {
     this.onExpired = handler;
   }
 
-  /** Espelha deadline do servidor — não reinicia se a janela ativa for a mesma. */
   sync(input: BattleTurnTimerSync, windowKey?: string | null): void {
     const syncKey = input.enabled && input.deadlineMs !== undefined
       ? `active:${windowKey ?? input.deadlineMs}`
@@ -147,58 +131,21 @@ export class BattleTurnTimer {
   private renderProgress(ratio: number, displayTime: number, remainingMs: number): void {
     const clamped = Math.min(1, Math.max(0, ratio));
     const isUrgent = displayTime > 0 && displayTime <= 3 && remainingMs <= this.choiceBudgetMs;
-
-    if (isReactBattleHudEnabled()) {
-      getBattleHudBridge().setTurnTimer({
-        enabled: true,
-        displaySec: Math.max(0, displayTime),
-        barRatio: clamped,
-        isUrgent,
-      });
-      return;
-    }
-
-    const fill = this.ui.barFill;
-    if (fill) {
-      const clamped = Math.min(1, Math.max(0, ratio));
-      fill.style.width = `${clamped * 100}%`;
-      fill.classList.toggle('is-empty', clamped <= 0);
-      fill.classList.toggle('is-urgent', clamped > 0 && clamped <= 0.3);
-    }
-
-    const label = this.ui.label;
-    if (label) {
-      label.textContent = String(Math.max(0, displayTime));
-      label.classList.toggle(
-        'is-urgent',
-        displayTime > 0 && displayTime <= 3 && remainingMs <= this.choiceBudgetMs,
-      );
-    }
+    getBattleHudBridge().setTurnTimer({
+      enabled: true,
+      displaySec: Math.max(0, displayTime),
+      barRatio: clamped,
+      isUrgent,
+    });
   }
 
   private renderIdle(enabled: boolean): void {
-    if (isReactBattleHudEnabled()) {
-      getBattleHudBridge().setTurnTimer({
-        enabled,
-        displaySec: enabled ? BATTLE_TURN_TIMER_SEC : 0,
-        barRatio: 0,
-        isUrgent: false,
-      });
-      return;
-    }
-
-    const fill = this.ui.barFill;
-    if (fill) {
-      fill.style.width = '0%';
-      fill.classList.add('is-empty');
-      fill.classList.remove('is-urgent');
-    }
-
-    const label = this.ui.label;
-    if (label) {
-      label.textContent = enabled ? String(BATTLE_TURN_TIMER_SEC) : '—';
-      label.classList.remove('is-urgent');
-    }
+    getBattleHudBridge().setTurnTimer({
+      enabled,
+      displaySec: enabled ? BATTLE_TURN_TIMER_SEC : 0,
+      barRatio: 0,
+      isUrgent: false,
+    });
   }
 
   private stopInterval(): void {

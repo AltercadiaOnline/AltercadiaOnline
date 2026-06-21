@@ -237,22 +237,14 @@ export class BattleController {
       screen.setPortraitStance(sourceId, 'idle');
 
       const hpTargets = screen.getHpBarTargets(targetId);
-
       if (hpTargets) {
-
-        screen.commitCombatantHp(targetId, hpAfter);
-
         if (typeof requestAnimationFrame === 'function') {
-
           await this.healthBar.animateTo(hpTargets, hpAfter, COMBAT_HP_ANIM_CLOSING_MS);
-
         } else {
-
           await this.healthBar.animateToWithWait(hpTargets, hpAfter, COMBAT_HP_ANIM_CLOSING_MS);
-
         }
-
       }
+      screen.commitCombatantHp(targetId, hpAfter);
 
       return;
 
@@ -277,8 +269,8 @@ export class BattleController {
       const hpTargets = screen.getHpBarTargets(targetId);
       if (hpTargets) {
         await this.healthBar.animateTo(hpTargets, hpAfter, COMBAT_HP_ANIM_MS);
-        screen.commitCombatantHp(targetId, hpAfter);
       }
+      screen.commitCombatantHp(targetId, hpAfter);
       screen.setPortraitStance(sourceId, 'idle');
       return;
     }
@@ -376,22 +368,14 @@ export class BattleController {
 
 
     const hpTargets = screen.getHpBarTargets(targetId);
-
     if (hpTargets) {
-
       if (typeof requestAnimationFrame === 'function') {
-
         await this.healthBar.animateTo(hpTargets, hpAfter, COMBAT_HP_ANIM_MS);
-
       } else {
-
         await this.healthBar.animateToWithWait(hpTargets, hpAfter, COMBAT_HP_ANIM_MS);
-
       }
-
-      screen.commitCombatantHp(targetId, hpAfter);
-
     }
+    screen.commitCombatantHp(targetId, hpAfter);
 
 
 
@@ -423,14 +407,10 @@ export class BattleController {
 
 
     const hpTargets = screen.getHpBarTargets(targetId);
-
     if (hpTargets) {
-
       await this.healthBar.animateTo(hpTargets, hpAfter, COMBAT_HP_ANIM_MS);
-
-      screen.commitCombatantHp(targetId, hpAfter);
-
     }
+    screen.commitCombatantHp(targetId, hpAfter);
 
   }
 
@@ -617,8 +597,9 @@ export class BattleController {
 
       case 'hp_animate': {
         const hpTargets = screen?.getHpBarTargets(step.combatantId);
-        if (!hpTargets) return;
-        await this.healthBar.animateTo(hpTargets, step.hpAfter, COMBAT_HP_ANIM_MS);
+        if (hpTargets) {
+          await this.healthBar.animateTo(hpTargets, step.hpAfter, COMBAT_HP_ANIM_MS);
+        }
         screen?.commitCombatantHp(step.combatantId, step.hpAfter);
         return;
       }

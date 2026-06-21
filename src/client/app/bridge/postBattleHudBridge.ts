@@ -1,5 +1,5 @@
 import type { BattleVictoryUiReadyPayload } from '../../combat/battleUiEvents.js';
-import type { PostBattleRewardsLootStatus } from '../../ui/battle/postBattleHubView.js';
+import type { PostBattleRewardsLootStatus } from '../../../shared/types/postBattleHub.js';
 
 export type PostBattleHudSnapshot = {
   readonly active: boolean;

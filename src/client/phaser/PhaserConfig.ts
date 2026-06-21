@@ -6,6 +6,12 @@ export const PHASER_MAIN_SCENE_KEY = 'MainScene';
 /** Cena ativa de exploração online. */
 export const PHASER_EXPLORATION_SCENE_KEY = 'ExplorationWorld';
 
+/** Cena de arena de combate (Phaser). */
+export const PHASER_BATTLE_SCENE_KEY = 'BattleArena';
+
+/** Coluna de render compartilhada — filha direta de #game-container. */
+export const GAME_RENDER_COLUMN_ID = 'game-render-column';
+
 export const PHASER_RUNTIME_CONFIG = {
   width: DESIGN_CONFIG.VIEWPORT.WIDTH,
   height: DESIGN_CONFIG.VIEWPORT.HEIGHT,

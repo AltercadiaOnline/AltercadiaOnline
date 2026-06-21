@@ -1,0 +1,1 @@
+import{a as n}from"./chunk-OJGMGPH3.js";function o(a){let{Scene:i}=a;class s extends i{constructor(e=n){super(e)}preload(){this.onMainPreload()}create(){this.onMainCreate()}update(e,r){this.onMainUpdate(e,r)}onMainPreload(){}onMainCreate(){}onMainUpdate(e,r){}}return s}export{o as a};

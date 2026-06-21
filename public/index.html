@@ -53,27 +53,34 @@
     </div>
 
     <div id="game-container" class="screen">
-      <div id="scene-exploration" class="scene hidden">
-        <div id="vortex-app" class="app-wrapper game-layout">
-          <div id="game-viewport" class="game-viewport-container game-layout__viewport" aria-label="Viewport do jogo">
-            <div id="game-stage-frame" class="game-stage-frame">
-              <!-- Core de layout: container 640×360 — escala CSS aplicada aqui (spec: #game-container) -->
-              <div id="game-stage-scale" class="game-stage-scale">
-                <main id="game-stage">
-                  <div id="game-render-host" class="game-render-host" data-render-engine="canvas-legacy">
-                    <canvas id="game-canvas" class="game-canvas" width="640" height="360" aria-label="Mundo Altercadia"></canvas>
-                    <div id="phaser-mount-root" class="phaser-mount-root hidden" aria-hidden="true"></div>
-                  </div>
-                </main>
-              </div>
-              <div id="npc-names-layer" class="npc-names-layer" aria-hidden="true"></div>
-              <div id="speech-bubbles-layer" class="speech-bubbles-layer" aria-hidden="true"></div>
-              <div id="game-ui-overlay" class="game-ui-overlay" aria-label="HUD do mundo">
-                <div id="ui-layer" class="ui-layer" aria-label="Camada de interface legado"></div>
-              </div>
+      <!-- Coluna de render compartilhada — persiste entre exploração e combate (Phaser não é destruído). -->
+      <div id="game-render-column" class="game-render-column" aria-label="Viewport do jogo">
+        <div id="game-viewport" class="game-viewport-container game-layout__viewport">
+          <div id="game-stage-frame" class="game-stage-frame">
+            <!-- Core de layout: container 640×360 — escala CSS aplicada aqui (spec: #game-container) -->
+            <div id="game-stage-scale" class="game-stage-scale">
+              <main id="game-stage">
+                <div id="game-render-host" class="game-render-host" data-render-engine="canvas-legacy">
+                  <canvas id="game-canvas" class="game-canvas" width="640" height="360" aria-label="Mundo Altercadia"></canvas>
+                  <div id="phaser-mount-root" class="phaser-mount-root hidden" aria-hidden="true"></div>
+                </div>
+              </main>
+            </div>
+            <div id="npc-names-layer" class="npc-names-layer" aria-hidden="true"></div>
+            <div id="speech-bubbles-layer" class="speech-bubbles-layer" aria-hidden="true"></div>
+            <div id="game-ui-overlay" class="game-ui-overlay" aria-label="HUD do mundo">
+              <div id="ui-layer" class="ui-layer" aria-label="Camada de interface legado"></div>
             </div>
           </div>
+        </div>
+      </div>
 
+      <!-- Fade compartilhado — exploração ↔ batalha (ramo Phaser); cobre #game-render-column -->
+      <div id="game-scene-fade-overlay" class="game-scene-fade-overlay hidden" aria-hidden="true"></div>
+
+      <div id="scene-exploration" class="scene hidden">
+        <div id="vortex-app" class="app-wrapper game-layout">
+          <div class="game-layout__viewport-spacer" aria-hidden="true"></div>
           <aside id="sidebar" class="sidebar game-layout__sidebar hidden" aria-hidden="true"></aside>
         </div>
       </div>
@@ -93,18 +100,7 @@
                       <div id="battle-player-portrait" class="battle-portrait battle-portrait--player battle-fighter" data-side="player">
                         <span class="battle-portrait__silhouette" aria-hidden="true"></span>
                       </div>
-                      <div id="battle-pet-panel" class="battle-pet-fighter hidden" data-side="pet" aria-label="Companheiro">
-                        <div class="battle-pet-fighter__body">
-                          <canvas id="battle-pet-portrait" class="battle-pet-fighter__sprite" width="96" height="96" aria-hidden="true"></canvas>
-                        </div>
-                        <div class="battle-pet-fighter__vitals">
-                          <p id="battle-pet-name" class="battle-pet-fighter__name">—</p>
-                          <div class="battle-hp-bar battle-hp-bar--pet" role="progressbar" aria-label="HP do pet">
-                            <div id="battle-pet-hp-fill" class="battle-hp-bar__fill"></div>
-                          </div>
-                          <p id="battle-pet-hp-text" class="battle-hp-text battle-pet-fighter__hp">— / —</p>
-                        </div>
-                      </div>
+                      <div id="battle-pet-panel" class="battle-pet-fighter hidden" data-side="pet" aria-hidden="true"></div>
                     </div>
                   </div>
                 </div>

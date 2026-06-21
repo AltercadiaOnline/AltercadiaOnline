@@ -1,4 +1,15 @@
+import { useEffect, useRef } from 'react';
 import { BattleType } from '../../../../shared/combat/battleType.js';
+import type { PostBattleHubSummary } from '../../../../shared/types/postBattleHub.js';
+import {
+  buildPostBattleHubSummary,
+  isPostBattlePvp,
+  resolvePostBattleRankingLabel,
+  resolvePostBattleRankingText,
+  resolvePostBattleSubtitleText,
+  resolvePostBattleTitleText,
+  shouldShowPostBattleRewardsSlot,
+} from '../../../../shared/postBattle/postBattleHubPresentation.js';
 import { getPostBattleHudBridge } from '../../bridge/postBattleHudBridge.js';
 import type { PostBattleHudSnapshot } from '../../bridge/postBattleHudBridge.js';
 import {
@@ -7,15 +18,6 @@ import {
   triggerPostBattleStatistics,
   triggerPostBattleViewOpponent,
 } from '../../battle/postBattleHubHandlers.js';
-import {
-  isPostBattlePvp,
-  resolvePostBattleRankingLabel,
-  resolvePostBattleRankingText,
-  resolvePostBattleSubtitleText,
-  resolvePostBattleTitleText,
-  shouldShowPostBattleRewardsSlot,
-  type PostBattleHubSummary,
-} from '../../../ui/battle/postBattleHubView.js';
 import { usePostBattleLootPackageWatcher } from '../../panels/usePostBattleLootWatcher.js';
 
 type PostBattleHubPanelProps = {
@@ -25,18 +27,26 @@ type PostBattleHubPanelProps = {
 function toSummary(snapshot: PostBattleHudSnapshot): PostBattleHubSummary | null {
   if (!snapshot.payload) return null;
   const payload = snapshot.payload;
-  return {
+  return buildPostBattleHubSummary({
     battleType: payload.battleType,
     victory: payload.victory,
     xpGain: payload.xpGain,
     ...(payload.endReason !== undefined ? { endReason: payload.endReason } : {}),
     ...(payload.rankingResult !== undefined ? { rankingResult: payload.rankingResult } : {}),
-  };
+  });
 }
 
 export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
+  const exitRef = useRef<HTMLButtonElement>(null);
   const summary = toSummary(snapshot);
+
   usePostBattleLootPackageWatcher(snapshot.payload?.battleId, snapshot.rewardsLootStatus);
+
+  useEffect(() => {
+    if (summary) {
+      exitRef.current?.focus();
+    }
+  }, [summary?.battleType, summary?.victory]);
 
   if (!summary) return null;
 
@@ -135,6 +145,7 @@ export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
           ) : null}
 
           <button
+            ref={exitRef}
             type="button"
             className="post-battle-hub__exit"
             disabled={snapshot.exitPending}

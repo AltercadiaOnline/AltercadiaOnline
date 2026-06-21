@@ -6,7 +6,7 @@ import {
   resolveRuntimeAppliedAtTurn,
 } from '../../shared/combat/runtimeActorTiming.js';
 
-/** Contrato simples para a HUD — motor → adaptador → StatusDisplay. */
+/** Contrato simples para a HUD — motor → adaptador → BattleStatusChips (React). */
 export type ActiveStatusChip = {
   readonly id: string;
   readonly stacks: number;

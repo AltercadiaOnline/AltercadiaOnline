@@ -6,7 +6,6 @@ import { CombatEventType } from '../../shared/events.js';
 
 import type { CombatState, Skill, SkillData } from '../../shared/types.js';
 
-import { ACTIVE_MOVESET_SLOT_COUNT } from '../../shared/combat/moveTypes.js';
 import { mergeLoadoutSkillsWithRuntime } from '../../shared/combat/mergeLoadoutSkillsWithRuntime.js';
 import { canPlayerIssueCombatChoice } from '../../shared/combat/playerTurnChoice.js';
 
@@ -19,8 +18,7 @@ import type { BattleCommandController } from './BattleCommandController.js';
 import { isCombatActionPlaybackActive } from '../combat/combatPlaybackState.js';
 import type { BattleItemsController } from './BattleItemsController.js';
 
-import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
-import { ensureBattleHudStubHost } from '../ui/battle/battleHudStubHost.js';
+import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
 
 import type { BattleScreen } from './battleScreen.js';
 
@@ -36,6 +34,7 @@ import {
   type BattleNarrativeLine,
 } from '../ui/battle/BattleNarrator.js';
 import { getMarcoCombatTelemetry } from '../progression/marcoCombatTelemetry.js';
+import { syncBattleHudVitalsFromState } from '../app/battle/battleHudVitalsSync.js';
 import { readCombatantVital } from '../combat/combatVitalsDisplay.js';
 
 type HudElements = {
@@ -247,11 +246,20 @@ export class HUDManager {
   }
 
   private syncPlaybackStatusStrip(combatantId: string): void {
-    if (!this.playbackCombatants || !this.battleScreen) return;
+    if (!this.playbackCombatants || !this.lastTurn || !this.lastUi) return;
     const combatant = this.playbackCombatants[combatantId];
     if (!combatant) return;
-    this.battleScreen.syncCombatantStatusStrip(combatantId, combatant);
-    setCombatSnapshot(this.playbackCombatants, this.lastTurn?.turn);
+    setCombatSnapshot(this.playbackCombatants, this.lastTurn.turn);
+    syncBattleHudVitalsFromState(
+      {
+        battleId: this.lastTurn.battleId,
+        turn: this.lastTurn.turn,
+        phase: this.lastTurn.phase,
+        activeActorId: this.lastTurn.activeActorId ?? this.lastUi.playerActorId,
+        combatants: this.playbackCombatants,
+      },
+      this.lastUi,
+    );
   }
 
 
@@ -345,27 +353,7 @@ export class HUDManager {
 
 
   public updateHealthBar(combatantId: string, hp: number, maxHp?: number): void {
-
-    if (this.battleScreen) {
-
-      this.battleScreen.updateHp(combatantId, hp, maxHp);
-
-      return;
-
-    }
-
-    if (!this.els.root) return;
-
-    const bar = this.els.root.querySelector<HTMLElement>(`[data-hp-for="${combatantId}"]`);
-
-    if (!bar) return;
-
-    const max = Math.max(1, maxHp ?? 100);
-
-    const ratio = Math.min(100, Math.max(0, (hp / max) * 100));
-
-    bar.style.width = `${ratio}%`;
-
+    this.battleScreen?.updateHp(combatantId, hp, maxHp);
   }
 
 
@@ -375,12 +363,11 @@ export class HUDManager {
   public syncCombatantsFromState(
     combatants: TurnUpdate['combatants'],
     playerActorId?: string,
-    applyDom = true,
   ): void {
     setCombatSnapshot(combatants, this.lastTurn?.turn);
 
     if (this.battleScreen && playerActorId) {
-      this.battleScreen.ingestAuthoritativeVitals(combatants, playerActorId, applyDom);
+      this.battleScreen.ingestAuthoritativeVitals(combatants, playerActorId);
       return;
     }
 
@@ -609,26 +596,12 @@ export class HUDManager {
 
 
     if (this.battleCommand) {
-
       if (enabled) {
-
         this.battleCommand.syncLoadout(ui.playerActorId, skills, true, state.turn);
-        if (isReactBattleHudEnabled()) {
-          getBattleHudBridge().setMovesetDrawerOpen(true);
-        } else {
-          ensureBattleHudStubHost().skillPaletteRow.classList.remove('hidden');
-        }
-
+        getBattleHudBridge().setMovesetDrawerOpen(true);
       } else {
-
         this.battleCommand.lock();
-
       }
-
-    } else {
-
-      this.renderLegacySkillButtons(ui.playerActorId, skills, enabled);
-
     }
 
     const stacks = player?.activeConsumables ?? [];
@@ -639,86 +612,6 @@ export class HUDManager {
         this.battleItems.lock();
       }
     }
-  }
-
-
-
-  /** Fallback legado quando BattleCommandController não está montado. */
-
-  private renderLegacySkillButtons(
-
-    actorId: string | null,
-
-    skills: readonly Skill[],
-
-    enabled: boolean,
-
-  ): void {
-
-    const container = this.els.actions;
-
-    if (!container) return;
-
-
-
-    container.innerHTML = '';
-
-    if (!actorId) return;
-
-
-
-    const slots: (Skill | null)[] = [...skills.slice(0, ACTIVE_MOVESET_SLOT_COUNT)];
-
-    while (slots.length < ACTIVE_MOVESET_SLOT_COUNT) slots.push(null);
-
-
-
-    for (const skill of slots) {
-
-      const btn = container.ownerDocument.createElement('button');
-
-      btn.type = 'button';
-
-      btn.className = 'hud-skill-btn battle-skill-slot';
-
-
-
-      if (!skill) {
-
-        btn.disabled = true;
-
-        btn.classList.add('is-empty');
-
-        btn.textContent = '—';
-
-        container.appendChild(btn);
-
-        continue;
-
-      }
-
-
-
-      btn.textContent = skill.name;
-
-      btn.dataset.skillName = skill.name;
-
-      btn.disabled = !enabled;
-
-      if (enabled) {
-
-        btn.addEventListener('click', () => {
-
-          this.onSkillClick?.(skill.id, actorId);
-
-        });
-
-      }
-
-      container.appendChild(btn);
-
-    }
-
   }
 
 
@@ -753,9 +646,6 @@ export class HUDManager {
 
   /** Reseta BattleLog e BattleChat ao fim de cada batalha. */
   public clearBattleSessionUi(): void {
-    if (this.els.log) {
-      this.els.log.innerHTML = '';
-    }
     getBattleLogPanel()?.clear();
     getBattleChatPanel()?.clear();
     this.battleCommand?.lock();
@@ -778,33 +668,7 @@ export class HUDManager {
   }
 
   private appendNarrative(line: BattleNarrativeLine): void {
-    const panel = getBattleLogPanel();
-    if (panel) {
-      panel.appendNarrative(line);
-      return;
-    }
-
-    if (!this.els.log) return;
-
-    const row = this.els.log.ownerDocument.createElement('div');
-    row.className = 'battle-log__line';
-    if (line.tone === 'alert') row.classList.add('battle-log__line--alert');
-
-    const timestamp = this.els.log.ownerDocument.createElement('span');
-    timestamp.className = 'battle-log__timestamp';
-    timestamp.textContent = `[${new Date().toLocaleTimeString('pt-BR', { hour12: false })}] `;
-
-    const message = this.els.log.ownerDocument.createElement('span');
-    const emitterKey = line.emitter.toLowerCase();
-    message.className = `battle-log__message battle-log__message--${emitterKey}`;
-    if (line.kind === 'formula') {
-      message.classList.add('battle-log__message--formula');
-    }
-    message.textContent = line.text;
-
-    row.append(timestamp, message);
-    this.els.log.appendChild(row);
-    this.els.log.scrollTop = this.els.log.scrollHeight;
+    getBattleLogPanel()?.appendNarrative(line);
   }
 
   private appendLog(line: string): void {

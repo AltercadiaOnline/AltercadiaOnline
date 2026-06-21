@@ -1,4 +1,4 @@
-import type { BattleMenuMove } from '../../hud/BattleMenu.js';
+import type { BattleMenuMove } from '../../hud/battleMenuMoves.js';
 import type { BattleConsumableRow } from '../../hud/battleConsumables.js';
 import type { ActiveStatusChip } from '../../hud/activeStatusAdapter.js';
 import type { GameStoreBattleState, GameStoreBattleStatus } from '../../state/GameStore.js';

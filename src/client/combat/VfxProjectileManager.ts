@@ -14,6 +14,8 @@ import { resolveBattleEffectsHost } from './battleEffectsLayer.js';
 import { resolveActivePlayerClassId } from './vfxProjectilePlayerClass.js';
 import { tweenProjectileWithGsap } from './vfxProjectileGsap.js';
 import { logCriticalBattleError } from './combatSafeExecution.js';
+import { isPhaserBattleArenaActive } from '../phaser/battle/phaserBattleArenaMode.js';
+import { getPhaserBattleVfxController } from '../phaser/battle/phaserBattleVfxController.js';
 
 export { getProjectileAsset } from '../../assets/combat/combatAssetManifest.js';
 
@@ -263,6 +265,44 @@ export class VfxProjectileManager {
     effectType: CombatVfxEffectType,
     options: PlayAttackAnimationOptions = {},
   ): Promise<boolean> {
+    const classId = options.classId
+      ?? options.resolveClassId?.()
+      ?? resolveActivePlayerClassId();
+
+    if (isPhaserBattleArenaActive()) {
+      const phaserVfx = getPhaserBattleVfxController();
+      if (!phaserVfx) return false;
+
+      const registry = getPendingIntentRegistry();
+      const lockRegistry = !options.skipRegistryLock;
+      this.playing = true;
+      if (lockRegistry) registry.beginCombatVfxAnimation();
+
+      try {
+        const played = await phaserVfx.playProjectile(
+          sourcePos,
+          targetPos,
+          effectType,
+          classId,
+          exactOptionalProps({
+            ...(options.damage !== undefined ? { damage: options.damage } : {}),
+            ...(options.skipImpactEffects !== undefined
+              ? { skipImpactEffects: options.skipImpactEffects }
+              : {}),
+            skipRegistryLock: true,
+            targetSide: 'foe' as const,
+          }),
+        );
+        return played;
+      } catch (error) {
+        logCriticalBattleError('vfx-projectile', error);
+        return false;
+      } finally {
+        this.playing = false;
+        if (lockRegistry) registry.endCombatVfxAnimation();
+      }
+    }
+
     const host = options.host;
     const doc = options.doc ?? (typeof document !== 'undefined' ? document : null);
     if (!host || !doc) return false;
@@ -279,9 +319,6 @@ export class VfxProjectileManager {
     this.playing = true;
     if (lockRegistry) registry.beginCombatVfxAnimation();
 
-    const classId = options.classId
-      ?? options.resolveClassId?.()
-      ?? resolveActivePlayerClassId();
     const useAssets = options.useCombatAssets ?? resolveUseCombatAssets();
     const projectile = createProjectileElement(doc, effectType, classId, sourcePos, useAssets);
     host.appendChild(projectile);
@@ -320,6 +357,11 @@ export class VfxProjectileManager {
     target: HTMLElement,
     scene: HTMLElement | null,
   ): Promise<void> {
+    if (isPhaserBattleArenaActive()) {
+      await waitMs(IMPACT_HIT_STOP_MS);
+      return;
+    }
+
     if (scene) scene.classList.add('combat-hit-stop');
 
     target.classList.add('vfx-impact-flash--white');
@@ -352,6 +394,30 @@ export class VfxProjectileManager {
     const source = options.sourcePortrait ?? resolvePortrait(scope, PLAYER_PORTRAIT_SELECTOR);
     const target = options.targetPortrait ?? resolvePortrait(scope, OPPONENT_PORTRAIT_SELECTOR);
     if (!source || !target) return false;
+
+    if (isPhaserBattleArenaActive()) {
+      const phaserVfx = getPhaserBattleVfxController();
+      if (!phaserVfx) return false;
+
+      const played = await phaserVfx.playFromGatewayResult(
+        data,
+        options.classId ?? resolveActivePlayerClassId(),
+        exactOptionalProps({
+          ...(options.skipImpactEffects !== undefined
+            ? { skipImpactEffects: options.skipImpactEffects }
+            : {}),
+          ...(options.skipRegistryLock !== undefined
+            ? { skipRegistryLock: options.skipRegistryLock }
+            : {}),
+        }),
+      );
+
+      if (played) {
+        this.lastSignature = this.buildSignature(data);
+        this.suppressUntil = Date.now() + DEDUPE_WINDOW_MS;
+      }
+      return played;
+    }
 
     const host = resolveBattleEffectsHost(source);
     const scene = resolveScene(scope);

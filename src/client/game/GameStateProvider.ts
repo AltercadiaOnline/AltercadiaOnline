@@ -21,7 +21,7 @@ import {
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 import {
   clearBattleSessionUi,
-  getBattleHud,
+  lockBattleHudInput,
   prepareNextBattle,
 } from '../hud/index.js';
 import {
@@ -76,7 +76,7 @@ export function initGameStateProvider(deps: GameStateProviderDeps): () => void {
   providerHooks = {
     persistence: buildPersistence(),
     onTransitionStart: async () => {
-      getBattleHud()?.lockBattleInput();
+      lockBattleHudInput();
       loadingScreen?.show();
     },
     onTransitionEnd: async () => {

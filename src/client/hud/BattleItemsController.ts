@@ -1,18 +1,13 @@
 import type { ActiveConsumableStack } from '../../shared/types.js';
-import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
-import { BattleItemsMenu } from './BattleItemsMenu.js';
+import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
 import { resolveBattleConsumableRows } from './battleConsumables.js';
 
 export type BattleItemsControllerOptions = {
-  readonly menuContainer: HTMLElement;
   readonly onUseItem: (itemId: string, actorId: string) => void;
 };
 
-/**
- * Orquestra a paleta de consumíveis — espelha `activeConsumables` do servidor.
- */
+/** Orquestra paleta de consumíveis — estado canônico via battleHudStore (React). */
 export class BattleItemsController {
-  private readonly menu: BattleItemsMenu;
   private readonly onUseItem: (itemId: string, actorId: string) => void;
   private actorId: string | null = null;
   private stacks: ActiveConsumableStack[] = [];
@@ -20,11 +15,7 @@ export class BattleItemsController {
 
   constructor(options: BattleItemsControllerOptions) {
     this.onUseItem = options.onUseItem;
-    this.menu = new BattleItemsMenu(options.menuContainer);
-    this.menu.setOnItemSelected((itemId) => {
-      this.useItem(itemId);
-    });
-    this.renderMenu();
+    this.publishPalette();
   }
 
   syncItems(
@@ -35,7 +26,7 @@ export class BattleItemsController {
     this.actorId = actorId;
     this.stacks = stacks.map((row) => ({ ...row }));
     this.menuEnabled = enabled;
-    this.renderMenu();
+    this.publishPalette();
   }
 
   decrementConsumable(itemId: string): void {
@@ -48,16 +39,16 @@ export class BattleItemsController {
     } else {
       this.stacks[index] = { ...current, quantity: nextQty };
     }
-    this.renderMenu();
+    this.publishPalette();
   }
 
   lock(): void {
     this.menuEnabled = false;
-    this.renderMenu();
+    this.publishPalette();
   }
 
   destroy(): void {
-    this.menu.destroy();
+    /* noop — sem DOM */
   }
 
   tryUseItem(itemId: string): void {
@@ -71,15 +62,10 @@ export class BattleItemsController {
     this.onUseItem(itemId, this.actorId);
   }
 
-  private renderMenu(): void {
-    const items = resolveBattleConsumableRows(this.stacks);
-    const enabled = this.menuEnabled;
-
-    if (isReactBattleHudEnabled()) {
-      getBattleHudBridge().setItemsPalette(items, enabled);
-      return;
-    }
-
-    this.menu.render({ items, enabled });
+  private publishPalette(): void {
+    getBattleHudBridge().setItemsPalette(
+      resolveBattleConsumableRows(this.stacks),
+      this.menuEnabled,
+    );
   }
 }

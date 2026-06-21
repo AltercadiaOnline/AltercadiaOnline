@@ -1,7 +1,7 @@
 import { getBattleChatPanel } from '../../ui/battle/BattleScreen.js';
-import { getBattleHudController, isReactBattleHudEnabled } from '../battle/BattleHudController.js';
+import { getBattleHudController } from '../battle/BattleHudController.js';
 
-/** Envio de mensagem local — reutiliza `BattleChat` (bridge + callback legado). */
+/** Envio de mensagem local — store + callback legado. */
 export function sendBattleChatMessage(message: string): void {
   const trimmed = message.trim();
   if (!trimmed) return;
@@ -12,7 +12,5 @@ export function sendBattleChatMessage(message: string): void {
     return;
   }
 
-  if (isReactBattleHudEnabled()) {
-    getBattleHudController().appendChatLine('YOU', trimmed);
-  }
+  getBattleHudController().appendChatLine('YOU', trimmed);
 }

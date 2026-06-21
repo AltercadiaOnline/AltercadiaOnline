@@ -2,10 +2,13 @@ import type { UiRuntimeMode } from './gameUiBridge.js';
 
 export type RenderEngine = 'canvas-legacy' | 'phaser';
 
+export type ActivePhaserScene = 'exploration' | 'battle' | null;
+
 export type RenderLayerSnapshot = {
   readonly renderEngine: RenderEngine;
   readonly phaserBooted: boolean;
   readonly phaserSceneReady: boolean;
+  readonly activePhaserScene: ActivePhaserScene;
   readonly uiRuntimeMode: UiRuntimeMode;
 };
 
@@ -17,6 +20,8 @@ class RenderLayerBridge {
   private phaserBooted = false;
 
   private phaserSceneReady = false;
+
+  private activePhaserScene: ActivePhaserScene = null;
 
   private uiRuntimeMode: UiRuntimeMode = 'react-hybrid';
 
@@ -33,6 +38,7 @@ class RenderLayerBridge {
       renderEngine: this.renderEngine,
       phaserBooted: this.phaserBooted,
       phaserSceneReady: this.phaserSceneReady,
+      activePhaserScene: this.activePhaserScene,
       uiRuntimeMode: this.uiRuntimeMode,
     };
   }
@@ -62,11 +68,20 @@ class RenderLayerBridge {
     this.emit();
   }
 
+  setActivePhaserScene(scene: ActivePhaserScene): void {
+    if (this.activePhaserScene === scene) return;
+    this.activePhaserScene = scene;
+    this.emit();
+  }
+
   private emit(): void {
     const snapshot = this.snapshot();
     for (const listener of this.listeners) {
       listener(snapshot);
     }
+    void import('../../phaser/phaserBattleArenaDom.js').then(({ syncPhaserBattleArenaDomVisibility }) => {
+      syncPhaserBattleArenaDomVisibility();
+    });
   }
 }
 

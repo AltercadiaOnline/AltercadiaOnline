@@ -67,7 +67,7 @@ import {
   isPostBattleHubInteractive,
 } from '../ui/battle/battleSceneMount.js';
 import { showBattleResultOverlay } from './battleResultOverlay.js';
-import { unmountPostBattleHub } from '../ui/battle/PostBattleHub.js';
+import { dismissPostBattleHubUi } from '../app/battle/dismissPostBattleHubUi.js';
 import { resetPlayerHonorCardSession } from '../ui/battle/PlayerHonorCard.js';
 import {
   capturePostBattleHonorContext,
@@ -77,7 +77,6 @@ import {
   configurePostBattleHonorOpener,
 } from '../ui/battle/postBattleHonorOpener.js';
 import { syncBattleChatOpponentAuthor } from '../ui/battle/BattleScreen.js';
-import { ensureBattleHudStubHost } from '../ui/battle/battleHudStubHost.js';
 import { enterPostBattleObservation, clearBattleObservationState } from '../combat/battleObservationState.js';
 import {
   ingestBattleHonorStats,
@@ -143,6 +142,7 @@ import {
 import { subscribeConnectionPhase } from '../sync/connectionState.js';
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import { resetVfxProjectileManager } from '../combat/VfxProjectileManager.js';
+import { resetBattleSceneTransitionFade } from '../phaser/battle/battleSceneTransitionFade.js';
 import { getBattleStore, initBattleStore, resetBattleStore } from './battleStore.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { BattleCommandController } from './BattleCommandController.js';
@@ -512,7 +512,7 @@ function removePostBattleHubUi(): void {
     getPostBattleHudBridge().dismiss();
     clearPostBattleHubHandlers();
   }
-  unmountPostBattleHub();
+  dismissPostBattleHubUi();
   unmountEmergencyBattleExit();
   if (typeof document === 'undefined') return;
   document.querySelectorAll(BATTLE_RESULT_HUB_SELECTOR).forEach((node) => node.remove());
@@ -948,12 +948,8 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
   teardownBattleScreenUi?.();
   teardownBattleScreenUi = initBattleScreenUI(root, {
     onMoveset: () => {
-      if (isReactBattleHudEnabled()) {
-        getBattleHudBridge().setItemsDrawerOpen(false);
-        getBattleHudBridge().setMovesetDrawerOpen(true);
-      } else {
-        ensureBattleHudStubHost(root).skillPaletteRow.classList.remove('hidden');
-      }
+      getBattleHudBridge().setItemsDrawerOpen(false);
+      getBattleHudBridge().setMovesetDrawerOpen(true);
       const dispatch = lastDispatch;
       if (dispatch) {
         ensureHud().syncSkillPaletteFromCombatState(dispatch.state, dispatch.ui);
@@ -978,10 +974,6 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     },
   });
 
-  const battleHudStubs = ensureBattleHudStubHost(root);
-
-  const actions = battleHudStubs.skillPaletteRow;
-
   initTurnStateGuard(root);
   getTurnStateGuard().setOnChoiceWindowExpired(() => {
     if (battleInputFrozen) return;
@@ -992,24 +984,17 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
 
   battleScreen = new BattleScreen(queryBattleScreenElements(root));
 
-  if (actions) {
-    battleCommand = new BattleCommandController({
-      menuContainer: actions,
-      onExecuteMove: (skillId, actorId) => {
-        GameClient.sendSkillChoice(skillId, actorId);
-      },
-    });
-  }
+  battleCommand = new BattleCommandController({
+    onExecuteMove: (skillId, actorId) => {
+      GameClient.sendSkillChoice(skillId, actorId);
+    },
+  });
 
-  const itemsDrawer = battleHudStubs.battleItemsRow;
-  if (itemsDrawer) {
-    battleItems = new BattleItemsController({
-      menuContainer: itemsDrawer,
-      onUseItem: (itemId, actorId) => {
-        GameClient.sendConsumableChoice(itemId, actorId);
-      },
-    });
-  }
+  battleItems = new BattleItemsController({
+    onUseItem: (itemId, actorId) => {
+      GameClient.sendConsumableChoice(itemId, actorId);
+    },
+  });
 
   registerBattlePaletteHandlers({
     executeMove: (moveId) => battleCommand?.trySelectMove(moveId),
@@ -1026,24 +1011,16 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
   };
   globalCommands.__ALTERCADIA_BATTLE_COMMANDS = {
     moveset: () => {
-      if (isReactBattleHudEnabled()) {
-        getBattleHudBridge().setItemsDrawerOpen(false);
-        getBattleHudBridge().setMovesetDrawerOpen(true);
-      } else {
-        ensureBattleHudStubHost(root).skillPaletteRow.classList.remove('hidden');
-      }
+      getBattleHudBridge().setItemsDrawerOpen(false);
+      getBattleHudBridge().setMovesetDrawerOpen(true);
       const dispatch = lastDispatch;
       if (dispatch) {
         ensureHud().syncSkillPaletteFromCombatState(dispatch.state, dispatch.ui);
       }
     },
     items: () => {
-      if (isReactBattleHudEnabled()) {
-        getBattleHudBridge().setMovesetDrawerOpen(false);
-        getBattleHudBridge().toggleItemsDrawer();
-      } else {
-        ensureBattleHudStubHost(root).battleItemsRow.classList.toggle('hidden');
-      }
+      getBattleHudBridge().setMovesetDrawerOpen(false);
+      getBattleHudBridge().toggleItemsDrawer();
     },
     skip: () => {
       const dispatch = lastDispatch;
@@ -1067,8 +1044,6 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
   hud = new HUDManager({
     elements: {
       root: root.querySelector<HTMLElement>('[data-battle-hud]'),
-      actions,
-      log: null,
     },
     battleScreen,
     ...(battleCommand ? { battleCommand } : {}),
@@ -1180,6 +1155,7 @@ export function clearBattleSessionUi(): void {
   battleItems?.lock();
   battleScreen?.reset();
   resetTurnStateGuard();
+  resetBattleSceneTransitionFade();
   rootHideBattleDrawers();
 }
 
@@ -1187,14 +1163,14 @@ export function getBattleHud(): HUDManager | null {
   return hud;
 }
 
+/** Trava paletas/comandos — escreve no Zustand via controllers (sem HUDManager). */
+export function lockBattleHudInput(): void {
+  battleCommand?.lock();
+  battleItems?.lock();
+}
+
 function rootHideBattleDrawers(): void {
-  if (isReactBattleHudEnabled()) {
-    getBattleHudBridge().closeDrawers();
-    return;
-  }
-  const stubs = ensureBattleHudStubHost();
-  stubs.skillPaletteRow.classList.add('hidden');
-  stubs.battleItemsRow.classList.add('hidden');
+  getBattleHudBridge().closeDrawers();
 }
 
 function ensureHud(): HUDManager {
@@ -1215,6 +1191,7 @@ export const GameClient = {
     resetCombatFeedbackOrchestrator();
     resetCombatTurnGateway();
     resetVfxProjectileManager();
+    resetBattleSceneTransitionFade();
     combatFeedbackOrchestrator = null;
     hud?.clearSkillCache();
     battleCommand?.destroy();
@@ -1270,7 +1247,7 @@ export const GameClient = {
     lastDispatch = data;
     getGameStore().resolveFromCombatEvents(data.events);
     const hudManager = ensureHud();
-    hudManager.syncCombatantsFromState(data.state.combatants, data.ui.playerActorId, false);
+    hudManager.syncCombatantsFromState(data.state.combatants, data.ui.playerActorId);
     const statusBaseline = hudManager.getLastTurn()?.combatants ?? data.state.combatants;
     hudManager.beginStatusPlayback(statusBaseline, data.ui.playerActorId);
     rememberEndedDispatch(data);
@@ -1483,8 +1460,7 @@ export const GameClient = {
    */
   renderState(state: CombatState, ui: CombatUiHints): void {
     const manager = hud ?? ensureHud();
-    const paintHpOnDom = !isCombatSequenceProcessing();
-    manager.syncCombatantsFromState(state.combatants, ui.playerActorId, paintHpOnDom);
+    manager.syncCombatantsFromState(state.combatants, ui.playerActorId);
     manager.syncSkillPaletteFromCombatState(state, ui);
     getTurnStateGuard().syncFromDispatch(state, ui);
 

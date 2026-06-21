@@ -1,0 +1,1 @@
+import{a as e}from"./chunk-GFB734VR.js";import"./chunk-6DHFEWGX.js";function s(){let{renderEngine:t,activePhaserScene:a}=e().snapshot();t==="phaser"&&a==="battle"?document.body.dataset.phaserBattleArena="1":delete document.body.dataset.phaserBattleArena}export{s as syncPhaserBattleArenaDomVisibility};

@@ -5,6 +5,7 @@ import { applyBaseViewportCssVars } from './UIConstants.js';
 export const GAME_HUD_SIDEBAR_WIDTH_PX = 250;
 
 export const GAME_VIEWPORT_ID = 'game-viewport';
+export const GAME_RENDER_COLUMN_ID = 'game-render-column';
 export const GAME_STAGE_FRAME_ID = 'game-stage-frame';
 /** Container lógico 640×360 — recebe `transform: scale(n)` (spec: #game-container). */
 export const GAME_STAGE_SCALE_ID = 'game-stage-scale';

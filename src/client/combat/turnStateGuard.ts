@@ -16,7 +16,7 @@ import { getCombatTurnGateway } from './CombatTurnGateway.js';
 
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import { getGameStore } from '../state/GameStore.js';
-import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
+import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
 
 
 
@@ -29,60 +29,29 @@ const YOUR_TURN_MESSAGE = 'Sua vez — escolha um movimento';
 
 
 type TurnGuardUi = {
-
   movesetContainer: HTMLElement | null;
-
-  turnPhase: HTMLElement | null;
-
-  waitingHint: HTMLElement | null;
-
 };
 
-
-
 /**
-
  * Trava de turno do Battle HUD — espelha `CombatUiHints.actionsEnabled` (SSOT servidor).
-
  * Cronômetro isolado em {@link BattleTurnTimer} — imune a re-render da paleta/mastery.
-
  */
-
 export class TurnStateGuard {
-
   private isMyTurn = false;
-
   private playerActorId: string | null = null;
-
   private turnDeadlineMs: number | undefined;
-
   private turnPlaybackGraceMs = 0;
-
   private turnChoiceBudgetMs = BATTLE_TURN_CHOICE_BUDGET_MS;
-
   private lastTurnWindowKey: string | null = null;
-
   private lastUiTurnKey: string | null = null;
-
   private onChoiceWindowExpired: (() => void) | null = null;
-
   private readonly turnTimer: BattleTurnTimer;
-
   private readonly ui: TurnGuardUi = {
-
     movesetContainer: null,
-
-    turnPhase: null,
-
-    waitingHint: null,
-
   };
 
-
-
   constructor() {
-
-    this.turnTimer = new BattleTurnTimer({ label: null, barFill: null });
+    this.turnTimer = new BattleTurnTimer();
 
     this.turnTimer.setOnExpired(() => {
 
@@ -107,25 +76,10 @@ export class TurnStateGuard {
 
 
   bindRoot(root: ParentNode = document): void {
-
-    this.ui.movesetContainer = root.querySelector('#skill-palette-row');
-
-    this.ui.turnPhase = root.querySelector('#battle-turn-phase');
-
-    this.ui.waitingHint = root.querySelector('#battle-turn-waiting');
-
-    this.turnTimer.bindUi({
-
-      label: root.querySelector('#battle-turn-timer'),
-
-      barFill: root.querySelector('#battle-turn-timer-bar-fill'),
-
-    });
-
+    this.ui.movesetContainer = root.querySelector('#react-skill-palette-row')
+      ?? root.querySelector('#skill-palette-row');
     this.applyTurnUi();
-
     this.syncTurnTimer();
-
   }
 
 
@@ -368,57 +322,20 @@ export class TurnStateGuard {
 
 
   private applyTurnUi(): void {
-
     const blocked = !this.isMyTurn;
-
     const moveset = this.ui.movesetContainer;
 
     if (moveset) {
-
       moveset.classList.toggle('turn-guard--blocked', blocked);
-
       moveset.classList.toggle('is-disabled', blocked);
-
       moveset.toggleAttribute('aria-disabled', blocked);
-
     }
 
-    if (isReactBattleHudEnabled()) {
-      getBattleHudBridge().setPaletteTurnBlocked(blocked);
-    }
-
-    if (isReactBattleHudEnabled()) {
-      const phaseText = this.isMyTurn
-        ? YOUR_TURN_MESSAGE
-        : WAITING_OPPONENT_MESSAGE;
-      getBattleHudBridge().setTurnPhase(phaseText, this.isMyTurn);
-      return;
-    }
-
-    if (this.ui.turnPhase) {
-
-      const phaseText = this.isMyTurn
-        ? YOUR_TURN_MESSAGE
-        : WAITING_OPPONENT_MESSAGE;
-
-      this.ui.turnPhase.textContent = phaseText;
-
-      this.ui.turnPhase.classList.toggle('battle-turn-phase--active', this.isMyTurn);
-
-      this.ui.turnPhase.classList.toggle('battle-turn-phase--waiting', !this.isMyTurn);
-
-    }
-
-
-
-    if (this.ui.waitingHint) {
-
-      this.ui.waitingHint.classList.toggle('hidden', this.isMyTurn);
-
-      this.ui.waitingHint.textContent = WAITING_OPPONENT_MESSAGE;
-
-    }
-
+    getBattleHudBridge().setPaletteTurnBlocked(blocked);
+    const phaseText = this.isMyTurn
+      ? YOUR_TURN_MESSAGE
+      : WAITING_OPPONENT_MESSAGE;
+    getBattleHudBridge().setTurnPhase(phaseText, this.isMyTurn);
   }
 
 

@@ -6,6 +6,7 @@ import type { BattleController } from './BattleController.js';
 import type { BattleScreen } from '../hud/battleScreen.js';
 import { playCombatImpactSound } from './combatFeedbackSound.js';
 import { logCriticalBattleError } from './combatSafeExecution.js';
+import { isPhaserBattleArenaActive } from '../phaser/battle/phaserBattleArenaMode.js';
 
 const SHAKE_MS: Record<string, number> = {
   none: 0,
@@ -71,7 +72,8 @@ function clearJuiceClasses(scene: HTMLElement): void {
 
 /** Pipeline autoritativo: Som → HitStop → Flash → Animação de Dano → Shake. */
 export async function runCombatFeedbackPipeline(context: CombatFeedbackPipelineContext): Promise<void> {
-  const juiceHost = resolveBattleJuiceHost(context.root);
+  const phaserArena = isPhaserBattleArenaActive();
+  const juiceHost = phaserArena ? null : resolveBattleJuiceHost(context.root);
   const { feedback } = context;
 
   try {
@@ -79,32 +81,41 @@ export async function runCombatFeedbackPipeline(context: CombatFeedbackPipelineC
       // 1. Som
       await playCombatImpactSound(feedback.impactType);
 
-      if (!juiceHost) {
+      if (!juiceHost && !phaserArena) {
         await runDamageAnimationPhase(context);
         return;
       }
 
-      // 2. HitStop
-      if (feedback.hitStopDuration > 0) {
-        juiceHost.classList.add('combat-hit-stop');
-        await waitMs(feedback.hitStopDuration);
-        juiceHost.classList.remove('combat-hit-stop');
-      }
-
-      // 3. Flash
-      juiceHost.dataset.combatImpact = feedback.impactType;
-      juiceHost.classList.add(impactParticleClass(feedback.impactType));
-      juiceHost.classList.add('combat-flash--active');
       const flashTargetId = context.damageEvent?.payload.targetId
         ?? context.damageEvent?.payload.sourceId;
       const screen = context.getBattleScreen?.();
-      if (flashTargetId && screen) {
-        await screen.playCombatCue(flashTargetId, feedback.impactType === 'HEAL' ? 'heal' : 'hit');
-      } else {
-        await waitMs(120);
+
+      if (phaserArena) {
+        if (flashTargetId && screen) {
+          await screen.playCombatCue(flashTargetId, feedback.impactType === 'HEAL' ? 'heal' : 'hit');
+        } else {
+          await waitMs(120);
+        }
+      } else if (juiceHost) {
+        // 2. HitStop
+        if (feedback.hitStopDuration > 0) {
+          juiceHost.classList.add('combat-hit-stop');
+          await waitMs(feedback.hitStopDuration);
+          juiceHost.classList.remove('combat-hit-stop');
+        }
+
+        // 3. Flash
+        juiceHost.dataset.combatImpact = feedback.impactType;
+        juiceHost.classList.add(impactParticleClass(feedback.impactType));
+        juiceHost.classList.add('combat-flash--active');
+        if (flashTargetId && screen) {
+          await screen.playCombatCue(flashTargetId, feedback.impactType === 'HEAL' ? 'heal' : 'hit');
+        } else {
+          await waitMs(120);
+        }
+        juiceHost.classList.remove('combat-flash--active');
       }
-      juiceHost.classList.remove('combat-flash--active');
-    } else if (!juiceHost) {
+    } else if (!juiceHost && !phaserArena) {
       await runDamageAnimationPhase(context);
       return;
     }
@@ -112,21 +123,23 @@ export async function runCombatFeedbackPipeline(context: CombatFeedbackPipelineC
     // 4. Animação de dano
     await runDamageAnimationPhase(context);
 
-    // 5. Shake da câmera
-    const shakeClass = feedback.cameraShake !== 'none'
-      ? `combat-shake--${feedback.cameraShake}`
-      : null;
-    if (shakeClass && juiceHost) {
-      juiceHost.classList.add(shakeClass);
-      await waitMs(SHAKE_MS[feedback.cameraShake] ?? 200);
-      juiceHost.classList.remove(shakeClass);
-    }
+    // 5. Shake da câmera (DOM legado)
+    if (!phaserArena) {
+      const shakeClass = feedback.cameraShake !== 'none'
+        ? `combat-shake--${feedback.cameraShake}`
+        : null;
+      if (shakeClass && juiceHost) {
+        juiceHost.classList.add(shakeClass);
+        await waitMs(SHAKE_MS[feedback.cameraShake] ?? 200);
+        juiceHost.classList.remove(shakeClass);
+      }
 
-    if (juiceHost) {
-      window.setTimeout(() => {
-        juiceHost.classList.remove(impactParticleClass(feedback.impactType));
-        juiceHost.removeAttribute('data-combat-impact');
-      }, 320);
+      if (juiceHost) {
+        window.setTimeout(() => {
+          juiceHost.classList.remove(impactParticleClass(feedback.impactType));
+          juiceHost.removeAttribute('data-combat-impact');
+        }, 320);
+      }
     }
   } catch (error) {
     logCriticalBattleError('feedback-pipeline', error);

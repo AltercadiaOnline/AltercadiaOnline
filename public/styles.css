@@ -145,7 +145,88 @@ body[data-ui-architecture="online-react-v1"] {
   z-index: var(--ui-shell-z-overlay, 980);
 }
 
+/* Phaser battle arena — remove render DOM; #scene-combat permanece para overlays/hub */
+body[data-phaser-battle-arena='1'] #scene-combat {
+  background: transparent;
+}
+
+body[data-phaser-battle-arena='1'] #scene-combat .battle-screen--terminal.battle-screen {
+  background: transparent;
+}
+
+body[data-phaser-battle-arena='1'] #scene-combat .battle-combat-top {
+  display: none !important;
+}
+
+/* Fade exploração ↔ batalha — cobre coluna de render (Phaser) */
+#game-scene-fade-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 28;
+  background: #030508;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.38s ease;
+}
+
+body[data-react-game-hud-ui='1'] #game-scene-fade-overlay {
+  right: var(--game-hud-sidebar-width);
+}
+
+#game-scene-fade-overlay.is-fading-in,
+#game-scene-fade-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#game-scene-fade-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body[data-phaser-render-fade='1'] #battle-fade-overlay {
+  display: none !important;
+}
+
 /* —— Render layer: canvas legado vs Phaser —— */
+#game-render-column {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body[data-react-game-hud-ui='1'] #game-render-column {
+  padding-right: var(--game-hud-sidebar-width);
+  box-sizing: border-box;
+}
+
+#game-render-column .game-viewport-container {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  pointer-events: none;
+}
+
+#game-render-column .game-stage-frame,
+#game-render-column .game-render-host,
+#game-render-column .game-canvas,
+#game-render-column .phaser-mount-root,
+#game-render-column .game-ui-overlay {
+  pointer-events: auto;
+}
+
+.game-layout__viewport-spacer {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 .game-render-host {
   position: relative;
   width: 640px;
@@ -5617,6 +5698,7 @@ body > .battle-result-overlay,
   width: 0 !important;
 }
 
+#react-skill-palette-row.turn-guard--blocked,
 #skill-palette-row.turn-guard--blocked,
 .skill-palette.turn-guard--blocked {
   opacity: 0.5;

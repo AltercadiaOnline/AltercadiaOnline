@@ -5,6 +5,7 @@ import {
 import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
   CANVAS_LEGACY_ID,
+  PHASER_BATTLE_SCENE_KEY,
   PHASER_EXPLORATION_SCENE_KEY,
   PHASER_MOUNT_ROOT_ID,
 } from './PhaserConfig.js';
@@ -71,20 +72,28 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
 
     const PhaserNs = (await import('phaser')) as unknown as PhaserModule;
     const { createExplorationPhaserScene } = await import('./scenes/ExplorationPhaserScene.js');
+    const { createBattlePhaserScene } = await import('./scenes/BattlePhaserScene.js');
 
     setRenderHostVisibility('phaser');
 
     const gameConfig = buildPhaserGameConfig({
       Phaser: PhaserNs,
       parent: host,
-      scenes: [createExplorationPhaserScene(PhaserNs as never)],
+      scenes: [
+        createExplorationPhaserScene(PhaserNs as never),
+        createBattlePhaserScene(PhaserNs as never),
+      ],
     });
 
     activeGame = new PhaserNs.Game(gameConfig);
     applyPhaserCanvasTransparency(host);
 
     getRenderLayerBridge().markPhaserBooted(true);
-    activeGame.scene.start(PHASER_EXPLORATION_SCENE_KEY);
+
+    const { getGameStateManager } = await import('../../shared/state/GameStateManager.js');
+    const { syncPhaserSceneForGameState } = await import('./phaserSceneRouter.js');
+    syncPhaserSceneForGameState(getGameStateManager().getState());
+
     getRenderLayerBridge().markPhaserSceneReady(true);
 
     return activeGame;
@@ -108,7 +117,22 @@ export function shutdownPhaserRuntime(): void {
   }
   getRenderLayerBridge().markPhaserBooted(false);
   getRenderLayerBridge().markPhaserSceneReady(false);
+  getRenderLayerBridge().setActivePhaserScene(null);
   setRenderHostVisibility('canvas-legacy');
+}
+
+/** Troca cena ativa sem destruir o Game Phaser. */
+export function switchPhaserScene(sceneKey: string): void {
+  if (!activeGame) return;
+  activeGame.scene.start(sceneKey);
+  getRenderLayerBridge().markPhaserSceneReady(true);
+  const activeScene =
+    sceneKey === PHASER_BATTLE_SCENE_KEY
+      ? 'battle'
+      : sceneKey === PHASER_EXPLORATION_SCENE_KEY
+        ? 'exploration'
+        : null;
+  getRenderLayerBridge().setActivePhaserScene(activeScene);
 }
 
 export function isPhaserRuntimeActive(): boolean {

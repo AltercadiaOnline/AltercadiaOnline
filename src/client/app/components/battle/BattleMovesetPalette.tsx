@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ACTIVE_MOVESET_SLOT_COUNT } from '../../../../shared/combat/moveTypes.js';
 import { resolveMoveDefinitionForUi } from '../../../../shared/combat/movesetLoadout.js';
-import type { BattleMenuMove } from '../../../hud/BattleMenu.js';
+import type { BattleMenuMove } from '../../../hud/battleMenuMoves.js';
 import { uiEvents, UIEventType } from '../../../ui/uiEvents.js';
 
 type BattleMovesetPaletteProps = {
