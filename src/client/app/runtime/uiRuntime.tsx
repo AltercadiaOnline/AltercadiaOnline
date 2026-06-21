@@ -1,16 +1,18 @@
 import { initClientApp } from '../bootstrap/initClientApp.js';
 import { ensureClientArchitectureRoots } from '../shell/clientArchitecture.js';
-import { mountHudRuntime } from './mountHudRuntime.js';
 import { mountOverlayRuntime } from './mountOverlayRuntime.js';
 import { mountScreenRuntime } from './mountScreenRuntime.js';
 
+/**
+ * Boot React mínimo — screen (auth/char) + overlay (loading).
+ * HUD in-game monta em ensureGameHudRuntime() ao entrar no mundo.
+ */
 export function mountReactUiRuntime(root: ParentNode = document): void {
-  const { screenRoot, hudRoot, overlayRoot } = ensureClientArchitectureRoots(root);
+  const { screenRoot, overlayRoot } = ensureClientArchitectureRoots(root);
 
   initClientApp(root);
 
   mountScreenRuntime(screenRoot);
-  mountHudRuntime(hudRoot);
   mountOverlayRuntime(overlayRoot);
 }
 

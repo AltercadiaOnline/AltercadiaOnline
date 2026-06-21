@@ -1,9 +1,18 @@
+import { lazy, Suspense } from 'react';
 import { GameShell } from './GameShell.js';
 import { HybridHudFoundation } from './HybridHudFoundation.js';
-import { BattleHUD } from './battle/BattleHUD.js';
-import { WorldSceneShell } from './world/WorldSceneShell.js';
 import { useGameStore } from '../store/gameStore.js';
 import { isHybridUiDebugEnabled } from '../shell/hybridUiDebug.js';
+
+const WorldSceneShell = lazy(async () => {
+  const module = await import('./world/WorldSceneShell.js');
+  return { default: module.WorldSceneShell };
+});
+
+const BattleHUD = lazy(async () => {
+  const module = await import('./battle/BattleHUD.js');
+  return { default: module.BattleHUD };
+});
 
 /**
  * HUD in-game — alterna World / Battle via viewMode (Zustand espelho do legado).
@@ -17,8 +26,16 @@ export function App() {
     <GameShell>
       {isHybridUiDebugEnabled() ? <HybridHudFoundation /> : null}
 
-      {inGame && viewMode === 'world' ? <WorldSceneShell /> : null}
-      {inGame && viewMode === 'battle' ? <BattleHUD /> : null}
+      {inGame && viewMode === 'world' ? (
+        <Suspense fallback={null}>
+          <WorldSceneShell />
+        </Suspense>
+      ) : null}
+      {inGame && viewMode === 'battle' ? (
+        <Suspense fallback={null}>
+          <BattleHUD />
+        </Suspense>
+      ) : null}
     </GameShell>
   );
 }

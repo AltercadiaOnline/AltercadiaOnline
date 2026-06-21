@@ -1,0 +1,1 @@
+import{a as e}from"./chunk-IDHNY456.js";var o="MainScene",r="ExplorationWorld",n={width:e.VIEWPORT.WIDTH,height:e.VIEWPORT.HEIGHT,pixelArt:!0,antialias:!1,antialiasGL:!1,roundPixels:!0};export{o as a,r as b};

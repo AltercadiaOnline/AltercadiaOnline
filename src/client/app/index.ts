@@ -1,5 +1,5 @@
 /** API pública da camada React / híbrida do cliente online. */
-export { initClientApp, resetClientAppSession, isClientAppInitialized } from './bootstrap/initClientApp.js';
+export { initClientApp, initClientAppGameLayer, resetClientAppSession, isClientAppInitialized, isClientAppGameLayerInitialized } from './bootstrap/initClientApp.js';
 export { teardownClientApp } from './bootstrap/teardownClientApp.js';
 
 export { mountReactUiRuntime } from './runtime/uiRuntime.js';

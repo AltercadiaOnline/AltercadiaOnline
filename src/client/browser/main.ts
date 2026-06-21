@@ -586,7 +586,19 @@ function connectSocket(): void {
 function enterWorld(): void {
   if (worldStarted) return;
 
-  initReactGameHud();
+  void (async () => {
+    try {
+      await initReactGameHud();
+    } catch (error) {
+      console.error('[Altercadia] Falha ao montar HUD React in-game:', error);
+    }
+    enterWorldAfterHudReady();
+  })();
+}
+
+function enterWorldAfterHudReady(): void {
+  if (worldStarted) return;
+
   beginWorldLoginHandshake();
   mountWorldMapScene();
   AppScreens.showGameWorld();

@@ -10,7 +10,6 @@ const outDir = path.join(root, 'public', 'app-ui');
 const entryCss = path.join(root, 'src', 'client', 'app', 'styles', 'ui.tailwind.css');
 const outCss = path.join(outDir, 'ui-runtime.css');
 const entryTsx = path.join(root, 'src', 'client', 'app', 'runtime', 'uiRuntime.tsx');
-const outJs = path.join(outDir, 'ui-runtime.js');
 
 mkdirSync(outDir, { recursive: true });
 
@@ -28,8 +27,13 @@ if (process.platform === 'win32') {
 
 await build({
   absWorkingDir: root,
-  entryPoints: [entryTsx],
-  outfile: outJs,
+  entryPoints: {
+    'ui-runtime': entryTsx,
+  },
+  outdir: outDir,
+  entryNames: '[name]',
+  chunkNames: 'chunks/[name]-[hash]',
+  splitting: true,
   bundle: true,
   format: 'esm',
   platform: 'browser',

@@ -10,35 +10,47 @@ import {
 } from '../store/gameStoreBridge.js';
 import { ensureClientArchitectureRoots } from '../shell/clientArchitecture.js';
 
-let clientAppInitialized = false;
+let clientAppShellInitialized = false;
+let clientAppGameLayerInitialized = false;
 
-/**
- * Bootstrap único da camada React — bridges, stores e flags de arquitetura.
- * Montagem de roots React fica em `runtime/*Runtime.tsx`.
- */
+/** Bootstrap leve — roots + flags de superfície (login / overlay). */
 export function initClientApp(root: ParentNode = document): boolean {
-  if (clientAppInitialized) return false;
+  if (clientAppShellInitialized) return false;
 
   ensureClientArchitectureRoots(root);
-  initGameStoreBridge();
-  initWorldPanelsBridge();
-  initPhaserReadyLayer();
 
   const bridge = getGameUiBridge();
   bridge.mountSurface('screen');
   bridge.mountSurface('hud');
   bridge.mountSurface('overlay');
 
-  clientAppInitialized = true;
+  clientAppShellInitialized = true;
+  return true;
+}
+
+/** Bridges pesados + Phaser — só após entrar no mundo (lazy via ensureGameHudRuntime). */
+export function initClientAppGameLayer(): boolean {
+  if (clientAppGameLayerInitialized) return false;
+
+  initGameStoreBridge();
+  initWorldPanelsBridge();
+  initPhaserReadyLayer();
+
+  clientAppGameLayerInitialized = true;
   return true;
 }
 
 export function isClientAppInitialized(): boolean {
-  return clientAppInitialized;
+  return clientAppShellInitialized;
+}
+
+export function isClientAppGameLayerInitialized(): boolean {
+  return clientAppGameLayerInitialized;
 }
 
 export function resetClientAppInitializedFlag(): void {
-  clientAppInitialized = false;
+  clientAppShellInitialized = false;
+  clientAppGameLayerInitialized = false;
 }
 
 /** Reset de sessão online (logout / troca de personagem) — não desmonta React roots. */
