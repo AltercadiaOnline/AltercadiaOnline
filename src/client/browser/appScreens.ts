@@ -66,6 +66,11 @@ import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/em
 import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
 import { getAuthScreenController } from '../app/screen/authScreenController.js';
 import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
+import {
+  markAuthBootstrapFailed,
+  markAuthBootstrapPending,
+  markAuthBootstrapReady,
+} from '../auth/authBootstrapState.js';
 
 let appShellListenersBound = false;
 
@@ -81,55 +86,65 @@ let clientAuthBootstrapCache: ClientAuthBootstrapResult | null = null;
 /** Bootstrap: /config/client (Vercel estático) → health Railway → Supabase Auth. */
 export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
   if (clientAuthBootstrapCache) {
+    markAuthBootstrapReady();
     return clientAuthBootstrapCache;
   }
 
-  const config = await fetchPublicClientConfig();
-  setClientRuntimeConfig(config);
+  markAuthBootstrapPending();
 
-  if (normalizeAuthCallbackLocationIfNeeded(config)) {
-    throw new Error('Redirecionando confirmação de email…');
+  try {
+    const config = await fetchPublicClientConfig();
+    setClientRuntimeConfig(config);
+
+    if (normalizeAuthCallbackLocationIfNeeded(config)) {
+      throw new Error('Redirecionando confirmação de email…');
+    }
+
+    const authReturn = hasAuthTokensInUrl();
+    if (!authReturn && redirectToCanonicalGameOriginIfNeeded(config)) {
+      throw new Error('Redirecionando para o servidor de jogo…');
+    }
+
+    if (authReturn) {
+      console.debug('[Auth] Callback detectado — processando sessão no front-end atual.');
+    }
+
+    const serverOk = await isGameServerReachable(config);
+    if (!serverOk) {
+      console.warn('[Auth] Servidor de jogo offline — verifique deploy e GAME_WS_URL.');
+      throw new Error(USER_SERVER_OFFLINE);
+    }
+
+    const supabaseConfigured = isSupabaseConfigured(config);
+    const hasGameWsUrl = Boolean(config.gameWsUrl);
+
+    if (!supabaseConfigured) {
+      console.warn('[Auth] Supabase não configurado — defina SUPABASE_URL e SUPABASE_ANON_KEY.');
+      throw new Error(USER_AUTH_UNAVAILABLE);
+    }
+
+    const supabaseReady = await initSupabaseAuth(config);
+    if (!supabaseReady || !getSupabaseClient()) {
+      console.warn('[Auth] Falha ao inicializar Supabase Auth no cliente.');
+      throw new Error(USER_AUTH_UNAVAILABLE);
+    }
+
+    await restorePersistedSession();
+
+    clientAuthBootstrapCache = {
+      serverOk,
+      supabaseConfigured,
+      hasGameWsUrl,
+      config,
+    };
+
+    markAuthBootstrapReady();
+    return clientAuthBootstrapCache;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha ao preparar autenticação.';
+    markAuthBootstrapFailed(message);
+    throw error;
   }
-
-  const authReturn = hasAuthTokensInUrl();
-  if (!authReturn && redirectToCanonicalGameOriginIfNeeded(config)) {
-    throw new Error('Redirecionando para o servidor de jogo…');
-  }
-
-  if (authReturn) {
-    console.debug('[Auth] Callback detectado — processando sessão no front-end atual.');
-  }
-
-  const serverOk = await isGameServerReachable(config);
-  if (!serverOk) {
-    console.warn('[Auth] Servidor de jogo offline — verifique deploy e GAME_WS_URL.');
-    throw new Error(USER_SERVER_OFFLINE);
-  }
-
-  const supabaseConfigured = isSupabaseConfigured(config);
-  const hasGameWsUrl = Boolean(config.gameWsUrl);
-
-  if (!supabaseConfigured) {
-    console.warn('[Auth] Supabase não configurado — defina SUPABASE_URL e SUPABASE_ANON_KEY.');
-    throw new Error(USER_AUTH_UNAVAILABLE);
-  }
-
-  const supabaseReady = await initSupabaseAuth(config);
-  if (!supabaseReady || !getSupabaseClient()) {
-    console.warn('[Auth] Falha ao inicializar Supabase Auth no cliente.');
-    throw new Error(USER_AUTH_UNAVAILABLE);
-  }
-
-  await restorePersistedSession();
-
-  clientAuthBootstrapCache = {
-    serverOk,
-    supabaseConfigured,
-    hasGameWsUrl,
-    config,
-  };
-
-  return clientAuthBootstrapCache;
 }
 
 function bindAppShellListeners(onEnterWorld: () => void): void {

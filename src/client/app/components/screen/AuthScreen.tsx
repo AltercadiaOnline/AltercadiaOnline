@@ -31,7 +31,7 @@ function AuthField({
 export function AuthScreen() {
   const state = useAuthScreen();
   const actions = useAuthScreenActions();
-  const disabled = state.busy;
+  const disabled = state.busy || state.authBootstrapPending;
 
   return (
     <div
@@ -300,6 +300,12 @@ export function AuthScreen() {
         )}
 
         <AuthStatus message={state.statusMessage} isError={state.statusIsError} />
+
+        {state.authBootstrapPending && !state.statusMessage ? (
+          <p className="auth-status" aria-live="polite">
+            Preparando autenticação…
+          </p>
+        ) : null}
 
         {state.bootstrapFatalVisible ? (
           <div className="bootstrap-fatal-overlay mt-4 flex flex-col gap-3">

@@ -4,6 +4,7 @@ import {
   hasAuthTokensInUrl,
   resolveAuthCallbackPath,
 } from '../../shared/auth/authCallback.js';
+import { normalizePublicSiteOrigin } from '../../shared/auth/authRedirectOrigin.js';
 
 /** Origin HTTP do jogo (Railway) — APIs e WebSocket; OAuth permanece no front-end atual. */
 export function resolveCanonicalGameOrigin(
@@ -24,8 +25,14 @@ export function isOnCanonicalGameOrigin(
  * Preserva ?code= OAuth e hash PKCE.
  */
 export function redirectToCanonicalGameOriginIfNeeded(
-  config: Pick<PublicClientConfig, 'gameHttpUrl' | 'gameWsUrl'>,
+  config: Pick<PublicClientConfig, 'gameHttpUrl' | 'gameWsUrl' | 'publicSiteUrl'>,
 ): boolean {
+  const publicSite = normalizePublicSiteOrigin(config.publicSiteUrl);
+  const currentOrigin = window.location.origin.replace(/\/+$/, '');
+  if (publicSite && currentOrigin === publicSite) {
+    return false;
+  }
+
   if (isOnCanonicalGameOrigin(config)) return false;
 
   const canonical = resolveCanonicalGameOrigin(config);

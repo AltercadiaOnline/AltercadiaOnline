@@ -58,6 +58,7 @@ import {
 } from '../components/pauseMenu.js';
 import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
 import { AppScreens, prepareClientAuthBootstrap } from './appScreens.js';
+import { registerAuthBootstrapPromise } from '../auth/authBootstrapState.js';
 import { createBrowserCombatSocket, connectionPhaseLabel, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
 import { mountWorldMapScene, SceneManager, resetWorldMapSceneMount } from './sceneManager.js';
 import { initGameRoot } from './GameRoot.js';
@@ -966,8 +967,11 @@ async function bootstrap(): Promise<void> {
   }
   ensureLoginHudBound();
 
+  const authBootstrap = prepareClientAuthBootstrap();
+  registerAuthBootstrapPromise(authBootstrap);
+
   try {
-    await prepareClientAuthBootstrap();
+    await authBootstrap;
 
     await AppScreens.init(enterWorld, {
       onAuthenticated: onLoginSuccess,

@@ -21,7 +21,18 @@ import {
 
 const SUPABASE_STORAGE_KEY = 'altercadia-supabase-auth';
 
-let supabase: SupabaseClient | null = null;
+type GlobalWithSupabase = typeof globalThis & {
+  __ALTERCADIA_SUPABASE_CLIENT__?: SupabaseClient | null;
+};
+
+/** Singleton cross-bundle — ui-runtime.js e main.js compartilham o mesmo client. */
+function getSupabase(): SupabaseClient | null {
+  return (globalThis as GlobalWithSupabase).__ALTERCADIA_SUPABASE_CLIENT__ ?? null;
+}
+
+function setSupabase(client: SupabaseClient | null): void {
+  (globalThis as GlobalWithSupabase).__ALTERCADIA_SUPABASE_CLIENT__ = client;
+}
 
 /** redirectTo / emailRedirectTo — URL pública de produção (nunca preview Vercel). */
 export function resolveAuthRedirectUrl(configOverride?: PublicClientConfig | null): string {
@@ -37,7 +48,7 @@ function authRedirectUrl(): string {
 
 /** Inicializa o client Supabase — `config.supabaseUrl` é endpoint de API; nunca exibir na UI. */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
-  if (supabase) {
+  if (getSupabase()) {
     logAuthEnvironment('initSupabaseAuth-already-ready');
     return true;
   }
@@ -53,7 +64,7 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
   }
 
   const { createClient } = await import('@supabase/supabase-js');
-  supabase = createClient(config.supabaseUrl!, config.supabaseAnonKey!, {
+  setSupabase(createClient(config.supabaseUrl!, config.supabaseAnonKey!, {
     auth: {
       detectSessionInUrl: true,
       flowType: 'pkce',
@@ -62,7 +73,7 @@ export async function initSupabaseAuth(config: PublicClientConfig): Promise<bool
       storage: window.localStorage,
       storageKey: SUPABASE_STORAGE_KEY,
     },
-  });
+  }));
   logAuthEnvironment('initSupabaseAuth-ready');
   return true;
 }
@@ -115,14 +126,15 @@ export type OAuthProvider = Extract<Provider, 'google'>;
 export async function signInWithOAuth(
   provider: OAuthProvider,
 ): Promise<{ ok: boolean; message?: string }> {
-  if (!supabase) {
+  const client = getSupabase();
+  if (!client) {
     return { ok: false, message: USER_GOOGLE_LOGIN_UNAVAILABLE };
   }
 
   const redirectTo = authRedirectUrl();
   console.debug('[Auth] signInWithOAuth redirectTo:', redirectTo);
 
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { error } = await client.auth.signInWithOAuth({
     provider,
     options: {
       redirectTo,
@@ -145,9 +157,10 @@ export async function signInWithGoogleOAuth(): Promise<{ ok: boolean; message?: 
 export function subscribeAuthStateChange(
   callback: (event: AuthChangeEvent, session: Session | null) => void,
 ): () => void {
-  if (!supabase) return () => {};
+  const client = getSupabase();
+  if (!client) return () => {};
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  const { data: { subscription } } = client.auth.onAuthStateChange(callback);
   return () => subscription.unsubscribe();
 }
 
@@ -170,7 +183,8 @@ export function clearAuthCallbackFromUrl(): void {
  * `detectSessionInUrl: true` no createClient — getSession() materializa a sessão.
  */
 export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> {
-  if (!supabase) return null;
+  const client = getSupabase();
+  if (!client) return null;
 
   const url = new URL(window.location.href);
   const oauthError = url.searchParams.get('error_description') ?? url.searchParams.get('error');
@@ -181,7 +195,7 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
   }
 
   if (!hasAuthTokensInUrl(url.href)) {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session }, error } = await client.auth.getSession();
     if (error) {
       console.warn('[Auth] getSession falhou após boot.');
       return null;
@@ -191,7 +205,7 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
 
   const code = url.searchParams.get('code');
   if (code) {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await client.auth.exchangeCodeForSession(code);
     clearAuthCallbackFromUrl();
     if (error) {
       console.error('[Auth] exchangeCodeForSession falhou:', error.message);
@@ -204,7 +218,7 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
   const tokenHash = url.searchParams.get('token_hash');
   const otpType = url.searchParams.get('type');
   if (tokenHash && otpType) {
-    const { data, error } = await supabase.auth.verifyOtp({
+    const { data, error } = await client.auth.verifyOtp({
       token_hash: tokenHash,
       type: otpType as 'signup' | 'email' | 'recovery' | 'magiclink' | 'invite',
     });
@@ -216,7 +230,7 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
     return data.session;
   }
 
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { session }, error } = await client.auth.getSession();
   clearAuthCallbackFromUrl();
   if (error) {
     console.warn('[Auth] getSession falhou ao ler hash de auth.');
@@ -232,12 +246,13 @@ export async function restorePersistedSession(): Promise<Session | null> {
 
 /** Valida sessão com o Supabase (getUser) — fonte de verdade antes de entrar no jogo. */
 export async function getUser(options?: GetUserOptions): Promise<User | null> {
-  if (!supabase) return null;
+  const client = getSupabase();
+  if (!client) return null;
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await client.auth.getUser();
   if (error) {
     if (options?.clearInvalidSession) {
-      await supabase.auth.signOut({ scope: 'local' });
+      await client.auth.signOut({ scope: 'local' });
     }
     if (!options?.silent) {
       console.warn('[Auth] Sessão inválida ou expirada.');
@@ -250,9 +265,10 @@ export async function getUser(options?: GetUserOptions): Promise<User | null> {
 
 /** JWT de acesso para Railway (HTTP + WebSocket) — nunca logar este valor. */
 export async function resolveSessionAccessToken(): Promise<string | null> {
-  if (!supabase) return null;
+  const client = getSupabase();
+  if (!client) return null;
 
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { session }, error } = await client.auth.getSession();
   if (error || !session?.access_token) {
     return null;
   }
@@ -264,10 +280,11 @@ export async function resolveSessionAccessToken(): Promise<string | null> {
 }
 
 export async function signOutSupabase(): Promise<void> {
-  if (!supabase) return;
+  const client = getSupabase();
+  if (!client) return;
   try {
     await withAuthDeadline(
-      supabase.auth.signOut(),
+      client.auth.signOut(),
       'Encerramento de sessão demorou demais.',
       8_000,
     );
@@ -281,8 +298,9 @@ export async function signOutSupabase(): Promise<void> {
 export function clearLocalSupabaseSession(): void {
   const release = suppressAuthSessionSideEffects();
   try {
-    if (supabase) {
-      void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    const client = getSupabase();
+    if (client) {
+      void client.auth.signOut({ scope: 'local' }).catch(() => undefined);
     }
     try {
       localStorage.removeItem(SUPABASE_STORAGE_KEY);
@@ -297,7 +315,8 @@ export function clearLocalSupabaseSession(): void {
 export async function resendSignupConfirmationEmail(
   email: string,
 ): Promise<{ ok: boolean; message: string }> {
-  if (!supabase) {
+  const client = getSupabase();
+  if (!client) {
     return { ok: false, message: USER_AUTH_NOT_CONFIGURED };
   }
 
@@ -307,7 +326,7 @@ export async function resendSignupConfirmationEmail(
   }
 
   const { error } = await withAuthDeadline(
-    supabase.auth.resend({
+    client.auth.resend({
       type: 'signup',
       email: trimmed,
       options: {
@@ -332,7 +351,8 @@ export async function resendSignupConfirmationEmail(
 }
 
 export async function requestPasswordResetEmail(email: string): Promise<{ ok: boolean; message: string }> {
-  if (!supabase) {
+  const client = getSupabase();
+  if (!client) {
     return { ok: false, message: USER_PASSWORD_RESET_UNAVAILABLE };
   }
 
@@ -341,7 +361,7 @@ export async function requestPasswordResetEmail(email: string): Promise<{ ok: bo
     return { ok: false, message: 'Informe seu email.' };
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+  const { error } = await client.auth.resetPasswordForEmail(trimmed, {
     redirectTo: authRedirectUrl(),
   });
 
@@ -356,7 +376,8 @@ export async function requestPasswordResetEmail(email: string): Promise<{ ok: bo
 }
 
 export async function updateAccountPassword(password: string): Promise<{ ok: boolean; message: string }> {
-  if (!supabase) {
+  const client = getSupabase();
+  if (!client) {
     return { ok: false, message: USER_AUTH_NOT_CONFIGURED };
   }
 
@@ -364,7 +385,7 @@ export async function updateAccountPassword(password: string): Promise<{ ok: boo
     return { ok: false, message: 'A senha deve ter pelo menos 6 caracteres.' };
   }
 
-  const { error } = await supabase.auth.updateUser({ password });
+  const { error } = await client.auth.updateUser({ password });
 
   if (error) {
     return { ok: false, message: error.message };
@@ -385,9 +406,9 @@ export function clearPasswordRecoveryUrl(): void {
 }
 
 export function getSupabaseClient(): SupabaseClient | null {
-  return supabase;
+  return getSupabase();
 }
 
 export function isSupabaseReady(): boolean {
-  return supabase !== null;
+  return getSupabase() !== null;
 }

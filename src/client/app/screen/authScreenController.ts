@@ -43,6 +43,11 @@ import { resetGameStoreState } from '../../state/GameStore.js';
 import { updateUserProfileMetadata } from '../../auth/profileMetadata.js';
 import { getUser } from '../../auth/supabaseAuth.js';
 import { getAuthBridge } from '../bridge/authBridge.js';
+import {
+  getAuthBootstrapPhase,
+  subscribeAuthBootstrap,
+  waitForAuthBootstrapReady,
+} from '../../auth/authBootstrapState.js';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -68,6 +73,7 @@ type AuthScreenMutableState = {
   profileGuardianConsent: boolean;
   showProfileGuardianConsent: boolean;
   bootstrapFatalVisible: boolean;
+  authBootstrapPending: boolean;
 };
 
 export type AuthScreenSnapshot = Readonly<AuthScreenMutableState>;
@@ -154,6 +160,7 @@ class AuthScreenController {
     profileGuardianConsent: false,
     showProfileGuardianConsent: false,
     bootstrapFatalVisible: false,
+    authBootstrapPending: getAuthBootstrapPhase() === 'pending' || getAuthBootstrapPhase() === 'idle',
   };
 
   subscribe(listener: AuthScreenListener): () => void {
@@ -178,6 +185,10 @@ class AuthScreenController {
       statusMessage: message,
       statusIsError: isError,
     });
+  }
+
+  patchAuthBootstrapPending(pending: boolean): void {
+    this.patch({ authBootstrapPending: pending });
   }
 
   syncView(view: AuthView): void {
@@ -329,13 +340,32 @@ class AuthScreenController {
     return false;
   }
 
+  private async ensureAuthReady(): Promise<boolean> {
+    if (isSupabaseReady()) return true;
+
+    this.patch({ authBootstrapPending: true });
+    this.setStatus('Preparando autenticação…', false);
+
+    const ready = await waitForAuthBootstrapReady();
+    this.patch({ authBootstrapPending: false });
+
+    if (ready || isSupabaseReady()) {
+      if (this.state.statusMessage === 'Preparando autenticação…') {
+        this.setStatus('', false);
+      }
+      return true;
+    }
+
+    return this.requireAuthReady();
+  }
+
   private setBusy(busy: boolean): void {
     this.patch({ busy });
   }
 
   async handleLogin(): Promise<void> {
     if (this.state.busy) return;
-    if (!this.requireAuthReady()) return;
+    if (!(await this.ensureAuthReady())) return;
 
     const email = this.state.email.trim();
     const password = this.state.password;
@@ -384,7 +414,7 @@ class AuthScreenController {
 
   async handleRegister(): Promise<void> {
     if (this.state.busy) return;
-    if (!this.requireAuthReady()) return;
+    if (!(await this.ensureAuthReady())) return;
 
     if (this.state.regPass !== this.state.regConfirm) {
       this.setStatus('As senhas não coincidem.', true);
@@ -602,7 +632,7 @@ class AuthScreenController {
 
   async handleGoogleLogin(): Promise<void> {
     if (this.state.busy) return;
-    if (!this.requireAuthReady()) return;
+    if (!(await this.ensureAuthReady())) return;
     if (!isSupabaseReady()) {
       this.setStatus(USER_GOOGLE_LOGIN_UNAVAILABLE, true);
       return;
@@ -702,6 +732,13 @@ export function initAuthScreenController(options: AuthScreenBootstrapOptions): b
   const controller = getAuthScreenController();
   controller.bind(options);
   getAuthBridge().attachController(controller);
+
+  const syncBootstrapPhase = (): void => {
+    const phase = getAuthBootstrapPhase();
+    controller.patchAuthBootstrapPending(phase === 'pending' || phase === 'idle');
+  };
+  syncBootstrapPhase();
+  subscribeAuthBootstrap(syncBootstrapPhase);
 
   subscribeAuthStateChange((event) => {
     if (event === 'PASSWORD_RECOVERY') {
