@@ -5,6 +5,7 @@ import { isReactManagedWorldPanel } from '../panels/worldPanelRegistry.js';
 import { useWorldPanelsStore } from '../store/worldPanelsStore.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
 import { isReactGamePanelsEnabled } from '../bridge/panelsBridge.js';
+import { requestReactRefractionNpcStart } from '../panels/refractionBoothBridge.js';
 
 let teardownFns: Array<() => void> = [];
 
@@ -130,6 +131,9 @@ export function initWorldPanelsBridge(): void {
         objectId: payload.objectId,
         label: payload.label,
       });
+    }),
+    uiEvents.on(UIEventType.REFRACTION_CHALLENGE_ACCEPT, () => {
+      requestReactRefractionNpcStart();
     }),
   );
 }

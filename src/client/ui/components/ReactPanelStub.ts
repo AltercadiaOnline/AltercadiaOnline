@@ -1,5 +1,6 @@
 import { BaseUIComponent } from '../UIComponent.js';
 import type { UiWindowId } from '../uiEvents.js';
+import { REACT_WORLD_PANEL_IDS } from '../../app/panels/worldPanelRegistry.js';
 
 /**
  * Placeholder no WindowManager para painéis renderizados exclusivamente pela camada React.
@@ -19,14 +20,10 @@ export class ReactPanelStub extends BaseUIComponent {
   }
 }
 
-export const REACT_NATIVE_WORLD_PANEL_IDS: readonly UiWindowId[] = [
-  'market',
-  'characters',
-  'bank',
-  'petLove',
-  'moveset',
-  'marcos',
-];
+/** Painéis de exploração com renderer React — exceto hub (CentralHubPanel). */
+export const REACT_NATIVE_WORLD_PANEL_IDS = REACT_WORLD_PANEL_IDS.filter(
+  (windowId): windowId is Exclude<typeof windowId, 'hub'> => windowId !== 'hub',
+);
 
 export function createReactNativeWorldPanelStub(windowId: UiWindowId): ReactPanelStub {
   return new ReactPanelStub(windowId);

@@ -1,22 +1,10 @@
 import { resolveGameUiLayer } from '../layout/gameLayout.js';
 import type { BaseUIComponent, UIComponent } from './UIComponent.js';
 import { CentralHubPanel } from './components/CentralHubPanel.js';
-import { ShopHudPanel } from './components/ShopHudPanel.js';
-import { CraftPanel } from './components/CraftPanel.js';
-import { DialoguePanel } from './components/DialoguePanel.js';
-import { InventoryPanel } from './components/InventoryPanel.js';
-import { MarketHubPanel } from './components/MarketHubPanel.js';
-import { VendorShopPanel } from './components/VendorShopPanel.js';
-import { LaboratoryShopPanel } from './components/LaboratoryShopPanel.js';
-import { PetTrainerShopPanel } from './components/PetTrainerShopPanel.js';
-import { TournamentBetPanel } from './components/TournamentBetPanel.js';
-import { RankingMonitorPanel } from './components/RankingMonitorPanel.js';
-import { RefractionBoothPanel } from './components/RefractionBoothPanel.js';
-import { createReactNativeWorldPanelStub } from './components/ReactPanelStub.js';
-import { QuestPanel } from './components/QuestPanel.js';
-import { SocialPanel } from './components/SocialPanel.js';
-import { PetMemorialPanel } from './components/PetMemorialPanel.js';
-import { DiaryPanel } from './components/DiaryPanel.js';
+import {
+  createReactNativeWorldPanelStub,
+  REACT_NATIVE_WORLD_PANEL_IDS,
+} from './components/ReactPanelStub.js';
 import { destroyEquipmentSidebar } from './components/EquipmentSidebar.js';
 import { destroySidebarMinimap } from './components/SidebarMinimap.js';
 import { destroySidebarWallet } from './components/SidebarWallet.js';
@@ -67,27 +55,6 @@ export type UIManagerOptions = {
  */
 export class UIManager {
   readonly hub: CentralHubPanel;
-  readonly inventory: InventoryPanel;
-  readonly market: UIComponent;
-  readonly marketHub: MarketHubPanel;
-  readonly vendorShop: VendorShopPanel;
-  readonly laboratoryShop: LaboratoryShopPanel;
-  readonly petTrainerShop: PetTrainerShopPanel;
-  readonly tournamentBet: TournamentBetPanel;
-  readonly rankingMonitor: RankingMonitorPanel;
-  readonly refractionBooth: RefractionBoothPanel;
-  readonly characters: UIComponent;
-  readonly shop: ShopHudPanel;
-  readonly moveset: UIComponent;
-  readonly marcos: UIComponent;
-  readonly quest: QuestPanel;
-  readonly craft: CraftPanel;
-  readonly bank: UIComponent;
-  readonly dialogue: DialoguePanel;
-  readonly social: SocialPanel;
-  readonly petLove: UIComponent;
-  readonly petMemorial: PetMemorialPanel;
-  readonly diary: DiaryPanel;
   readonly keyFeatureObserver: KeyFeatureObserver;
 
   private readonly layer: HTMLElement;
@@ -104,52 +71,13 @@ export class UIManager {
     this.launcher = options.launcher ?? null;
 
     this.hub = new CentralHubPanel();
-    this.inventory = new InventoryPanel();
-    this.market = createReactNativeWorldPanelStub('market');
-    this.marketHub = new MarketHubPanel();
-    this.vendorShop = new VendorShopPanel();
-    this.laboratoryShop = new LaboratoryShopPanel();
-    this.petTrainerShop = new PetTrainerShopPanel();
-    this.tournamentBet = new TournamentBetPanel();
-    this.rankingMonitor = new RankingMonitorPanel();
-    this.refractionBooth = new RefractionBoothPanel();
-    this.characters = createReactNativeWorldPanelStub('characters');
-    this.shop = new ShopHudPanel();
-    this.moveset = createReactNativeWorldPanelStub('moveset');
-    this.marcos = createReactNativeWorldPanelStub('marcos');
-    this.quest = new QuestPanel();
-    this.craft = new CraftPanel();
-    this.bank = createReactNativeWorldPanelStub('bank');
-    this.dialogue = new DialoguePanel();
-    this.social = new SocialPanel();
-    this.petLove = createReactNativeWorldPanelStub('petLove');
-    this.petMemorial = new PetMemorialPanel();
-    this.diary = new DiaryPanel();
     this.keyFeatureObserver = new KeyFeatureObserver();
 
     this.panels = new Map<UiWindowId, UIComponent>([
       ['hub', this.hub],
-      ['inventory', this.inventory],
-      ['market', this.market],
-      ['marketHub', this.marketHub],
-      ['vendorShop', this.vendorShop],
-      ['laboratoryShop', this.laboratoryShop],
-      ['petTrainerShop', this.petTrainerShop],
-      ['tournamentBet', this.tournamentBet],
-      ['rankingMonitor', this.rankingMonitor],
-      ['refractionBooth', this.refractionBooth],
-      ['characters', this.characters],
-      ['shop', this.shop],
-      ['moveset', this.moveset],
-      ['marcos', this.marcos],
-      ['quest', this.quest],
-      ['craft', this.craft],
-      ['bank', this.bank],
-      ['dialogue', this.dialogue],
-      ['social', this.social],
-      ['petLove', this.petLove],
-      ['petMemorial', this.petMemorial],
-      ['diary', this.diary],
+      ...REACT_NATIVE_WORLD_PANEL_IDS.map(
+        (windowId) => [windowId, createReactNativeWorldPanelStub(windowId)] as const,
+      ),
     ]);
 
     for (const [windowId, panel] of this.panels) {
@@ -197,42 +125,6 @@ export class UIManager {
       this.hubLayoutDisposer = attachHubSocialLayoutSync(this.layer);
     }
 
-    const contextualPanelEvents = isReactGamePanelsEnabled()
-      ? [
-          uiEvents.on(UIEventType.REFRACTION_CHALLENGE_ACCEPT, () => {
-            this.refractionBooth.startChallengeFromNpc();
-          }),
-        ]
-      : [
-          uiEvents.on(UIEventType.SHOW_DIALOGUE, (payload) => {
-            this.dialogue.showDialogue(payload);
-          }),
-          uiEvents.on(UIEventType.SHOW_VENDOR_SHOP, (payload) => {
-            this.vendorShop.openForVendor(payload);
-          }),
-          uiEvents.on(UIEventType.SHOW_LAB_SHOP, (payload) => {
-            this.laboratoryShop.openForVendor(payload);
-          }),
-          uiEvents.on(UIEventType.SHOW_PET_SHOP, (payload) => {
-            this.petTrainerShop.openForVendor(payload);
-          }),
-          uiEvents.on(UIEventType.SHOW_CRAFT_STATION, (payload) => {
-            this.craft.openForStation(payload);
-          }),
-          uiEvents.on(UIEventType.SHOW_TOURNAMENT_BET, (payload) => {
-            this.tournamentBet.openForPulpit(payload);
-          }),
-          uiEvents.on(UIEventType.SHOW_RANKING_MONITOR, (payload) => {
-            this.rankingMonitor.openForMonitor(payload);
-          }),
-          uiEvents.on(UIEventType.SHOW_REFRACTION_BOOTH, (payload) => {
-            this.refractionBooth.openForBooth(payload);
-          }),
-          uiEvents.on(UIEventType.REFRACTION_CHALLENGE_ACCEPT, () => {
-            this.refractionBooth.startChallengeFromNpc();
-          }),
-        ];
-
     this.unsubscribers.push(
       uiEvents.on(UIEventType.OPEN_WINDOW, ({ windowId }) => {
         this.openWindow(windowId);
@@ -243,7 +135,6 @@ export class UIManager {
       uiEvents.on(UIEventType.TOGGLE_WINDOW, ({ windowId }) => {
         this.toggleWindow(windowId);
       }),
-      ...contextualPanelEvents,
     );
 
     if (!isReactGamePanelsEnabled()) {

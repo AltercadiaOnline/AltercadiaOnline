@@ -1,5 +1,5 @@
 import { windowManager } from './WindowManager.js';
-import { getUiManager } from './UIManager.js';
+import { getReactDialogueHandle } from '../app/panels/dialogueReactBridge.js';
 import { closeSurvivalGuideCard } from './components/SurvivalGuideCard.js';
 import {
   endWorldHudInteractionSession,
@@ -7,7 +7,6 @@ import {
 } from '../world/worldHudInteractionSession.js';
 import { uiEvents, UIEventType, type UiWindowId } from './uiEvents.js';
 import type { Player } from '../entities/Player.js';
-import { getReactDialogueHandle } from '../app/panels/dialogueReactBridge.js';
 
 export type NpcDialoguePanelHandle = {
   isOpen(): boolean;
@@ -54,7 +53,7 @@ export function closeAllNpcModals(explicitDialogue?: NpcDialoguePanelHandle): vo
     player.isLocked = false;
   }
 
-  const dialogue = explicitDialogue ?? getReactDialogueHandle() ?? getUiManager()?.dialogue ?? null;
+  const dialogue = explicitDialogue ?? getReactDialogueHandle() ?? null;
   if (dialogue?.isOpen()) {
     dialogue.dismissWithoutWorldSession();
   }

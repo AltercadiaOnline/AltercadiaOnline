@@ -12,6 +12,7 @@ import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { useWorldPanelsStore } from '../../../store/worldPanelsStore.js';
 import { registerReactDialogueHandle } from '../../../panels/dialogueReactBridge.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
+import { requestReactRefractionNpcStart } from '../../../panels/refractionBoothBridge.js';
 import { useActionGatewaySubmit } from '../../../panels/useActionGatewaySubmit.js';
 import {
   resolveChroniclePriority,
@@ -108,7 +109,7 @@ export function WorldDialoguePanel({
   const handleRefractionAccept = () => {
     preserveWorldHudRef.current = true;
     tryCloseReactWorldPanel('dialogue');
-    uiEvents.emit(UIEventType.REFRACTION_CHALLENGE_ACCEPT, {});
+    requestReactRefractionNpcStart();
   };
 
   const panelClassName = state.isCael
