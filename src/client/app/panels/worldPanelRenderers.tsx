@@ -192,10 +192,6 @@ export function hasDedicatedWorldPanelRenderer(windowId: UiWindowId): boolean {
   return Boolean(WORLD_PANEL_RENDERERS[windowId]);
 }
 
-export function isLegacyHostedWorldPanel(_windowId: UiWindowId): boolean {
-  return false;
-}
-
 export function renderDedicatedWorldPanel(props: WorldPanelRenderProps): ReactNode {
   const renderer = WORLD_PANEL_RENDERERS[props.entry.windowId];
   if (!renderer) return null;

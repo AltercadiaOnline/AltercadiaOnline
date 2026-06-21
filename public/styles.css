@@ -47,10 +47,6 @@ body[data-react-game-hud-ui="1"] .ui-panels-react-host {
   contain: layout style;
 }
 
-.world-legacy-panel-host .ui-panel--open {
-  pointer-events: auto;
-}
-
 body[data-react-battle-hud-ui="1"] #battle-log,
 body[data-react-battle-hud-ui="1"] #battle-chat,
 body[data-react-battle-hud-ui="1"] .battle-command-bar,
