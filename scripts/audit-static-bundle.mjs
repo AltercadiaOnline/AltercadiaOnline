@@ -27,6 +27,7 @@ const REQUIRED_STATIC_MODULES = [
   'assets/terrain/groundTileManifest.js',
   'assets/npcs/npcDefinition.js',
   'vendor/gsap/index.js',
+  'app-ui/ui-runtime.js',
 ];
 
 const missing = REQUIRED_STATIC_MODULES.filter(
