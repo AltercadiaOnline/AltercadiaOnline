@@ -1,4 +1,3 @@
-import { uiEvents, UIEventType } from '../../../ui/uiEvents.js';
 import { useGameStore, usePlayerData } from '../../store/gameStore.js';
 import { UI_LAYER_Z_INDEX } from '../../shell/uiLayers.js';
 import { WorldHUD } from './WorldHUD.js';
@@ -62,13 +61,6 @@ export function WorldSceneShell() {
     >
       <header className="pointer-events-auto absolute left-3 top-3 max-w-[min(320px,92vw)]">
         <PlayerVitalsStrip />
-        <button
-          type="button"
-          className="mt-2 rounded border border-alter-accent/40 bg-alter-panel/80 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-alter-accent hover:bg-alter-accent/10"
-          onClick={() => uiEvents.emit(UIEventType.TOGGLE_WINDOW, { windowId: 'hub' })}
-        >
-          Hub
-        </button>
       </header>
 
       <WorldHUD />

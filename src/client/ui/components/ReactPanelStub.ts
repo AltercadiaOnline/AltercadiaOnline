@@ -20,7 +20,7 @@ export class ReactPanelStub extends BaseUIComponent {
   }
 }
 
-/** Painéis de exploração com renderer React — exceto hub (CentralHubPanel). */
+/** Painéis de exploração com renderer React (inclui hub via HubPanelController). */
 export const REACT_NATIVE_WORLD_PANEL_IDS = REACT_WORLD_PANEL_IDS.filter(
   (windowId): windowId is Exclude<typeof windowId, 'hub'> => windowId !== 'hub',
 );

@@ -4,7 +4,7 @@ export type { UiEventMap, UiWindowId } from './uiEvents.js';
 export type { UIComponent } from './UIComponent.js';
 export { BaseUIComponent } from './UIComponent.js';
 
-export { CentralHubPanel } from './components/CentralHubPanel.js';
+export { HubPanelController } from './components/HubPanelController.js';
 export {
   getGlobalPlayerStore,
   initGlobalPlayerStore,

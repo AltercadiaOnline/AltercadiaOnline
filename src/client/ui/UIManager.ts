@@ -1,6 +1,6 @@
 import { resolveGameUiLayer } from '../layout/gameLayout.js';
 import type { BaseUIComponent, UIComponent } from './UIComponent.js';
-import { CentralHubPanel } from './components/CentralHubPanel.js';
+import { HubPanelController } from './components/HubPanelController.js';
 import {
   createReactNativeWorldPanelStub,
   REACT_NATIVE_WORLD_PANEL_IDS,
@@ -54,7 +54,7 @@ export type UIManagerOptions = {
  * Orquestra painéis HUD: monta templates, escuta uiEvents e controla visibilidade.
  */
 export class UIManager {
-  readonly hub: CentralHubPanel;
+  readonly hub: HubPanelController;
   readonly keyFeatureObserver: KeyFeatureObserver;
 
   private readonly layer: HTMLElement;
@@ -70,7 +70,7 @@ export class UIManager {
     this.layer = options.layer;
     this.launcher = options.launcher ?? null;
 
-    this.hub = new CentralHubPanel();
+    this.hub = new HubPanelController();
     this.keyFeatureObserver = new KeyFeatureObserver();
 
     this.panels = new Map<UiWindowId, UIComponent>([
@@ -81,7 +81,6 @@ export class UIManager {
     ]);
 
     for (const [windowId, panel] of this.panels) {
-      if (windowId === 'hub') continue;
       bindReactWorldPanelLegacyBypass(panel as BaseUIComponent, windowId);
     }
 
@@ -137,11 +136,9 @@ export class UIManager {
       }),
     );
 
-    if (!isReactGamePanelsEnabled()) {
-      this.launcher?.addEventListener('click', () => {
-        this.windows.toggleWindow('hub');
-      });
-    }
+    this.launcher?.addEventListener('click', () => {
+      this.windows.toggleWindow('hub');
+    });
   }
 
   openWindow(windowId: UiWindowId): void {

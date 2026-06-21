@@ -1,4 +1,4 @@
-import type { CentralHubPanel } from '../components/CentralHubPanel.js';
+import type { HubPanelController } from '../components/HubPanelController.js';
 
 export type KeyFeatureMount = {
   readonly id: string;
@@ -13,7 +13,7 @@ export class KeyFeatureObserver {
   private anchor: HTMLElement | null = null;
   private active: KeyFeatureMount | null = null;
 
-  attachHub(_hub: CentralHubPanel): void {
+  attachHub(_hub: HubPanelController): void {
     this.detach();
     this.anchor = null;
   }

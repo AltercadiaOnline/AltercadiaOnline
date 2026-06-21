@@ -1,4 +1,4 @@
-import type { CentralHubPanel } from './components/CentralHubPanel.js';
+import type { HubPanelController } from './components/HubPanelController.js';
 
 import type { UIComponent } from './UIComponent.js';
 
@@ -20,7 +20,7 @@ export type WindowManagerDeps = {
 
   readonly panels: ReadonlyMap<UiWindowId, UIComponent>;
 
-  readonly hub: CentralHubPanel;
+  readonly hub: HubPanelController;
 
 };
 
@@ -44,7 +44,7 @@ export class WindowManager {
 
   private readonly panels: ReadonlyMap<UiWindowId, UIComponent>;
 
-  private readonly hub: CentralHubPanel;
+  private readonly hub: HubPanelController;
 
 
 
