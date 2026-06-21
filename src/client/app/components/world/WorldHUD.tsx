@@ -1,23 +1,26 @@
 import { WorldCommsStack } from './hud/WorldCommsStack.js';
-import { WorldHudSidebar } from './hud/WorldHudSidebar.js';
+import { WorldEquipmentSidebarWidget } from './hud/WorldEquipmentSidebarWidget.js';
+import { WorldMinimapWidget } from './hud/WorldMinimapWidget.js';
 
 /**
- * Widgets globais de exploração — minimapa, carteira, equip, chat e log.
- * Vitals rápidos + Hub ficam em WorldSceneShell; painéis em WorldPanelsLayer.
+ * Widgets globais de exploração dentro do frame 640×360.
+ * Chat: canto inferior direito · SET/conjuntos: canto superior direito · minimapa: superior esquerdo.
  */
 export function WorldHUD() {
   return (
     <div
-      className="pointer-events-none absolute inset-0"
+      className="pointer-events-none absolute inset-0 flex items-center justify-center"
       data-ui-surface="world-hud"
     >
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="pointer-events-none relative h-[360px] w-[640px] max-h-full max-w-full">
-          <WorldCommsStack />
+      <div className="world-hud-frame pointer-events-none">
+        <div className="world-hud-minimap-corner">
+          <WorldMinimapWidget />
         </div>
+        <div className="world-hud-equipment-corner">
+          <WorldEquipmentSidebarWidget />
+        </div>
+        <WorldCommsStack />
       </div>
-
-      <WorldHudSidebar />
     </div>
   );
 }

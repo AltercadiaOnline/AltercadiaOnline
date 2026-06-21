@@ -30,5 +30,6 @@ export function useAuthScreenActions() {
     handleResendConfirmation: () => { void controller.handleResendConfirmation(); },
     handleProfileComplete: () => { void controller.handleProfileComplete(); },
     handleProfileCancel: controller.handleProfileCancel.bind(controller),
+    handleContinuePersistedSession: () => { void controller.handleContinuePersistedSession(); },
   };
 }

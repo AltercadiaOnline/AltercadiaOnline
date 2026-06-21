@@ -144,7 +144,6 @@ import { initReactGameHud } from '../app/hud/initReactGameHud.js';
 import { enablePhaserHybridForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
 import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
-import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
 export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
@@ -299,26 +298,19 @@ function beginWorldLoginHandshake(): void {
   scheduleWorldLoginRetry(requestWorldLoginIfPossible);
 }
 
-function focusGameRenderSurfaceForInput(): void {
-  if (isPhaserRenderEngineActive()) {
-    const phaserCanvas = document.querySelector(`#${PHASER_MOUNT_ROOT_ID} canvas`);
-    if (phaserCanvas instanceof HTMLCanvasElement) {
-      phaserCanvas.tabIndex = 0;
-      if (!phaserCanvas.hasAttribute('role')) {
-        phaserCanvas.setAttribute('role', 'application');
-      }
-      phaserCanvas.focus({ preventScroll: true });
-      return;
-    }
-  }
+function syncExplorationOnlineFromSocket(): void {
+  if (socket?.readyState !== 1) return;
+  attachOnlineEconomyLayer();
+  setExplorationOnlineMode(true);
+}
 
+function focusGameRenderSurfaceForInput(): void {
   const canvas = document.getElementById(GAME_CANVAS_ID);
   if (!(canvas instanceof HTMLCanvasElement)) return;
-  canvas.tabIndex = 0;
+  canvas.tabIndex = -1;
   if (!canvas.hasAttribute('role')) {
     canvas.setAttribute('role', 'application');
   }
-  canvas.focus({ preventScroll: true });
 }
 
 function handleWorldAuthError(reason: string): void {
@@ -382,6 +374,7 @@ function handleWorldLoginResult(raw: unknown): void {
   setWorldSessionActive(true);
   world?.setPaused(false);
   positionGateway?.startHeartbeat();
+  syncExplorationOnlineFromSocket();
   setStatus('Conectado');
 
   presentMinorAccountAviso(raw.aviso_menor);
@@ -391,6 +384,7 @@ function connectSocket(): void {
   if (socket) {
     positionGateway?.bindSocket(socket);
     refreshCombatDevBindings();
+    syncExplorationOnlineFromSocket();
     if (world && !isWorldSessionReady()) {
       void positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
     }

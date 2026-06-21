@@ -742,7 +742,11 @@ export const AppScreens = {
         if (!oauthCompleted) {
           const hasSupabaseSession = await this.restoreSessionFromSupabase();
           if (hasSupabaseSession) {
-            await this.proceedAfterAuthentication();
+            this.showLogin();
+            if (isReactAuthUiEnabled()) {
+              getAuthScreenController().setPersistedSession(this.currentSession?.email ?? '');
+            }
+            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
           } else {
             this.showLogin();
             this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
@@ -751,7 +755,11 @@ export const AppScreens = {
       } else {
         const hasSupabaseSession = await this.restoreSessionFromSupabase();
         if (hasSupabaseSession) {
-          await this.proceedAfterAuthentication();
+          this.showLogin();
+          if (isReactAuthUiEnabled()) {
+            getAuthScreenController().setPersistedSession(this.currentSession?.email ?? '');
+          }
+          this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         } else {
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });

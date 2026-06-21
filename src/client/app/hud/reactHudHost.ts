@@ -1,5 +1,5 @@
 import { getGameUiBridge } from '../bridge/gameUiBridge.js';
-import { ensureClientArchitectureRoots } from '../shell/clientArchitecture.js';
+import { ensureClientArchitectureRoots, syncReactScreenShellVisibility } from '../shell/clientArchitecture.js';
 import {
   enableReactAuthScreen,
   enableReactCharSelectScreen,
@@ -22,4 +22,6 @@ export function initReactHudHost(root: ParentNode = document): void {
   screenRoot.dataset.reactHost = 'ready';
   hudRoot.dataset.reactHost = 'ready';
   overlayRoot.dataset.reactHost = 'ready';
+
+  syncReactScreenShellVisibility('login-screen');
 }

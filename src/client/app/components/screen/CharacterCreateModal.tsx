@@ -99,7 +99,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
         }
       }}
     >
-      <div className="char-create-box vortex-panel auth-form">
+      <div className="char-create-box vortex-panel auth-form char-create-box--react">
         <h2 className="auth-panel-title">CRIAR PERSONAGEM</h2>
         <p className="char-create-slot-label">{`Slot ${slotIndex + 1} de 5`}</p>
         <label className="auth-field">
