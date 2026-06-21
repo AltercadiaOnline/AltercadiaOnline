@@ -19,6 +19,7 @@ import { WorldTournamentBetPanel } from '../components/world/panels/WorldTournam
 import { WorldVendorShopPanel } from '../components/world/panels/WorldVendorShopPanel.js';
 import { WorldPetLovePanel } from '../components/world/panels/WorldPetLovePanel.js';
 import { WorldBankPanel } from '../components/world/panels/WorldBankPanel.js';
+import { WorldMarketPanel } from '../components/world/panels/WorldMarketPanel.js';
 
 const LazyWorldMovesetPanel = lazy(async () => {
   const module = await import('../components/world/panels/WorldMovesetPanel.js');
@@ -28,11 +29,6 @@ const LazyWorldMovesetPanel = lazy(async () => {
 const LazyWorldMarcosPanel = lazy(async () => {
   const module = await import('../components/world/panels/WorldMarcosPanel.js');
   return { default: module.WorldMarcosPanel };
-});
-
-const LazyWorldMarketPanel = lazy(async () => {
-  const module = await import('../components/world/panels/WorldMarketPanel.js');
-  return { default: module.WorldMarketPanel };
 });
 
 const LazyWorldCharactersPanel = lazy(async () => {
@@ -182,7 +178,9 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
   marcos: withSuspense(({ entry, focused }) => (
     <LazyWorldMarcosPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   )),
-  market: withSuspense((props) => <LazyWorldMarketPanel {...props} />),
+  market: ({ entry, focused }) => (
+    <WorldMarketPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  ),
   characters: withSuspense((props) => <LazyWorldCharactersPanel {...props} />),
   bank: ({ entry, focused }) => (
     <WorldBankPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
