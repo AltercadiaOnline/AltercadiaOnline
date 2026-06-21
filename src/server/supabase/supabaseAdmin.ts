@@ -40,7 +40,7 @@ export function assertSupabaseAdminEnv(env: ServerEnv): SupabaseAdminCredentials
 
     if (!hasUrl) {
       throw new Error(
-        '[Supabase] SUPABASE_URL é obrigatório — defina no Railway, Vercel ou .env.governance.',
+        '[Supabase] SUPABASE_URL é obrigatório — defina no Railway, Vercel ou `.env` local (copie `.env.example`).',
       );
     }
     if (!hasKey) {

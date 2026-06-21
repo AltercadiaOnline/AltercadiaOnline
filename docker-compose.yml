@@ -2,7 +2,7 @@
 #
 # Uso:
 #   cp docker-compose.env.example .env.docker   # ajuste Supabase se necessário
-#   cp .env.governance.example .env.governance  # credenciais reais (gitignored)
+#   cp .env.example .env  # credenciais reais (gitignored)
 #   docker compose up --build
 #
 # App:      http://localhost:3000
@@ -54,7 +54,7 @@ services:
     env_file:
       - path: .env.docker
         required: false
-      - path: .env.governance
+      - path: .env
         required: false
     volumes:
       - app_data:/app/data

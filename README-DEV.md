@@ -20,7 +20,7 @@ Marque cada item:
 - [ ] **Variáveis Vercel** (painel → Project → Settings → Environment Variables):
   - [ ] `NODE_ENV=production`
   - [ ] `CORS_ORIGIN=https://SEU-PROJETO.vercel.app` (URL pública exata)
-  - [ ] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (ver `.env.governance.example`)
+  - [ ] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (ver `.env.example`)
   - [ ] `DATABASE_URL` (opcional — Postgres direto; Supabase API usa `SUPABASE_*`)
 
 ---

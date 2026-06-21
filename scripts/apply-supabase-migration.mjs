@@ -6,7 +6,7 @@
  *   node scripts/apply-supabase-migration.mjs 010
  *   node scripts/apply-supabase-migration.mjs 011_hybrid_character_persistence
  *
- * Requer DATABASE_URL em .env.governance, .env ou env.governance na raiz.
+ * Requer DATABASE_URL em `.env` (ou `.env.governance` legado) na raiz.
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -32,9 +32,8 @@ if (!match) {
 }
 
 const envCandidates = [
-  path.join(root, '.env.governance'),
   path.join(root, '.env'),
-  path.join(root, 'env.governance'),
+  path.join(root, '.env.governance'),
 ];
 
 function loadEnvFile(filePath) {
@@ -84,7 +83,7 @@ const connectionString = resolveConnectionString();
 
 if (!connectionString) {
   console.error('[migration] DATABASE_URL ausente.');
-  console.error('  Defina DATABASE_URL (sem #) ou DATABASE_HOST/USER/PASSWORD/NAME em .env.governance.');
+  console.error('  Defina DATABASE_URL (sem #) ou DATABASE_HOST/USER/PASSWORD/NAME em `.env`.');
   process.exit(1);
 }
 

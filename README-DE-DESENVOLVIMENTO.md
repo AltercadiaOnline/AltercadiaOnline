@@ -154,7 +154,7 @@ vercel logs
 |---------|----------------|------|
 | WS não conecta | Deploy serverless sem processo persistente | Usar Docker / compute long-running na Vercel |
 | CORS / WS bloqueado | `CORS_ORIGIN` incorreto | URL exata `https://...vercel.app` |
-| Auth / perfil falha | Supabase env ausente na Vercel | Copiar chaves de `.env.governance.example` |
+| Auth / perfil falha | Supabase env ausente na Vercel | Copiar chaves de `.env.example` para o painel |
 | DB não configurado | `DATABASE_URL` vazio | Normal se só usa Supabase JS API; ver secção 9 |
 
 ---
@@ -169,7 +169,7 @@ vercel logs
 2. **Postgres direto** (opcional) — `DATABASE_URL` ou `DATABASE_HOST` + credenciais  
    Lido por `databaseConfig.ts` / `databaseConnection.ts`. Hoje o motor MVP usa JSON em disco (`PERSISTENCE_MODE`); Postgres direto fica pronto para migrações futuras.
 
-Prioridade de env: **shell Vercel** → `.env.governance` (local) → `.env`.
+Prioridade de env: **shell Vercel** → `.env` (local) → produção no painel Railway/Vercel.
 
 Documentação Supabase: [supabase/README.md](./supabase/README.md)
 

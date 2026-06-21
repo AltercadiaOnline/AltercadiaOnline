@@ -19,6 +19,7 @@ type LoadEnvFileOptions = {
 
 export type ProjectEnvLoadReport = {
   readonly localEnvLoaded: boolean;
+  /** Legado — `.env.governance` opcional; prefira `.env` único. */
   readonly governanceEnvLoaded: boolean;
   readonly localEnvPath: string;
   readonly governanceEnvPath: string;
@@ -72,9 +73,9 @@ function loadEnvFileAt(filePath: string, options: LoadEnvFileOptions): boolean {
 
 /**
  * Bootstrap de variáveis do projeto:
- * 1. Shell / Vercel — maior prioridade (nunca sobrescrito por arquivos)
- * 2. `.env` — config local geral (PORT, CORS, etc.)
- * 3. `.env.governance` — fonte oficial Supabase + Postgres (sobrescreve `.env` nas chaves de governance)
+ * 1. Shell / Vercel / Railway — maior prioridade (nunca sobrescrito por arquivos)
+ * 2. `.env` — fonte local única (servidor + Supabase + Postgres)
+ * 3. `.env.governance` — legado opcional; sobrescreve só chaves sensíveis se existir
  *
  * Cliente browser: apenas `SUPABASE_URL` + `SUPABASE_ANON_KEY` via `/config/client`.
  * Servidor: `SUPABASE_SERVICE_ROLE_KEY` nunca é exposta ao browser.
@@ -108,15 +109,17 @@ export function loadProjectEnv(cwd: string = process.cwd()): ProjectEnvLoadRepor
 }
 
 export function logProjectEnvLoadReport(report: ProjectEnvLoadReport): void {
-  console.log('[env] Bootstrap de variáveis — prioridade: shell/Railway > .env.governance > .env');
+  console.log('[env] Bootstrap — prioridade: shell > .env > .env.governance (legado)');
   console.log(
-    `  ${LOCAL_ENV_FILENAME} → ${report.localEnvLoaded ? `carregado (${report.localEnvPath})` : 'não encontrado (ok em produção)'}`,
+    `  ${LOCAL_ENV_FILENAME} → ${report.localEnvLoaded ? `carregado (${report.localEnvPath})` : 'não encontrado — copie .env.example → .env'}`,
   );
+  if (report.governanceEnvLoaded) {
+    console.log(
+      `  ${GOVERNANCE_ENV_FILENAME} → carregado (${report.governanceEnvPath}) — legado; prefira .env único`,
+    );
+  }
   console.log(
-    `  ${GOVERNANCE_ENV_FILENAME} → ${report.governanceEnvLoaded ? `carregado (${report.governanceEnvPath})` : 'não encontrado (ok em produção)'}`,
-  );
-  console.log(
-    `  Chaves de governança no shell: ${report.shellGovernanceKeys.length ? report.shellGovernanceKeys.join(', ') : '(nenhuma — confira Variables no Railway)'}`,
+    `  Chaves sensíveis no shell: ${report.shellGovernanceKeys.length ? report.shellGovernanceKeys.join(', ') : '(nenhuma — ok em dev com .env)'}`,
   );
 }
 

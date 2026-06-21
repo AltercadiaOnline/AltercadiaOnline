@@ -1,9 +1,9 @@
-/** Chaves oficiais de credenciais Supabase + Postgres — fonte: `.env.governance`. */
+/** Arquivo legado opcional — prefira um único `.env` (ver `.env.example`). */
 export const GOVERNANCE_ENV_FILENAME = '.env.governance';
 
 export const LOCAL_ENV_FILENAME = '.env';
 
-/** Ordem de prioridade global: shell/Vercel > `.env.governance` > `.env` (só chaves de governance). */
+/** Chaves sensíveis Supabase + Postgres (vivem no `.env` local ou no shell de produção). */
 export const GOVERNANCE_ENV_KEYS = [
   'SUPABASE_URL',
   'SUPABASE_ANON_KEY',

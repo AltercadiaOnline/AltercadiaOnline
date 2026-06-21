@@ -10,7 +10,7 @@
    - `supabase/migrations/011_hybrid_character_persistence.sql` — colunas de posição (LOW) e gameplay (HIGH) em `profiles`.
 3. Confirme em **Table Editor** que existem as tabelas `profiles`, `inventory` e `currency`.
 
-Ou via script local (requer `DATABASE_URL` em `.env.governance`):
+Ou via script local (requer `DATABASE_URL` em `.env`):
 
 ```bash
 npm run db:migrate:010
@@ -26,9 +26,9 @@ supabase db push
 
 ## Variáveis de ambiente
 
-**Fonte oficial local:** `.env.governance` na raiz (copie de `.env.governance.example`).
+**Fonte oficial local:** `.env` na raiz (copie de `.env.example`).
 
-Prioridade: variáveis do shell/Vercel → `.env.governance` (Supabase/Postgres) → `.env` (PORT, CORS, etc.).
+Prioridade: variáveis do shell/Vercel → `.env` (Supabase/Postgres + servidor).
 
 ```env
 SUPABASE_URL=https://SEU_PROJETO.supabase.co
@@ -43,7 +43,7 @@ SUPABASE_SERVICE_ROLE_KEY=sua-service-role
 | **Cliente (browser)** | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | `GET /config/client` → `initSupabaseAuth()` |
 | **Servidor** | `SUPABASE_SERVICE_ROLE_KEY` (+ URL) | `getSupabaseAdminClient()` — nunca expor ao browser |
 
-⚠️ **`.env.governance` JAMAIS pode subir no Git** — está no `.gitignore`. Em produção, use o painel Vercel com os mesmos nomes de variável.
+⚠️ **`.env` JAMAIS pode subir no Git** — está no `.gitignore`. Em produção, use o painel Vercel/Railway com os mesmos nomes de variável.
 
 ## Tabelas
 

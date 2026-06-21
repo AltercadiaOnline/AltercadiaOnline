@@ -1,5 +1,5 @@
 /** Config pública exposta ao browser (sem segredos de serviço).
- * Valores vêm de `.env.governance` → `loadProjectEnv()` → `createPublicClientConfig()` → GET `/config/client`.
+ * Valores vêm de `.env` / shell → `loadProjectEnv()` → `createPublicClientConfig()` → GET `/config/client`.
  * `supabaseUrl` é endpoint de API Auth — usar só em `createClient()`; nunca exibir na UI (marca: Altercadia.online).
  * Apenas `SUPABASE_URL` + `SUPABASE_ANON_KEY` — nunca `SUPABASE_SERVICE_ROLE_KEY`. */
 import { DEFAULT_PUBLIC_SITE_ORIGIN, normalizePublicSiteOrigin } from './auth/authRedirectOrigin.js';

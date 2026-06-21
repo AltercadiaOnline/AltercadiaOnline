@@ -54,7 +54,7 @@ Antes de concluir qualquer alteração em `src/server/`, **verificar compatibili
 
 1. `npm run deploy:check`
 2. Confirmar `dist/server/index.js` existe
-3. Se mudou env: `.env.example` + `.env.governance.example` + `README-DEV.md` / `README-DE-DESENVOLVIMENTO.md`
+3. Se mudou env: `.env.example` + `README-DEV.md` / `README-DE-DESENVOLVIMENTO.md`
 4. Sugerir `npm run deploy -- "mensagem clara"` — **não** fazer push sem pedido explícito do usuário
 
 ---
@@ -74,15 +74,15 @@ Não remover `deploy:check` do fluxo `deploy`. Não commitar `node_modules/`, `d
 
 ---
 
-## Segredos e `.env.governance` (REGRA ABSOLUTA)
+## Segredos e `.env` (REGRA ABSOLUTA)
 
-- **`.env.governance`** é a fonte oficial local de credenciais **Supabase** e **Postgres** (`SUPABASE_*`, `DATABASE_*`).
+- **`.env`** é a fonte local única — servidor, Supabase e Postgres (`SUPABASE_*`, `DATABASE_*`, `PORT`, etc.). Template: `.env.example`.
 - O servidor carrega via `loadProjectEnv()` (`src/server/config/loadEnv.ts`) **antes** de `loadServerEnv()`.
-- **JAMAIS, ABSOLUTAMENTE NUNCA** commitar, fazer push, incluir em PR ou anexar `.env.governance` ao Git.
-- O arquivo está no `.gitignore` — antes de `git add` / `npm run deploy`, confirmar que `.env.governance` **não** aparece em `git status`.
-- Versionar apenas **`.env.governance.example`** (template sem segredos reais).
+- **JAMAIS, ABSOLUTAMENTE NUNCA** commitar, fazer push, incluir em PR ou anexar `.env` (ou `.env.governance` legado) ao Git.
+- Ambos estão no `.gitignore` — antes de `git add` / `npm run deploy`, confirmar que **não** aparecem em `git status`.
+- Versionar apenas **`.env.example`** (template sem segredos reais).
 - **Cliente:** só `SUPABASE_URL` + `SUPABASE_ANON_KEY` via `/config/client`. **Servidor:** `SUPABASE_SERVICE_ROLE_KEY` nunca no browser.
-- **Produção (Vercel):** mesmas chaves no painel Environment Variables (shell tem prioridade sobre arquivos locais).
+- **Produção (Vercel/Railway):** mesmas chaves no painel Environment Variables (shell tem prioridade sobre arquivos locais).
 
 ---
 
@@ -301,7 +301,7 @@ Toda nova funcionalidade que envolver interação cliente ↔ servidor (mensagen
 - `PORT` — injetada pela Vercel (não fixar no código)
 - `TRUST_PROXY=true` — recomendado atrás do proxy Vercel
 - `CORS_ORIGIN=https://SEU-PROJETO.vercel.app` (URL pública atual)
-- Supabase/Postgres: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` (ou `DATABASE_*`) — espelham `.env.governance`, **não** versionar o arquivo no repo
+- Supabase/Postgres: `SUPABASE_*`, `DATABASE_*` — espelham `.env` local, **não** versionar o arquivo no repo
 
 ---
 
