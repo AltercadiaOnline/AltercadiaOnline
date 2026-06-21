@@ -29,6 +29,10 @@ import {
 } from './worldCreatureSyncBridge.js';
 
 import { isVisualDebugModeEnabled } from '../debug/visualDebugMode.js';
+import {
+  buildCreatureRenderSnapshot,
+  type WorldCreatureRenderSnapshot,
+} from './worldActorsRenderSnapshot.js';
 import { preloadCreatureWorldSprites } from './creatureWorldImageLoader.js';
 
 
@@ -253,6 +257,14 @@ export class WorldMap {
 
     return this.entities.map((entity) => entity.collectDrawable(ctx));
 
+  }
+
+  /** Snapshots top-down para camada Phaser (mesmo contrato visual do canvas). */
+  collectCreatureRenderSnapshots(): WorldCreatureRenderSnapshot[] {
+    if (isVisualDebugModeEnabled()) {
+      return [];
+    }
+    return this.entities.map((entity) => buildCreatureRenderSnapshot(entity));
   }
 
 

@@ -141,6 +141,7 @@ import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
+import { enablePhaserHybridForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
 import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
@@ -556,6 +557,7 @@ function connectSocket(): void {
   socket.onOpen(() => {
     attachOnlineEconomyLayer();
     setExplorationOnlineMode(true);
+    enablePhaserHybridForOnlineSession();
     setStatus('Sincronizando personagem… (WASD após conectar)');
     if (!world) return;
     world.setCombatJoinHandler((monsterId) => {

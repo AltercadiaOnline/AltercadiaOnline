@@ -58,6 +58,10 @@ export class InteractiveEntity {
     return tileFootprintDepthY(this.tileY, 1, tileSize);
   }
 
+  getAlertPulse(): number {
+    return this.alertPulse;
+  }
+
   collectDrawable(ctx: CanvasRenderingContext2D): WorldDepthDrawable {
     return {
       depthY: this.depthY,

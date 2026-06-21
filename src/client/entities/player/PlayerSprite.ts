@@ -19,7 +19,7 @@ import { PlayerSpriteLoader } from './PlayerSpriteLoader.js';
 import { USE_LAYER_COMPOSITOR } from './playerConstants.js';
 import { snapToPixel } from '../../render/pixelSnap.js';
 import { IdleBreathingAnimation } from './idleBreathingAnimation.js';
-import type { PlayerSpriteCatalog } from './types.js';
+import type { PlayerSpriteCatalog, AnimatorSnapshot } from './types.js';
 
 export type PlayerRenderSnapshot = WorldPoint & {
   readonly facing?: PlayerFacing;
@@ -129,6 +129,10 @@ export class PlayerSprite {
     if (key === this.appliedSkinKey) return;
     this.appliedSkinKey = key;
     this.layerRenderer.setSkin(skin);
+  }
+
+  getAnimationSnapshot(): AnimatorSnapshot {
+    return this.animator.getSnapshot();
   }
 
   update(timestampMs: number = performance.now()): void {

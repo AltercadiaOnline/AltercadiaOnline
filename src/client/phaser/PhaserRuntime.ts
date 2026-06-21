@@ -2,11 +2,11 @@ import {
   getRenderLayerBridge,
   resolveRenderHostElement,
 } from '../app/bridge/renderLayerBridge.js';
+import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
   CANVAS_LEGACY_ID,
   PHASER_EXPLORATION_SCENE_KEY,
   PHASER_MOUNT_ROOT_ID,
-  PHASER_RUNTIME_CONFIG,
 } from './PhaserConfig.js';
 
 type PhaserGameInstance = {
@@ -23,6 +23,7 @@ type PhaserModule = {
     FIT: number;
     CENTER_BOTH: number;
   };
+  Scene: new (config?: string | Record<string, unknown>) => unknown;
 };
 
 let activeGame: PhaserGameInstance | null = null;
@@ -48,8 +49,14 @@ function setRenderHostVisibility(engine: 'canvas-legacy' | 'phaser'): void {
   }
 }
 
+function applyPhaserCanvasTransparency(host: HTMLElement): void {
+  const canvas = host.querySelector('canvas');
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  canvas.style.background = 'transparent';
+}
+
 /**
- * Boot Phaser sob demanda — import dinâmico para não inflar o bundle até ativar phaser-hybrid.
+ * Boot Phaser sob demanda — import dinâmico; ativado no fluxo online (phaser-hybrid).
  */
 export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
   if (activeGame) return activeGame;
@@ -62,28 +69,19 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
       return null;
     }
 
-    const PhaserNs = (await import('phaser')) as unknown as PhaserModule & {
-      Scene: new (config?: string | Record<string, unknown>) => unknown;
-    };
+    const PhaserNs = (await import('phaser')) as unknown as PhaserModule;
     const { createExplorationPhaserScene } = await import('./scenes/ExplorationPhaserScene.js');
 
     setRenderHostVisibility('phaser');
 
-    activeGame = new PhaserNs.Game({
-      type: PhaserNs.AUTO,
+    const gameConfig = buildPhaserGameConfig({
+      Phaser: PhaserNs,
       parent: host,
-      width: PHASER_RUNTIME_CONFIG.width,
-      height: PHASER_RUNTIME_CONFIG.height,
-      backgroundColor: PHASER_RUNTIME_CONFIG.backgroundColor,
-      pixelArt: PHASER_RUNTIME_CONFIG.pixelArt,
-      antialias: PHASER_RUNTIME_CONFIG.antialias,
-      roundPixels: PHASER_RUNTIME_CONFIG.roundPixels,
-      scale: {
-        mode: PhaserNs.Scale.FIT,
-        autoCenter: PhaserNs.Scale.CENTER_BOTH,
-      },
-      scene: [createExplorationPhaserScene(PhaserNs as never)],
+      scenes: [createExplorationPhaserScene(PhaserNs as never)],
     });
+
+    activeGame = new PhaserNs.Game(gameConfig);
+    applyPhaserCanvasTransparency(host);
 
     getRenderLayerBridge().markPhaserBooted(true);
     activeGame.scene.start(PHASER_EXPLORATION_SCENE_KEY);

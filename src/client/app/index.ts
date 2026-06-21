@@ -41,8 +41,12 @@ export {
 export {
   enablePhaserHybridMode,
   disablePhaserHybridMode,
+  enablePhaserHybridForOnlineSession,
   isPhaserHybridDevRequested,
 } from './phaser/initPhaserReadyLayer.js';
+
+export { buildPhaserGameConfig, PHASER_DESIGN_VIEWPORT } from '../phaser/buildPhaserGameConfig.js';
+export { PHASER_MAIN_SCENE_KEY, PHASER_RUNTIME_CONFIG } from '../phaser/PhaserConfig.js';
 
 export * from './store/index.js';
 

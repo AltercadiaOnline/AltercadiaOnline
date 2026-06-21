@@ -25,6 +25,11 @@ export function maybeEnablePhaserHybridFromDevFlags(): void {
   }
 }
 
+/** Ativa Phaser no fluxo online (WebSocket autoritativo conectado). */
+export function enablePhaserHybridForOnlineSession(): void {
+  enablePhaserHybridMode();
+}
+
 /**
  * Prepara camada de render Phaser sem ativar por padrão (canvas legado permanece ativo).
  */

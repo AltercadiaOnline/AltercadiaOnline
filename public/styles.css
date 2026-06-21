@@ -158,10 +158,23 @@ body[data-ui-architecture="online-react-v1"] {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  z-index: 0;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .phaser-mount-root canvas {
   display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* React HUD (#game-ui-overlay) permanece acima — z-index 920+ */
+.game-render-host[data-render-engine='phaser'] .phaser-mount-root {
+  isolation: isolate;
 }
 
 /* Painéis legado ocultos quando a camada React de exploração está ativa */

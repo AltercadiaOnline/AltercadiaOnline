@@ -76,6 +76,8 @@ import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
 import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
+import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
+import { sortWorldActorsByDepth } from '../world/worldActorsRenderSnapshot.js';
 import {
   collectMinimapMonsterMarkers,
   collectMinimapNpcMarkers,
@@ -880,6 +882,7 @@ export class ExplorationScene implements Disposable {
     this.publishMinimapState();
 
     if (isPhaserRenderEngineActive()) {
+      const timestampMs = performance.now();
       publishExplorationRenderFrame({
         mapId: this.mapManager.currentMapId,
         playerX: this.player.renderX,
@@ -887,7 +890,31 @@ export class ExplorationScene implements Disposable {
         cameraX: this.camera.x,
         cameraY: this.camera.y,
         facing: this.player.facing,
-        timestampMs: performance.now(),
+        timestampMs,
+        playerSprite: this.playerAvatar.getAnimationSnapshot(),
+        worldActors: sortWorldActorsByDepth([
+          ...this.worldMap.collectCreatureRenderSnapshots(),
+          ...this.npcManager.collectNpcRenderSnapshots(timestampMs),
+        ]),
+        terrainTiles: this.worldMapRenderer.collectGroundTileSnapshots(),
+        worldStructures: this.worldMapRenderer.collectStructureSnapshots({
+          x: this.player.renderX,
+          y: this.player.renderY,
+        }),
+        pet: this.petFollow.toRenderSnapshot(),
+        navigationDestination: this.navigationDestination,
+        debugOverlay: buildExplorationDebugOverlaySnapshot({
+          mapId: this.mapManager.currentMapId,
+          mapData: this.mapManager.mapDataSnapshot,
+          portals: this.mapManager.portals,
+          playerX: this.player.renderX,
+          playerY: this.player.renderY,
+          cameraX: this.camera.x,
+          cameraY: this.camera.y,
+          viewWidth: this.camera.visibleWorldWidth,
+          viewHeight: this.camera.visibleWorldHeight,
+          creatureSnapshots: this.worldMap.getAuthoritativeSnapshotsForDebug(),
+        }),
       });
     }
   }

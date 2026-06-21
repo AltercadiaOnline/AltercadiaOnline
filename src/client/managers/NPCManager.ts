@@ -39,6 +39,10 @@ import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { uiEvents, UIEventType, type UiWindowId } from '../ui/uiEvents.js';
 import { windowManager } from '../ui/WindowManager.js';
 import { postSystemNotification } from '../ui/logService.js';
+import {
+  buildNpcRenderSnapshot,
+  type WorldNpcRenderSnapshot,
+} from '../world/worldActorsRenderSnapshot.js';
 
 const ACTION_TO_WINDOW: Partial<Record<NpcActionType, UiWindowId>> = {
   [NpcActionType.OPEN_QUEST]: 'quest',
@@ -355,6 +359,11 @@ export class NPCManager {
     });
 
     return drawables;
+  }
+
+  /** Snapshots top-down de NPCs para Phaser (exclui jogador/pet — renderizados à parte). */
+  collectNpcRenderSnapshots(timestampMs: number): WorldNpcRenderSnapshot[] {
+    return this.activeNpcs.map((npc) => buildNpcRenderSnapshot(npc, timestampMs));
   }
 
   /** Nametags de atores + prompt [E] — somente DOM (fora do canvas escalado). */

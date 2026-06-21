@@ -26,6 +26,14 @@ import {
   type WorldDepthDrawable,
 } from '../../shared/world/worldDepthSort.js';
 import type { Disposable } from '../utils/Disposable.js';
+import {
+  collectMapGroundTileSnapshots,
+  type WorldTerrainTileSnapshot,
+} from './worldTerrainRenderSnapshot.js';
+import {
+  collectMapStructureSnapshots,
+  type WorldStructureRenderSnapshot,
+} from './worldStructureRenderSnapshot.js';
 
 export type WorldMapClickOptions = {
   readonly doubleClick?: boolean;
@@ -91,6 +99,24 @@ export class WorldMapRenderer implements Disposable {
   public getBackgroundColor(): string {
     return this.layout.background;
   }
+
+  /** Tiles de chão visíveis — espelha renderGroundLayer para a camada Phaser. */
+  public collectGroundTileSnapshots(): readonly WorldTerrainTileSnapshot[] {
+    return collectMapGroundTileSnapshots(this.layout, {
+      x: this.camera.x,
+      y: this.camera.y,
+      visibleWorldWidth: this.camera.visibleWorldWidth,
+      visibleWorldHeight: this.camera.visibleWorldHeight,
+    });
+  }
+
+  /** Estruturas/props visíveis — espelha collectStructureDrawables para Phaser. */
+  public collectStructureSnapshots(
+    playerWorld?: WorldPoint,
+  ): readonly WorldStructureRenderSnapshot[] {
+    return collectMapStructureSnapshots(this.layout, playerWorld);
+  }
+
   public getHoverState(): WorldMapHoverState | null {
     return this.hover;
   }
