@@ -102,12 +102,12 @@ body[data-react-char-select-ui="1"] #char-select-screen > :not(.hidden) {
   pointer-events: none;
 }
 
-body[data-react-auth-ui="1"] #login-screen {
+body[data-react-auth-ui="1"][data-react-screen-ready="1"] #login-screen {
   visibility: hidden;
   pointer-events: none;
 }
 
-body[data-react-char-select-ui="1"] #char-select-screen {
+body[data-react-char-select-ui="1"][data-react-screen-ready="1"] #char-select-screen {
   visibility: hidden;
   pointer-events: none;
 }
@@ -116,7 +116,8 @@ body[data-react-char-select-ui="1"] #char-select-screen {
   position: fixed;
   inset: 0;
   z-index: 110;
-  pointer-events: auto;
+  /* Filhos (AuthScreen) usam pointer-events-auto — evita bloquear cliques antes do mount. */
+  pointer-events: none;
   display: flex !important;
 }
 

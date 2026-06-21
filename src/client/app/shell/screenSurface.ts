@@ -18,3 +18,11 @@ export function enableReactAuthScreen(): void {
 export function enableReactCharSelectScreen(): void {
   document.body.dataset.reactCharSelectUi = '1';
 }
+
+export function markReactScreenRuntimeReady(ready: boolean): void {
+  if (ready) {
+    document.body.dataset.reactScreenReady = '1';
+    return;
+  }
+  delete document.body.dataset.reactScreenReady;
+}

@@ -7,6 +7,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/app-ui/ui-runtime.css" />
+    <link rel="modulepreload" href="/app-ui/ui-runtime.js" />
     <script>
       (function () {
         var CANONICAL = 'https://altercadia-online.vercel.app';
@@ -387,7 +388,7 @@
         }
       }
     </script>
-    <script type="module" src="/client/browser/main.js"></script>
     <script type="module" src="/app-ui/ui-runtime.js"></script>
+    <script type="module" src="/client/browser/main.js"></script>
   </body>
 </html>
