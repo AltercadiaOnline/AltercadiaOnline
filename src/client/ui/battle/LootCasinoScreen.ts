@@ -1,10 +1,15 @@
 import type { LootRevealSlot } from '../../../shared/loot/lootRevealSlots.js';
-import { allLootRevealSlotsEmpty } from '../../../shared/loot/lootRevealSlots.js';
+import { clearLootCasinoSessionHandlers } from '../../app/battle/lootCasinoSessionHandlers.js';
+import {
+  getLootCasinoHudBridge,
+  isReactLootCasinoEnabled,
+} from '../../app/bridge/lootCasinoHudBridge.js';
 import {
   createLootCasinoController,
   type LootCasinoController,
   type LootCasinoPhase,
 } from './LootCasinoController.js';
+import { resolveLootCasinoHintForPhase } from './lootCasinoView.js';
 
 export type LootCasinoScreenOptions = {
   readonly slots: readonly LootRevealSlot[];
@@ -29,6 +34,9 @@ let activeCasinoIsSpinning = false;
 
 /** True enquanto a animação de slots bloqueia saída/fechar (HUD + cassino). */
 export function isLootCasinoSpinning(): boolean {
+  if (isReactLootCasinoEnabled()) {
+    return getLootCasinoHudBridge().snapshot().spinning;
+  }
   return activeCasinoIsSpinning;
 }
 
@@ -64,6 +72,11 @@ function applyLootCasinoOverlayForceStyles(overlay: HTMLElement): void {
 
 /** Libera spin, overlays de cassino/erro/loading e referências DOM. */
 export function destroyActiveLootCasino(): void {
+  if (isReactLootCasinoEnabled()) {
+    getLootCasinoHudBridge().dismiss();
+    clearLootCasinoSessionHandlers();
+    return;
+  }
   setCasinoSpinning(false);
   activeCasinoController?.destroy();
   activeCasinoController = null;
@@ -254,18 +267,7 @@ function createLootCasinoLever(doc: Document): {
 }
 
 function resolveHintForPhase(phase: LootCasinoPhase, slots: readonly LootRevealSlot[]): string {
-  switch (phase) {
-    case 'idle':
-      return 'Puxe a alavanca para revelar as recompensas.';
-    case 'lever_pull':
-      return 'Alavanca acionada…';
-    case 'spinning':
-      return 'Aguarde — os slots estão girando…';
-    case 'ready':
-      return allLootRevealSlotsEmpty(slots)
-        ? 'Nenhum drop desta vez. Colete ou saia — sair sem coletar perde o loot.'
-        : 'Toque em Coletar para enviar ao inventário, ou saia sem coletar.';
-  }
+  return resolveLootCasinoHintForPhase(phase, slots);
 }
 
 function setActionButtonsLocked(

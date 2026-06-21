@@ -49,6 +49,7 @@ import {
 import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
 import {
   bindCharSelectServerSelector,
+  getCharSelectServerUiState,
   syncCharSelectServerSelector,
 } from './charSelectServerSelector.js';
 import { clearSelectedServerId } from '../auth/resolveLoginServerId.js';
@@ -64,6 +65,11 @@ import {
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
 import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
+import { isReactCharSelectScreenEnabled } from '../app/shell/screenSurface.js';
+import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
+import { getAuthScreenController } from '../app/screen/authScreenController.js';
+import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
+import { isReactAuthUiEnabled } from '../services/authFlow.js';
 
 let characterCreatePanel: { open: (slotIndex: number) => void; close: () => void } | null = null;
 let appShellListenersBound = false;
@@ -134,6 +140,18 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
 function bindAppShellListeners(onEnterWorld: () => void): void {
   if (appShellListenersBound) return;
   appShellListenersBound = true;
+
+  if (isReactCharSelectScreenEnabled()) {
+    const bridge = getCharSelectBridge();
+    bridge.bindEnterWorld(() => {
+      if (AppScreens.selectedCharacterId === null) return;
+      void AppScreens.enterWorldWithAuthoritativeSnapshot(onEnterWorld);
+    });
+    bridge.bindReturnToLogin(() => {
+      AppScreens.returnToLogin();
+    });
+    return;
+  }
 
   document.getElementById('btn-enter-world')?.addEventListener('click', () => {
     if (AppScreens.selectedCharacterId === null) return;
@@ -208,6 +226,10 @@ export const AppScreens = {
   openCharacterCreateForFirstEmptySlot(): void {
     const slotIndex = this.findFirstEmptyCharacterSlotIndex();
     if (slotIndex === null) return;
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().openCreate(slotIndex);
+      return;
+    }
     characterCreatePanel?.open(slotIndex);
   },
 
@@ -254,6 +276,9 @@ export const AppScreens = {
     this.clearCharacterHubError();
 
     const serverSync = await syncCharSelectServerSelector();
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().setServerState(getCharSelectServerUiState());
+    }
     if (!serverSync.ok) {
       this.renderCharacterHubError(
         serverSync.message ?? 'Erro ao carregar servidores disponíveis.',
@@ -309,6 +334,9 @@ export const AppScreens = {
   },
 
   clearCharacterHubError(): void {
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().clearHubStatus();
+    }
     const statusEl = document.getElementById('char-select-status');
     if (!statusEl) return;
     statusEl.textContent = '';
@@ -316,6 +344,9 @@ export const AppScreens = {
   },
 
   renderCharacterHubError(message: string): void {
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().setHubStatus(message, true);
+    }
     let statusEl = document.getElementById('char-select-status');
     if (!statusEl) {
       statusEl = document.createElement('p');
@@ -334,6 +365,10 @@ export const AppScreens = {
   },
 
   renderAccountLabel(): void {
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().syncFromAppScreens();
+      return;
+    }
     const label = document.getElementById('char-select-account');
     if (!label) return;
 
@@ -356,6 +391,9 @@ export const AppScreens = {
 
   returnToLogin(): void {
     characterCreatePanel?.close();
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().closeCreate();
+    }
     this.signOut();
     showAuthView('login');
 
@@ -384,6 +422,11 @@ export const AppScreens = {
   },
 
   renderCharacterSlots(): void {
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().syncFromAppScreens();
+      return;
+    }
+
     const container = document.getElementById('char-slots');
     if (!container || !this.characterHub) return;
 
@@ -475,6 +518,15 @@ export const AppScreens = {
   },
 
   setupCharacterCreation(): void {
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().bindCreateSubmit(async (payload) => this.createCharacter(
+        payload.slotIndex,
+        payload.name,
+        payload.class,
+      ));
+      return;
+    }
+
     if (characterCreatePanel) return;
 
     characterCreatePanel = setupCharacterCreatePanel({
@@ -488,6 +540,11 @@ export const AppScreens = {
   },
 
   syncCharacterSelectionUi(): void {
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().syncFromAppScreens();
+      return;
+    }
+
     document.querySelectorAll<HTMLElement>('.char-slot[data-char-id]').forEach((el) => {
       const characterId = Number(el.dataset.charId);
       el.classList.toggle('is-selected', characterId === this.selectedCharacterId);
@@ -538,6 +595,10 @@ export const AppScreens = {
     const character = this.getSelectedCharacter();
     if (!character || !this.currentSession) return;
 
+    if (isReactCharSelectScreenEnabled()) {
+      getCharSelectBridge().setEnterWorldBusy(true);
+    }
+
     const enterBtn = document.getElementById('btn-enter-world');
     if (enterBtn instanceof HTMLButtonElement) {
       enterBtn.disabled = true;
@@ -560,11 +621,34 @@ export const AppScreens = {
       this.renderCharacterHubError('Erro inesperado ao carregar o perfil.');
     } finally {
       hidePlayerInitLoading();
+      if (isReactCharSelectScreenEnabled()) {
+        getCharSelectBridge().setEnterWorldBusy(false);
+      }
       this.syncCharacterSelectionUi();
     }
   },
 
   showLoginEnvironmentHint(config: { supabase: boolean; serverOk: boolean; gameWsUrl?: boolean }): void {
+    if (isReactAuthUiEnabled()) {
+      if (getAuthScreenController().snapshot().statusMessage.trim().length > 0) return;
+
+      if (!config.serverOk) {
+        getAuthScreenController().showEnvironmentHint(USER_SERVER_OFFLINE, true);
+        return;
+      }
+
+      if (!config.supabase) {
+        getAuthScreenController().showEnvironmentHint(USER_AUTH_UNAVAILABLE, true);
+      } else if (!config.gameWsUrl) {
+        const onVercelEntry = window.location.hostname.includes('vercel.app');
+        getAuthScreenController().showEnvironmentHint(
+          onVercelEntry ? USER_GAME_HOST_MISSING : USER_SERVER_OFFLINE,
+          true,
+        );
+      }
+      return;
+    }
+
     const statusEl = document.getElementById('auth-status');
     if (!statusEl || statusEl.textContent.trim().length > 0) return;
 
@@ -614,6 +698,11 @@ export const AppScreens = {
             this.showLogin();
             showAuthView('login');
 
+            if (isReactAuthUiEnabled()) {
+              getAuthScreenController().applyEmailConfirmedReturn(email);
+              return;
+            }
+
             const emailField = document.getElementById('email-input');
             const passField = document.getElementById('pass-input');
             if (emailField instanceof HTMLInputElement && email) {
@@ -635,6 +724,7 @@ export const AppScreens = {
           },
           onSnapshotInitializing: (message) => {
             showPlayerInitLoading(message);
+            setAuthStatusMessage(message, { isError: false });
             const statusEl = document.getElementById('auth-status');
             if (!statusEl) return;
             statusEl.textContent = message;

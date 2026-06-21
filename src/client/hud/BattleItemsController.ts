@@ -1,4 +1,5 @@
 import type { ActiveConsumableStack } from '../../shared/types.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
 import { BattleItemsMenu } from './BattleItemsMenu.js';
 import { resolveBattleConsumableRows } from './battleConsumables.js';
 
@@ -59,6 +60,10 @@ export class BattleItemsController {
     this.menu.destroy();
   }
 
+  tryUseItem(itemId: string): void {
+    this.useItem(itemId);
+  }
+
   private useItem(itemId: string): void {
     if (!this.menuEnabled || !this.actorId) return;
     const row = this.stacks.find((entry) => entry.itemId === itemId);
@@ -67,9 +72,14 @@ export class BattleItemsController {
   }
 
   private renderMenu(): void {
-    this.menu.render({
-      items: resolveBattleConsumableRows(this.stacks),
-      enabled: this.menuEnabled,
-    });
+    const items = resolveBattleConsumableRows(this.stacks);
+    const enabled = this.menuEnabled;
+
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().setItemsPalette(items, enabled);
+      return;
+    }
+
+    this.menu.render({ items, enabled });
   }
 }

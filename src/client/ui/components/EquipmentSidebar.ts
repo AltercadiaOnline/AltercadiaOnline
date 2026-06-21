@@ -28,6 +28,7 @@ import {
 import { subscribeGameStore } from '../../state/GameStore.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { getContextMenuService } from '../contextMenu/ContextMenuService.js';
+import { isReactGameHudUiEnabled } from '../../app/shell/gameHudSurface.js';
 
 /**
  * Sidebar fixa à direita — status vital + progressão de nível + grade de 10 slots (SET).
@@ -74,7 +75,9 @@ export class EquipmentSidebar {
   static mount(host: HTMLElement): EquipmentSidebar {
     host.innerHTML = EquipmentSidebar.createStaticShell();
     host.classList.add('equipment-sidebar');
-    return new EquipmentSidebar(host);
+    const instance = new EquipmentSidebar(host);
+    activeSidebar = instance;
+    return instance;
   }
 
   /** Shell estático — vitals/progressão; grade SET é preenchida em renderSetGrid(). */
@@ -360,7 +363,11 @@ export class EquipmentSidebar {
 
 let activeSidebar: EquipmentSidebar | null = null;
 
-export function initEquipmentSidebar(): EquipmentSidebar {
+export function initEquipmentSidebar(): EquipmentSidebar | null {
+  if (isReactGameHudUiEnabled()) {
+    return activeSidebar;
+  }
+
   const host = document.getElementById('equipment-sidebar');
   if (!host) {
     throw new Error('[UI] #equipment-sidebar não encontrado.');

@@ -57,6 +57,13 @@ import { uiEvents, UIEventType } from '../uiEvents.js';
 import { windowManager } from '../WindowManager.js';
 
 import { getPendingIntentRegistry } from '../../sync/pendingIntentRegistry.js';
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
 
 
 
@@ -123,7 +130,39 @@ export class PetTrainerShopPanel extends BaseUIComponent {
     return false;
   }
 
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'petTrainerShop')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'petTrainerShop')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'petTrainerShop')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
+  }
+
   openForVendor(context: PetTrainerShopContext): void {
+    if (tryOpenReactWorldPanel('petTrainerShop', {
+      kind: 'petTrainerShop',
+      vendorId: context.vendorId,
+      vendorName: context.vendorName,
+    })) {
+      return;
+    }
 
     this.vendor = { ...context };
 

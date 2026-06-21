@@ -27,6 +27,17 @@ import { postSystemNotification } from '../ui/logService.js';
 import { AppScreens } from '../browser/appScreens.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import type { CombatFinishedPayload } from '../../shared/combat/combatFinished.js';
+import { initReactBattleHud } from '../app/hud/initReactBattleHud.js';
+import {
+  clearBattlePaletteHandlers,
+  registerBattlePaletteHandlers,
+} from '../app/battle/battlePaletteHandlers.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
+import {
+  getPostBattleHudBridge,
+  isReactPostBattleHudEnabled,
+} from '../app/bridge/postBattleHudBridge.js';
+import { clearPostBattleHubHandlers } from '../app/battle/postBattleHubHandlers.js';
 import {
   initPostBattleHubBridge,
   resetPostBattleHubBridgeSession,
@@ -496,6 +507,10 @@ function removePostBattleHubUi(): void {
   clearPostBattleHonorContext();
   clearBattleObservationState();
   configurePostBattleHonorOpener(null);
+  if (isReactPostBattleHudEnabled()) {
+    getPostBattleHudBridge().dismiss();
+    clearPostBattleHubHandlers();
+  }
   unmountPostBattleHub();
   unmountEmergencyBattleExit();
   if (typeof document === 'undefined') return;
@@ -925,13 +940,19 @@ export function configureCombatClient(config: CombatClientConfig = {}): void {
 export function initBattleHud(root: ParentNode = document): HUDManager {
   installBattleFinishDebugGlobal();
   initBattleStore();
+  initReactBattleHud();
 
   ensureCombatFeedbackPipeline(root);
 
   teardownBattleScreenUi?.();
   teardownBattleScreenUi = initBattleScreenUI(root, {
     onMoveset: () => {
-      root.querySelector('#skill-palette-row')?.classList.remove('hidden');
+      if (isReactBattleHudEnabled()) {
+        getBattleHudBridge().setItemsDrawerOpen(false);
+        getBattleHudBridge().setMovesetDrawerOpen(true);
+      } else {
+        root.querySelector('#skill-palette-row')?.classList.remove('hidden');
+      }
       const dispatch = lastDispatch;
       if (dispatch) {
         ensureHud().syncSkillPaletteFromCombatState(dispatch.state, dispatch.ui);
@@ -991,6 +1012,59 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
       },
     });
   }
+
+  registerBattlePaletteHandlers({
+    executeMove: (moveId) => battleCommand?.trySelectMove(moveId),
+    useItem: (itemId) => battleItems?.tryUseItem(itemId),
+  });
+
+  const globalCommands = globalThis as typeof globalThis & {
+    __ALTERCADIA_BATTLE_COMMANDS?: {
+      moveset?: () => void;
+      items?: () => void;
+      skip?: () => void;
+      surrender?: () => void;
+    };
+  };
+  globalCommands.__ALTERCADIA_BATTLE_COMMANDS = {
+    moveset: () => {
+      if (isReactBattleHudEnabled()) {
+        getBattleHudBridge().setItemsDrawerOpen(false);
+        getBattleHudBridge().setMovesetDrawerOpen(true);
+      } else {
+        root.querySelector('#skill-palette-row')?.classList.remove('hidden');
+      }
+      const dispatch = lastDispatch;
+      if (dispatch) {
+        ensureHud().syncSkillPaletteFromCombatState(dispatch.state, dispatch.ui);
+      }
+    },
+    items: () => {
+      if (isReactBattleHudEnabled()) {
+        getBattleHudBridge().setMovesetDrawerOpen(false);
+        getBattleHudBridge().toggleItemsDrawer();
+      } else {
+        root.querySelector('#battle-items-row')?.classList.toggle('hidden');
+      }
+    },
+    skip: () => {
+      const dispatch = lastDispatch;
+      if (!dispatch) return;
+      GameClient.sendAction({
+        battleId: dispatch.state.battleId,
+        actorId: dispatch.ui.playerActorId,
+        turn: dispatch.state.turn,
+        skillId: null,
+        requestId: `skip-${Date.now()}`,
+      });
+    },
+    surrender: () => {
+      if (battleInputFrozen || forfeitInFlight) return;
+      showBattleSurrenderConfirm(() => {
+        GameClient.sendForfeit();
+      });
+    },
+  };
 
   hud = new HUDManager({
     elements: {
@@ -1116,6 +1190,10 @@ export function getBattleHud(): HUDManager | null {
 }
 
 function rootHideBattleDrawers(): void {
+  if (isReactBattleHudEnabled()) {
+    getBattleHudBridge().closeDrawers();
+    return;
+  }
   document.querySelector('#skill-palette-row')?.classList.add('hidden');
   document.querySelector('#battle-items-row')?.classList.add('hidden');
 }
@@ -1144,6 +1222,7 @@ export const GameClient = {
     battleCommand = null;
     battleItems?.destroy();
     battleItems = null;
+    clearBattlePaletteHandlers();
     battleScreen?.reset();
     teardownBattleScreenUi?.();
     teardownBattleScreenUi = null;

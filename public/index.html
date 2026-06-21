@@ -6,6 +6,7 @@
     <title>Altercadia.online</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/app-ui/ui-runtime.css" />
     <script>
       (function () {
         var CANONICAL = 'https://altercadia-online.vercel.app';
@@ -197,6 +198,12 @@
       </div>
     </div>
 
+    <div id="screen-react-root" class="screen-react-root hidden" aria-hidden="true"></div>
+
+    <div id="auth-bootstrap-retry" class="auth-bootstrap-retry hidden" aria-hidden="true">
+      <button type="button" data-auth-bootstrap-retry>Tentar novamente</button>
+    </div>
+
     <div id="game-container" class="screen">
       <div id="scene-exploration" class="scene hidden">
         <div id="vortex-app" class="app-wrapper game-layout">
@@ -205,7 +212,10 @@
               <!-- Core de layout: container 640×360 — escala CSS aplicada aqui (spec: #game-container) -->
               <div id="game-stage-scale" class="game-stage-scale">
                 <main id="game-stage">
-                  <canvas id="game-canvas" class="game-canvas" width="640" height="360" aria-label="Mundo Altercadia"></canvas>
+                  <div id="game-render-host" class="game-render-host" data-render-engine="canvas-legacy">
+                    <canvas id="game-canvas" class="game-canvas" width="640" height="360" aria-label="Mundo Altercadia"></canvas>
+                    <div id="phaser-mount-root" class="phaser-mount-root hidden" aria-hidden="true"></div>
+                  </div>
                 </main>
               </div>
               <div id="npc-names-layer" class="npc-names-layer" aria-hidden="true"></div>
@@ -362,6 +372,9 @@
           <button id="btn-pause-exit" type="button">Sair do Jogo</button>
         </div>
       </div>
+
+      <div id="game-react-hud-root" class="game-react-hud-root" aria-hidden="true"></div>
+      <div id="game-react-overlay-root" class="game-react-overlay-root" aria-hidden="true"></div>
     </div>
 
     <script type="importmap">
@@ -373,5 +386,6 @@
       }
     </script>
     <script type="module" src="/client/browser/main.js"></script>
+    <script type="module" src="/app-ui/ui-runtime.js"></script>
   </body>
 </html>

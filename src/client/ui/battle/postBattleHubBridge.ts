@@ -4,6 +4,11 @@ import {
   type BattleVictoryUiReadyPayload,
 } from '../../combat/battleUiEvents.js';
 import { traceBattleFinish } from '../../hud/battleFinishProbe.js';
+import { getPostBattleHudBridge, isReactPostBattleHudEnabled } from '../../app/bridge/postBattleHudBridge.js';
+import {
+  clearPostBattleHubHandlers,
+  registerPostBattleHubHandlers,
+} from '../../app/battle/postBattleHubHandlers.js';
 import { resolvePostBattleHubMountTarget } from './PostBattleHub.js';
 import { isPostBattleHubInteractive } from './battleSceneMount.js';
 import { mountPostBattleHub, unmountPostBattleHub } from './PostBattleHub.js';
@@ -85,15 +90,7 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
     const isPvp = payload.battleType === BattleType.PVP;
     const rewardsLootStatus = mapLootStageToHubStatus(payload.battleId, payload.victory, isPvp);
 
-    mountPostBattleHub(
-    {
-      battleType: payload.battleType,
-      victory: payload.victory,
-      xpGain: payload.xpGain,
-      ...(payload.endReason !== undefined ? { endReason: payload.endReason } : {}),
-      ...(payload.rankingResult !== undefined ? { rankingResult: payload.rankingResult } : {}),
-    },
-    {
+    const handlerBundle = {
       rewardsLootStatus,
       battleId: payload.battleId,
       onStatistics: () => {
@@ -123,16 +120,36 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
       onExit: async () => {
         if (isLootCasinoSpinning()) {
           postSystemNotification('Esperando animação…', 'normal');
+          getPostBattleHudBridge().setExitPending(false);
           return;
         }
         closeBattleStatisticsPanel();
         teardownBattleLootCasinoState(payload.battleId);
         await bridgeDeps!.onExit(payload);
         lastPresentedBattleId = null;
+        if (isReactPostBattleHudEnabled()) {
+          getPostBattleHudBridge().dismiss();
+          clearPostBattleHubHandlers();
+        }
       },
-    },
-    overlayMount,
-    );
+    };
+
+    if (isReactPostBattleHudEnabled()) {
+      registerPostBattleHubHandlers(handlerBundle);
+      getPostBattleHudBridge().present(payload, rewardsLootStatus);
+    } else {
+      mountPostBattleHub(
+        {
+          battleType: payload.battleType,
+          victory: payload.victory,
+          xpGain: payload.xpGain,
+          ...(payload.endReason !== undefined ? { endReason: payload.endReason } : {}),
+          ...(payload.rankingResult !== undefined ? { rankingResult: payload.rankingResult } : {}),
+        },
+        handlerBundle,
+        overlayMount,
+      );
+    }
   } catch (error) {
     console.error('DEBUG: Erro na montagem:', error);
     throw error;
@@ -211,12 +228,20 @@ export function teardownPostBattleHubBridge(): void {
   unsubscribeVictoryReady = null;
   bridgeDeps = null;
   lastPresentedBattleId = null;
+  if (isReactPostBattleHudEnabled()) {
+    getPostBattleHudBridge().dismiss();
+    clearPostBattleHubHandlers();
+  }
   unmountPostBattleHub();
   destroyActiveLootCasino();
 }
 
 export function resetPostBattleHubBridgeSession(): void {
   lastPresentedBattleId = null;
+  if (isReactPostBattleHudEnabled()) {
+    getPostBattleHudBridge().dismiss();
+    clearPostBattleHubHandlers();
+  }
   unmountPostBattleHub();
   destroyActiveLootCasino();
 }

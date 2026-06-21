@@ -1,5 +1,7 @@
 import { getMapChatLabel } from '../../shared/world/mapChatLabels.js';
 import { isPlayerOrGmChatPayload } from '../../shared/world/globalChatTypes.js';
+import { getWorldHudBridge } from '../app/bridge/worldHudBridge.js';
+import { isReactGameHudUiEnabled } from '../app/shell/gameHudSurface.js';
 
 export type GlobalChatLineOptions = {
   /** Zona de origem da mensagem (ex.: Cidade, Periferia). */
@@ -26,9 +28,16 @@ export function postGlobalChatLine(
   message: string,
   options?: GlobalChatLineOptions,
 ): void {
+  const prefix = resolveZonePrefix(options);
+  const lineText = `${prefix}${displayName}: ${message}`;
+
+  if (isReactGameHudUiEnabled()) {
+    getWorldHudBridge().pushChatLine(lineText, 'player');
+    return;
+  }
+
   if (typeof document === 'undefined') {
-    const prefix = resolveZonePrefix(options);
-    console.log(`[Altercadia/chat] ${prefix}${displayName}: ${message}`);
+    console.log(`[Altercadia/chat] ${lineText}`);
     return;
   }
 
@@ -37,7 +46,7 @@ export function postGlobalChatLine(
 
   const line = document.createElement('p');
   line.className = 'chat-line chat-line--player';
-  line.textContent = `${resolveZonePrefix(options)}${displayName}: ${message}`;
+  line.textContent = lineText;
   content.appendChild(line);
 
   while (content.children.length > 40) {

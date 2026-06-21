@@ -15,6 +15,8 @@ import { publishBattleFinished } from '../game/GameStateProvider.js';
 import { setBattlePortraitStance } from '../ui/battle/BattleScreen.js';
 import { EnemyHealthBar } from '../ui/battle/EnemyHealthBar.js';
 import { PlayerHealthBar } from '../ui/battle/PlayerHealthBar.js';
+import { syncBattleHudVitalsFromState } from '../app/battle/battleHudVitalsSync.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
 
 export type BattleScreenElements = {
   readonly playerName?: HTMLElement | null;
@@ -151,6 +153,7 @@ export class BattleScreen {
     }
 
     this.syncPhase(state, ui);
+    syncBattleHudVitalsFromState(state, ui);
   }
 
   private paintPetPortrait(pet: CombatState['combatants'][string]): void {
@@ -169,6 +172,12 @@ export class BattleScreen {
     const prior = this.combatantVitals.get(combatantId);
     const resolvedMax = maxHp ?? prior?.maxHp ?? 100;
     this.combatantVitals.set(combatantId, { hp, maxHp: resolvedMax });
+    if (isReactBattleHudEnabled()) {
+      const side = this.resolveCombatantSide(combatantId);
+      if (side === 'player' || side === 'opponent' || side === 'pet') {
+        getBattleHudBridge().patchFighterHp(side, hp, resolvedMax);
+      }
+    }
     if (!this.shouldPaintHpOnDom(combatantId)) return;
     if (this.lastPlayerActorId && combatantId === this.lastPlayerActorId) {
       this.playerHealthBar.updateHp(hp, resolvedMax);

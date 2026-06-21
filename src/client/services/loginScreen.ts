@@ -42,6 +42,8 @@ import { AuthOperationTimeoutError } from '../auth/authDeadline.js';
 import { resetGameStoreState } from '../state/GameStore.js';
 
 import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
+import { isReactAuthUiEnabled } from './authFlow.js';
+import { initAuthScreenController } from '../app/screen/authScreenController.js';
 
 export type LoginScreenOptions = {
   onAuthenticated: (user: AuthUser, options?: AuthPostLoginOptions) => void | Promise<void>;
@@ -126,6 +128,10 @@ function validateRegisterProfileStep(
 }
 
 export function setupLoginScreen(options: LoginScreenOptions): boolean {
+  if (isReactAuthUiEnabled()) {
+    return initAuthScreenController(options);
+  }
+
   const root = document.getElementById('login-screen');
   const emailField = requireInput('email-input');
   const passField = requireInput('pass-input');

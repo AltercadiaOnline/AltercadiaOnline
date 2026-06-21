@@ -31,6 +31,13 @@ import {
 } from '../vendor/labPurchaseHelpers.js';
 import { alertSystem } from '../alertSystem.js';
 import { BaseUIComponent } from '../UIComponent.js';
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
 
 export type LaboratoryShopContext = {
   readonly vendorId: string;
@@ -67,7 +74,40 @@ export class LaboratoryShopPanel extends BaseUIComponent {
     return false;
   }
 
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'laboratoryShop')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'laboratoryShop')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'laboratoryShop')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
+  }
+
   openForVendor(context: LaboratoryShopContext): void {
+    if (tryOpenReactWorldPanel('laboratoryShop', {
+      kind: 'laboratoryShop',
+      vendorId: context.vendorId,
+      vendorName: context.vendorName,
+    })) {
+      return;
+    }
+
     this.vendor = { ...context };
     this.activeTab = 'potions';
     this.selectedItemId = null;

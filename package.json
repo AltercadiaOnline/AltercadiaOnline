@@ -8,7 +8,8 @@
     "dev:client": "tsx watch src/client/index.ts",
     "build:compile": "npx tsc",
     "build:sync": "node ./scripts/sync-vercel-public.mjs",
-    "build": "npm run build:compile && npm run build:sync && node ./scripts/write-game-origin-config.mjs && node ./scripts/write-deploy-manifest.mjs",
+    "build:ui": "node ./scripts/build-react-ui.mjs",
+    "build": "npm run build:compile && npm run build:sync && npm run build:ui && node ./scripts/write-game-origin-config.mjs && node ./scripts/write-deploy-manifest.mjs",
     "vercel-build": "npm run build",
     "start": "node dist/server/index.js",
     "test": "node -e \"console.log('Test suite removed — run npm run typecheck && npm run build')\"",
@@ -50,16 +51,24 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "bad-words": "^4.0.0",
+    "esbuild": "^0.28.1",
     "gsap": "^3.13.0",
     "pg": "^8.16.0",
     "phaser": "^4.1.0",
-    "ws": "^8.18.3"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "ws": "^8.18.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.1",
     "@types/node": "^25.9.1",
     "@types/pg": "^8.15.4",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
     "@vercel/node": "^5.3.0",
+    "tailwindcss": "^4.3.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   }

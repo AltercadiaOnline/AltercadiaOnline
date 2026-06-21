@@ -3,6 +3,7 @@ import type { Skill } from '../../shared/types.js';
 import { BattleMenu, skillsToMenuMoves } from './BattleMenu.js';
 import { canExecuteMove } from '../../shared/combat/skillRuntime.js';
 import { getTurnStateGuard } from '../combat/turnStateGuard.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
 
 
 
@@ -81,6 +82,7 @@ export class BattleCommandController {
       this.phase = enabled ? 'COMMAND_MENU' : 'LOCKED';
 
       this.renderMenu();
+      this.syncReactCommandLock();
 
     }
 
@@ -95,6 +97,7 @@ export class BattleCommandController {
     this.phase = 'LOCKED';
 
     this.renderMenu();
+    this.syncReactCommandLock();
 
   }
 
@@ -112,6 +115,10 @@ export class BattleCommandController {
 
     return this.phase;
 
+  }
+
+  trySelectMove(moveId: string): void {
+    this.executeMove(moveId);
   }
 
 
@@ -150,14 +157,25 @@ export class BattleCommandController {
 
   private renderMenu(): void {
 
-    this.menu.render({
+    const moves = skillsToMenuMoves(this.skills, this.currentTurn);
+    const enabled = this.menuEnabled && this.phase === 'COMMAND_MENU';
 
-      moves: skillsToMenuMoves(this.skills, this.currentTurn),
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().setMovesetPalette(moves, enabled);
+      this.syncReactCommandLock();
+      return;
+    }
 
-      enabled: this.menuEnabled && this.phase === 'COMMAND_MENU',
+    this.menu.render({ moves, enabled });
+    this.syncReactCommandLock();
 
-    });
+  }
 
+  private syncReactCommandLock(): void {
+    if (!isReactBattleHudEnabled()) return;
+    getBattleHudBridge().setCommandBarLocked(
+      this.phase !== 'COMMAND_MENU' || !this.menuEnabled,
+    );
   }
 
 }

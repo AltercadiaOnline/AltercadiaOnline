@@ -31,6 +31,13 @@ import {
   ActionGatewayButtonController,
   type ActionGatewayButtonOptions,
 } from './ActionGatewayButton.js';
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
 
 export type DialogueState = {
   npcId: string;
@@ -65,6 +72,26 @@ export class DialoguePanel extends BaseUIComponent {
       id: 'dialogue',
       rootClassName: 'ui-panel ui-panel--dialogue',
     });
+  }
+
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'dialogue')) return;
+    super.open();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'dialogue')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
   }
 
   protected override onOpen(): void {
@@ -107,6 +134,7 @@ export class DialoguePanel extends BaseUIComponent {
   }
 
   override close(): void {
+    if (closeReactMovablePanel(this, 'dialogue')) return;
     if (!this.isOpen()) return;
     if (this.isAnciaoCael() && !this.suppressWorldHudRelease) {
       this.dismissCaelTerminal();
@@ -131,6 +159,15 @@ export class DialoguePanel extends BaseUIComponent {
   }
 
   showDialogue(payload: DialogueState): void {
+    if (tryOpenReactWorldPanel('dialogue', {
+      kind: 'dialogue',
+      npcId: payload.npcId,
+      npcName: payload.npcName,
+      text: payload.text,
+    })) {
+      return;
+    }
+
     this.state = { ...payload };
     this.chroniclesLoading = false;
     this.chroniclesError = null;
@@ -470,7 +507,6 @@ export class DialoguePanel extends BaseUIComponent {
     };
   }
 }
-
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -488,3 +524,4 @@ function resolveChroniclePriority(line: {
   if (line.importance === 'notable') return 3;
   return 4;
 }
+

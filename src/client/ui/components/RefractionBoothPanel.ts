@@ -42,6 +42,15 @@ import { BaseUIComponent } from '../UIComponent.js';
 
 import { uiEvents, UIEventType } from '../uiEvents.js';
 
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
+import { requestReactRefractionNpcStart } from '../../app/panels/refractionBoothBridge.js';
+
 
 
 export type RefractionBoothContext = {
@@ -204,7 +213,39 @@ export class RefractionBoothPanel extends BaseUIComponent {
 
 
 
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'refractionBooth')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'refractionBooth')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'refractionBooth')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
+  }
+
   openForBooth(context: RefractionBoothContext): void {
+    if (tryOpenReactWorldPanel('refractionBooth', {
+      kind: 'refractionBooth',
+      objectId: context.objectId,
+      label: context.label,
+    })) {
+      return;
+    }
 
     this.context = { ...context };
 
@@ -231,6 +272,9 @@ export class RefractionBoothPanel extends BaseUIComponent {
   /** Fluxo via NPC — debita entrada e abre direto no simulador. */
 
   startChallengeFromNpc(): void {
+    if (requestReactRefractionNpcStart()) {
+      return;
+    }
 
     this.context = {
 

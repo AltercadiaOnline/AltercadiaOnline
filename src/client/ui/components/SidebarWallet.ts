@@ -3,6 +3,7 @@ import { CurrencyService } from '../../services/index.js';
 import { subscribeGameStore } from '../../state/GameStore.js';
 import type { BalanceChangedPayload } from '../../../shared/economy/events.js';
 import { tweenVoltsCounter } from '../wallet/voltsCounterTween.js';
+import { isReactGameHudUiEnabled } from '../../app/shell/gameHudSurface.js';
 
 /**
  * Carteira fixa na barra lateral — VOLTS (in-game) e ALTER COINS (premium).
@@ -86,7 +87,11 @@ export class SidebarWallet {
 
 let activeWallet: SidebarWallet | null = null;
 
-export function initSidebarWallet(): SidebarWallet {
+export function initSidebarWallet(): SidebarWallet | null {
+  if (isReactGameHudUiEnabled()) {
+    return activeWallet;
+  }
+
   const host = document.getElementById('sidebar-wallet');
   if (!host) {
     throw new Error('[UI] #sidebar-wallet não encontrado.');

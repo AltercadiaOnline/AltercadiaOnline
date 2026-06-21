@@ -4,6 +4,8 @@ import {
   isLogServicePayload,
   SystemMessageKind,
 } from '../../shared/world/logServiceTypes.js';
+import { getWorldHudBridge } from '../app/bridge/worldHudBridge.js';
+import { isReactGameHudUiEnabled } from '../app/shell/gameHudSurface.js';
 
 const LOG_FEED_ID = 'log-service';
 const LOG_PANEL_ID = 'log-service-panel';
@@ -108,6 +110,21 @@ export function publishLogServiceMessage(payload: LogServicePayload): void {
     pendingBuffer.shift();
   }
 
+  if (isReactGameHudUiEnabled()) {
+    const bridge = getWorldHudBridge();
+    const feedVisible = bridge.isLogPanelExpanded();
+    if (!feedVisible) {
+      unreadCount += 1;
+      if (shouldToastWhileHidden(payload)) {
+        showImportantToast(payload.message);
+      }
+    } else {
+      unreadCount = 0;
+    }
+    bridge.publishLogMessage(payload);
+    return;
+  }
+
   if (!isLogFeedVisible()) {
     unreadCount += 1;
     updateUnreadBadge();
@@ -152,7 +169,7 @@ export function flushLogServiceBuffer(): void {
 }
 
 export function initLogServiceUi(): void {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined' || isReactGameHudUiEnabled()) return;
 
   const toggle = document.getElementById(LOG_TOGGLE_ID);
   const panel = getLogPanel();

@@ -12,6 +12,13 @@ import { resolveInventoryItemLabel } from '../inventory/inventoryItemDisplay.js'
 import { alertSystem } from '../alertSystem.js';
 import { BaseUIComponent } from '../UIComponent.js';
 import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
+import {
   ActionGatewayButtonController,
   type ActionGatewayButtonOptions,
 } from './ActionGatewayButton.js';
@@ -44,12 +51,45 @@ export class CraftPanel extends BaseUIComponent {
   }
 
   openForStation(context: CraftStationContext): void {
+    if (tryOpenReactWorldPanel('craft', {
+      kind: 'craftStation',
+      craftStationId: context.craftStationId,
+      stationName: context.stationName,
+    })) {
+      return;
+    }
+
     this.station = { ...context };
     this.selectedRecipeId = null;
     this.craftQuantity = 1;
     this.refreshSnapshots();
     this.render();
     this.open();
+  }
+
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'craft')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'craft')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'craft')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
   }
 
   protected override onOpen(): void {

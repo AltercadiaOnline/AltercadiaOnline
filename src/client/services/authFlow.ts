@@ -1,8 +1,22 @@
 import { logAuthClick } from '../auth/authDebug.js';
+import { getAppScreenBridge } from '../app/bridge/appScreenBridge.js';
+import { getAuthBridge } from '../app/bridge/authBridge.js';
+import { getAuthScreenController } from '../app/screen/authScreenController.js';
 
 export type AuthView = 'login' | 'register' | 'forgot-password' | 'reset-password' | 'profile-complete';
 
+export function isReactAuthUiEnabled(): boolean {
+  return document.body.dataset.reactAuthUi === '1';
+}
+
 export function showAuthView(view: AuthView): void {
+  getAppScreenBridge().setAuthView(view);
+
+  if (isReactAuthUiEnabled()) {
+    getAuthScreenController().syncView(view);
+    return;
+  }
+
   const loginPanel = document.getElementById('auth-login-panel');
   const registerPanel = document.getElementById('auth-register-panel');
   const forgotPanel = document.getElementById('auth-forgot-panel');
@@ -22,6 +36,11 @@ export function showAuthView(view: AuthView): void {
 }
 
 export function copyLoginCredentialsToRegisterForm(): void {
+  if (isReactAuthUiEnabled()) {
+    getAuthBridge().copyLoginToRegister();
+    return;
+  }
+
   const emailInput = document.getElementById('email-input');
   const passInput = document.getElementById('pass-input');
   const regEmailInput = document.getElementById('reg-email-input');
@@ -37,6 +56,11 @@ export function copyLoginCredentialsToRegisterForm(): void {
 }
 
 export function copyRegisterCredentialsToLoginForm(): void {
+  if (isReactAuthUiEnabled()) {
+    getAuthBridge().copyRegisterToLogin();
+    return;
+  }
+
   const emailInput = document.getElementById('email-input');
   const passInput = document.getElementById('pass-input');
   const regEmailInput = document.getElementById('reg-email-input');
@@ -81,6 +105,7 @@ function bindAuthButton(id: string, handler: () => void): boolean {
   return true;
 }
 
+/** Fallback legado — React Auth UI não usa bindAuthNavigation. */
 export function bindAuthNavigation(handlers: {
   onLogin: () => void;
   onShowRegister: () => void;
@@ -92,6 +117,10 @@ export function bindAuthNavigation(handlers: {
   onResendConfirmation?: () => void;
   onApplyNewPassword?: () => void;
 }): boolean {
+  if (isReactAuthUiEnabled()) {
+    return true;
+  }
+
   const root = document.getElementById('login-screen');
   if (!root) {
     console.error('[AuthFlow] #login-screen não encontrado.');
@@ -135,3 +164,5 @@ export function bindAuthNavigation(handlers: {
   root.dataset.authNavBound = bound > 0 ? '1' : '0';
   return bound > 0;
 }
+
+export { setAuthStatusMessage } from '../app/bridge/authBridge.js';

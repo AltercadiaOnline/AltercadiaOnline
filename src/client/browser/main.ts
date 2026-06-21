@@ -47,6 +47,9 @@ import { resetWorldMovementAuthority } from '../world/worldMovementAuthority.js'
 import { showScreen } from '../navigation.js';
 import { ExplorationScene } from '../scenes/Exploration.js';
 import { setupLoginScreen } from '../services/loginScreen.js';
+import { setAuthStatusMessage } from '../services/authFlow.js';
+import { getAuthBridge } from '../app/bridge/authBridge.js';
+import { getHudBridge } from '../app/bridge/hudBridge.js';
 import { logAuthEnvironment } from '../auth/authDebug.js';
 import {
   hidePauseMenu,
@@ -136,6 +139,11 @@ import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
+import { initReactHudHost } from '../app/hud/reactHudHost.js';
+import { initReactGameHud } from '../app/hud/initReactGameHud.js';
+import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
+import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
+import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
 export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
@@ -290,7 +298,19 @@ function beginWorldLoginHandshake(): void {
   scheduleWorldLoginRetry(requestWorldLoginIfPossible);
 }
 
-function focusGameCanvasForInput(): void {
+function focusGameRenderSurfaceForInput(): void {
+  if (isPhaserRenderEngineActive()) {
+    const phaserCanvas = document.querySelector(`#${PHASER_MOUNT_ROOT_ID} canvas`);
+    if (phaserCanvas instanceof HTMLCanvasElement) {
+      phaserCanvas.tabIndex = 0;
+      if (!phaserCanvas.hasAttribute('role')) {
+        phaserCanvas.setAttribute('role', 'application');
+      }
+      phaserCanvas.focus({ preventScroll: true });
+      return;
+    }
+  }
+
   const canvas = document.getElementById(GAME_CANVAS_ID);
   if (!(canvas instanceof HTMLCanvasElement)) return;
   canvas.tabIndex = 0;
@@ -570,6 +590,7 @@ function connectSocket(): void {
 function enterWorld(): void {
   if (worldStarted) return;
 
+  initReactGameHud();
   beginWorldLoginHandshake();
   mountWorldMapScene();
   AppScreens.showGameWorld();
@@ -730,6 +751,10 @@ function enterWorld(): void {
         world?.prepareFrame(deltaMs);
       },
       onRender: (timestampMs) => {
+        if (isPhaserRenderEngineActive()) {
+          world?.syncWorldDomOverlay(timestampMs);
+          return;
+        }
         world?.renderWorld(timestampMs);
       },
     });
@@ -737,11 +762,12 @@ function enterWorld(): void {
 
   connectSocket();
   wirePortalTransitionBridge();
-  focusGameCanvasForInput();
+  focusGameRenderSurfaceForInput();
 
-  // Renderiza o mapa enquanto aguarda world-login do servidor.
   activeWorld.prepareFrame(0);
-  activeWorld.renderWorld(performance.now());
+  if (!isPhaserRenderEngineActive()) {
+    activeWorld.renderWorld(performance.now());
+  }
 
   worldStarted = true;
 
@@ -791,12 +817,7 @@ async function onLoginSuccess(user: AuthUser, options?: AuthPostLoginOptions): P
       ? error.message
       : 'Erro ao conectar ao servidor de dados.';
     AppScreens.showLogin();
-    const statusEl = document.getElementById('auth-status');
-    if (statusEl) {
-      statusEl.textContent = message;
-      statusEl.classList.add('is-error');
-      statusEl.classList.remove('is-success');
-    }
+    setAuthStatusMessage(message, { isError: true });
   } finally {
     hidePlayerInitLoading();
   }
@@ -804,6 +825,7 @@ async function onLoginSuccess(user: AuthUser, options?: AuthPostLoginOptions): P
 
 function clearGameState(): void {
   hidePauseMenu();
+  getHudBridge().resetSession();
 
   teardownGlobalChat?.();
   teardownGlobalChat = null;
@@ -851,6 +873,7 @@ function clearGameState(): void {
 
   world?.dispose();
   world = null;
+  resetExplorationRenderBridge();
 
   if (worldSocket && isAuthoritativeWorldSocket(worldSocket)) {
     worldSocket.removeAllListeners();
@@ -890,35 +913,17 @@ function setupPauseControls(): void {
 }
 
 function hideBootstrapFatalError(): void {
-  document.getElementById(BOOTSTRAP_RETRY_BUTTON_ID)?.classList.add('hidden');
+  getAuthBridge().hideBootstrapRetry();
 }
 
 function showBootstrapFatalError(message: string): void {
   showScreen('login-screen');
   ensureLoginHudBound();
 
-  const statusEl = document.getElementById('auth-status');
-  if (statusEl) {
-    statusEl.textContent = message;
-    statusEl.classList.add('is-error');
-    statusEl.classList.remove('is-success');
-  }
-
-  let retryBtn = document.getElementById(BOOTSTRAP_RETRY_BUTTON_ID);
-  if (!(retryBtn instanceof HTMLButtonElement)) {
-    const created = document.createElement('button');
-    created.id = BOOTSTRAP_RETRY_BUTTON_ID;
-    created.type = 'button';
-    created.className = 'auth-link-btn bootstrap-retry-btn';
-    created.textContent = 'Tentar novamente';
-    statusEl?.insertAdjacentElement('afterend', created);
-    created.addEventListener('click', () => {
-      void bootstrap();
-    });
-    retryBtn = created;
-  }
-
-  retryBtn.classList.remove('hidden');
+  setAuthStatusMessage(message, { isError: true });
+  getAuthBridge().showBootstrapRetry(() => {
+    void bootstrap();
+  });
 }
 
 function ensureLoginHudBound(): boolean {
@@ -966,11 +971,7 @@ async function bootstrap(): Promise<void> {
       onAuthenticated: onLoginSuccess,
       onAuthError: (message) => {
         hidePlayerInitLoading();
-        const statusEl = document.getElementById('auth-status');
-        if (!statusEl) return;
-        statusEl.textContent = message;
-        statusEl.classList.add('is-error');
-        statusEl.classList.remove('is-success');
+        setAuthStatusMessage(message, { isError: true });
       },
       onSignedOut: () => {
         if (shouldIgnoreAuthSessionSideEffect()) return;
@@ -1009,6 +1010,7 @@ async function bootstrap(): Promise<void> {
 }
 
 function boot(): void {
+  initReactHudHost(document);
   void bootstrap();
 }
 

@@ -21,6 +21,12 @@ import { NPC_HIGH_VALUE_MARKETPLACE_HINT } from '../../../shared/economy/npcSell
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { isNpcVendorShopOpen, subscribeNpcVendorShopOpen } from '../vendor/npcVendorSession.js';
 import { getContextMenuService } from '../contextMenu/ContextMenuService.js';
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
 import { subscribeGameStore } from '../../state/GameStore.js';
 import type { GameStoreGold } from '../../state/GameStore.js';
 import {
@@ -59,6 +65,31 @@ export class InventoryPanel extends BaseUIComponent {
     this.unsubNpcVendor = subscribeNpcVendorShopOpen(() => {
       if (this.isOpen()) this.render();
     });
+  }
+
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'inventory')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'inventory')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'inventory')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
   }
 
   /** @deprecated Prefer seeding via servidor / demo bootstrap */

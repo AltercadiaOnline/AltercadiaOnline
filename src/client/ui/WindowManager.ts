@@ -6,6 +6,12 @@ import { isMarketTerminalAccessGranted } from '../../shared/economy/marketAccess
 
 import { uiEvents, UIEventType, type UiWindowId } from './uiEvents.js';
 
+import {
+  tryCloseReactWorldPanel,
+  tryOpenReactWorldPanel,
+  tryToggleReactWorldPanel,
+} from '../app/panels/initWorldPanelsBridge.js';
+
 
 
 export type WindowManagerDeps = {
@@ -86,6 +92,12 @@ export class WindowManager {
 
     }
 
+    if (tryOpenReactWorldPanel(windowId)) {
+
+      return;
+
+    }
+
 
 
     if (windowId === 'hub') {
@@ -132,6 +144,12 @@ export class WindowManager {
 
   closeWindow(windowId: UiWindowId): void {
 
+    if (tryCloseReactWorldPanel(windowId)) {
+
+      return;
+
+    }
+
     if (windowId === 'hub') {
 
       this.hub.close();
@@ -147,6 +165,12 @@ export class WindowManager {
 
 
   toggleWindow(windowId: UiWindowId): void {
+
+    if (tryToggleReactWorldPanel(windowId)) {
+
+      return;
+
+    }
 
     if (windowId === 'hub') {
 
@@ -190,8 +214,6 @@ export class WindowManager {
 
 
 
-  /** Fecha a janela móvel aberta com maior z-index (última em foco). */
-
   closeTopmostOpenMovableWindow(): boolean {
 
     let topPanel: UIComponent | null = null;
@@ -230,6 +252,10 @@ export class WindowManager {
 
     return true;
 
+  }
+
+  getPanel(windowId: UiWindowId): UIComponent | undefined {
+    return this.panels.get(windowId);
   }
 
 }

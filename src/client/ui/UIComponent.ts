@@ -108,6 +108,28 @@ export abstract class BaseUIComponent implements UIComponent {
   }
 
   open(): void {
+    this.revealPanel();
+  }
+
+  /** Abre painel montado em host React — contorna overrides de `open()`. */
+  openInHost(): void {
+    this.revealPanel();
+  }
+
+  focus(): void {
+    if (!this.root || !this.openState) return;
+    this.drag?.bringToFront();
+  }
+
+  close(): void {
+    this.concealPanel();
+  }
+
+  closeInHost(): void {
+    this.concealPanel();
+  }
+
+  protected revealPanel(): void {
     if (!this.root) return;
     if (this.openState) {
       this.focus();
@@ -124,12 +146,7 @@ export abstract class BaseUIComponent implements UIComponent {
     this.scheduleDynamicLayout();
   }
 
-  focus(): void {
-    if (!this.root || !this.openState) return;
-    this.drag?.bringToFront();
-  }
-
-  close(): void {
+  protected concealPanel(): void {
     if (!this.root || !this.openState) return;
     this.layoutDisposer?.();
     this.layoutDisposer = null;

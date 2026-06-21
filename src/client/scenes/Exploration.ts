@@ -74,6 +74,8 @@ import {
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
+import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
+import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
 import {
   collectMinimapMonsterMarkers,
   collectMinimapNpcMarkers,
@@ -877,6 +879,17 @@ export class ExplorationScene implements Disposable {
 
     this.publishMinimapState();
 
+    if (isPhaserRenderEngineActive()) {
+      publishExplorationRenderFrame({
+        mapId: this.mapManager.currentMapId,
+        playerX: this.player.renderX,
+        playerY: this.player.renderY,
+        cameraX: this.camera.x,
+        cameraY: this.camera.y,
+        facing: this.player.facing,
+        timestampMs: performance.now(),
+      });
+    }
   }
 
   private publishMinimapState(): void {
@@ -937,6 +950,12 @@ export class ExplorationScene implements Disposable {
   }
 
 
+
+  /** Sincroniza nametags/balões DOM quando Phaser substitui o render canvas. */
+  public syncWorldDomOverlay(timestampMs = performance.now()): void {
+    const state = this.buildRenderState(timestampMs);
+    state.syncDomOverlay?.();
+  }
 
   /** Único ponto de renderização canvas — delega ao GameRenderer. */
   public renderWorld(timestampMs = performance.now()): void {

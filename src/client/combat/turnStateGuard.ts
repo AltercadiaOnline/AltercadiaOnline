@@ -16,6 +16,7 @@ import { getCombatTurnGateway } from './CombatTurnGateway.js';
 
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import { getGameStore } from '../state/GameStore.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
 
 
 
@@ -382,19 +383,27 @@ export class TurnStateGuard {
 
     }
 
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().setPaletteTurnBlocked(blocked);
+    }
+
 
 
     if (this.ui.turnPhase) {
 
-      this.ui.turnPhase.textContent = this.isMyTurn
-
+      const phaseText = this.isMyTurn
         ? YOUR_TURN_MESSAGE
-
         : WAITING_OPPONENT_MESSAGE;
+
+      this.ui.turnPhase.textContent = phaseText;
 
       this.ui.turnPhase.classList.toggle('battle-turn-phase--active', this.isMyTurn);
 
       this.ui.turnPhase.classList.toggle('battle-turn-phase--waiting', !this.isMyTurn);
+
+      if (isReactBattleHudEnabled()) {
+        getBattleHudBridge().setTurnPhase(phaseText, this.isMyTurn);
+      }
 
     }
 

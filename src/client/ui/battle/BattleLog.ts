@@ -11,6 +11,7 @@ import {
   BATTLE_LOG_EMITTER_CLASS,
   type BattleLogEmitter,
 } from './battleLogColors.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../../app/bridge/battleHudBridge.js';
 
 export { LOG_COLORS } from './battleLogColors.js';
 
@@ -66,6 +67,14 @@ export class BattleLog {
   /** Adiciona linha narrativa com emissor visual (player / enemy / system). */
   appendNarrative(entry: BattleLogEntry): void {
     this.entries = trimBattleLogMessages([...this.entries, entry], this.maxMessages);
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().appendLogLine({
+        text: entry.text,
+        emitter: entry.emitter,
+        ...(entry.tone !== undefined ? { tone: entry.tone } : {}),
+        ...(entry.kind !== undefined ? { kind: entry.kind } : {}),
+      });
+    }
     this.render();
   }
 
@@ -90,6 +99,9 @@ export class BattleLog {
   clear(): void {
     this.entries = [];
     if (this.root) this.root.innerHTML = '';
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().resetSession();
+    }
   }
 
   private render(): void {

@@ -59,6 +59,7 @@ import {
   type WorldGameClockHandle,
 } from './world/WorldGameClock.js';
 import { attachHubSocialLayoutSync } from './layout/hubSocialLayout.js';
+import { bindReactWorldPanelLegacyBypass } from '../app/panels/reactWorldPanelLegacyBypass.js';
 
 export type UIManagerOptions = {
   readonly layer: HTMLElement;
@@ -129,6 +130,19 @@ export class UIManager {
     this.petMemorial = new PetMemorialPanel();
     this.diary = new DiaryPanel();
     this.keyFeatureObserver = new KeyFeatureObserver();
+
+    bindReactWorldPanelLegacyBypass(this.characters, 'characters');
+    bindReactWorldPanelLegacyBypass(this.moveset, 'moveset');
+    bindReactWorldPanelLegacyBypass(this.marcos, 'marcos');
+    bindReactWorldPanelLegacyBypass(this.market, 'market');
+    bindReactWorldPanelLegacyBypass(this.bank, 'bank');
+    bindReactWorldPanelLegacyBypass(this.petLove, 'petLove');
+    bindReactWorldPanelLegacyBypass(this.shop, 'shop');
+    bindReactWorldPanelLegacyBypass(this.quest, 'quest');
+    bindReactWorldPanelLegacyBypass(this.social, 'social');
+    bindReactWorldPanelLegacyBypass(this.petMemorial, 'petMemorial');
+    bindReactWorldPanelLegacyBypass(this.diary, 'diary');
+    bindReactWorldPanelLegacyBypass(this.marketHub, 'marketHub');
 
     this.panels = new Map<UiWindowId, UIComponent>([
       ['hub', this.hub],

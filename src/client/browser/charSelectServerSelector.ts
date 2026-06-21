@@ -8,6 +8,25 @@ import type { ServerListResponse } from '../../shared/world/serverListProtocol.j
 
 let cachedServerList: ServerListResponse | null = null;
 let selectorBound = false;
+let lastServerUiState: CharSelectServerUiState | null = null;
+let lastServerSyncError: string | null = null;
+
+export type CharSelectServerOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly disabled: boolean;
+};
+
+export type CharSelectServerUiState = {
+  readonly ok: boolean;
+  readonly message?: string;
+  readonly options: readonly CharSelectServerOption[];
+  readonly activeId: string;
+  readonly label: string;
+  readonly hint: string;
+  readonly hintWarning: boolean;
+  readonly selectorDisabled: boolean;
+};
 
 function resolveCurrentServerId(fallbackId: string): string {
   try {
@@ -39,64 +58,154 @@ function updateServerSelectorHint(
   hint: HTMLElement | null,
 ): void {
   if (!hint) return;
+  hint.textContent = buildServerHint(list, activeId);
+  hint.classList.remove('is-warning');
+}
 
+function buildServerHint(list: ServerListResponse, activeId: string): string {
   const active = findServerEntryById(list.servers, activeId);
   const maps = active?.mapIds.join(', ') ?? '—';
   const selectableCount = countSelectableServers(list);
 
   if (selectableCount <= 1) {
-    hint.textContent =
+    return (
       `Shard: ${active?.displayName ?? activeId} — mapas: ${maps}. `
-      + 'Personagens são vinculados permanentemente a este servidor na criação.';
-  } else {
-    hint.textContent =
-      `Servidor atual: ${active?.displayName ?? activeId} — mapas: ${maps}. `
-      + 'Escolha outro servidor jogável para trocar de host (personagens não migram entre shards).';
+      + 'Personagens são vinculados permanentemente a este servidor na criação.'
+    );
   }
-  hint.classList.remove('is-warning');
+
+  return (
+    `Servidor atual: ${active?.displayName ?? activeId} — mapas: ${maps}. `
+    + 'Escolha outro servidor jogável para trocar de host (personagens não migram entre shards).'
+  );
 }
 
-/** Carrega catálogo autoritativo e sincroniza o seletor de shard na char select. */
-export async function syncCharSelectServerSelector(): Promise<{ ok: boolean; message?: string }> {
+function buildServerUiState(
+  list: ServerListResponse,
+  activeId: string,
+): CharSelectServerUiState {
+  const activeEntry = findServerEntryById(list.servers, activeId);
+  return {
+    ok: true,
+    options: list.servers.map((entry) => ({
+      id: entry.id,
+      label: formatServerOptionLabel(entry),
+      disabled: !entry.selectable,
+    })),
+    activeId,
+    label: activeEntry ? `Servidor — ${activeEntry.displayName}` : 'Servidor',
+    hint: buildServerHint(list, activeId),
+    hintWarning: false,
+    selectorDisabled: countSelectableServers(list) <= 1,
+  };
+}
+
+export function getCharSelectServerUiState(): CharSelectServerUiState | null {
+  if (lastServerUiState) return lastServerUiState;
+  if (lastServerSyncError) {
+    return {
+      ok: false,
+      message: lastServerSyncError,
+      options: [],
+      activeId: '',
+      label: 'Servidor',
+      hint: lastServerSyncError,
+      hintWarning: true,
+      selectorDisabled: true,
+    };
+  }
+  return null;
+}
+
+function applyServerUiStateToDom(state: CharSelectServerUiState): void {
   const select = document.getElementById('char-select-server-input');
   const label = document.getElementById('char-select-server-label');
   const hint = document.getElementById('char-select-server-hint');
 
+  if (select instanceof HTMLSelectElement && state.options.length > 0) {
+    select.replaceChildren();
+    for (const option of state.options) {
+      const el = document.createElement('option');
+      el.value = option.id;
+      el.textContent = option.label;
+      el.disabled = option.disabled;
+      select.appendChild(el);
+    }
+    select.value = state.activeId;
+    select.disabled = state.selectorDisabled;
+    select.removeAttribute('aria-readonly');
+  }
+
+  if (label) {
+    label.textContent = state.label;
+  }
+
+  if (hint) {
+    hint.textContent = state.hint;
+    hint.classList.toggle('is-warning', state.hintWarning);
+  }
+}
+
+/** Carrega catálogo autoritativo e sincroniza o seletor de shard na char select. */
+export async function syncCharSelectServerSelector(): Promise<{ ok: boolean; message?: string }> {
   const listResult = await fetchAuthoritativeServerList();
   if (!listResult.ok) {
-    if (hint) {
-      hint.textContent = listResult.message;
-      hint.classList.add('is-warning');
-    }
+    lastServerSyncError = listResult.message ?? 'Erro ao carregar servidores.';
+    lastServerUiState = null;
+    applyServerUiStateToDom(getCharSelectServerUiState()!);
     return listResult;
   }
 
   cachedServerList = listResult.list;
+  lastServerSyncError = null;
   const activeId = resolveCurrentServerId(listResult.list.defaultServerId);
-
-  if (select instanceof HTMLSelectElement) {
-    select.replaceChildren();
-    for (const entry of listResult.list.servers) {
-      const option = document.createElement('option');
-      option.value = entry.id;
-      option.textContent = formatServerOptionLabel(entry);
-      option.disabled = !entry.selectable;
-      select.appendChild(option);
-    }
-    select.value = activeId;
-    select.disabled = countSelectableServers(listResult.list) <= 1;
-    select.removeAttribute('aria-readonly');
-  }
-
-  const activeEntry = findServerEntryById(listResult.list.servers, activeId);
-  if (label) {
-    label.textContent = activeEntry
-      ? `Servidor — ${activeEntry.displayName}`
-      : 'Servidor';
-  }
-
-  updateServerSelectorHint(listResult.list, activeId, hint);
+  lastServerUiState = buildServerUiState(listResult.list, activeId);
+  applyServerUiStateToDom(lastServerUiState);
   return { ok: true };
+}
+
+export async function handleCharSelectServerChange(
+  serverId: string,
+  onCurrentDeployChanged: () => void | Promise<void>,
+): Promise<void> {
+  const entry = cachedServerList
+    ? findServerEntryById(cachedServerList.servers, serverId)
+    : null;
+
+  if (!entry) return;
+
+  if (entry.isCurrentDeploy) {
+    await onCurrentDeployChanged();
+    return;
+  }
+
+  if (!entry.selectable) {
+    const fallbackId = resolveCurrentServerId(cachedServerList?.defaultServerId ?? serverId);
+    if (lastServerUiState) {
+      lastServerUiState = { ...lastServerUiState, activeId: fallbackId };
+    }
+    return;
+  }
+
+  const redirected = redirectToShardOrigin(entry);
+  if (!redirected) {
+    const fallbackId = resolveCurrentServerId(cachedServerList?.defaultServerId ?? serverId);
+    lastServerUiState = {
+      ...(lastServerUiState ?? {
+        ok: true,
+        options: [],
+        activeId: fallbackId,
+        label: 'Servidor',
+        hint: '',
+        hintWarning: false,
+        selectorDisabled: true,
+      }),
+      activeId: fallbackId,
+      hint:
+        `Servidor ${entry.displayName} ainda não tem URL configurada (SHARD_${entry.id.toUpperCase()}_HTTP_URL).`,
+      hintWarning: true,
+    };
+  }
 }
 
 /** Troca de shard: redirect para outro host ou recarrega hub no deploy atual. */
@@ -110,34 +219,6 @@ export function bindCharSelectServerSelector(
   if (!(select instanceof HTMLSelectElement)) return;
 
   select.addEventListener('change', () => {
-    void (async () => {
-      const serverId = select.value;
-      const entry = cachedServerList
-        ? findServerEntryById(cachedServerList.servers, serverId)
-        : null;
-
-      if (!entry) return;
-
-      if (entry.isCurrentDeploy) {
-        await onServerChanged();
-        return;
-      }
-
-      if (!entry.selectable) {
-        select.value = resolveCurrentServerId(cachedServerList?.defaultServerId ?? serverId);
-        return;
-      }
-
-      const redirected = redirectToShardOrigin(entry);
-      if (!redirected) {
-        const hint = document.getElementById('char-select-server-hint');
-        if (hint) {
-          hint.textContent =
-            `Servidor ${entry.displayName} ainda não tem URL configurada (SHARD_${entry.id.toUpperCase()}_HTTP_URL).`;
-          hint.classList.add('is-warning');
-        }
-        select.value = resolveCurrentServerId(cachedServerList?.defaultServerId ?? serverId);
-      }
-    })();
+    void handleCharSelectServerChange(select.value, onServerChanged);
   });
 }

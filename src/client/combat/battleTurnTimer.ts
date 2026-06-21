@@ -1,5 +1,6 @@
 import { BATTLE_TURN_TIMER_SEC } from '../../shared/combat/battleScreenConstants.js';
 import { BATTLE_TURN_CHOICE_BUDGET_MS } from '../../shared/combatWire.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
 
 export const BATTLE_TURN_TIMER_TICK_MS = 100;
 
@@ -144,6 +145,18 @@ export class BattleTurnTimer {
   }
 
   private renderProgress(ratio: number, displayTime: number, remainingMs: number): void {
+    const clamped = Math.min(1, Math.max(0, ratio));
+    const isUrgent = displayTime > 0 && displayTime <= 3 && remainingMs <= this.choiceBudgetMs;
+
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().setTurnTimer({
+        enabled: true,
+        displaySec: Math.max(0, displayTime),
+        barRatio: clamped,
+        isUrgent,
+      });
+    }
+
     const fill = this.ui.barFill;
     if (fill) {
       const clamped = Math.min(1, Math.max(0, ratio));
@@ -163,6 +176,15 @@ export class BattleTurnTimer {
   }
 
   private renderIdle(enabled: boolean): void {
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().setTurnTimer({
+        enabled,
+        displaySec: enabled ? BATTLE_TURN_TIMER_SEC : 0,
+        barRatio: 0,
+        isUrgent: false,
+      });
+    }
+
     const fill = this.ui.barFill;
     if (fill) {
       fill.style.width = '0%';

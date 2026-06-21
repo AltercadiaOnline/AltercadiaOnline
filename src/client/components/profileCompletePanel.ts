@@ -4,7 +4,8 @@ import {
   isAtLeastAge,
   parseBirthDateIso,
 } from '../../shared/auth/accountAgePolicy.js';
-import { showAuthView } from '../services/authFlow.js';
+import { showAuthView, isReactAuthUiEnabled } from '../services/authFlow.js';
+import { getAuthScreenController } from '../app/screen/authScreenController.js';
 import { updateUserProfileMetadata } from '../auth/profileMetadata.js';
 import { getUser } from '../auth/supabaseAuth.js';
 
@@ -33,6 +34,11 @@ function syncConsentVisibility(
 
 /** Tela pós-OAuth / contas sem dataNascimento no metadata. */
 export function showProfileCompletePanel(options: ProfileCompletePanelOptions): void {
+  if (isReactAuthUiEnabled()) {
+    getAuthScreenController().showProfileComplete(options);
+    return;
+  }
+
   const panel = document.getElementById('auth-profile-complete-panel');
   const birthField = requireInput('profile-birth-input');
   const nameField = requireInput('profile-name-input');

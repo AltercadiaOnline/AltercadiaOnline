@@ -2,6 +2,7 @@
  * BattleChat — chat de batalha com input local e callback onSendMessage.
  */
 import { escapeHtml } from './battleTerminalShared.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../../app/bridge/battleHudBridge.js';
 
 export type BattleChatMessage = {
   readonly author: string;
@@ -69,6 +70,9 @@ export class BattleChat {
   }
 
   append(message: string, author = 'SYS'): void {
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().appendChatLine(author, message);
+    }
     if (!this.content) return;
     const row = this.content.ownerDocument.createElement('p');
     row.className = 'battle-chat__line';

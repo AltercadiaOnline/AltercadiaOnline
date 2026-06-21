@@ -19,6 +19,7 @@ import {
 } from '../../world/minimap/minimapState.js';
 
 import type { MapId } from '../../../shared/world/mapRegistry.js';
+import { isReactGameHudUiEnabled } from '../../app/shell/gameHudSurface.js';
 
 
 
@@ -252,7 +253,10 @@ let activeMinimap: SidebarMinimap | null = null;
 
 
 
-export function initSidebarMinimap(): SidebarMinimap {
+export function initSidebarMinimap(): SidebarMinimap | null {
+  if (isReactGameHudUiEnabled()) {
+    return activeMinimap;
+  }
 
   const host = document.getElementById('sidebar-minimap');
 

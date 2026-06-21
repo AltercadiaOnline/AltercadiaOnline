@@ -1,4 +1,9 @@
 /** Cena de combate visível — overlays pós-batalha ficam sobre a arena. */
+import {
+  getPostBattleHudBridge,
+  isReactPostBattleHudEnabled,
+} from '../../app/bridge/postBattleHudBridge.js';
+
 export function resolveBattleSceneMount(mountRoot?: ParentNode): HTMLElement {
   if (mountRoot instanceof HTMLElement) return mountRoot;
   return ensureBattleHubMountTarget();
@@ -52,6 +57,9 @@ export const BATTLE_RESULT_HUB_SELECTOR = '.post-battle-hub';
 /** Hub montado e interativo (botão Sair presente). */
 export function isPostBattleHubInteractive(): boolean {
   if (typeof document === 'undefined') return false;
+  if (isReactPostBattleHudEnabled()) {
+    return getPostBattleHudBridge().snapshot().active;
+  }
   return Boolean(document.querySelector<HTMLElement>('.post-battle-hub__exit'));
 }
 

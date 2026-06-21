@@ -11,6 +11,13 @@ import { endWorldHudInteractionSession } from '../../world/worldHudInteractionSe
 import { alertSystem } from '../alertSystem.js';
 import { BaseUIComponent } from '../UIComponent.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
 
 export type TournamentBetContext = {
   readonly pulpitId: string;
@@ -38,7 +45,40 @@ export class TournamentBetPanel extends BaseUIComponent {
     });
   }
 
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'tournamentBet')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'tournamentBet')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'tournamentBet')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
+  }
+
   openForPulpit(context: TournamentBetContext): void {
+    if (tryOpenReactWorldPanel('tournamentBet', {
+      kind: 'tournamentBet',
+      pulpitId: context.pulpitId,
+      pulpitName: context.pulpitName,
+    })) {
+      return;
+    }
+
     this.context = { ...context };
     this.awaitingMatch = false;
     this.wallet = this.dataStore.getWallet();

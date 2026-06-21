@@ -9,6 +9,13 @@ import { getPlayerProfileStore } from '../character/playerProfileStore.js';
 import { endWorldHudInteractionSession } from '../../world/worldHudInteractionSession.js';
 import { BaseUIComponent } from '../UIComponent.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
 
 export type RankingMonitorContext = {
   readonly objectId: string;
@@ -38,7 +45,40 @@ export class RankingMonitorPanel extends BaseUIComponent {
     });
   }
 
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'rankingMonitor')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'rankingMonitor')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'rankingMonitor')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
+  }
+
   openForMonitor(context: RankingMonitorContext): void {
+    if (tryOpenReactWorldPanel('rankingMonitor', {
+      kind: 'rankingMonitor',
+      objectId: context.objectId,
+      label: context.label,
+    })) {
+      return;
+    }
+
     this.context = { ...context };
     this.period = TournamentRankingPeriod.DAILY;
     this.displayName = getPlayerProfileStore().getSnapshot().displayName;

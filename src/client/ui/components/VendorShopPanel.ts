@@ -37,6 +37,13 @@ import {
 import { setNpcVendorShopOpen } from '../vendor/npcVendorSession.js';
 import { alertSystem } from '../alertSystem.js';
 import { BaseUIComponent } from '../UIComponent.js';
+import {
+  closeReactMovablePanel,
+  focusReactMovablePanel,
+  isReactMovablePanelEnabled,
+  openReactMovablePanel,
+} from '../../app/panels/reactMovablePanelBridge.js';
+import { tryOpenReactWorldPanel } from '../../app/panels/initWorldPanelsBridge.js';
 
 export type VendorShopContext = {
   readonly vendorId: string;
@@ -73,7 +80,40 @@ export class VendorShopPanel extends BaseUIComponent {
     });
   }
 
+  override mount(parent: HTMLElement): void {
+    if (isReactMovablePanelEnabled()) return;
+    super.mount(parent);
+  }
+
+  override open(): void {
+    if (openReactMovablePanel(this, 'vendorShop')) return;
+    super.open();
+  }
+
+  override close(): void {
+    if (closeReactMovablePanel(this, 'vendorShop')) return;
+    super.close();
+  }
+
+  override focus(): void {
+    if (focusReactMovablePanel(this, 'vendorShop')) return;
+    super.focus();
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactMovablePanelEnabled()) return null;
+    return super.getRootElement();
+  }
+
   openForVendor(context: VendorShopContext): void {
+    if (tryOpenReactWorldPanel('vendorShop', {
+      kind: 'vendorShop',
+      vendorId: context.vendorId,
+      vendorName: context.vendorName,
+    })) {
+      return;
+    }
+
     this.vendor = { ...context };
     this.selectedItemId = null;
     this.tradeMode = 'catalog';

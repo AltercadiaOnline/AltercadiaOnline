@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-alter-bg: #050a0d;
+  --color-alter-panel: rgba(11, 16, 19, 0.72);
+  --color-alter-border: rgba(212, 180, 131, 0.18);
+  --color-alter-text: #f2e6c9;
+  --color-alter-accent: #6ee7b7;
+}
+
+@layer base {
+  #game-react-overlay-root {
+    pointer-events: none;
+  }
+
+  #game-react-hud-root:not(.game-react-hud-root--active) {
+    pointer-events: none;
+  }
+
+  #screen-react-root:not(.screen-react-root--active) {
+    pointer-events: none;
+  }
+}

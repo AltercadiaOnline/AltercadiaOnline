@@ -1,94 +1,75 @@
 import { BaseUIComponent } from '../UIComponent.js';
-
+import { isReactGamePanelsEnabled, getPanelsBridge } from '../../app/bridge/panelsBridge.js';
+import { HUB_PANEL_ACTIONS } from '../hub/hubPanelConfig.js';
 import type { UiWindowId } from '../uiEvents.js';
-
 import { HUD_WINDOW_SHORTCUT_LABEL } from '../keyboardShortcuts.js';
-
 import { windowManager } from '../WindowManager.js';
 
-
-
-const HUB_ACTIONS: ReadonlyArray<{ readonly windowId: UiWindowId; readonly label: string; readonly accent?: boolean }> = [
-
-  { windowId: 'characters', label: 'Personagem' },
-
-  { windowId: 'shop', label: 'Loja de Skins', accent: true },
-
-  { windowId: 'moveset', label: 'Moveset' },
-
-  { windowId: 'marcos', label: 'Habilidade Marcos' },
-
-  { windowId: 'quest', label: 'Quests' },
-
-  { windowId: 'inventory', label: 'Inventário' },
-
-  { windowId: 'marketHub', label: 'Mercado' },
-
-  { windowId: 'social', label: 'Social' },
-
-  { windowId: 'petLove', label: 'Pet Love' },
-
-];
-
-
-
 /**
-
  * Hub Central — menu em grid; cada botão abre uma janela HUD móvel (o Hub permanece aberto).
-
  */
-
 export class CentralHubPanel extends BaseUIComponent {
-
   constructor() {
-
     super({
-
       id: 'hub',
-
       rootClassName: 'ui-panel ui-panel--hub ui-panel--hub-bar',
-
       movable: false,
-
     });
-
   }
 
+  override mount(parent: HTMLElement): void {
+    if (isReactGamePanelsEnabled()) return;
+    super.mount(parent);
+  }
 
+  override open(): void {
+    if (isReactGamePanelsEnabled()) {
+      if (this.openState) return;
+      this.openState = true;
+      getPanelsBridge().setHubOpen(true);
+      this.onOpen();
+      return;
+    }
+    super.open();
+  }
+
+  override close(): void {
+    if (isReactGamePanelsEnabled()) {
+      if (!this.openState) return;
+      this.openState = false;
+      getPanelsBridge().setHubOpen(false);
+      this.onClose();
+      return;
+    }
+    super.close();
+  }
+
+  override isOpen(): boolean {
+    return this.openState;
+  }
+
+  override getRootElement(): HTMLElement | null {
+    if (isReactGamePanelsEnabled()) return null;
+    return super.getRootElement();
+  }
 
   createTemplate(): string {
-
-    const buttons = HUB_ACTIONS.map((action) => {
-
+    const buttons = HUB_PANEL_ACTIONS.map((action) => {
       const shortcut = HUD_WINDOW_SHORTCUT_LABEL[action.windowId];
-
       const shortcutMarkup = shortcut
-
         ? `<span class="ui-hub-bar__btn-key" aria-hidden="true"> [${shortcut}]</span>`
-
         : '';
-
       const ariaShortcut = shortcut ? ` (atalho ${shortcut})` : '';
 
       return `
-
         <button
-
           type="button"
-
           class="ui-hub-bar__btn${action.accent ? ' ui-hub-bar__btn--accent' : ''}"
-
           data-open-window="${action.windowId}"
-
           aria-label="${action.label}${ariaShortcut}"
-
         ><span class="ui-hub-bar__btn-label">${action.label}</span>${shortcutMarkup}</button>
-
       `;
-
     }).join('');
-
-
 
     return `
       <div class="ui-panel__body hub-shell hub-shell--bar-only">
@@ -103,44 +84,23 @@ export class CentralHubPanel extends BaseUIComponent {
         </footer>
       </div>
     `;
-
   }
-
-
 
   protected override bindEvents(): void {
-
     this.root?.addEventListener('click', (event) => {
-
       const target = event.target;
-
       if (!(target instanceof HTMLElement)) return;
 
-
-
       if (target.dataset.action === 'close') {
-
         this.close();
-
         return;
-
       }
-
-
 
       const hubBtn = target.closest<HTMLElement>('[data-open-window]');
-
       const windowId = hubBtn?.dataset.openWindow as UiWindowId | undefined;
-
       if (windowId) {
-
         windowManager.open(windowId);
-
       }
-
     });
-
   }
-
 }
-
