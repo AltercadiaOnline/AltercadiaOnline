@@ -67,15 +67,6 @@ export function AuthScreen() {
               />
             </AuthField>
             <div className="auth-actions">
-              {state.persistedSessionEmail && (
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={actions.handleContinuePersistedSession}
-                >
-                  CONTINUAR
-                </button>
-              )}
               <button type="button" disabled={disabled} onClick={actions.handleLogin}>
                 LOGIN
               </button>

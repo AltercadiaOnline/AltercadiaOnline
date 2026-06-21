@@ -11,6 +11,8 @@ import {
   initSupabaseAuth,
   restorePersistedSession,
   signOutSupabase,
+  clearLocalSupabaseSession,
+  isPasswordRecoverySession,
 } from '../auth/supabaseAuth.js';
 import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameStore.js';
 import { initAuthSessionBridge, tryCompleteOAuthReturn, type AuthPostLoginOptions } from '../auth/authSessionBridge.js';
@@ -185,6 +187,33 @@ export const AppScreens = {
 
   showLogin(): void {
     showScreen('login-screen');
+  },
+
+  /** Entrada no site oficial — login limpo, sem sessão Supabase/local pré-restaurada. */
+  resetLoginScreenForFreshVisit(): void {
+    this.currentSession = null;
+    this.characterHub = null;
+    this.selectedCharacterId = null;
+    clearLocalSession();
+    clearSelectedServerId();
+    clearLocalSupabaseSession();
+    resetGameStoreState();
+    resetCharacterSelectPreviewManager();
+
+    if (isReactAuthUiEnabled()) {
+      getAuthScreenController().resetForFreshLogin();
+    } else {
+      showAuthView('login');
+      const emailField = document.getElementById('email-input');
+      const passField = document.getElementById('pass-input');
+      if (emailField instanceof HTMLInputElement) emailField.value = '';
+      if (passField instanceof HTMLInputElement) passField.value = '';
+      const statusEl = document.getElementById('auth-status');
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.classList.remove('is-error', 'is-success');
+      }
+    }
   },
 
   async ensureProfileMetadataComplete(options?: { readonly oauthFlow?: boolean }): Promise<boolean> {
@@ -740,30 +769,18 @@ export const AppScreens = {
         });
 
         if (!oauthCompleted) {
-          const hasSupabaseSession = await this.restoreSessionFromSupabase();
-          if (hasSupabaseSession) {
-            this.showLogin();
-            if (isReactAuthUiEnabled()) {
-              getAuthScreenController().setPersistedSession(this.currentSession?.email ?? '');
-            }
-            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
-          } else {
-            this.showLogin();
-            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
+          if (!isPasswordRecoverySession()) {
+            this.resetLoginScreenForFreshVisit();
           }
+          this.showLogin();
+          this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         }
       } else {
-        const hasSupabaseSession = await this.restoreSessionFromSupabase();
-        if (hasSupabaseSession) {
-          this.showLogin();
-          if (isReactAuthUiEnabled()) {
-            getAuthScreenController().setPersistedSession(this.currentSession?.email ?? '');
-          }
-          this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
-        } else {
-          this.showLogin();
-          this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
+        if (!isPasswordRecoverySession()) {
+          this.resetLoginScreenForFreshVisit();
         }
+        this.showLogin();
+        this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
       }
     } catch (error) {
       console.error('[Auth] Falha ao inicializar Supabase:', error);

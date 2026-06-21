@@ -44,7 +44,6 @@ import { updateUserProfileMetadata } from '../../auth/profileMetadata.js';
 import { getUser } from '../../auth/supabaseAuth.js';
 import type { LoginScreenOptions } from '../../services/loginScreen.js';
 import { getAuthBridge } from '../bridge/authBridge.js';
-import { resolveAccountKey } from '../../services/localSessionStore.js';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -69,7 +68,6 @@ type AuthScreenMutableState = {
   profileBirth: string;
   profileGuardianConsent: boolean;
   showProfileGuardianConsent: boolean;
-  persistedSessionEmail: string | null;
 };
 
 export type AuthScreenSnapshot = Readonly<AuthScreenMutableState>;
@@ -153,7 +151,6 @@ class AuthScreenController {
     profileBirth: '',
     profileGuardianConsent: false,
     showProfileGuardianConsent: false,
-    persistedSessionEmail: null,
   };
 
   subscribe(listener: AuthScreenListener): () => void {
@@ -240,47 +237,25 @@ class AuthScreenController {
     this.setStatus(message, isError);
   }
 
-  setPersistedSession(email: string): void {
-    const normalized = email.trim();
-    if (!normalized) return;
+  resetForFreshLogin(): void {
     this.patch({
-      persistedSessionEmail: normalized,
-      email: normalized,
-      password: '',
       view: 'login',
-      statusMessage: `Sessão ativa para ${normalized}. Clique em CONTINUAR ou entre com outra conta.`,
+      busy: false,
+      statusMessage: '',
       statusIsError: false,
+      email: '',
+      password: '',
+      regName: '',
+      regBirth: '',
+      regEmail: '',
+      regPass: '',
+      regConfirm: '',
+      guardianConsent: false,
+      showGuardianConsent: false,
+      forgotEmail: '',
+      resetPass: '',
+      resetConfirm: '',
     });
-  }
-
-  async handleContinuePersistedSession(): Promise<void> {
-    if (this.state.busy || !this.state.persistedSessionEmail) return;
-    if (!this.requireAuthReady()) return;
-
-    this.setBusy(true);
-    showPlayerInitLoading('Carregando personagens…');
-    this.setStatus('Restaurando sessão…', false);
-
-    try {
-      const user = await getUser({ silent: true, clearInvalidSession: true });
-      if (!user?.email) {
-        this.patch({ persistedSessionEmail: null });
-        this.setStatus('Sessão expirada. Faça login novamente.', true);
-        return;
-      }
-
-      this.patch({ persistedSessionEmail: null });
-      await this.options?.onAuthenticated({
-        email: user.email,
-        id: user.id ?? resolveAccountKey({ email: user.email }),
-      });
-    } catch (error) {
-      console.error('[AuthScreenController] Erro ao continuar sessão:', error);
-      this.setStatus('Erro ao restaurar sessão. Tente fazer login novamente.', true);
-    } finally {
-      this.setBusy(false);
-      hidePlayerInitLoading();
-    }
   }
 
   showProfileComplete(handlers: ProfileCompleteHandlers): void {
