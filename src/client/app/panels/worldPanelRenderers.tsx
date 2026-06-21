@@ -17,6 +17,7 @@ import { WorldShopPanel } from '../components/world/panels/WorldShopPanel.js';
 import { WorldSocialPanel } from '../components/world/panels/WorldSocialPanel.js';
 import { WorldTournamentBetPanel } from '../components/world/panels/WorldTournamentBetPanel.js';
 import { WorldVendorShopPanel } from '../components/world/panels/WorldVendorShopPanel.js';
+import { WorldPetLovePanel } from '../components/world/panels/WorldPetLovePanel.js';
 
 const LazyWorldMovesetPanel = lazy(async () => {
   const module = await import('../components/world/panels/WorldMovesetPanel.js');
@@ -41,11 +42,6 @@ const LazyWorldCharactersPanel = lazy(async () => {
 const LazyWorldBankPanel = lazy(async () => {
   const module = await import('../components/world/panels/WorldBankPanel.js');
   return { default: module.WorldBankPanel };
-});
-
-const LazyWorldPetLovePanel = lazy(async () => {
-  const module = await import('../components/world/panels/WorldPetLovePanel.js');
-  return { default: module.WorldPetLovePanel };
 });
 
 export type WorldPanelRenderProps = {
@@ -187,11 +183,15 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
   moveset: withSuspense(({ entry, focused }) => (
     <LazyWorldMovesetPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   )),
-  marcos: withSuspense((props) => <LazyWorldMarcosPanel {...props} />),
+  marcos: withSuspense(({ entry, focused }) => (
+    <LazyWorldMarcosPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  )),
   market: withSuspense((props) => <LazyWorldMarketPanel {...props} />),
   characters: withSuspense((props) => <LazyWorldCharactersPanel {...props} />),
   bank: withSuspense((props) => <LazyWorldBankPanel {...props} />),
-  petLove: withSuspense((props) => <LazyWorldPetLovePanel {...props} />),
+  petLove: ({ entry, focused }) => (
+    <WorldPetLovePanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  ),
 };
 
 export function hasDedicatedWorldPanelRenderer(windowId: UiWindowId): boolean {
