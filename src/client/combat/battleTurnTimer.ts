@@ -155,6 +155,7 @@ export class BattleTurnTimer {
         barRatio: clamped,
         isUrgent,
       });
+      return;
     }
 
     const fill = this.ui.barFill;
@@ -183,6 +184,7 @@ export class BattleTurnTimer {
         barRatio: 0,
         isUrgent: false,
       });
+      return;
     }
 
     const fill = this.ui.barFill;

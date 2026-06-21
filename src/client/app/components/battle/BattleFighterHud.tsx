@@ -1,4 +1,4 @@
-import type { BattleHudFighterSnapshot } from '../../bridge/battleHudBridge.js';
+import type { BattleHudFighterSnapshot } from '../../battle/battleHudTypes.js';
 import { BattleStatusChips } from './BattleStatusChips.js';
 
 type BattleFighterHudProps = {

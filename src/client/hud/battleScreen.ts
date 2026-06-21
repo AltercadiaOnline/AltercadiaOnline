@@ -107,7 +107,9 @@ export class BattleScreen {
     const opponent = this.boundOpponentId ? state.combatants[this.boundOpponentId] : null;
 
     if (player) {
-      this.playerHealthBar.sync(player);
+      if (!isReactBattleHudEnabled()) {
+        this.playerHealthBar.sync(player);
+      }
       if (this.els.playerPortrait) {
         this.els.playerPortrait.dataset.classId = player.classId ?? '';
         this.els.playerPortrait.dataset.side = 'player';
@@ -119,7 +121,9 @@ export class BattleScreen {
     }
 
     if (opponent) {
-      this.enemyHealthBar.sync(opponent);
+      if (!isReactBattleHudEnabled()) {
+        this.enemyHealthBar.sync(opponent);
+      }
       if (this.els.opponentPortrait) {
         this.els.opponentPortrait.dataset.classId = opponent.classId ?? '';
         this.els.opponentPortrait.dataset.side = 'opponent';
@@ -244,7 +248,11 @@ export class BattleScreen {
   }
 
   private shouldPaintHpOnDom(combatantId: string): boolean {
-    return this.resolveCombatantSide(combatantId) !== null;
+    const side = this.resolveCombatantSide(combatantId);
+    if (isReactBattleHudEnabled() && (side === 'player' || side === 'opponent')) {
+      return false;
+    }
+    return side !== null;
   }
 
   private paintHpForCombatant(combatantId: string, hp: number, maxHp: number): void {

@@ -387,7 +387,13 @@ export class TurnStateGuard {
       getBattleHudBridge().setPaletteTurnBlocked(blocked);
     }
 
-
+    if (isReactBattleHudEnabled()) {
+      const phaseText = this.isMyTurn
+        ? YOUR_TURN_MESSAGE
+        : WAITING_OPPONENT_MESSAGE;
+      getBattleHudBridge().setTurnPhase(phaseText, this.isMyTurn);
+      return;
+    }
 
     if (this.ui.turnPhase) {
 
@@ -400,10 +406,6 @@ export class TurnStateGuard {
       this.ui.turnPhase.classList.toggle('battle-turn-phase--active', this.isMyTurn);
 
       this.ui.turnPhase.classList.toggle('battle-turn-phase--waiting', !this.isMyTurn);
-
-      if (isReactBattleHudEnabled()) {
-        getBattleHudBridge().setTurnPhase(phaseText, this.isMyTurn);
-      }
 
     }
 

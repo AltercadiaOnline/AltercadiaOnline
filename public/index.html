@@ -82,41 +82,7 @@
         <div id="battle-fade-overlay" class="battle-fade-overlay hidden" aria-hidden="true"></div>
 
         <div class="battle-screen battle-screen--terminal battle-screen--side-view" data-battle-hud>
-          <!-- TOP: Área de combate Side-View -->
           <section class="battle-combat-top" aria-label="Área de combate">
-            <div class="battle-status-row">
-              <header class="battle-sprite-hud battle-sprite-hud--ally" aria-label="Jogador">
-                <p id="battle-player-name" class="battle-fighter-name">—</p>
-                <p id="battle-player-class" class="battle-fighter-class">—</p>
-                <div class="battle-hp-bar" role="progressbar" aria-label="HP do jogador">
-                  <div id="battle-player-hp-fill" class="battle-hp-bar__fill"></div>
-                </div>
-                <p id="battle-player-hp-text" class="battle-hp-text">— / —</p>
-                <div id="battle-player-status" class="battle-status-row status-container status-container--ally" aria-label="Status do jogador"></div>
-              </header>
-
-              <div class="battle-turn-hub" aria-live="polite">
-                <p id="battle-turn-phase" class="battle-turn-phase battle-turn-phase--waiting">Aguardando…</p>
-                <p id="battle-turn-waiting" class="battle-turn-waiting hidden">Aguardando ação do oponente…</p>
-                <div class="battle-turn-timer-track" role="progressbar" aria-label="Tempo restante do turno">
-                  <div id="battle-turn-timer-bar-fill" class="battle-turn-timer-bar__fill"></div>
-                </div>
-                <div class="battle-timer-ring">
-                  <span id="battle-turn-timer" class="battle-turn-timer">10</span>
-                </div>
-              </div>
-
-              <header class="battle-sprite-hud battle-sprite-hud--foe" aria-label="Oponente">
-                <p id="battle-opponent-name" class="battle-fighter-name">—</p>
-                <p id="battle-opponent-class" class="battle-fighter-class">—</p>
-                <div class="battle-hp-bar battle-hp-bar--enemy" role="progressbar" aria-label="HP do oponente">
-                  <div id="battle-opponent-hp-fill" class="battle-hp-bar__fill"></div>
-                </div>
-                <p id="battle-opponent-hp-text" class="battle-hp-text">— / —</p>
-                <div id="battle-opponent-status" class="battle-status-row status-container" aria-label="Status do oponente"></div>
-              </header>
-            </div>
-
             <div class="battle-arena" aria-label="Cenário de combate">
               <div class="battle-arena__floor" aria-hidden="true"></div>
               <div class="battle-arena__effects" data-battle-effects-layer aria-hidden="true"></div>
@@ -151,35 +117,6 @@
               </div>
             </div>
           </section>
-
-          <!-- MIDDLE: Barra de comandos -->
-          <section class="battle-command-middle" aria-label="Comandos">
-            <nav class="battle-command-bar">
-              <button type="button" class="battle-cmd-btn" data-battle-cmd="moveset">Moveset</button>
-              <button type="button" class="battle-cmd-btn" data-battle-cmd="items">Itens</button>
-              <button type="button" class="battle-cmd-btn" data-battle-cmd="skip">Pular</button>
-              <button type="button" class="battle-cmd-btn battle-cmd-btn--danger" data-battle-cmd="surrender" title="Fugir da batalha — penalidade −20 VOLTS">Render-se</button>
-            </nav>
-            <div id="skill-palette-row" class="skill-palette battle-skill-slots battle-moveset-drawer hidden" data-hud-skill-actions aria-label="Moveset"></div>
-            <div id="battle-items-row" class="skill-palette battle-items-drawer hidden" data-hud-battle-items aria-label="Consumíveis de combate"></div>
-          </section>
-
-          <!-- BOTTOM: BattleLog | BattleChat -->
-          <footer class="battle-terminal-footer">
-            <section class="battle-log-panel terminal-panel" aria-label="Battle Log">
-              <h2 class="battle-panel-title"><span class="terminal-prompt">&gt;</span> BATTLE_LOG</h2>
-              <div id="battle-log" class="battle-log battle-log--mono"></div>
-            </section>
-            <section id="battle-chat" class="battle-chat-panel terminal-panel" aria-label="Battle Chat">
-              <h2 class="battle-panel-title"><span class="terminal-prompt">&gt;</span> BATTLE_CHAT</h2>
-              <div id="battle-chat-content" class="battle-chat-content"></div>
-              <form id="battle-chat-form" class="battle-chat-form">
-                <span class="terminal-prompt" aria-hidden="true">&gt;</span>
-                <input id="battle-chat-input" type="text" placeholder="msg..." maxlength="120" autocomplete="off" aria-label="Mensagem de batalha" />
-                <button type="submit" class="battle-chat-send">SEND</button>
-              </form>
-            </section>
-          </footer>
         </div>
       </div>
 

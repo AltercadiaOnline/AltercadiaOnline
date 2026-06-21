@@ -9,11 +9,13 @@ import { CLASS_CATALOG } from '../../../shared/types/classes.js';
 import { readCombatantVital } from '../../combat/combatVitalsDisplay.js';
 import { readActiveStatusesFromCombatant } from '../../hud/activeStatusAdapter.js';
 import {
-  getBattleHudBridge,
+  getBattleHudController,
   isReactBattleHudEnabled,
-  type BattleHudFighterSnapshot,
-  type BattleHudPetSnapshot,
-} from '../bridge/battleHudBridge.js';
+} from '../battle/BattleHudController.js';
+import type {
+  BattleHudFighterSnapshot,
+  BattleHudPetSnapshot,
+} from '../battle/battleHudTypes.js';
 
 function formatClassLabel(classId: ClassType | undefined): string {
   if (!classId) return '—';
@@ -84,7 +86,7 @@ export function syncBattleHudVitalsFromState(state: CombatState, ui: CombatUiHin
   );
   const opponent = opponentId ? state.combatants[opponentId] : null;
 
-  getBattleHudBridge().setVitals(
+  getBattleHudController().setVitals(
     player ? buildFighterSnapshot(player, state.turn) : null,
     opponent ? buildFighterSnapshot(opponent, state.turn) : null,
     buildPetSnapshot(resolvePetAlly(state, ui.playerActorId)),

@@ -1,6 +1,7 @@
 import type { GameState } from '../../shared/game/gameState.js';
 import { GameState as GameStateValue } from '../../shared/game/gameState.js';
 import { getGameStateManager } from '../../shared/state/GameStateManager.js';
+import { syncReactBattleHudVisibility } from '../app/shell/clientArchitecture.js';
 import type { MapManager } from '../managers/mapManager.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
@@ -64,6 +65,7 @@ export function applyGameStateToScenes(state: GameState): void {
     transition?.classList.add('hidden');
     combat?.setAttribute('aria-hidden', 'true');
     transition?.setAttribute('aria-hidden', 'true');
+    syncReactBattleHudVisibility('game-container');
     return;
   }
 
@@ -82,6 +84,7 @@ export function applyGameStateToScenes(state: GameState): void {
     transition?.classList.add('hidden');
     combat?.setAttribute('aria-hidden', 'false');
     transition?.setAttribute('aria-hidden', 'true');
+    syncReactBattleHudVisibility('game-container');
   }
 }
 

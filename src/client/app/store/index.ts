@@ -1,13 +1,21 @@
 export {
   useGameStore,
   usePlayerData,
-  useBattleData,
   useViewMode,
   type GameUiStore,
   type PlayerData,
-  type BattleData,
   type ViewMode,
 } from './gameStore.js';
+
+export {
+  useBattleData,
+  useBattleHud,
+  useBattleSession,
+  useBattleHudStore,
+  type BattleData,
+  type BattleHudState,
+  type BattleHudSession,
+} from '../bridge/battleHudBridge.js';
 
 export {
   initGameStoreBridge,

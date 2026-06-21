@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { GameShell } from './GameShell.js';
+import { GameHudSidebar } from './hud/GameHudSidebar.js';
 import { HybridHudFoundation } from './HybridHudFoundation.js';
 import { useGameStore } from '../store/gameStore.js';
 import { isHybridUiDebugEnabled } from '../shell/hybridUiDebug.js';
@@ -25,6 +26,8 @@ export function App() {
   return (
     <GameShell>
       {isHybridUiDebugEnabled() ? <HybridHudFoundation /> : null}
+
+      {inGame ? <GameHudSidebar /> : null}
 
       {inGame && viewMode === 'world' ? (
         <Suspense fallback={null}>

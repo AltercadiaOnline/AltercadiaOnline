@@ -1,9 +1,9 @@
-import type { BattleHudBridgeSnapshot } from '../../bridge/battleHudBridge.js';
+import type { BattleHudState } from '../../battle/battleHudTypes.js';
 import { BattleFighterHud } from './BattleFighterHud.js';
 import { BattleTurnHubHud } from './BattleTurnHubHud.js';
 
 type BattleVitalsRowProps = {
-  hud: BattleHudBridgeSnapshot;
+  hud: BattleHudState;
 };
 
 export function BattleVitalsRow({ hud }: BattleVitalsRowProps) {

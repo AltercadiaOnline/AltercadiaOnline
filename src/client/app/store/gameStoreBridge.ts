@@ -6,8 +6,9 @@ import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore
 import { getAppScreenBridge } from '../bridge/appScreenBridge.js';
 import { getHudBridge } from '../bridge/hudBridge.js';
 import { getRenderLayerBridge } from '../bridge/renderLayerBridge.js';
+import { getBattleHudController } from '../battle/BattleHudController.js';
+import { resetBattleHudStoreSession } from '../battle/battleHudStore.js';
 import {
-  battleStateFromGameStore,
   useGameStore,
   type ViewMode,
 } from './gameStore.js';
@@ -34,7 +35,7 @@ function syncPlayerDataFromAuthoritativeStores(): void {
 
 function syncBattleDataFromGameStore(): void {
   const battle = getGameStore().getState().battle;
-  useGameStore.getState().setBattleData(battleStateFromGameStore(battle));
+  getBattleHudController().syncSessionFromGameStore(battle);
 }
 
 function syncInGameFromScreen(activeScreen: string): void {
@@ -119,6 +120,7 @@ export function teardownGameStoreBridge(): void {
 
 export function resetGameUiStoreSession(): void {
   useGameStore.getState().resetSession();
+  resetBattleHudStoreSession();
 }
 
 /** Sincronização manual — útil após bootstrap de sessão. */

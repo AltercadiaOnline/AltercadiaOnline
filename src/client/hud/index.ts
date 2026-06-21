@@ -77,6 +77,7 @@ import {
   configurePostBattleHonorOpener,
 } from '../ui/battle/postBattleHonorOpener.js';
 import { syncBattleChatOpponentAuthor } from '../ui/battle/BattleScreen.js';
+import { ensureBattleHudStubHost } from '../ui/battle/battleHudStubHost.js';
 import { enterPostBattleObservation, clearBattleObservationState } from '../combat/battleObservationState.js';
 import {
   ingestBattleHonorStats,
@@ -951,7 +952,7 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
         getBattleHudBridge().setItemsDrawerOpen(false);
         getBattleHudBridge().setMovesetDrawerOpen(true);
       } else {
-        root.querySelector('#skill-palette-row')?.classList.remove('hidden');
+        ensureBattleHudStubHost(root).skillPaletteRow.classList.remove('hidden');
       }
       const dispatch = lastDispatch;
       if (dispatch) {
@@ -977,10 +978,9 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     },
   });
 
-  const actions =
-    root.querySelector<HTMLElement>('#skill-palette-row')
-    ?? root.querySelector<HTMLElement>('[data-hud-skill-actions]')
-    ?? root.querySelector<HTMLElement>('#battle-command-row');
+  const battleHudStubs = ensureBattleHudStubHost(root);
+
+  const actions = battleHudStubs.skillPaletteRow;
 
   initTurnStateGuard(root);
   getTurnStateGuard().setOnChoiceWindowExpired(() => {
@@ -1001,9 +1001,7 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     });
   }
 
-  const itemsDrawer =
-    root.querySelector<HTMLElement>('#battle-items-row')
-    ?? root.querySelector<HTMLElement>('[data-hud-battle-items]');
+  const itemsDrawer = battleHudStubs.battleItemsRow;
   if (itemsDrawer) {
     battleItems = new BattleItemsController({
       menuContainer: itemsDrawer,
@@ -1032,7 +1030,7 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
         getBattleHudBridge().setItemsDrawerOpen(false);
         getBattleHudBridge().setMovesetDrawerOpen(true);
       } else {
-        root.querySelector('#skill-palette-row')?.classList.remove('hidden');
+        ensureBattleHudStubHost(root).skillPaletteRow.classList.remove('hidden');
       }
       const dispatch = lastDispatch;
       if (dispatch) {
@@ -1044,7 +1042,7 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
         getBattleHudBridge().setMovesetDrawerOpen(false);
         getBattleHudBridge().toggleItemsDrawer();
       } else {
-        root.querySelector('#battle-items-row')?.classList.toggle('hidden');
+        ensureBattleHudStubHost(root).battleItemsRow.classList.toggle('hidden');
       }
     },
     skip: () => {
@@ -1070,7 +1068,7 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     elements: {
       root: root.querySelector<HTMLElement>('[data-battle-hud]'),
       actions,
-      log: root.querySelector('#battle-log'),
+      log: null,
     },
     battleScreen,
     ...(battleCommand ? { battleCommand } : {}),
@@ -1194,8 +1192,9 @@ function rootHideBattleDrawers(): void {
     getBattleHudBridge().closeDrawers();
     return;
   }
-  document.querySelector('#skill-palette-row')?.classList.add('hidden');
-  document.querySelector('#battle-items-row')?.classList.add('hidden');
+  const stubs = ensureBattleHudStubHost();
+  stubs.skillPaletteRow.classList.add('hidden');
+  stubs.battleItemsRow.classList.add('hidden');
 }
 
 function ensureHud(): HUDManager {

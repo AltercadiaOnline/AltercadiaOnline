@@ -3,11 +3,7 @@ import {
   buildInventorySnapshot,
   createEmptyInventorySlots,
 } from '../../../shared/character/inventorySlots.js';
-import type {
-  GameStoreBattleState,
-  GameStoreBattleStatus,
-  GameStoreGold,
-} from '../../state/GameStore.js';
+import type { GameStoreGold } from '../../state/GameStore.js';
 import { create } from 'zustand';
 import type { RenderEngine } from '../bridge/renderLayerBridge.js';
 
@@ -22,20 +18,12 @@ export type PlayerData = {
   readonly gold: GameStoreGold;
 };
 
-export type BattleData = {
-  readonly status: GameStoreBattleStatus;
-  readonly phase: string | null;
-  readonly timerSeconds: number | null;
-  readonly isMyTurn: boolean;
-};
-
 export type GameUiStoreState = {
   readonly viewMode: ViewMode;
   readonly inGame: boolean;
   readonly worldHudActive: boolean;
   readonly renderEngine: RenderEngine;
   readonly playerData: PlayerData;
-  readonly battleData: BattleData;
 };
 
 type GameUiStoreActions = {
@@ -44,18 +32,10 @@ type GameUiStoreActions = {
   setWorldHudActive: (worldHudActive: boolean) => void;
   setRenderEngine: (renderEngine: RenderEngine) => void;
   patchPlayerData: (partial: Partial<PlayerData>) => void;
-  setBattleData: (battleData: BattleData) => void;
   resetSession: () => void;
 };
 
 export type GameUiStore = GameUiStoreState & GameUiStoreActions;
-
-const INITIAL_BATTLE: BattleData = {
-  status: 'idle',
-  phase: null,
-  timerSeconds: null,
-  isMyTurn: false,
-};
 
 const EMPTY_INVENTORY: InventorySnapshot = buildInventorySnapshot(createEmptyInventorySlots());
 
@@ -79,7 +59,6 @@ export const useGameStore = create<GameUiStore>((set) => ({
   worldHudActive: false,
   renderEngine: 'canvas-legacy',
   playerData: INITIAL_PLAYER,
-  battleData: INITIAL_BATTLE,
 
   setViewMode: (viewMode) => set({ viewMode }),
 
@@ -93,15 +72,12 @@ export const useGameStore = create<GameUiStore>((set) => ({
     playerData: { ...state.playerData, ...partial },
   })),
 
-  setBattleData: (battleData) => set({ battleData }),
-
   resetSession: () => set({
     viewMode: 'world',
     inGame: false,
     worldHudActive: false,
     renderEngine: 'canvas-legacy',
     playerData: INITIAL_PLAYER,
-    battleData: INITIAL_BATTLE,
   }),
 }));
 
@@ -110,26 +86,8 @@ export function usePlayerData(): PlayerData {
   return useGameStore((state) => state.playerData);
 }
 
-/**
- * Estado de combate — retorna null fora do modo battle (isolamento de leitura).
- */
-export function useBattleData(): BattleData | null {
-  const viewMode = useGameStore((state) => state.viewMode);
-  const battleData = useGameStore((state) => state.battleData);
-  return viewMode === 'battle' ? battleData : null;
-}
-
 export function useViewMode(): ViewMode {
   return useGameStore((state) => state.viewMode);
-}
-
-export function battleStateFromGameStore(battle: GameStoreBattleState): BattleData {
-  return {
-    status: battle.status,
-    phase: battle.phase,
-    timerSeconds: battle.timerSeconds,
-    isMyTurn: battle.isMyTurn,
-  };
 }
 
 export function getGameUiStoreSnapshot(): GameUiStoreState {
@@ -139,7 +97,6 @@ export function getGameUiStoreSnapshot(): GameUiStoreState {
     worldHudActive,
     renderEngine,
     playerData,
-    battleData,
   } = useGameStore.getState();
-  return { viewMode, inGame, worldHudActive, renderEngine, playerData, battleData };
+  return { viewMode, inGame, worldHudActive, renderEngine, playerData };
 }

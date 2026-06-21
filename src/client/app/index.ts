@@ -31,7 +31,7 @@ export { initReactBattleHud } from './hud/initReactBattleHud.js';
 export { getGameUiBridge } from './bridge/gameUiBridge.js';
 export { getAppScreenBridge } from './bridge/appScreenBridge.js';
 export { getPanelsBridge } from './bridge/panelsBridge.js';
-export { getBattleHudBridge } from './bridge/battleHudBridge.js';
+export { getBattleHudBridge, getBattleHudController } from './bridge/battleHudBridge.js';
 
 export {
   tryOpenReactWorldPanel,

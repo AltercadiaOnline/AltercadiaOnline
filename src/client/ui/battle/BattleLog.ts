@@ -100,12 +100,12 @@ export class BattleLog {
     this.entries = [];
     if (this.root) this.root.innerHTML = '';
     if (isReactBattleHudEnabled()) {
-      getBattleHudBridge().resetSession();
+      getBattleHudBridge().clearLogLines();
     }
   }
 
   private render(): void {
-    if (!this.root) return;
+    if (!this.root || isReactBattleHudEnabled()) return;
 
     const doc = this.root.ownerDocument;
     this.root.innerHTML = '';

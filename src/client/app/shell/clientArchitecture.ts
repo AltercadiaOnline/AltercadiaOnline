@@ -1,4 +1,4 @@
-import { getBattleHudBridge } from '../bridge/battleHudBridge.js';
+import { getBattleHudController } from '../battle/BattleHudController.js';
 import { getHudBridge } from '../bridge/hudBridge.js';
 import { getPanelsBridge } from '../bridge/panelsBridge.js';
 import {
@@ -100,5 +100,5 @@ export function syncReactBattleHudVisibility(activeScreen: string): void {
   if (!reactBattleHudEnabled) return;
 
   const visible = activeScreen === 'game-container' && isSceneCombatVisible();
-  getBattleHudBridge().setBattleHudActive(visible);
+  getBattleHudController().setBattleHudActive(visible);
 }

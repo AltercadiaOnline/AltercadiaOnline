@@ -1,4 +1,4 @@
-import type { BattleHudTurnTimerSnapshot } from '../../bridge/battleHudBridge.js';
+import type { BattleHudTurnTimerSnapshot } from '../../battle/battleHudTypes.js';
 
 type BattleTurnHubHudProps = {
   turnPhase: string;

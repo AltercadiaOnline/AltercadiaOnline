@@ -1,4 +1,4 @@
-import type { BattleHudLogLine } from '../../bridge/battleHudBridge.js';
+import type { BattleHudLogLine } from '../../battle/battleHudTypes.js';
 import { BATTLE_LOG_EMITTER_CLASS } from '../../../ui/battle/battleLogColors.js';
 
 type BattleLogPanelProps = {

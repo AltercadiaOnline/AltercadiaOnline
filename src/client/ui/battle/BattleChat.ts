@@ -36,11 +36,19 @@ export class BattleChat {
     this.form = root.querySelector('#battle-chat-form');
     this.input = root.querySelector('#battle-chat-input');
 
-    this.section?.classList.add('battle-chat--terminal');
-    this.content?.classList.add('battle-chat-content--terminal');
-    this.bindInputState();
-    this.bindSubmit();
-    this.bindContentClicks();
+    if (this.section) {
+      this.section.classList.add('battle-chat--terminal');
+    }
+    if (this.content) {
+      this.content.classList.add('battle-chat-content--terminal');
+    }
+    if (this.form && this.input) {
+      this.bindInputState();
+      this.bindSubmit();
+    }
+    if (this.content) {
+      this.bindContentClicks();
+    }
 
     if (props.messages?.length) {
       for (const entry of props.messages) {
@@ -73,7 +81,7 @@ export class BattleChat {
     if (isReactBattleHudEnabled()) {
       getBattleHudBridge().appendChatLine(author, message);
     }
-    if (!this.content) return;
+    if (!this.content || isReactBattleHudEnabled()) return;
     const row = this.content.ownerDocument.createElement('p');
     row.className = 'battle-chat__line';
 
@@ -103,6 +111,17 @@ export class BattleChat {
   clear(): void {
     if (this.content) this.content.innerHTML = '';
     this.setInputValue('');
+    if (isReactBattleHudEnabled()) {
+      getBattleHudBridge().clearChatLines();
+    }
+  }
+
+  /** Envio local — espelha submit do formulário legado (bridge + callback). */
+  sendLocalMessage(message: string): void {
+    const text = message.trim();
+    if (!text) return;
+    this.append(text, this.props.localAuthor ?? 'YOU');
+    this.props.onSendMessage(text);
   }
 
   destroy(): void {
@@ -134,8 +153,7 @@ export class BattleChat {
       if (!text) return;
 
       this.setInputValue('');
-      this.append(text, this.props.localAuthor ?? 'YOU');
-      this.props.onSendMessage(text);
+      this.sendLocalMessage(text);
     };
 
     this.form.addEventListener('submit', handler);

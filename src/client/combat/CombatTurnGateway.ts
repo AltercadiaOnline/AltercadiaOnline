@@ -5,9 +5,9 @@ export type CombatAnimationGate = {
   subscribe(listener: (animating: boolean) => void): () => void;
 };
 
-const BATTLE_COMMAND_SELECTOR = '.battle-command-bar [data-battle-cmd], nav.battle-command-bar [data-battle-cmd]';
-const BATTLE_ITEMS_SELECTOR = '[data-hud-battle-items] .battle-menu-btn, [data-hud-battle-items] button';
-const BATTLE_MOVESET_SELECTOR = '[data-hud-skill-actions] .battle-menu-btn:not(.is-empty)';
+const BATTLE_COMMAND_SELECTOR = '#game-react-hud-root .battle-command-bar [data-battle-cmd], .battle-command-bar [data-battle-cmd]';
+const BATTLE_ITEMS_SELECTOR = '#game-react-hud-root [data-hud-battle-items] .battle-menu-btn, #game-react-hud-root [data-hud-battle-items] button, [data-hud-battle-items] .battle-menu-btn, [data-hud-battle-items] button';
+const BATTLE_MOVESET_SELECTOR = '#game-react-hud-root [data-hud-skill-actions] .battle-menu-btn:not(.is-empty), [data-hud-skill-actions] .battle-menu-btn:not(.is-empty)';
 
 /**
  * Espelha ActionGatewayButton — desabilita comandos de turno enquanto `isAnimating` ou pending extra.

@@ -12,6 +12,8 @@ import { initializeZoneAssets } from '../../loaders/CreatureAssetLoader.js';
 import { resolveBattleSpriteFromMonsterId } from './battleSpriteCatalog.js';
 import { getOpponentChatAuthorLabel } from './postBattleHonorContext.js';
 import { tryOpenHonorCardFromChatAuthor as openHonorFromChat } from './postBattleHonorOpener.js';
+import { getBattleHudBridge, isReactBattleHudEnabled } from '../../app/bridge/battleHudBridge.js';
+import { ensureBattleHudStubHost } from './battleHudStubHost.js';
 
 export { BattleLog, type BattleLogProps, LOG_COLORS } from './BattleLog.js';
 export { BattleChat, type BattleChatProps, type BattleChatMessage } from './BattleChat.js';
@@ -85,8 +87,12 @@ export function unmountBattleScreenView(root: ParentNode = document): void {
   battleSpriteAlly?.clear();
   battleSpriteFoe?.clear();
   mountedMonsterId = null;
-  root.querySelector('#skill-palette-row')?.classList.add('hidden');
-  root.querySelector('#battle-items-row')?.classList.add('hidden');
+  if (isReactBattleHudEnabled()) {
+    getBattleHudBridge().closeDrawers();
+  } else {
+    ensureBattleHudStubHost(root).skillPaletteRow.classList.add('hidden');
+    ensureBattleHudStubHost(root).battleItemsRow.classList.add('hidden');
+  }
 
   const screen = root.querySelector<HTMLElement>(BATTLE_SCREEN_ROOT_SELECTOR);
   screen?.setAttribute('aria-hidden', 'true');
@@ -139,12 +145,10 @@ function ensureBattleScreenShell(root: ParentNode): void {
 
   if (!battleChatPanel) {
     battleChatPanel = new BattleChat(root, {
-      onSendMessage: (text) => {
-        /* handler externo ligado em initBattleScreenUI via wire — noop default */
-        void text;
-      },
+      onSendMessage: () => undefined,
       localAuthor: 'YOU',
     });
+    syncBattleChatOpponentAuthor();
   }
 
   const frames = queryBattleSpriteFrames(root);
@@ -173,9 +177,9 @@ function syncOpponentLabel(monsterId: string | null, root: ParentNode): void {
 }
 
 function wireBattleCommandBar(root: ParentNode, handlers: BattleCommandHandlers): () => void {
-  const bar = root.querySelector<HTMLElement>('.battle-command-bar');
-  const movesetDrawer = root.querySelector<HTMLElement>('#skill-palette-row');
-  const itemsDrawer = root.querySelector<HTMLElement>('#battle-items-row');
+  const stubs = ensureBattleHudStubHost(root);
+  const movesetDrawer = stubs.skillPaletteRow;
+  const itemsDrawer = stubs.battleItemsRow;
   const cleanups: (() => void)[] = [];
 
   if (battleChatPanel) {
@@ -184,7 +188,16 @@ function wireBattleCommandBar(root: ParentNode, handlers: BattleCommandHandlers)
       onSendMessage: (text) => handlers.onChatMessage?.(text),
       localAuthor: 'YOU',
     });
+    syncBattleChatOpponentAuthor();
   }
+
+  if (isReactBattleHudEnabled()) {
+    return () => {
+      for (const off of cleanups) off();
+    };
+  }
+
+  const bar = root.querySelector<HTMLElement>('.battle-command-bar');
 
   const bind = (cmd: string, fn: () => void) => {
     const btn = bar?.querySelector<HTMLButtonElement>(`[data-battle-cmd="${cmd}"]`);

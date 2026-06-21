@@ -20,6 +20,7 @@ import { isCombatActionPlaybackActive } from '../combat/combatPlaybackState.js';
 import type { BattleItemsController } from './BattleItemsController.js';
 
 import { getBattleHudBridge, isReactBattleHudEnabled } from '../app/bridge/battleHudBridge.js';
+import { ensureBattleHudStubHost } from '../ui/battle/battleHudStubHost.js';
 
 import type { BattleScreen } from './battleScreen.js';
 
@@ -615,7 +616,7 @@ export class HUDManager {
         if (isReactBattleHudEnabled()) {
           getBattleHudBridge().setMovesetDrawerOpen(true);
         } else {
-          document.querySelector('#skill-palette-row')?.classList.remove('hidden');
+          ensureBattleHudStubHost().skillPaletteRow.classList.remove('hidden');
         }
 
       } else {

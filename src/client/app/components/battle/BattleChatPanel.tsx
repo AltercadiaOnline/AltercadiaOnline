@@ -1,26 +1,28 @@
 import { FormEvent, useState } from 'react';
-import { getBattleHudBridge } from '../../bridge/battleHudBridge.js';
-import type { BattleHudChatLine } from '../../bridge/battleHudBridge.js';
+import { sendBattleChatMessage } from '../../battle/battleChatHandlers.js';
+import type { BattleHudChatLine } from '../../battle/battleHudTypes.js';
+import { getOpponentChatAuthorLabel } from '../../../ui/battle/postBattleHonorContext.js';
+import { tryOpenHonorCardFromChatAuthor } from '../../../ui/battle/postBattleHonorOpener.js';
 
 type BattleChatPanelProps = {
   lines: readonly BattleHudChatLine[];
 };
 
-const BATTLE_CHAT_EVENT = 'altercadia:battle-chat-send';
-
 export function BattleChatPanel({ lines }: BattleChatPanelProps) {
   const [draft, setDraft] = useState('');
+  const opponentLabel = getOpponentChatAuthorLabel()?.trim().toLowerCase() ?? '';
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = draft.trim();
     if (!message) return;
 
-    getBattleHudBridge().appendChatLine('YOU', message);
-    document.dispatchEvent(new CustomEvent(BATTLE_CHAT_EVENT, {
-      detail: { message },
-    }));
+    sendBattleChatMessage(message);
     setDraft('');
+  };
+
+  const handleOpponentClick = (author: string) => {
+    tryOpenHonorCardFromChatAuthor(author);
   };
 
   return (
@@ -31,16 +33,43 @@ export function BattleChatPanel({ lines }: BattleChatPanelProps) {
         BATTLE_CHAT
       </h2>
       <div id="react-battle-chat-content" className="battle-chat-content battle-chat-content--terminal">
-        {lines.map((line) => (
-          <p key={line.id} className="battle-chat__line">
-            <span className="battle-chat__author">
-              {line.author}
-              :
-            </span>
-            {' '}
-            {line.text}
-          </p>
-        ))}
+        {lines.map((line) => {
+          const isOpponent = opponentLabel.length > 0
+            && line.author.trim().toLowerCase() === opponentLabel;
+
+          if (isOpponent) {
+            return (
+              <p key={line.id} className="battle-chat__line battle-chat__line--opponent">
+                <button
+                  type="button"
+                  className="battle-chat__avatar"
+                  aria-label={`Ver oponente ${line.author}`}
+                  title="Ver oponente"
+                  onClick={() => handleOpponentClick(line.author)}
+                >
+                  <span aria-hidden="true">◉</span>
+                </button>
+                <span className="battle-chat__author battle-chat__author--opponent">
+                  {line.author}
+                  :
+                </span>
+                {' '}
+                {line.text}
+              </p>
+            );
+          }
+
+          return (
+            <p key={line.id} className="battle-chat__line">
+              <span className="battle-chat__author">
+                {line.author}
+                :
+              </span>
+              {' '}
+              {line.text}
+            </p>
+          );
+        })}
       </div>
       <form className="battle-chat-form" onSubmit={handleSubmit}>
         <span className="terminal-prompt" aria-hidden="true">&gt;</span>
