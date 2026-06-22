@@ -1,8 +1,12 @@
 import { getAppScreenBridge } from '../bridge/appScreenBridge.js';
 import { initClientAppGameLayer } from '../bootstrap/initClientApp.js';
 import { syncReactHudVisibility } from '../shell/clientArchitecture.js';
+import { CLIENT_ROOT_IDS } from '../shell/uiLayers.js';
 import { syncGameUiStoreFromLegacy } from '../store/gameStoreBridge.js';
-import { resolveHudRuntimeHost } from './mountHudRuntime.js';
+
+function resolveHudRuntimeHost(root: ParentNode = document): HTMLElement | null {
+  return root.querySelector<HTMLElement>(`#${CLIENT_ROOT_IDS.hudRoot}`);
+}
 
 let hudMountPromise: Promise<void> | null = null;
 

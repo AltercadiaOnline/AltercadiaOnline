@@ -343,13 +343,21 @@ class AuthScreenController {
   private async ensureAuthReady(): Promise<boolean> {
     if (isSupabaseReady()) return true;
 
-    this.patch({ authBootstrapPending: true });
     this.setStatus('Preparando autenticação…', false);
 
-    const ready = await waitForAuthBootstrapReady();
-    this.patch({ authBootstrapPending: false });
+    try {
+      const ready = await waitForAuthBootstrapReady();
+      if (!ready && !isSupabaseReady()) {
+        const { prepareClientAuthBootstrap } = await import('../../browser/appScreens.js');
+        await prepareClientAuthBootstrap();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao preparar autenticação.';
+      this.setStatus(message, true);
+      return false;
+    }
 
-    if (ready || isSupabaseReady()) {
+    if (isSupabaseReady()) {
       if (this.state.statusMessage === 'Preparando autenticação…') {
         this.setStatus('', false);
       }

@@ -14,6 +14,7 @@ const REQUIRED_STATIC_MODULES = [
   'client/browser/main.js',
   'client/ui/ambient/AmbientOverlay.js',
   'client/services/loginScreen.js',
+  'client/app/runtime/mountHudRuntime.js',
   'config/designConstants.js',
   'config/sceneConfig.js',
   'shared/world/npcRegistry.js',
