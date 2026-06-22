@@ -64,7 +64,7 @@ import {
 } from '../auth/playerInitLoading.js';
 import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
 import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
-import { getAuthScreenController } from '../app/screen/authScreenController.js';
+import { authLoginFormHasUserInput, getAuthScreenController } from '../app/screen/authScreenController.js';
 import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
 import {
   markAuthBootstrapFailed,
@@ -542,14 +542,14 @@ export const AppScreens = {
         });
 
         if (!oauthCompleted) {
-          if (!isPasswordRecoverySession()) {
+          if (!isPasswordRecoverySession() && !authLoginFormHasUserInput()) {
             this.resetLoginScreenForFreshVisit();
           }
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         }
       } else {
-        if (!isPasswordRecoverySession()) {
+        if (!isPasswordRecoverySession() && !authLoginFormHasUserInput()) {
           this.resetLoginScreenForFreshVisit();
         }
         this.showLogin();

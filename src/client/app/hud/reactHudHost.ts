@@ -1,9 +1,8 @@
 import { CLIENT_ARCHITECTURE_VERSION } from '../shell/uiLayers.js';
 import { getGameUiBridge } from '../bridge/gameUiBridge.js';
-import { ensureClientArchitectureRoots, syncReactScreenShellVisibility } from '../shell/clientArchitecture.js';
-import { showScreen } from '../../navigation.js';
+import { ensureClientArchitectureRoots } from '../shell/clientArchitecture.js';
 
-/** Boot oficial online-react-v1 — reserva roots React e ativa superfícies screen/hud/overlay. */
+/** Boot oficial online-react-v1 — reserva roots React (screen/overlay montam em ui-runtime). */
 export function initReactHudHost(root: ParentNode = document): void {
   const { screenRoot, hudRoot, overlayRoot } = ensureClientArchitectureRoots(root);
   const bridge = getGameUiBridge();
@@ -16,6 +15,4 @@ export function initReactHudHost(root: ParentNode = document): void {
   screenRoot.dataset.reactHost = 'ready';
   hudRoot.dataset.reactHost = 'ready';
   overlayRoot.dataset.reactHost = 'ready';
-
-  showScreen('login-screen');
 }

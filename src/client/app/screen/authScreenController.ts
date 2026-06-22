@@ -736,6 +736,18 @@ export function getAuthScreenController(): AuthScreenController {
   return globalRef.__ALTERCADIA_AUTH_SCREEN_CONTROLLER__;
 }
 
+/** true quando o jogador já digitou no formulário — evita reset tardio do bootstrap. */
+export function authLoginFormHasUserInput(): boolean {
+  const snap = getAuthScreenController().snapshot();
+  return Boolean(
+    snap.email.trim()
+    || snap.password
+    || snap.regEmail.trim()
+    || snap.regPass
+    || snap.forgotEmail.trim(),
+  );
+}
+
 export function initAuthScreenController(options: AuthScreenBootstrapOptions): boolean {
   const controller = getAuthScreenController();
   controller.bind(options);
@@ -758,7 +770,7 @@ export function initAuthScreenController(options: AuthScreenBootstrapOptions): b
   if (isPasswordRecoverySession()) {
     showAuthView('reset-password');
     controller.setStatus('Defina sua nova senha.', false);
-  } else {
+  } else if (controller.snapshot().view === 'login') {
     showAuthView('login');
   }
 

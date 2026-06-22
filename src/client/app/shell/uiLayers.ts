@@ -7,7 +7,7 @@ export const CLIENT_ARCHITECTURE_VERSION = 'online-react-v1';
 export const CLIENT_ROOT_IDS = {
   screenRoot: 'screen-react-root',
   hudRoot: 'game-react-hud-root',
-  overlayRoot: 'game-react-overlay-root',
+  overlayRoot: 'screen-overlay-root',
   renderHost: 'game-render-host',
   canvas: 'game-canvas',
   phaserMount: 'phaser-mount-root',

@@ -297,18 +297,29 @@ export async function signOutSupabase(): Promise<void> {
 /** Limpa sessão local sem disparar returnToLogin (side effects suprimidos). */
 export function clearLocalSupabaseSession(): void {
   const release = suppressAuthSessionSideEffects();
+  let released = false;
+  const finish = (): void => {
+    if (released) return;
+    released = true;
+    release();
+  };
+
   try {
     const client = getSupabase();
     if (client) {
-      void client.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      void client.auth.signOut({ scope: 'local' })
+        .catch(() => undefined)
+        .finally(finish);
+    } else {
+      finish();
     }
     try {
       localStorage.removeItem(SUPABASE_STORAGE_KEY);
     } catch {
       /* storage indisponível */
     }
-  } finally {
-    release();
+  } catch {
+    finish();
   }
 }
 

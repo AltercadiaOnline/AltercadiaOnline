@@ -117,8 +117,15 @@ body[data-ui-architecture="online-react-v1"] {
 
 .screen-react-root,
 .game-react-hud-root,
-.game-react-overlay-root {
+.game-react-overlay-root,
+.screen-overlay-root {
   pointer-events: none;
+}
+
+.screen-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ui-shell-z-overlay, 980);
 }
 
 .game-react-hud-root,

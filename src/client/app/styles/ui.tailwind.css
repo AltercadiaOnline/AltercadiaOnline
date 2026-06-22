@@ -13,6 +13,10 @@
     pointer-events: none;
   }
 
+  #screen-overlay-root {
+    pointer-events: none;
+  }
+
   #game-react-hud-root:not(.game-react-hud-root--active) {
     pointer-events: none;
   }
