@@ -20,6 +20,7 @@ import {
 } from './sync/pendingIntentRegistry.js';
 import { resetPendingActionsStore } from './sync/pendingActionsStore.js';
 import { getGameStore } from './state/GameStore.js';
+import { getGlobalStateSynchronizer } from './sync/GlobalStateSynchronizer.js';
 import type { PendingActionKind } from '../shared/sync/pendingActionProtocol.js';
 import {
   equipFromInventoryFailureMessage,
@@ -72,7 +73,7 @@ export type ClientAction =
   | { readonly type: 'ACTIVATE_BOOK'; readonly payload: { readonly bookId: string } }
   | { readonly type: 'SELECT_MARCO_BRANCH'; readonly payload: { readonly starterNodeId: string } }
   | { readonly type: 'CHOOSE_MARCO'; readonly payload: { readonly nodeId: string } }
-  | { readonly type: 'RESET_MARCO_TRAIL'; readonly payload: Record<string, never> }
+  | { readonly type: 'RESET_MARCO_TRAIL'; readonly payload: { readonly npcId: string } }
   | {
       readonly type: 'PROGRESS_MARCO';
       readonly payload: {
@@ -107,6 +108,10 @@ export type ClientAction =
   | {
       readonly type: 'SYNC_LOADOUT';
       readonly payload: SyncLoadoutPayload;
+    }
+  | {
+      readonly type: 'SYNC_MOVESET';
+      readonly payload: { readonly activeMovesets: readonly string[] };
     }
   | { readonly type: 'PURCHASE_SKIN'; readonly payload: { readonly slot: SkinSlotId; readonly optionId: string } }
   | {
@@ -172,6 +177,10 @@ export type ClientAction =
       readonly payload: { readonly orderId: string };
     }
   | {
+      readonly type: 'EXECUTE_MARKET_PURCHASE';
+      readonly payload: { readonly listingId: string };
+    }
+  | {
       readonly type: 'MOVE_INTENT';
       readonly payload: MovePlayerIntentPayload;
     }
@@ -185,6 +194,14 @@ export type ClientAction =
         readonly craftStationId: string;
         readonly recipeId: string;
         readonly quantity?: number;
+      };
+    }
+  | {
+      readonly type: 'DELETE_ITEM';
+      readonly payload: {
+        readonly itemId: string;
+        readonly quantity?: number;
+        readonly slotIndex?: number;
       };
     };
 
@@ -203,6 +220,11 @@ export const PENDING_INTENT_TIMEOUT_MS = 12_000;
 const PENDING_INTENT_TIMEOUT_MESSAGE =
   'Servidor não confirmou a ação a tempo. Nenhuma alteração foi aplicada — tente novamente.';
 
+const ONLINE_SERVER_PENDING_MESSAGE =
+  'Recurso ainda não disponível no servidor online. Use o modo local para testar.';
+
+const ONLINE_BLOCKED_ACTIONS: Partial<Record<ClientAction['type'], string>> = {};
+
 /**
  * Único ponto de intenções da interface.
  * Com IEconomyService (mock/supabase): aguarda snapshot autoritativo após delay/rede.
@@ -214,6 +236,7 @@ export class ActionDispatcher {
   private economyService: IEconomyService | null = null;
   private pendingIntentTimeoutMs = PENDING_INTENT_TIMEOUT_MS;
   private readonly intentTimeoutHandles = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly intentWaiters = new Map<string, (ok: boolean) => void>();
 
   setMode(mode: ActionDispatcherMode): void {
     this.mode = mode;
@@ -257,6 +280,17 @@ export class ActionDispatcher {
   }
 
   dispatch(action: ClientAction): DispatchResult {
+    if (this.mode === 'online') {
+      const blocked = ONLINE_BLOCKED_ACTIONS[action.type];
+      if (blocked) {
+        return { ok: false, reason: blocked };
+      }
+    }
+
+    if (this.mode === 'online' && action.type === 'SYNC_MOVESET') {
+      return this.dispatchPending(action);
+    }
+
     if (this.mode === 'online' && this.isItemMutation(action)) {
       const mutationAction = action.type === 'EQUIP_ITEM'
         ? resolveToggleItemSlotServerAction(action.payload.itemId, action.payload.slot)
@@ -296,6 +330,14 @@ export class ActionDispatcher {
     }
 
     if (this.mode === 'online' && action.type === 'CRAFT_ITEM') {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && action.type === 'DELETE_ITEM') {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && this.isMarketplaceAction(action)) {
       return this.dispatchPending(action);
     }
 
@@ -413,6 +455,32 @@ export class ActionDispatcher {
     }
   }
 
+  private isMarketplaceAction(action: ClientAction): boolean {
+    switch (action.type) {
+      case 'CREATE_MARKET_LISTING':
+      case 'CREATE_MARKET_BUY_ORDER':
+      case 'COLLECT_MARKET_VOLTS':
+      case 'CANCEL_MARKET_LISTING':
+      case 'CANCEL_MARKET_BUY_ORDER':
+      case 'EXECUTE_MARKET_PURCHASE':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private shouldResyncInventoryAfterTimeout(action: ClientAction): boolean {
+    return (
+      this.isItemMutation(action)
+      || this.isBankAction(action)
+      || isVendorClientAction(action)
+      || action.type === 'CRAFT_ITEM'
+      || action.type === 'DELETE_ITEM'
+      || this.isMarketplaceAction(action)
+      || action.type === 'EXCHANGE_ALTER_FOR_VOLTS'
+    );
+  }
+
   /** @deprecated Canais WS dedicados removidos — banco/exchange usam player-intent. */
   private usesDedicatedWsTransport(_action: ClientAction): boolean {
     return false;
@@ -422,12 +490,35 @@ export class ActionDispatcher {
     this.clearIntentTimeout(intentId);
     confirmTransaction(intentId);
     getPendingIntentRegistry().resolve(intentId);
+    this.intentWaiters.get(intentId)?.(true);
+    this.intentWaiters.delete(intentId);
   }
 
   rejectIntent(intentId: string, error?: unknown, options?: { readonly silent?: boolean }): void {
     this.clearIntentTimeout(intentId);
     rejectTransaction(intentId, error, 'Ação rejeitada pelo servidor.', options);
     getPendingIntentRegistry().reject(intentId);
+    this.intentWaiters.get(intentId)?.(false);
+    this.intentWaiters.delete(intentId);
+  }
+
+  waitForIntentResult(intentId: string, timeoutMs = this.pendingIntentTimeoutMs): Promise<boolean> {
+    if (!getPendingIntentRegistry().isPending(intentId)) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        this.intentWaiters.delete(intentId);
+        resolve(ok);
+      };
+
+      this.intentWaiters.set(intentId, finish);
+      setTimeout(() => finish(false), timeoutMs);
+    });
   }
 
   private resolvePendingKind(action: ClientAction): PendingActionKind {
@@ -438,6 +529,8 @@ export class ActionDispatcher {
       this.isBankAction(action)
       || isVendorClientAction(action)
       || action.type === 'CRAFT_ITEM'
+      || action.type === 'DELETE_ITEM'
+      || this.isMarketplaceAction(action)
       || action.type === 'EXCHANGE_ALTER_FOR_VOLTS'
     ) {
       return 'economy-event';
@@ -515,6 +608,9 @@ export class ActionDispatcher {
         intentId,
         actionType: action.type,
       });
+      if (this.mode === 'online' && this.shouldResyncInventoryAfterTimeout(action)) {
+        getGlobalStateSynchronizer().requestFullState();
+      }
       this.notifyPendingIntentTimeout();
     }, this.pendingIntentTimeoutMs);
     this.intentTimeoutHandles.set(intentId, handle);
@@ -685,9 +781,14 @@ export class ActionDispatcher {
         return this.dispatchCancelMarketListing(action.payload.listingId);
       case 'CANCEL_MARKET_BUY_ORDER':
         return this.dispatchCancelMarketBuyOrder(action.payload.orderId);
+      case 'EXECUTE_MARKET_PURCHASE':
+        return { ok: false, reason: 'Compra P2P requer servidor ou mock economy.' };
 
       case 'SYNC_LOADOUT':
         return { ok: false, reason: 'Sincronização de loadout requer servidor online.' };
+
+      case 'SYNC_MOVESET':
+        return { ok: true, status: 'applied' };
 
       case 'MOVE_INTENT':
         return { ok: false, reason: 'Movimento de exploração usa dispatchMoveIntent no modo online.' };
@@ -697,6 +798,9 @@ export class ActionDispatcher {
 
       case 'CRAFT_ITEM':
         return { ok: false, reason: 'Craft requer servidor online ou mock economy.' };
+
+      case 'DELETE_ITEM':
+        return { ok: false, reason: 'Descarte de item requer servidor ou mock economy.' };
 
       case 'ACTIVATE_BOOK':
         return { ok: false, reason: 'Ativação de livro requer servidor online.' };

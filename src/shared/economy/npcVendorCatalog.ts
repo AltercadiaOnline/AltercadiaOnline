@@ -1,6 +1,6 @@
 import { ALQUIMISTA_NPC, VENDEDOR_NPC } from '../world/npcBuildingAnchors.js';
 import { ANCIAO_CAEL_NPC_ID } from './caelPetService.js';
-import { getItemById } from '../items/itemCatalog.js';
+import { getAuthoritativeItemById } from '../items/itemCatalogAuthoritative.js';
 import { ItemCategory } from '../items/itemSchema.js';
 import { resolveItemValorBase } from './itemValorEconomy.js';
 import { calculateTradePrice } from './ShopManager.js';
@@ -140,7 +140,7 @@ export function resolveNpcPriceSpread(listing: NpcVendorListing): number {
 }
 
 export function resolveLabShopTabForItem(itemId: string): LabShopTabId | null {
-  const item = getItemById(itemId);
+  const item = getAuthoritativeItemById(itemId);
   if (!item) return null;
   return CATEGORY_TO_LAB_TAB[item.category] ?? null;
 }

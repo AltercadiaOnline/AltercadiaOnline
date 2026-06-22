@@ -15,4 +15,4 @@ public/vendor/
 .env.*.local
 
 # Fonte oficial de credenciais Supabase/Postgres — JAMAIS commitar
-.env.governance
+.env

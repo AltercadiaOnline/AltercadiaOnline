@@ -43,6 +43,50 @@ export function addRationCharges(
   return record.rationCharges;
 }
 
+export function consumeRationCharge(
+  playerId: string,
+  characterId: number,
+): boolean {
+  const record = getPetAffinityRecord(playerId, characterId);
+  if (record.rationCharges <= 0) return false;
+  record.rationCharges -= 1;
+  return true;
+}
+
+export function recordPetRationFeedAt(
+  playerId: string,
+  characterId: number,
+  now = Date.now(),
+): void {
+  const record = getPetAffinityRecord(playerId, characterId);
+  record.lastPetRationFeedAtMs = now;
+}
+
 export function resetPetAffinityStore(): void {
   records.clear();
+}
+
+export function exportPetAffinityPersistence(
+  playerId: string,
+  characterId: number,
+): PetAffinityRecord {
+  const record = getPetAffinityRecord(playerId, characterId);
+  return {
+    rationCharges: record.rationCharges,
+    lastPetRationFeedAtMs: record.lastPetRationFeedAtMs,
+    lastPetAffectionAtMs: record.lastPetAffectionAtMs,
+  };
+}
+
+export function hydratePetAffinityPersistence(
+  playerId: string,
+  characterId: number,
+  slice: PetAffinityRecord,
+): void {
+  const key = profileKey(playerId, characterId);
+  records.set(key, {
+    rationCharges: Math.max(0, Math.floor(slice.rationCharges)),
+    lastPetRationFeedAtMs: slice.lastPetRationFeedAtMs,
+    lastPetAffectionAtMs: slice.lastPetAffectionAtMs,
+  });
 }

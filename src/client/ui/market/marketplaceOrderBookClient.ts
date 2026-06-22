@@ -40,8 +40,24 @@ function getSeedOffers(): readonly MarketOfferRow[] {
   return cachedSeed;
 }
 
+let authoritativeOffers: readonly MarketOfferRow[] | null = null;
+const authoritativeListeners = new Set<() => void>();
+
+/** Sync order book autoritativo (servidor online). */
+export function applyAuthoritativeMarketplaceOffers(offers: readonly MarketOfferRow[]): void {
+  authoritativeOffers = offers.map((row) => ({ ...row }));
+  for (const listener of authoritativeListeners) listener();
+}
+
+export function clearAuthoritativeMarketplaceOffers(): void {
+  authoritativeOffers = null;
+}
+
 /** Snapshot local do livro de ofertas (seed + anúncios do jogador). */
 export function getMarketplaceOrderBookSnapshot(): readonly MarketOfferRow[] {
+  if (authoritativeOffers) {
+    return authoritativeOffers.map((row) => ({ ...row }));
+  }
   const sellListings = getPlayerMarketStore()
     .getListings()
     .filter((entry) => entry.status === 'LISTED')
@@ -55,9 +71,11 @@ export function getMarketplaceOrderBookSnapshot(): readonly MarketOfferRow[] {
 }
 
 export function subscribeMarketplaceOrderBook(listener: () => void): () => void {
+  authoritativeListeners.add(listener);
   const unsubSell = getPlayerMarketStore().subscribe(() => listener());
   const unsubBuy = getMarketplaceBuyOrderStore().subscribe(() => listener());
   return () => {
+    authoritativeListeners.delete(listener);
     unsubSell();
     unsubBuy();
   };
@@ -74,4 +92,9 @@ export function resolveOwnMarketOfferRef(offerId: string):
     return { side: 'buy', orderId: offerId.slice('own_buy_'.length) };
   }
   return null;
+}
+
+export function resolveP2pMarketOfferRef(offerId: string): { readonly listingId: string } | null {
+  if (!offerId.startsWith('p2p_sell_')) return null;
+  return { listingId: offerId.slice('p2p_sell_'.length) };
 }

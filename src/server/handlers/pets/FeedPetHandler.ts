@@ -1,3 +1,4 @@
+import { feedPetSpecialRation } from '../../../Economy/economyGateway.js';
 import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
 
 export type FeedPetPayload = {
@@ -7,8 +8,20 @@ export type FeedPetPayload = {
 export class FeedPetHandler extends BaseIntentHandler<FeedPetPayload> {
   readonly actionType = 'PET_FEED_SPECIAL_RATION';
 
-  async execute(playerId: string, _payload: FeedPetPayload, intentId: string): Promise<void> {
-    this.sendResponse(playerId, intentId, false, 'NOT_IMPLEMENTED');
+  async execute(playerId: string, payload: FeedPetPayload, intentId: string): Promise<void> {
+    const result = await feedPetSpecialRation({
+      playerId,
+      characterId: this.characterId,
+      ...(payload.slotIndex !== undefined ? { slotIndex: payload.slotIndex } : {}),
+      intentId,
+    });
+
+    if (!result.ok) {
+      this.sendResponse(playerId, intentId, false, result.code);
+      return;
+    }
+
+    this.sendResponse(playerId, intentId, true, { message: result.message });
   }
 }
 

@@ -20,6 +20,9 @@ const FORWARDED_ECONOMY_EVENTS = [
   EconomyEventType.WorldVitalsUpdated,
   EconomyEventType.PetAffinityUpdated,
   EconomyEventType.PetRosterUpdated,
+  EconomyEventType.MarcosStateUpdated,
+  EconomyEventType.SkinOwnershipUpdated,
+  EconomyEventType.MarketplaceUpdated,
   EconomyEventType.TransactionFailed,
 ] as const;
 

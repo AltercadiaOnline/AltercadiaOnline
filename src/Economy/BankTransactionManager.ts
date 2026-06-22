@@ -6,8 +6,8 @@ import {
 import { validateBankItemTransfer } from '../shared/bank/bankItemRules.js';
 import {
   consumeInventoryQuantity,
-  lockInventoryQuantity,
   unlockInventoryQuantity,
+  lockInventoryQuantity,
 } from '../shared/bank/inventoryLockOps.js';
 import { transferCurrency, type CurrencyKind } from '../shared/bank/bankCurrency.js';
 import { validateBankCurrencyRequest } from '../shared/bank/bankCurrencyRules.js';
@@ -23,6 +23,7 @@ import {
   unlockWalletCurrency,
   type BankEconomyTransactionResult,
 } from './economyStore.js';
+import { getInventoryLockRegistry } from './inventoryLockRegistry.js';
 
 export type BankOperationResult =
   | { readonly ok: true; readonly tx: Extract<BankEconomyTransactionResult, { ok: true }> }
@@ -79,6 +80,13 @@ export class BankTransactionManager {
       }
       lockedQty = quantity;
       setCharacterInventoryStacks(request.playerId, request.characterId, locked.stacks);
+      getInventoryLockRegistry().track({
+        playerId: request.playerId,
+        characterId: request.characterId,
+        itemId: request.itemId,
+        quantity: lockedQty,
+        lockedAtMs: Date.now(),
+      });
 
       const itemRules = validateBankItemTransfer(request.itemId, quantity);
       if (!itemRules.ok) {
@@ -114,6 +122,7 @@ export class BankTransactionManager {
       }
 
       lockedQty = 0;
+      getInventoryLockRegistry().untrack(request.playerId, request.characterId, request.itemId);
       return { ok: true, tx };
     } finally {
       if (lockedQty > 0) {
@@ -124,6 +133,7 @@ export class BankTransactionManager {
           unlockInventoryQuantity(current, request.itemId, lockedQty),
         );
       }
+      getInventoryLockRegistry().untrack(request.playerId, request.characterId, request.itemId);
       this.release(request.playerId, request.characterId);
     }
   }

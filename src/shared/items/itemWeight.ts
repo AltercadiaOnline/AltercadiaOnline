@@ -1,4 +1,4 @@
-import { getCatalogItem } from './itemCatalog.js';
+import { getItemMechanicalById } from './itemCatalog.js';
 import { EquipmentSlot, ItemKind } from './itemTypes.js';
 import {
   DEFAULT_CONSUMABLE_WEIGHT,
@@ -8,7 +8,7 @@ import {
 } from './itemWeightConstants.js';
 
 export function resolveItemWeight(itemId: string): number {
-  const catalog = getCatalogItem(itemId);
+  const catalog = getItemMechanicalById(itemId);
   if (catalog) return catalog.weight;
 
   return DEFAULT_ITEM_WEIGHT;

@@ -19,6 +19,17 @@ import {
   getAuthoritativeProgression,
   loadAuthoritativeProgression,
 } from '../progression/authoritativeProgressionStore.js';
+import { exportPetAffinityPersistence, hydratePetAffinityPersistence } from '../../Economy/petAffinityStore.js';
+import { exportPetRosterPersistence, hydratePetRosterPersistence } from '../../Economy/petRosterStore.js';
+import { exportOwnedSkinsPersistence, setOwnedSkinsRecord } from '../../Economy/skinOwnershipStore.js';
+import {
+  exportMarketplacePersistence,
+  hydrateMarketplacePersistence,
+} from '../../Economy/marketplaceStore.js';
+import {
+  hydrateGlobalMarketplaceListings,
+  registerGlobalMarketListing,
+} from '../../Economy/globalMarketplaceStore.js';
 import { buildAuthoritativePlayerSnapshot } from './buildAuthoritativeSnapshot.js';
 import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
 
@@ -94,6 +105,10 @@ function buildRecordFromRuntime(
       },
     },
     characterProfile: { ...progressionState.characterProfile },
+    petRoster: exportPetRosterPersistence(playerId, characterId),
+    petAffinity: exportPetAffinityPersistence(playerId, characterId),
+    ownedSkins: exportOwnedSkinsPersistence(playerId, characterId),
+    marketplace: exportMarketplacePersistence(playerId, characterId),
   };
 }
 
@@ -132,6 +147,33 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
     marcos: record.marcos,
     characterProfile: record.characterProfile,
   });
+
+  if (record.petRoster) {
+    hydratePetRosterPersistence(record.playerId, record.characterId, record.petRoster);
+  }
+  if (record.petAffinity) {
+    hydratePetAffinityPersistence(record.playerId, record.characterId, record.petAffinity);
+  }
+  if (record.ownedSkins) {
+    setOwnedSkinsRecord(record.playerId, record.characterId, {
+      hair: [...record.ownedSkins.hair],
+      shirt: [...record.ownedSkins.shirt],
+      pants: [...record.ownedSkins.pants],
+      shoes: [...record.ownedSkins.shoes],
+    });
+  }
+  if (record.marketplace) {
+    hydrateMarketplacePersistence(record.playerId, record.characterId, record.marketplace);
+    for (const listing of record.marketplace.listings) {
+      if (listing.status === 'LISTED') {
+        registerGlobalMarketListing({
+          ...listing,
+          sellerPlayerId: record.playerId,
+          sellerCharacterId: record.characterId,
+        });
+      }
+    }
+  }
 }
 
 /** Carrega loot pendente (startup) via strategy ativa. */
@@ -217,6 +259,8 @@ export async function flushAllPersistence(): Promise<void> {
   const storage = getActivePersistenceStorage();
   if (!storage.isDurable()) return;
   await persistPendingLootSnapshot();
+  const { persistGlobalMarketplaceSnapshot } = await import('./globalMarketplacePersistence.js');
+  await persistGlobalMarketplaceSnapshot();
 }
 
 /** Encerra pool/conexões da strategy (SIGTERM). */

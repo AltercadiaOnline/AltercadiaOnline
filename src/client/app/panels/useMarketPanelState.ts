@@ -21,6 +21,7 @@ import {
 import {
   getMarketplaceOrderBookSnapshot,
   resolveOwnMarketOfferRef,
+  resolveP2pMarketOfferRef,
   subscribeMarketplaceOrderBook,
 } from '../../ui/market/marketplaceOrderBookClient.js';
 import { listMarketSellInventoryRows } from '../../ui/market/marketSellForm.js';
@@ -196,6 +197,22 @@ export function useMarketPanelState() {
     }
   }, [dispatcher]);
 
+  const purchaseOffer = useCallback((offerId: string) => {
+    const ref = resolveP2pMarketOfferRef(offerId);
+    if (!ref) {
+      alertSystem('Somente ofertas P2P de outros jogadores podem ser compradas aqui.');
+      return;
+    }
+
+    const result = dispatcher.dispatch({
+      type: 'EXECUTE_MARKET_PURCHASE',
+      payload: { listingId: ref.listingId },
+    });
+    if (!result.ok) {
+      alertSystem(result.reason);
+    }
+  }, [dispatcher]);
+
   const publishOffer = useCallback(() => {
     if (!offerForm.selectedItemId) return;
 
@@ -264,6 +281,7 @@ export function useMarketPanelState() {
     updateUnitPrice,
     setAnonymous,
     cancelOffer,
+    purchaseOffer,
     publishOffer,
   };
 }

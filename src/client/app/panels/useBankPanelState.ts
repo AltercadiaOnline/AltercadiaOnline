@@ -15,7 +15,7 @@ import {
   sliceBankVaultPageSlots,
   BANK_VAULT_PAGE_SLOT_COUNT,
 } from '../../../shared/bank/bankVaultPagination.js';
-import { getItemById } from '../../../shared/items/itemCatalog.js';
+import { emitItemTooltip } from '../../ui/tooltip/emitItemTooltip.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { getDataStore } from '../../economy/economyLayer.js';
 import { getPendingIntentRegistry } from '../../sync/pendingIntentRegistry.js';
@@ -336,13 +336,7 @@ export function useBankPanelState() {
   }, [resolvedStaged]);
 
   const showItemTooltip = useCallback((event: React.MouseEvent, itemId: string) => {
-    const item = getItemById(itemId);
-    if (!item) return;
-    uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
-      data: { kind: 'item', data: item },
-      x: event.clientX,
-      y: event.clientY,
-    });
+    emitItemTooltip(itemId, event.clientX, event.clientY);
   }, []);
 
   const hideTooltip = useCallback(() => {

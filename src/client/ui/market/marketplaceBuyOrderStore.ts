@@ -81,6 +81,12 @@ class MarketplaceBuyOrderStore {
     this.persistAndPublish();
   }
 
+  /** Espelha ordens autoritativas do servidor (modo online). */
+  replaceFromServer(orders: readonly MarketplaceBuyOrder[]): void {
+    this.orders = orders.map((entry) => ({ ...entry }));
+    this.persistAndPublish();
+  }
+
   private persistAndPublish(): void {
     this.saveToStorage();
     const snapshot = this.getOrders();

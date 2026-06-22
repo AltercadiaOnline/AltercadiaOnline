@@ -1,17 +1,27 @@
 /**
  * Fonte da verdade do sistema de itens do Altercadia.
  *
- * Todo id, peso, slot, efeito, cooldown e carga de runa/poção deve ser
- * definido aqui (`ITEM_CATALOG`). Cliente, combate, CAP e UI apenas leem
- * estes dados via `getItemById` — nunca inventam stats localmente.
+ * Core (id, nome, iconPath) — bundle inicial via `getItemById`.
+ * Extended (descrição, efeitos, lore) — lazy via `getExtendedItemDetails`.
+ * Mecânica (peso, slot, economia) — `getItemMechanicalById` / `getAuthoritativeItemById`.
  */
 import { catalogItemToLegacy } from './catalogLegacyAdapter.js';
-import { buildItemCatalogRecord, CATALOG_ENTRIES } from './itemCatalogEntries.js';
+import {
+  buildItemCatalogCoreRecord,
+  buildItemCatalogMechanicalRecord,
+  buildItemCatalogRecord,
+  CATALOG_ENTRIES,
+} from './itemCatalogEntries.js';
+import { getAuthoritativeItemById, getCatalogItem } from './itemCatalogAuthoritative.js';
+import { mergeItemDefinitionById, mergeItemDefinitionParts } from './itemCatalogMerge.js';
 import { ItemRegistry } from './ItemRegistry.js';
 import {
   ItemCategory,
+  type ItemCoreDefinition,
   type ItemDefinition,
   type ItemEffectDefinition,
+  type ItemExtendedDetails,
+  type ItemMechanicalDefinition,
   type ItemSlotCode,
 } from './itemSchema.js';
 import type {
@@ -27,6 +37,9 @@ import { ItemKind, ZoneId } from './itemTypes.js';
 
 export type {
   ItemDefinition,
+  ItemCoreDefinition,
+  ItemExtendedDetails,
+  ItemMechanicalDefinition,
   ItemEffectDefinition,
   ItemSlotCode,
   ItemEffectValueType,
@@ -39,6 +52,7 @@ export { projectToNormalizedItem } from './itemSchemaProjection.js';
 export { resolveItemWeight, stackWeight } from './itemWeight.js';
 export { POTION_COMBAT_COOLDOWN } from './itemCatalogEntries.js';
 export { DIARIO_MEMORIAS_ITEM_ID } from './soulboundItems.js';
+export { getAuthoritativeItemById, getCatalogItem } from './itemCatalogAuthoritative.js';
 
 export const ZONE_DEFINITIONS: readonly ZoneDefinition[] = [
   { id: ZoneId.Zone1, name: 'Beco dos Fundos', levelMin: 1, levelMax: 10 },
@@ -48,11 +62,19 @@ export const ZONE_DEFINITIONS: readonly ZoneDefinition[] = [
   { id: ZoneId.Zone5, name: 'Esgoto Subterrâneo', levelMin: 40, levelMax: 99 },
 ];
 
-/** Catálogo canônico Altercadia — lista completa de itens. */
+/** Catálogo completo — registro interno e ItemRegistry. */
 export const ITEM_CATALOG_BY_ID: Record<string, ItemDefinition> = buildItemCatalogRecord();
 ItemRegistry.registerMany(Object.values(ITEM_CATALOG_BY_ID));
 
-/** Índice por id — lookup O(1) interno. */
+/** Core — metadados leves para renderização de slots/ícones. */
+export const ITEM_CATALOG_CORE_BY_ID: Record<string, ItemCoreDefinition> =
+  buildItemCatalogCoreRecord();
+
+/** Mecânica — peso, slot, economia, flags (sem descrição/efeitos). */
+export const ITEM_CATALOG_MECHANICAL_BY_ID: Record<string, ItemMechanicalDefinition> =
+  buildItemCatalogMechanicalRecord();
+
+/** Índice por id — lista completa (autoritativa). */
 export const ITEM_CATALOG: readonly ItemDefinition[] = Object.values(ITEM_CATALOG_BY_ID);
 
 /** @deprecated Use `ITEM_CATALOG` (array). Mantido para compatibilidade. */
@@ -73,8 +95,55 @@ export const EQUIPABLE_ITEM_CATALOG: readonly EquipableItemDefinition[] = legacy
   (item): item is EquipableItemDefinition => item.kind === ItemKind.Equipable,
 );
 
-export function getItemById(id: string): ItemDefinition | undefined {
-  return ITEM_CATALOG_BY_ID[id];
+/** Metadados leves — id, nome e iconPath (bundle inicial). */
+export function getItemById(id: string): ItemCoreDefinition | undefined {
+  return ITEM_CATALOG_CORE_BY_ID[id];
+}
+
+export function getItemMechanicalById(id: string): ItemMechanicalDefinition | undefined {
+  return ITEM_CATALOG_MECHANICAL_BY_ID[id];
+}
+
+let extraCatalogCache: Record<string, ItemExtendedDetails> | null = null;
+let extraCatalogLoadPromise: Promise<Record<string, ItemExtendedDetails>> | null = null;
+
+async function ensureExtraCatalogLoaded(): Promise<Record<string, ItemExtendedDetails>> {
+  if (extraCatalogCache) return extraCatalogCache;
+  if (!extraCatalogLoadPromise) {
+    extraCatalogLoadPromise = import('./itemCatalogExtra.js').then((module) => {
+      extraCatalogCache = module.ITEM_CATALOG_EXTRA_BY_ID;
+      return extraCatalogCache;
+    });
+  }
+  return extraCatalogLoadPromise;
+}
+
+/** Pré-carrega metadados estendidos em background (ex.: ao entrar no mundo). */
+export function prefetchItemCatalogExtra(): Promise<void> {
+  return ensureExtraCatalogLoaded().then(() => undefined);
+}
+
+/**
+ * Metadados pesados — descrição, efeitos e lore.
+ * Carregados sob demanda (hover/clique) via dynamic import.
+ */
+export async function getExtendedItemDetails(
+  itemId: string,
+): Promise<ItemExtendedDetails | undefined> {
+  const extraById = await ensureExtraCatalogLoaded();
+  return extraById[itemId];
+}
+
+/** Monta definição completa para tooltip/UI após lazy load dos metadados estendidos. */
+export async function resolveItemDefinitionForDisplay(
+  itemId: string,
+): Promise<ItemDefinition | undefined> {
+  const extended = await getExtendedItemDetails(itemId);
+  return mergeItemDefinitionById(itemId, {
+    core: getItemById(itemId),
+    mechanical: getItemMechanicalById(itemId),
+    extended,
+  });
 }
 
 export const ITEM_ICON_PUBLIC_DIR = '/assets/items';
@@ -97,12 +166,8 @@ export function getItemIconPath(itemId: string): string | undefined {
   return buildDefaultItemIconPath(itemId);
 }
 
-export function getCatalogItem(itemId: string): ItemDefinition | undefined {
-  return ITEM_CATALOG_BY_ID[itemId];
-}
-
 export function getItemDefinition(itemId: string): LegacyItemDefinition | undefined {
-  const item = getCatalogItem(itemId);
+  const item = getAuthoritativeItemById(itemId);
   return item ? catalogItemToLegacy(item) : undefined;
 }
 
@@ -144,3 +209,9 @@ export {
   type EquipmentSlot,
   type PlayerTotalStats,
 } from './itemUtils.js';
+
+/** Reexport para testes — entradas brutas do catálogo. */
+export { CATALOG_ENTRIES };
+
+/** Monta item completo a partir de partes (útil em testes). */
+export { mergeItemDefinitionParts };

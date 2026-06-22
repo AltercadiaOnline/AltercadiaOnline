@@ -9,6 +9,7 @@ import {
   REFRACTION_BOOTH_CONFIG,
   REFRACTION_BOOTH_INSTRUCTOR_NPC,
 } from '../../../shared/cityMinigames/refractionBoothConfig.js';
+import { MESTRE_TRILHAS_NPC_ID } from '../../../shared/world/marcosTrailResetPolicy.js';
 import type { WorldChroniclesSnapshot } from '../../../shared/world/worldLoreTypes.js';
 import {
   consumeChroniclesAbsencePriority,
@@ -47,6 +48,10 @@ export function isRefractionInstructorDialogue(dialogue: DialogueView): boolean 
   return dialogue.npcId === REFRACTION_BOOTH_INSTRUCTOR_NPC;
 }
 
+export function isMarcosTrailMasterDialogue(dialogue: DialogueView): boolean {
+  return dialogue.npcId === MESTRE_TRILHAS_NPC_ID;
+}
+
 export function useDialoguePanelState(dialogue: DialogueView) {
   const { level } = usePlayerData();
   const [chroniclesLoading, setChroniclesLoading] = useState(false);
@@ -55,6 +60,7 @@ export function useDialoguePanelState(dialogue: DialogueView) {
 
   const isCael = isAnciaoCaelDialogue(dialogue);
   const isRefractionInstructor = isRefractionInstructorDialogue(dialogue);
+  const isMarcosTrailMaster = isMarcosTrailMasterDialogue(dialogue);
   const voltsCost = resolveHealVoltsCost(level);
   const healSub = voltsCost > 0 ? formatVolts(HEAL_VOLT_COST) : 'Grátis (novatos)';
   const rationQuote = resolveCaelPetRationQuote();
@@ -97,6 +103,7 @@ export function useDialoguePanelState(dialogue: DialogueView) {
     dialogue,
     isCael,
     isRefractionInstructor,
+    isMarcosTrailMaster,
     level,
     healSub,
     rationQuote,

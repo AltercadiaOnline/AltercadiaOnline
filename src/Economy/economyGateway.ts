@@ -21,6 +21,8 @@ import {
 import { BANK_TRANSACTION_SUCCESS_MESSAGE } from '../shared/bank/bankConstants.js';
 import type { BankCurrencyTypeId } from '../shared/bank/bankConstants.js';
 import { validateBankCurrencyRequest } from '../shared/bank/bankCurrencyRules.js';
+import { validateInventoryDeleteIntent } from '../shared/economy/inventoryPolicy.js';
+import { resolveAvailableStackQuantity } from '../shared/bank/inventoryLockOps.js';
 import { getBankTransactionManager } from './BankTransactionManager.js';
 import { consumeBankIntent } from './bankIntentLedger.js';
 import type { BankEconomyTransactionResult } from './economyStore.js';
@@ -33,11 +35,23 @@ import { BATTLE_SURRENDER_VOLT_PENALTY } from '../shared/combat/battleSurrenderC
 import { mergeAuthorizedEquippedSnapshot } from '../shared/economy/authorizeEquippedSnapshot.js';
 import type { EquippedSlots, InventoryStack, PlayerWorldVitals } from '../shared/character/equipmentState.js';
 import type { EquipmentUiSlotId } from '../shared/character/equipmentUiSlots.js';
-import { equippedToEquipmentUiGrid } from '../shared/character/equipmentUiSlots.js';
+import {
+  equipmentUiGridToEquipped,
+  equippedToEquipmentUiGrid,
+} from '../shared/character/equipmentUiSlots.js';
 import {
   applyEquipToUiGrid,
   applyUnequipFromUiGrid,
+  applyEquipmentUiGridTransition,
 } from '../shared/character/equipUiGridTransaction.js';
+import {
+  sanitizeEquipmentUiGrid,
+  validateLoadoutTransition,
+} from '../shared/character/loadoutValidation.js';
+import {
+  normalizePlayerLoadoutData,
+  type PlayerLoadoutData,
+} from '../shared/world/playerLoadout.js';
 import { globalEventBus } from './EventBus.js';
 import {
   executeEconomyTransaction,
@@ -46,6 +60,8 @@ import {
   getCharacterProfile,
   getPlayerWallet,
   syncAuthoritativeLoadoutFromEconomyProfile,
+  getCharacterInventoryStacks,
+  setCharacterInventoryStacks,
 } from './economyStore.js';
 import { validateCraftItemRequest } from '../shared/crafting/craftValidation.js';
 import { findNpcVendorListing } from '../shared/economy/npcVendorCatalog.js';
@@ -53,8 +69,25 @@ import {
   validateInventoryItemSale,
   validateNpcPurchase,
 } from '../shared/economy/npcVendorService.js';
-import { assertSellItemAllowed } from './InventoryService.js';
-import { validateCaelRationPurchase } from '../shared/economy/caelPetService.js';
+import { assertSellItemAllowed, assertTransferItemAllowed } from './InventoryService.js';
+import {
+  canEquipItemWeight,
+  CAPACITY_OVERLOAD_MESSAGE,
+} from '../shared/character/carryCapacity.js';
+import {
+  INVENTORY_SLOT_COUNT,
+  stacksToInventorySlots,
+} from '../shared/character/inventorySlots.js';
+import { resolveTargetUiSlotForEquip } from '../shared/character/equipItemMapping.js';
+import { getAuthoritativeProgression } from '../server/progression/authoritativeProgressionStore.js';
+import type { GiftTransferSuccess } from '../shared/gift/giftTransferProtocol.js';
+import { validateCaelRationPurchase, validatePetFeedSpecialRation } from '../shared/economy/caelPetService.js';
+import { applyPetDirectFeed } from '../shared/pet/petState.js';
+import { formatPetAffinityGainPercent } from '../shared/pet/petAffinity.js';
+import { clampPetSlotIndex } from '../shared/pet/petRoster.js';
+import { getSkinShopItem } from '../shared/character/skinShopCatalog.js';
+import type { SkinSlotId } from '../shared/character/playerSkin.js';
+import { addOwnedSkinOption, ownsSkinOption } from './skinOwnershipStore.js';
 import {
   buildAdoptedPet,
   validatePetPurchase,
@@ -64,8 +97,32 @@ import type { PetColorId } from '../shared/pet/petColorPalette.js';
 import type { PetGenderId } from '../shared/pet/petGender.js';
 import { rosterHasPetKind } from '../shared/pet/petRoster.js';
 import { formatVolts } from '../shared/economy/premiumCurrency.js';
-import { addRationCharges, getPetAffinityRecord } from './petAffinityStore.js';
-import { adoptPetOnServer, getPetRosterSnapshot } from './petRosterStore.js';
+import { addRationCharges, consumeRationCharge, getPetAffinityRecord, recordPetRationFeedAt } from './petAffinityStore.js';
+import { adoptPetOnServer, getPetRosterSnapshot, updatePetAtSlot } from './petRosterStore.js';
+import { computeInventoryChecksum } from '../shared/character/inventoryChecksum.js';
+import { getInventoryLockRegistry, INVENTORY_LOCK_TIMEOUT_MS } from './inventoryLockRegistry.js';
+import { unlockInventoryQuantity } from '../shared/bank/inventoryLockOps.js';
+import {
+  buildEconomyAuditEntry,
+  emitEconomyAuditLog,
+} from './economyAuditHook.js';
+import { EconomyAuditAction } from '../shared/economy/economyAuditTypes.js';
+
+function auditEconomyMutation(
+  userId: string,
+  action: typeof EconomyAuditAction[keyof typeof EconomyAuditAction],
+  itemId: string,
+  quantity: number,
+  reason: string,
+): void {
+  emitEconomyAuditLog(buildEconomyAuditEntry({
+    userId,
+    action,
+    itemId,
+    quantity,
+    reason,
+  }));
+}
 
 function inventoryUpdatedPayload(
   playerId: string,
@@ -80,14 +137,57 @@ function inventoryUpdatedPayload(
     ?? equippedToEquipmentUiGrid(profile.equipped);
   const equipped = loadout?.equipped ?? profile.equipped;
 
+  const mappedItems = items.map((row) => ({ ...row }));
+
   return {
     playerId,
     characterId,
-    items: items.map((row) => ({ ...row })),
+    items: mappedItems,
     equipped,
     equipmentUiGrid,
+    inventoryChecksum: computeInventoryChecksum(mappedItems),
     ...extras,
   };
+}
+
+export function publishInventoryUpdated(
+  playerId: string,
+  characterId: number,
+  items: readonly import('../shared/character/equipmentState.js').InventoryStack[],
+  extras?: { readonly intentId?: string; readonly revision?: number },
+): void {
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: inventoryUpdatedPayload(playerId, characterId, items, extras),
+  });
+}
+
+let lastInventoryLockSweepMs = 0;
+
+/** Libera locks expirados (ghost items) e emite INVENTORY_UPDATE autoritativo. */
+export function sweepExpiredInventoryLocks(nowMs = Date.now()): void {
+  if (nowMs - lastInventoryLockSweepMs < 5_000) return;
+  lastInventoryLockSweepMs = nowMs;
+
+  const registry = getInventoryLockRegistry();
+  for (const expired of registry.listExpired(nowMs)) {
+    const stacks = getCharacterInventoryStacks(expired.playerId, expired.characterId);
+    const unlocked = unlockInventoryQuantity(stacks, expired.itemId, expired.quantity);
+    setCharacterInventoryStacks(expired.playerId, expired.characterId, unlocked);
+    registry.untrack(expired.playerId, expired.characterId, expired.itemId);
+
+    console.warn('[Economy] Lock de inventário expirado — liberando ghost item', {
+      playerId: expired.playerId,
+      characterId: expired.characterId,
+      itemId: expired.itemId,
+      quantity: expired.quantity,
+      timeoutMs: INVENTORY_LOCK_TIMEOUT_MS,
+    });
+
+    publishInventoryUpdated(expired.playerId, expired.characterId, unlocked, {
+      revision: nowMs,
+    });
+  }
 }
 
 export type StageBattleLootRequest = {
@@ -217,6 +317,7 @@ export async function collectBattleLoot(
 
   const appliedItems: { itemId: string; quantity: number; rarity: string }[] = [];
   let discardedQuantity = 0;
+  const droppedOverflow: { itemId: string; quantity: number }[] = [];
 
   const tx = await executeEconomyTransaction(
     request.winnerId,
@@ -233,6 +334,9 @@ export async function collectBattleLoot(
             quantity: added,
             rarity: row.rarity,
           });
+        }
+        if (overflow > 0) {
+          droppedOverflow.push({ itemId: row.itemId, quantity: overflow });
         }
         discardedQuantity += overflow;
       }
@@ -283,6 +387,16 @@ export async function collectBattleLoot(
       tx.inventorySnapshot,
     ),
   });
+
+  for (const row of droppedOverflow) {
+    auditEconomyMutation(
+      request.winnerId,
+      EconomyAuditAction.Drop,
+      row.itemId,
+      row.quantity,
+      `loot_collect_overflow:${pending.sourceId}`,
+    );
+  }
 
   return {
     ok: true,
@@ -353,6 +467,14 @@ export async function consumeConsumableInCombat(
       tx.inventorySnapshot,
     ),
   });
+
+  auditEconomyMutation(
+    request.playerId,
+    EconomyAuditAction.Drop,
+    request.itemId,
+    1,
+    'combat_consume',
+  );
 
   return { ok: true };
 }
@@ -670,6 +792,13 @@ export async function depositBankItem(
     return result;
   }
   emitBankSuccess(result.tx, request.intentId);
+  auditEconomyMutation(
+    request.playerId,
+    EconomyAuditAction.Trade,
+    request.itemId,
+    Math.max(1, Math.floor(request.quantity ?? 1)),
+    'bank_deposit_item',
+  );
   return { ok: true };
 }
 
@@ -693,6 +822,13 @@ export async function withdrawBankItem(
     return result;
   }
   emitBankSuccess(result.tx, request.intentId);
+  auditEconomyMutation(
+    request.playerId,
+    EconomyAuditAction.Trade,
+    request.itemId,
+    Math.max(1, Math.floor(request.quantity ?? 1)),
+    'bank_withdraw_item',
+  );
   return { ok: true };
 }
 
@@ -821,6 +957,77 @@ export async function creditRefractionBoothPrize(
   return { ok: true };
 }
 
+export type SyncEquipmentLoadoutGatewayResult =
+  | { readonly ok: true; readonly loadout: PlayerLoadoutData; readonly inventory: InventoryStack[] }
+  | { readonly ok: false; readonly message: string };
+
+/** Sincroniza grade visual do SET — transação atômica + evento de inventário. */
+export async function syncEquipmentLoadoutFromGrid(
+  playerId: string,
+  characterId: number,
+  loadoutData: PlayerLoadoutData,
+  intentId?: string,
+): Promise<SyncEquipmentLoadoutGatewayResult> {
+  const profile = getCharacterProfile(playerId, characterId);
+  const currentGrid = profile.equipmentUiGrid ?? equippedToEquipmentUiGrid(profile.equipped);
+  const normalized = normalizePlayerLoadoutData({
+    equipmentUiGrid: sanitizeEquipmentUiGrid(loadoutData.equipmentUiGrid),
+    ...(loadoutData.equipped !== undefined ? { equipped: loadoutData.equipped } : {}),
+  });
+
+  if (!validateLoadoutTransition(normalized.equipmentUiGrid, profile.inventory, currentGrid)) {
+    return { ok: false, message: 'Loadout inválido — item indisponível ou slot incorreto.' };
+  }
+
+  let inventorySnapshot: InventoryStack[] = [];
+
+  const tx = await executeEconomyTransaction(playerId, characterId, async (store) => {
+    const transition = applyEquipmentUiGridTransition(
+      store.getInventory(),
+      currentGrid,
+      normalized.equipmentUiGrid,
+    );
+    if (!transition.ok) {
+      switch (transition.reason) {
+        case 'inventory_full':
+          throw new Error('Inventário cheio — libere espaço antes de desequipar.');
+        case 'empty':
+          throw new Error('Nada equipado neste slot.');
+        case 'invalid_slot':
+        case 'not_equippable':
+        case 'blocked_swap':
+        case 'loadout_mismatch':
+          throw new Error('Loadout inválido — item indisponível ou slot incorreto.');
+        default: {
+          const _exhaustive: never = transition.reason;
+          throw new Error(_exhaustive);
+        }
+      }
+    }
+
+    store.setEquipmentUiGrid(transition.grid);
+    store.setInventory(transition.inventory);
+    inventorySnapshot = store.getInventory().map((row) => ({ ...row }));
+  });
+
+  if (!tx.ok) {
+    return { ok: false, message: tx.message };
+  }
+
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: {
+      ...inventoryUpdatedPayload(playerId, characterId, inventorySnapshot, {
+        ...(intentId ? { intentId } : {}),
+      }),
+      equipped: normalized.equipped ?? equipmentUiGridToEquipped(normalized.equipmentUiGrid),
+      equipmentUiGrid: normalized.equipmentUiGrid,
+    },
+  });
+
+  return { ok: true, loadout: normalized, inventory: inventorySnapshot };
+}
+
 export type EquipFromInventoryGatewayResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly message: string };
@@ -834,6 +1041,26 @@ export async function equipFromInventoryItem(
 ): Promise<EquipFromInventoryGatewayResult> {
   if (!itemId) {
     return { ok: false, message: 'Item indisponível neste slot.' };
+  }
+
+  const profile = getCharacterProfile(playerId, characterId);
+  const loadout = getAuthoritativePlayerLoadout(playerId, characterId);
+  const grid = loadout?.equipmentUiGrid
+    ?? profile.equipmentUiGrid
+    ?? equippedToEquipmentUiGrid(profile.equipped);
+  const uiSlotId = resolveTargetUiSlotForEquip(grid, itemId, preferredUiSlot);
+  if (!uiSlotId) {
+    return { ok: false, message: 'Este item não pode ser equipado no SET.' };
+  }
+
+  const playerLevel = getAuthoritativeProgression(playerId, characterId).characterProfile.level ?? 1;
+  const inventorySlots = stacksToInventorySlots(profile.inventory, INVENTORY_SLOT_COUNT);
+  if (!canEquipItemWeight(
+    { inventorySlots, equipment: grid, playerLevel },
+    uiSlotId,
+    itemId,
+  )) {
+    return { ok: false, message: CAPACITY_OVERLOAD_MESSAGE };
   }
 
   let inventorySnapshot: import('../shared/character/equipmentState.js').InventoryStack[] = [];
@@ -1040,6 +1267,14 @@ export async function purchaseNpcItemAtVendor(
     ),
   });
 
+  auditEconomyMutation(
+    request.playerId,
+    EconomyAuditAction.Trade,
+    request.itemId,
+    quote.quantity,
+    `npc_vendor_purchase:${request.vendorId}`,
+  );
+
   return {
     ok: true,
     itemId: request.itemId,
@@ -1133,6 +1368,14 @@ export async function sellNpcItemAtVendor(
       ...(request.intentId ? { intentId: request.intentId } : {}),
     },
   });
+
+  auditEconomyMutation(
+    request.playerId,
+    EconomyAuditAction.Sell,
+    request.itemId,
+    quote.quantity,
+    `npc_vendor_sell:${request.vendorId}`,
+  );
 
   return {
     ok: true,
@@ -1479,12 +1722,354 @@ export async function craftItemAtStation(
     ),
   });
 
+  const craftReason = `craft_station:${request.craftStationId}:${request.recipeId}`;
+  for (const input of recipe.inputs) {
+    auditEconomyMutation(
+      request.playerId,
+      EconomyAuditAction.Craft,
+      input.itemId,
+      input.quantity * batches,
+      `${craftReason}:consume`,
+    );
+  }
+  auditEconomyMutation(
+    request.playerId,
+    EconomyAuditAction.Craft,
+    recipe.output.itemId,
+    outputQty,
+    `${craftReason}:produce`,
+  );
+
   return {
     ok: true,
     outputItemId: recipe.output.itemId,
     outputQuantity: outputQty,
     batches,
   };
+}
+
+export type DeleteInventoryItemRequest = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly itemId: string;
+  readonly quantity?: number;
+  readonly slotIndex?: number;
+  readonly intentId?: string;
+};
+
+export type DeleteInventoryItemResult =
+  | { readonly ok: true; readonly itemId: string; readonly quantity: number }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+/** Descarte autoritativo — remove item do inventário (política inventoryPolicy). */
+export async function deleteInventoryItem(
+  request: DeleteInventoryItemRequest,
+): Promise<DeleteInventoryItemResult> {
+  const quantity = Math.max(1, Math.floor(request.quantity ?? 1));
+  const profile = getCharacterProfile(request.playerId, request.characterId);
+  const slotState = request.slotIndex !== undefined
+    ? profile.inventory.find((row) => row.itemId === request.itemId)
+    : undefined;
+
+  const policy = validateInventoryDeleteIntent({
+    itemId: request.itemId,
+    quantity,
+    inventoryStacks: profile.inventory,
+    ...(slotState
+      ? {
+          slotQuantity: slotState.quantity,
+          lockedQuantity: slotState.lockedQuantity,
+        }
+      : {}),
+  });
+
+  if (!policy.ok) {
+    return { ok: false, code: 'DELETE_REJECTED', message: policy.reason };
+  }
+
+  const available = profile.inventory
+    .filter((row) => row.itemId === request.itemId)
+    .reduce((total, row) => total + resolveAvailableStackQuantity(row), 0);
+
+  if (quantity > available) {
+    return {
+      ok: false,
+      code: 'DELETE_REJECTED',
+      message: 'Quantidade indisponível (itens bloqueados ou insuficientes).',
+    };
+  }
+
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      store.removeInventoryItem(request.itemId, quantity);
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, code: 'DELETE_FAILED', message: tx.message };
+  }
+
+  syncAuthoritativeLoadoutFromEconomyProfile(request.playerId, request.characterId);
+  const revision = Date.now();
+
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: inventoryUpdatedPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      {
+        revision,
+        ...(request.intentId ? { intentId: request.intentId } : {}),
+      },
+    ),
+  });
+
+  auditEconomyMutation(
+    request.playerId,
+    EconomyAuditAction.Drop,
+    request.itemId,
+    quantity,
+    'inventory_delete',
+  );
+
+  return { ok: true, itemId: request.itemId, quantity };
+}
+
+export type GiftTransferValidationInput = {
+  readonly senderPlayerId: string;
+  readonly senderCharacterId: number;
+  readonly itemId: string;
+  readonly quantity?: number;
+};
+
+export type GiftTransferValidationResult =
+  | { readonly ok: true; readonly quantity: number }
+  | { readonly ok: false; readonly message: string };
+
+/** Pré-validação autoritativa — policy + quantidade disponível (sem mutação). */
+export function validateGiftTransferRequest(
+  input: GiftTransferValidationInput,
+): GiftTransferValidationResult {
+  const itemId = input.itemId.trim();
+  const quantity = Math.max(1, Math.floor(input.quantity ?? 1));
+
+  if (!itemId) {
+    return { ok: false, message: 'Item inválido.' };
+  }
+
+  try {
+    assertTransferItemAllowed(itemId);
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Transferência não permitida.',
+    };
+  }
+
+  const profile = getCharacterProfile(input.senderPlayerId, input.senderCharacterId);
+  const available = profile.inventory
+    .filter((row) => row.itemId === itemId)
+    .reduce((total, row) => total + resolveAvailableStackQuantity(row), 0);
+
+  if (available <= 0) {
+    return { ok: false, message: 'Quantidade insuficiente no inventário.' };
+  }
+
+  if (quantity > available) {
+    return { ok: false, message: 'Quantidade insuficiente no inventário.' };
+  }
+
+  return { ok: true, quantity };
+}
+
+/** Pós-RPC — sync inventário remetente + audit TRADE. */
+export function finalizeGiftTransferSender(
+  senderPlayerId: string,
+  senderCharacterId: number,
+  transfer: GiftTransferSuccess,
+): void {
+  setCharacterInventoryStacks(senderPlayerId, senderCharacterId, transfer.senderStacks);
+
+  publishInventoryUpdated(senderPlayerId, senderCharacterId, transfer.senderStacks);
+
+  auditEconomyMutation(
+    senderPlayerId,
+    EconomyAuditAction.Trade,
+    transfer.itemId,
+    transfer.quantity,
+    `gift_to:${transfer.targetPlayerId}`,
+  );
+}
+
+export type FeedPetSpecialRationRequest = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly slotIndex?: number;
+  readonly intentId?: string;
+};
+
+export type FeedPetSpecialRationResult =
+  | { readonly ok: true; readonly message: string }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+/** Alimenta pet com ração especial — consome carga e aplica cuidado autoritativo. */
+export async function feedPetSpecialRation(
+  request: FeedPetSpecialRationRequest,
+): Promise<FeedPetSpecialRationResult> {
+  const roster = getPetRosterSnapshot(request.playerId, request.characterId);
+  const slotIndex = clampPetSlotIndex(request.slotIndex ?? roster.selectedSlotIndex);
+  const pet = roster.pets[slotIndex] ?? null;
+  const affinity = getPetAffinityRecord(request.playerId, request.characterId);
+
+  const validation = validatePetFeedSpecialRation({
+    rationCharges: affinity.rationCharges,
+    hasSelectedPet: pet !== null,
+    petDefeated: pet ? pet.hpCurrent <= 0 : false,
+    lastFeedAtMs: affinity.lastPetRationFeedAtMs,
+  });
+
+  if (!validation.ok) {
+    return { ok: false, code: 'PET_FEED_REJECTED', message: validation.reason };
+  }
+
+  if (!consumeRationCharge(request.playerId, request.characterId)) {
+    return {
+      ok: false,
+      code: 'NO_RATION_CHARGES',
+      message: 'Sem cargas de ração — compre no Ancião Cael.',
+    };
+  }
+
+  const feedResult = applyPetDirectFeed(pet!);
+  if (!feedResult.ok) {
+    addRationCharges(request.playerId, request.characterId, 1);
+    return { ok: false, code: 'PET_FEED_FAILED', message: feedResult.reason };
+  }
+
+  const nextRoster = updatePetAtSlot(
+    request.playerId,
+    request.characterId,
+    slotIndex,
+    feedResult.pet,
+  );
+
+  if (!nextRoster) {
+    addRationCharges(request.playerId, request.characterId, 1);
+    return { ok: false, code: 'PET_NOT_FOUND', message: 'Companheiro não encontrado.' };
+  }
+
+  recordPetRationFeedAt(request.playerId, request.characterId);
+  const updatedAffinity = getPetAffinityRecord(request.playerId, request.characterId);
+  const revision = Date.now();
+  const message = `Alimentação em ${pet!.name}. Felicidade restaurada, envelhecimento pausado por 24 h e +${formatPetAffinityGainPercent(feedResult.affinityGainRatio)}% de afinidade. Cargas restantes: ${updatedAffinity.rationCharges}.`;
+
+  globalEventBus.emit({
+    type: EconomyEventType.PetRosterUpdated,
+    payload: {
+      playerId: request.playerId,
+      characterId: request.characterId,
+      pets: nextRoster.pets,
+      activeSlotIndex: nextRoster.activeSlotIndex,
+      selectedSlotIndex: nextRoster.selectedSlotIndex,
+      message,
+      revision,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  globalEventBus.emit({
+    type: EconomyEventType.PetAffinityUpdated,
+    payload: {
+      playerId: request.playerId,
+      characterId: request.characterId,
+      rationCharges: updatedAffinity.rationCharges,
+      lastPetRationFeedAtMs: updatedAffinity.lastPetRationFeedAtMs,
+      lastPetAffectionAtMs: updatedAffinity.lastPetAffectionAtMs,
+      revision,
+    },
+  });
+
+  return { ok: true, message };
+}
+
+export type PurchaseSkinRequest = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly slot: SkinSlotId;
+  readonly optionId: string;
+  readonly intentId?: string;
+};
+
+export type PurchaseSkinResult =
+  | { readonly ok: true; readonly message: string }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+/** Compra cosmético na loja de skins — debita VOLTS e registra ownership. */
+export async function purchaseSkinAtShop(
+  request: PurchaseSkinRequest,
+): Promise<PurchaseSkinResult> {
+  const item = getSkinShopItem(request.slot, request.optionId);
+  if (!item) {
+    return { ok: false, code: 'SKIN_INVALID', message: 'Item de loja inválido.' };
+  }
+
+  if (ownsSkinOption(request.playerId, request.characterId, request.slot, request.optionId)) {
+    return { ok: false, code: 'SKIN_ALREADY_OWNED', message: 'Você já possui esta peça.' };
+  }
+
+  const wallet = getPlayerWallet(request.playerId);
+  if (wallet.dollarVolt < item.price) {
+    return { ok: false, code: 'INSUFFICIENT_FUNDS', message: 'DOLLAR VOLT insuficiente.' };
+  }
+
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    async (store) => {
+      store.spendDollarVolt(item.price);
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, code: 'INSUFFICIENT_FUNDS', message: tx.message };
+  }
+
+  const ownedSkins = addOwnedSkinOption(
+    request.playerId,
+    request.characterId,
+    request.slot,
+    request.optionId,
+  );
+  const revision = Date.now();
+  const message = `Peça cosmética adquirida: ${item.name} (−${formatVolts(item.price)}).`;
+
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId: request.playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      revision,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  globalEventBus.emit({
+    type: EconomyEventType.SkinOwnershipUpdated,
+    payload: {
+      playerId: request.playerId,
+      characterId: request.characterId,
+      ownedSkins,
+      message,
+      revision,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  return { ok: true, message };
 }
 
 export { ALTER_TO_VOLTS_EXCHANGE_RATE };

@@ -106,14 +106,18 @@ function toLegacyGeneric(item: CatalogItemDefinition): GenericItemDefinition {
     id: item.id,
     name: item.name,
     kind: isCurrency ? ItemKind.Currency : ItemKind.Generic,
-    sellable: true,
+    sellable: item.isTradable !== false,
     description: item.description ?? item.name,
     weight: item.weight,
   };
 }
 
+function resolveLegacyEquipSlot(item: CatalogItemDefinition): EquipableItemDefinition['slot'] {
+  return SLOT_CODE_TO_EQUIPMENT[item.slot ?? 'P'] ?? EquipmentSlot.Bottom;
+}
+
 function toLegacyEquipable(item: CatalogItemDefinition): EquipableItemDefinition {
-  const slot = SLOT_CODE_TO_EQUIPMENT[item.slot ?? 'P'] ?? EquipmentSlot.Bottom;
+  const slot = resolveLegacyEquipSlot(item);
   const meta = CREATURE_BY_EQUIP_ID[item.id] ?? { creatureId: 'unknown', zoneId: ZoneId.Zone1 };
   return {
     id: item.id,

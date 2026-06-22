@@ -7,6 +7,7 @@ import {
   debitBattleSurrenderPenalty,
   dismissBattleLoot,
   stageBattleLoot,
+  sweepExpiredInventoryLocks,
 } from '../../Economy/economyGateway.js';
 import { seedAuthoritativePlayerEconomyIfEmpty } from '../economy/seedAuthoritativePlayerEconomy.js';
 import { isOriginAllowed } from '../config/cors.js';
@@ -67,7 +68,9 @@ import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
 import { resolveDefeatedCreatureLevel } from '../../shared/combat/battleXpRewards.js';
 import { buildCombatFinishedEvent } from '../combat/buildCombatFinishedEvent.js';
 import { persistWorldVitalsAfterCombat } from '../world/persistWorldVitalsAfterCombat.js';
-import { applyAuthoritativeBattleProgression } from '../combat/applyAuthoritativeBattleProgression.js';
+import { applyAuthoritativeBattleProgression, resolveAuthoritativeBattleProgressionGrant } from '../combat/applyAuthoritativeBattleProgression.js';
+import { applyAuthoritativeDeathPenalty } from '../combat/applyAuthoritativeDeathPenalty.js';
+import { progressMarcoAuthoritative } from '../../Economy/progressionGateway.js';
 import { ensureMovesetMasteryForClass } from '../../shared/progression/movesetMasterySeed.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
@@ -434,6 +437,10 @@ export class CombatWsHub implements CombatWsRouteHost {
   }
 
   async routeDevSpawnMirrorPlayer(ws: LiveSocket, connectionId: string): Promise<void> {
+    if (process.env.NODE_ENV === 'production') {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'DEV_ONLY' } });
+      return;
+    }
     const session = this.sessions.get(connectionId);
     if (!session) {
       this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
@@ -514,17 +521,56 @@ export class CombatWsHub implements CombatWsRouteHost {
               movesetMastery,
             },
           );
+          const endReason: BattleEndReason = forcedEndReason
+            ?? (finishedEvent.payload.victory ? 'VICTORY' : 'DEFEAT');
+          let payloadPatch: Partial<import('../../shared/combat/combatFinished.js').CombatFinishedPayload> =
+            {};
+
           if (finishedEvent.payload.victory && finishedEvent.payload.progressionGrant) {
+            const scaledGrant = resolveAuthoritativeBattleProgressionGrant(
+              session.getPlayerActorId(),
+              session.getCharacterId(),
+              finishedEvent.payload.progressionGrant,
+            );
             applyAuthoritativeBattleProgression(
               session.getPlayerActorId(),
               session.getCharacterId(),
               finishedEvent.payload.progressionGrant,
               combatClassId,
             );
+            payloadPatch = { progressionGrant: scaledGrant };
+
+            const marcoEvents = session.getMarcoProgressEvents(true);
+            if (marcoEvents.length > 0) {
+              progressMarcoAuthoritative(
+                session.getPlayerActorId(),
+                session.getCharacterId(),
+                marcoEvents,
+              );
+            }
+          } else if (!finishedEvent.payload.victory && endReason !== 'FORFEIT') {
+            const deathPenaltyOutcome = applyAuthoritativeDeathPenalty(
+              session.getPlayerActorId(),
+              session.getCharacterId(),
+              combatClassId,
+            );
+            payloadPatch = { deathPenaltyOutcome };
           }
+
+          const patchedFinished =
+            Object.keys(payloadPatch).length > 0
+              ? {
+                  ...finishedEvent,
+                  payload: {
+                    ...finishedEvent.payload,
+                    ...payloadPatch,
+                  },
+                }
+              : finishedEvent;
+
           return {
             ...timerEnriched,
-            events: [...timerEnriched.events, finishedEvent],
+            events: [...timerEnriched.events, patchedFinished],
           };
         })()
       : timerEnriched;
@@ -891,7 +937,10 @@ export class CombatWsHub implements CombatWsRouteHost {
       },
       buildCreaturesForMap: (mapId) =>
         isMapId(mapId) ? buildServerScopedWorldCreaturesForMap(mapId) : [],
-      onTickStart: () => this.expireStaleBattleSessionLeases(),
+      onTickStart: () => {
+        this.expireStaleBattleSessionLeases();
+        sweepExpiredInventoryLocks();
+      },
     });
   }
 

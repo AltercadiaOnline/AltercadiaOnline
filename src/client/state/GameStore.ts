@@ -383,6 +383,13 @@ class GameStore {
       return { ok: false, message };
     }
 
+    const { validateTransferItem } = await import('../../Economy/InventoryService.js');
+    const transferPolicy = validateTransferItem(trimmedItem);
+    if (!transferPolicy.ok) {
+      alertSystem(transferPolicy.reason);
+      return { ok: false, message: transferPolicy.reason };
+    }
+
     const resolvedCharacterId = characterId ?? this.activeCharacterId ?? 1;
     const correlationId = createCorrelationId();
 

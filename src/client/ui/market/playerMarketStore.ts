@@ -118,6 +118,14 @@ class PlayerMarketStore {
     this.persistAndPublish();
   }
 
+  /** Espelha anúncios autoritativos do servidor (modo online). */
+  replaceFromServer(listings: readonly PlayerMarketListing[]): void {
+    for (const timer of this.sellTimers.values()) clearTimeout(timer);
+    this.sellTimers.clear();
+    this.listings = listings.map((entry) => ({ ...entry }));
+    this.persistAndPublish();
+  }
+
   private scheduleAutoSell(listingId: string): void {
     if (this.sellTimers.has(listingId)) return;
     const timer = setTimeout(() => {

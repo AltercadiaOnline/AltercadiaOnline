@@ -1,12 +1,6 @@
-import {
-  applyInheritanceStatsBonusPercent,
-  resolvePetInheritanceBonusesFromStacks,
-  scaleBattleProgressionXp,
-} from '../../shared/pet/petInheritanceBonuses.js';
 import { applyBattleProgressionGrant } from '../../shared/progression/applyBattleProgression.js';
-import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
-import type { BattleProgressionGrant } from '../../shared/progression/battleProgressionGrant.js';
 import { getClassMovePool } from '../../shared/combat/classMovesetCatalog.js';
+import type { BattleProgressionGrant } from '../../shared/progression/battleProgressionGrant.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
@@ -33,9 +27,6 @@ export function mirrorBattleProgressionGrant(
   progressionStore.ensureMasteryForMovesets(getClassMovePool(classId));
   const progression = progressionStore.getSnapshot();
 
-  const inheritance = resolvePetInheritanceBonusesFromStacks(getPlayerItemStore().toInventoryStacks());
-  const scaledGrant = scaleBattleProgressionXp(grant, inheritance.xpBonusPercent);
-
   const applied = applyBattleProgressionGrant(
     {
       level: characterLevel.level,
@@ -43,7 +34,7 @@ export function mirrorBattleProgressionGrant(
       movesetMastery: progression.movesetMastery,
       milestoneTotalProgress: progression.milestoneTotalProgress,
     },
-    scaledGrant,
+    grant,
   );
 
   dataStore.applyCharacterLevelState(applied.level, applied.xpCurrent, 'pve_victory');

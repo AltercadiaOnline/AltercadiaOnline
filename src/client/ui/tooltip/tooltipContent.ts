@@ -84,6 +84,14 @@ function buildItemModel(
     }
   }
 
+  if (item.description) {
+    lines.push(item.description);
+  }
+
+  if (item.history) {
+    lines.push(item.history);
+  }
+
   return {
     borderColor: ITEM_TOOLTIP_BORDER_COLORS[item.category] ?? MOVE_TOOLTIP_BORDER_COLOR,
     title: item.name,

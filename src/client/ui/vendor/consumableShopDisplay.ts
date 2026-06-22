@@ -1,4 +1,4 @@
-import { getItemById } from '../../../shared/items/itemCatalog.js';
+import { getAuthoritativeItemById } from '../../../shared/items/itemCatalogAuthoritative.js';
 import { CHARGED_EQUIPMENT_MAX_CHARGES } from '../../../shared/items/chargedEquipment.js';
 import {
   ItemCategory,
@@ -91,7 +91,7 @@ function buildBookEffectLines(item: ItemDefinition): readonly string[] {
 
 /** Linhas de efeito detalhado para a HUD do Laboratório. */
 export function buildConsumableShopEffectLines(itemId: string): readonly string[] {
-  const item = getItemById(itemId);
+  const item = getAuthoritativeItemById(itemId);
   if (!item) return ['Efeito indisponível.'];
 
   switch (item.category) {
@@ -107,7 +107,7 @@ export function buildConsumableShopEffectLines(itemId: string): readonly string[
 }
 
 export function resolveConsumableShopSubtitle(itemId: string): string | null {
-  const item = getItemById(itemId);
+  const item = getAuthoritativeItemById(itemId);
   if (!item) return null;
   if (item.requiresLevel) return `Requer nível ${item.requiresLevel}`;
   return null;

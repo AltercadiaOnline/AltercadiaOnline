@@ -1,5 +1,5 @@
 import { ItemCategory } from '../../../shared/items/itemSchema.js';
-import { getItemById } from '../../../shared/items/itemCatalog.js';
+import { getItemById, getItemMechanicalById } from '../../../shared/items/itemCatalog.js';
 import { DIARIO_MEMORIAS_ITEM_ID } from '../../../shared/items/soulboundItems.js';
 import { openDiaryPanel } from '../diary/openDiaryPanel.js';
 import { getGameStateManager } from '../../../shared/state/GameStateManager.js';
@@ -33,8 +33,7 @@ function resolveInventorySlotState(
 ): { readonly itemId: string; readonly locked: boolean } | null {
   if (!target) return null;
 
-  const item = getItemById(target.itemId);
-  if (!item) return null;
+  if (!getItemById(target.itemId)) return null;
 
   const slot = getPlayerItemStore().getInventorySnapshot().slots[target.slotIndex];
   if (!slot?.itemId || slot.itemId !== target.itemId || slot.quantity <= 0) {
@@ -55,7 +54,7 @@ export function buildInventorySlotContextActions(
   if (!slotState) return [];
 
   const { itemId, locked } = slotState;
-  const item = getItemById(itemId)!;
+  const item = getItemMechanicalById(itemId)!;
   const actions: ActionMenuItem[] = [];
 
   if (itemId === DIARIO_MEMORIAS_ITEM_ID) {

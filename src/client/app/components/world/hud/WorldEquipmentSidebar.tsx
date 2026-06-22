@@ -6,7 +6,7 @@ import {
 } from '../../../../../shared/character/equipmentUiSlots.js';
 import { resolveCharacterLevelXpBar } from '../../../../../shared/character/characterLevelProgression.js';
 import { resolveLoadoutPpBudget } from '../../../../../shared/combat/loadoutPpBudget.js';
-import { getItemById } from '../../../../../shared/items/itemCatalog.js';
+import { emitItemTooltip } from '../../../../ui/tooltip/emitItemTooltip.js';
 import {
   InventoryService,
   isSyncPending,
@@ -51,13 +51,7 @@ function EquipSlotButton({
 
   const showTooltip = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
     if (!itemId) return;
-    const item = getItemById(itemId);
-    if (!item) return;
-    uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
-      data: { kind: 'item', data: item },
-      x: event.clientX,
-      y: event.clientY,
-    });
+    emitItemTooltip(itemId, event.clientX, event.clientY);
   }, [itemId]);
 
   const hideTooltip = useCallback(() => {

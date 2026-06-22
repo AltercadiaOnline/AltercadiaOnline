@@ -101,3 +101,14 @@ export function isPlayerSkinRecord(value: unknown): value is PlayerSkin {
     && typeof record.shoes === 'string'
   );
 }
+
+/** IDs de skins possuídos por padrão — espelha createDefaultPlayerSkin(). */
+export function getDefaultOwnedSkinIds(): Record<SkinSlotId, readonly string[]> {
+  const defaults = createDefaultPlayerSkin();
+  return {
+    hair: [defaults.hair],
+    shirt: [defaults.shirt],
+    pants: [defaults.pants],
+    shoes: [defaults.shoes],
+  };
+}

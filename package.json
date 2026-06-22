@@ -13,7 +13,7 @@
     "build": "npm run build:compile && npm run build:tsx-runtime && npm run build:sync && npm run build:ui && node ./scripts/write-game-origin-config.mjs && node ./scripts/write-deploy-manifest.mjs",
     "vercel-build": "npm run build",
     "start": "node dist/server/index.js",
-    "test": "node -e \"console.log('Test suite removed — run npm run typecheck && npm run build')\"",
+    "test": "node -e \"console.error('Nenhuma suíte automatizada configurada. Use: npm run deploy:check'); process.exit(1)\"",
     "audit:item-icons": "tsx scripts/audit-item-icons.ts",
     "audit:creature-assets": "tsx scripts/audit-creature-assets.ts",
     "seed:creature-placeholders": "node scripts/seed-zone1-creature-placeholders.mjs",

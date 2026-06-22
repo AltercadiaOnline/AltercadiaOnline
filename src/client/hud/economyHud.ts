@@ -14,6 +14,9 @@ import { getMutableDataStore } from '../PlayerDataStore.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
+import { getPlayerSkinStore } from '../ui/character/playerSkinStore.js';
+import { getPlayerMarketStore } from '../ui/market/playerMarketStore.js';
+import { getMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 
 export function formatDollarVolt(amount: number): string {
@@ -182,6 +185,46 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
     uiEvents.emit(UIEventType.BANK_UPDATE_SUCCESS, { message });
     uiEvents.emit(UIEventType.BANK_TRANSACTION_SUCCESS, { message });
     alertSystem(message);
+    return;
+  }
+
+  if (event.type === EconomyEventType.MarcosStateUpdated) {
+    dataStore.applyMarcosStateFromServer(event.payload, event.payload.revision);
+    if (event.payload.intentId) {
+      dispatcher.confirmIntent(event.payload.intentId);
+    }
+    return;
+  }
+
+  if (event.type === EconomyEventType.SkinOwnershipUpdated) {
+    getPlayerSkinStore().syncOwnedSkins({
+      hair: [...event.payload.ownedSkins.hair],
+      shirt: [...event.payload.ownedSkins.shirt],
+      pants: [...event.payload.ownedSkins.pants],
+      shoes: [...event.payload.ownedSkins.shoes],
+    });
+    if (event.payload.intentId) {
+      dispatcher.confirmIntent(event.payload.intentId);
+    }
+    if (event.payload.message) {
+      alertSystem(event.payload.message);
+    }
+    return;
+  }
+
+  if (event.type === EconomyEventType.MarketplaceUpdated) {
+    void import('../ui/market/marketplaceOrderBookClient.js').then(({ applyAuthoritativeMarketplaceOffers }) => {
+      applyAuthoritativeMarketplaceOffers(event.payload.offers);
+    });
+    getPlayerMarketStore().replaceFromServer(event.payload.ownListings);
+    getMarketplaceBuyOrderStore().replaceFromServer(event.payload.ownBuyOrders);
+    if (event.payload.intentId) {
+      dispatcher.confirmIntent(event.payload.intentId);
+    }
+    if (event.payload.message) {
+      alertSystem(event.payload.message);
+    }
+    return;
   }
 }
 

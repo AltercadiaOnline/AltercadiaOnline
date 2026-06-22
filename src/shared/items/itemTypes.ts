@@ -56,7 +56,7 @@ export type GenericItemDefinition = {
   readonly id: string;
   readonly name: string;
   readonly kind: typeof ItemKind.Generic | typeof ItemKind.Currency;
-  readonly sellable: true;
+  readonly sellable: boolean;
   readonly description: string;
   readonly weight: number;
 };

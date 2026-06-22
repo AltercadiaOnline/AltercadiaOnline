@@ -46,6 +46,7 @@ import {
   applyInventoryUpdatedPayload,
   applyServerItemBundle,
   stacksFromInventorySnapshot,
+  verifyInventoryIntegrityAfterHydrate,
 } from './game/PlayerItemSession.js';
 import { getPlayerItemStore } from './ui/items/playerItemStore.js';
 import { getPlayerMarcosStore } from './ui/marcos/playerMarcosStore.js';
@@ -433,6 +434,7 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
           : {}),
         immediate: true,
       });
+      verifyInventoryIntegrityAfterHydrate(state.inventory.inventoryChecksum);
       this.sliceRevisions.inventory = incoming;
     }
 

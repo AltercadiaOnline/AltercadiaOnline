@@ -1,6 +1,6 @@
 import type { EquippedSlots, InventoryStack } from '../character/equipmentState.js';
 import { getBookDefinition, getRuneDefinition } from './runesBooksCatalog.js';
-import { getItemById } from './itemCatalog.js';
+import { getItemMechanicalById } from './itemCatalog.js';
 import { CHARGED_EQUIPMENT_MAX_CHARGES } from './chargedEquipmentConstants.js';
 
 export { CHARGED_EQUIPMENT_MAX_CHARGES } from './chargedEquipmentConstants.js';
@@ -16,7 +16,7 @@ export function isChargedInventoryStackItemId(itemId: string): boolean {
 
 export function resolveItemMaxCharges(itemId: string): number {
   if (isChargedEquipmentItemId(itemId)) return CHARGED_EQUIPMENT_MAX_CHARGES;
-  const fromCatalog = getItemById(itemId)?.charges;
+  const fromCatalog = getItemMechanicalById(itemId)?.charges;
   return fromCatalog !== undefined ? fromCatalog : 0;
 }
 

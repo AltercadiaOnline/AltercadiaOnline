@@ -11,6 +11,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'public', 'config');
 const outFile = path.join(outDir, 'game-origin.json');
 
+try {
+  const { loadProjectEnv } = await import('../dist/server/config/loadEnv.js');
+  loadProjectEnv(root);
+} catch {
+  // build:compile ainda não rodou — segue só com shell env
+}
+
 function deriveHttpFromWs(wsUrl) {
   const trimmed = wsUrl?.trim() ?? '';
   if (!trimmed) return null;

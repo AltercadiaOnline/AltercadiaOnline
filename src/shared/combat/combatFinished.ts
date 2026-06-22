@@ -5,6 +5,7 @@ import type { BattleRankingResult, BattleType } from './battleType.js';
 import { isBattleRankingResult, isBattleType } from './battleType.js';
 import { isLootRevealSlots, LOOT_REVEAL_SLOT_COUNT } from '../loot/lootRevealSlots.js';
 import type { BattleProgressionGrant } from '../progression/battleProgressionGrant.js';
+import type { DeathPenaltyOutcome } from '../progression/ProgressionPenaltyManager.js';
 
 /** Recompensas autoritativas anexadas ao evento COMBAT_FINISHED. */
 export type CombatFinishedPayload = {
@@ -21,6 +22,8 @@ export type CombatFinishedPayload = {
   readonly rankingResult?: BattleRankingResult;
   /** Split autoritativo — cliente espelha sem recalcular. */
   readonly progressionGrant?: BattleProgressionGrant;
+  /** Penalidade de derrota aplicada no servidor — cliente só espelha. */
+  readonly deathPenaltyOutcome?: DeathPenaltyOutcome;
 };
 
 export function isCombatFinishedPayload(value: unknown): value is CombatFinishedPayload {

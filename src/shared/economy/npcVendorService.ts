@@ -1,4 +1,4 @@
-import { getItemById } from '../items/itemCatalog.js';
+import { getAuthoritativeItemById } from '../items/itemCatalogAuthoritative.js';
 import type { NpcVendorListing } from './npcVendorCatalog.js';
 import {
   isNpcVendorSellableItem,
@@ -24,7 +24,7 @@ function resolveQuote(
   quantity: number,
   unitPriceVolts: number,
 ): NpcTradeQuote | null {
-  const item = getItemById(itemId);
+  const item = getAuthoritativeItemById(itemId);
   if (!item) return null;
 
   const qty = Math.max(1, Math.floor(quantity));

@@ -1,4 +1,4 @@
-import { getItemById } from '../items/itemCatalog.js';
+import { getAuthoritativeItemById } from '../items/itemCatalogAuthoritative.js';
 import {
   ItemRegistry,
   MarketBrowseCategory,
@@ -103,7 +103,7 @@ export function resolveMarketAverageLabel(itemId: string): string {
   if (quote.sampleSize > 0) {
     return `Média (${quote.sampleSize} vendas): ${formatMarketVolts(quote.averageUnitPrice)}`;
   }
-  const item = getItemById(itemId);
+  const item = getAuthoritativeItemById(itemId);
   return item?.valorBase
     ? `Referência base: ${formatMarketVolts(item.valorBase)}`
     : 'Sem histórico de mercado';

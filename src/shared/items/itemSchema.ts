@@ -43,16 +43,26 @@ export type ItemEffectDefinition = {
 /** Gatilho de combate para runas (slot U2). */
 export type ItemCombatTrigger = 'IMPACT' | 'BLOCK' | 'DASH';
 
-/**
- * Definição canônica de item — fonte única do catálogo Altercadia.
- */
-export type ItemDefinition = {
+/** Metadados leves — carregados no bundle inicial (ícone, nome, id). */
+export type ItemCoreDefinition = {
   readonly id: string;
   readonly name: string;
+  readonly iconPath?: string;
+};
+
+/** Metadados pesados — descrição, efeitos e lore; lazy load na UI. */
+export type ItemExtendedDetails = {
+  readonly description?: string;
+  readonly effects: readonly ItemEffectDefinition[];
+  /** Histórico / lore do item — exibido sob demanda na UI. */
+  readonly history?: string;
+};
+
+/** Regras mecânicas do item — sempre disponíveis para economia/combate/inventário. */
+export type ItemMechanicalDefinition = {
   readonly category: ItemCategory;
   readonly weight: number;
   readonly slot?: ItemSlotCode;
-  readonly effects: readonly ItemEffectDefinition[];
   /** Poções reativas — turnos de cooldown (Combat V1.2: 2). */
   readonly cooldown?: number;
   /** Runas — cargas por batalha (procs in-combat). */
@@ -62,15 +72,12 @@ export type ItemDefinition = {
   readonly requiresLevel?: number;
   readonly maxStack?: number;
   readonly combatTrigger?: ItemCombatTrigger;
-  readonly description?: string;
   /** Preço piso de mercado (Volts) — NPC revende a valorBase × 0.8. */
   readonly valorBase?: number;
   /** Drop de loot — crafting (forja) ou valor direto (revenda NPC). */
   readonly lootKind?: ItemLootKind;
   /** Raridade exibida no saque e na UI de revenda. */
   readonly lootRarity?: LootRarityId;
-  /** Caminho público do ícone. Se omitido, usa `/assets/items/{id}.png`. */
-  readonly iconPath?: string;
   /** Apenas uma unidade por personagem — não empilha duplicata. */
   readonly isUnique?: boolean;
   /** Não pode ser descartado, dropado ou destruído. */
@@ -78,6 +85,12 @@ export type ItemDefinition = {
   /** false bloqueia mercado P2P e revenda NPC. Padrão: true quando omitido. */
   readonly isTradable?: boolean;
 };
+
+/**
+ * Definição canônica de item — fonte única do catálogo Altercadia.
+ * Composição: Core + Mechanical + Extended.
+ */
+export type ItemDefinition = ItemCoreDefinition & ItemMechanicalDefinition & ItemExtendedDetails;
 
 /** @deprecated Use `ItemDefinition` — alias histórico. */
 export type NormalizedItemDefinition = ItemDefinition;

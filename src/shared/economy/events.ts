@@ -13,6 +13,9 @@ export const EconomyEventType = {
   WorldVitalsUpdated: 'WORLD_VITALS_UPDATED',
   PetAffinityUpdated: 'PET_AFFINITY_UPDATED',
   PetRosterUpdated: 'PET_ROSTER_UPDATED',
+  MarcosStateUpdated: 'MARCOS_STATE_UPDATED',
+  SkinOwnershipUpdated: 'SKIN_OWNERSHIP_UPDATED',
+  MarketplaceUpdated: 'MARKETPLACE_UPDATED',
 } as const;
 
 export type EconomyEventTypeId = (typeof EconomyEventType)[keyof typeof EconomyEventType];
@@ -76,6 +79,8 @@ export type InventoryUpdatedPayload = {
   readonly equipmentUiGrid?: EquipmentUiGridState;
   readonly revision?: number;
   readonly intentId?: string;
+  /** Hash determinístico do inventário (itemId, qty, charges, lockedQuantity). */
+  readonly inventoryChecksum?: string;
 };
 
 export type UpdateBankSuccessPayload = {
@@ -122,6 +127,59 @@ export type PetRosterUpdatedPayload = {
   readonly intentId?: string;
 };
 
+export type MarcosStateUpdatedPayload = Omit<
+  import('../playerDataSnapshots.js').MarcosStateSnapshot,
+  'revision'
+> & {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly revision?: number;
+  readonly intentId?: string;
+};
+
+export type MarketplaceUpdatedPayload = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly offers: readonly import('./marketplaceOrderBook.js').MarketOfferRow[];
+  readonly ownListings: readonly {
+    readonly id: string;
+    readonly itemId: string;
+    readonly itemName: string;
+    readonly quantity: number;
+    readonly unitPriceVolts: number;
+    readonly totalPriceVolts: number;
+    readonly status: 'LISTED' | 'SOLD';
+    readonly anonymous?: boolean;
+    readonly createdAt: number;
+    readonly soldAt?: number;
+  }[];
+  readonly ownBuyOrders: readonly {
+    readonly id: string;
+    readonly itemId: string;
+    readonly itemName: string;
+    readonly quantity: number;
+    readonly unitPriceVolts: number;
+    readonly totalPriceVolts: number;
+    readonly anonymous: boolean;
+    readonly createdAt: number;
+  }[];
+  readonly message?: string;
+  readonly revision?: number;
+  readonly intentId?: string;
+};
+
+export type SkinOwnershipUpdatedPayload = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly ownedSkins: Record<
+    import('../character/playerSkin.js').SkinSlotId,
+    readonly string[]
+  >;
+  readonly message?: string;
+  readonly revision?: number;
+  readonly intentId?: string;
+};
+
 export type EconomyEvent =
   | { readonly type: typeof EconomyEventType.LootGranted; readonly payload: LootGrantedPayload }
   | { readonly type: typeof EconomyEventType.WalletUpdated; readonly payload: WalletUpdatedPayload }
@@ -134,6 +192,9 @@ export type EconomyEvent =
   | { readonly type: typeof EconomyEventType.WorldVitalsUpdated; readonly payload: WorldVitalsUpdatedPayload }
   | { readonly type: typeof EconomyEventType.PetAffinityUpdated; readonly payload: PetAffinityUpdatedPayload }
   | { readonly type: typeof EconomyEventType.PetRosterUpdated; readonly payload: PetRosterUpdatedPayload }
+  | { readonly type: typeof EconomyEventType.MarcosStateUpdated; readonly payload: MarcosStateUpdatedPayload }
+  | { readonly type: typeof EconomyEventType.SkinOwnershipUpdated; readonly payload: SkinOwnershipUpdatedPayload }
+  | { readonly type: typeof EconomyEventType.MarketplaceUpdated; readonly payload: MarketplaceUpdatedPayload }
   | { readonly type: typeof EconomyEventType.TransactionFailed; readonly payload: { readonly message: string; readonly intentId?: string; readonly playerId?: string } }
   | {
       readonly type: typeof EconomyEventType.TransactionSuccess;

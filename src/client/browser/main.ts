@@ -24,6 +24,7 @@ import { canPetEnterBattle } from '../../shared/pet/petModel.js';
 import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
 import { bootstrapEmptyPlayerItems, bootstrapMvpPlayerItems } from '../game/PlayerItemSession.js';
+import { prefetchItemCatalogExtra } from '../../shared/items/itemCatalog.js';
 import { attachOnlineEconomyLayer, getDataStore } from '../economy/economyLayer.js';
 import { requestReturnToExploration } from '../game/battleReturnToWorld.js';
 import {
@@ -636,6 +637,7 @@ function enterWorldAfterHudReady(): void {
   } else {
     bootstrapMvpPlayerItems();
   }
+  void prefetchItemCatalogExtra();
   getGlobalPlayerStore().applyClassMoveset(equipmentStore.getSnapshot().classId);
   getBattleStore().resyncLoadout();
   initPlayerHudHpMaxSync();

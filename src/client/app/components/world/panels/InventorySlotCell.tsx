@@ -26,7 +26,8 @@ type InventorySlotCellProps = {
   wallet: GameStoreGold;
   pending: boolean;
   vendorOpen: boolean;
-  onClick?: (itemId: string) => void;
+  selected?: boolean;
+  onClick?: (itemId: string, slotIndex: number) => void;
   onDoubleClick?: (itemId: string) => void;
   onContextMenu?: (event: MouseEvent, itemId: string) => void;
   onTooltipShow?: (event: MouseEvent, itemId: string) => void;
@@ -52,6 +53,7 @@ export function InventorySlotCell({
   wallet,
   pending,
   vendorOpen,
+  selected = false,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -93,6 +95,7 @@ export function InventorySlotCell({
         kindClass,
         npcHighValue ? 'slot-item--npc-high-value' : '',
         locked ? 'slot-item--locked' : '',
+        selected ? 'slot-item--selected' : '',
         pending ? 'slot-item--pending' : '',
       ].filter(Boolean).join(' ')}
       role="gridcell"
@@ -108,7 +111,7 @@ export function InventorySlotCell({
             ? 'Item bloqueado — transação bancária em andamento'
             : undefined
       }
-      onClick={() => onClick?.(itemId)}
+      onClick={() => onClick?.(itemId, index)}
       onDoubleClick={() => onDoubleClick?.(itemId)}
       onContextMenu={(event) => onContextMenu?.(event, itemId)}
       onMouseEnter={(event) => onTooltipShow?.(event, itemId)}

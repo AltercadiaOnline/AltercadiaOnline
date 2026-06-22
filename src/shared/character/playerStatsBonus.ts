@@ -1,5 +1,5 @@
 import type { EquipmentUiGridState } from './equipmentUiSlots.js';
-import { getItemById } from '../items/itemCatalog.js';
+import { getAuthoritativeItemById } from '../items/itemCatalogAuthoritative.js';
 import { calculateTotalStats, equipmentIdsToSlots } from '../items/itemUtils.js';
 import {
   ENCUMBERED_STEP_MS,
@@ -56,7 +56,7 @@ export function calculateStatsBonusFromEquipment(
 
   for (const itemId of Object.values(equipment)) {
     if (!itemId) continue;
-    const item = getItemById(itemId);
+    const item = getAuthoritativeItemById(itemId);
     if (!item) continue;
     for (const effect of item.effects) {
       if (effect.combatOnly || effect.stat !== 'DODGE') continue;

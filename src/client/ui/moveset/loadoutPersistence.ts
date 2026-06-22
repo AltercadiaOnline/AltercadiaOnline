@@ -1,8 +1,30 @@
+import { getActionDispatcher } from '../../ActionDispatcher.js';
+import { canApplyLocalGameplayMutations } from '../../sync/intentPolicy.js';
+
 /**
- * Persistência do loadout confirmado — ponto único para a chamada de rede.
- * Só após sucesso aqui o GlobalPlayerStore grava localmente e emite LOADOUT_SAVED.
+ * Persiste loadout confirmado no servidor (SYNC_MOVESET).
+ * Em mock/local aplica apenas no cliente — sem round-trip.
  */
 export async function persistLoadoutToServer(activeMovesets: readonly string[]): Promise<void> {
-  void activeMovesets;
-  await Promise.resolve();
+  const dispatcher = getActionDispatcher();
+
+  if (canApplyLocalGameplayMutations(dispatcher.getMode())) {
+    return;
+  }
+
+  const result = dispatcher.dispatch({
+    type: 'SYNC_MOVESET',
+    payload: { activeMovesets: [...activeMovesets] },
+  });
+
+  if (!result.ok) {
+    throw new Error(result.reason);
+  }
+
+  if (result.status === 'pending' && result.intentId) {
+    const acknowledged = await dispatcher.waitForIntentResult(result.intentId);
+    if (!acknowledged) {
+      throw new Error('Servidor rejeitou a confirmação do loadout.');
+    }
+  }
 }

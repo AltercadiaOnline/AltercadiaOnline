@@ -1,24 +1,15 @@
-import { EconomyEventType } from '../../shared/economy/events.js';
+import type { PlayerLoadoutData } from '../../shared/world/playerLoadout.js';
+import { syncEquipmentLoadoutFromGrid } from '../../Economy/economyGateway.js';
 import {
   equipmentUiGridToEquipped,
   equippedToEquipmentUiGrid,
 } from '../../shared/character/equipmentUiSlots.js';
+import { normalizePlayerLoadoutData } from '../../shared/world/playerLoadout.js';
 import {
-  sanitizeEquipmentUiGrid,
-  validateLoadoutTransition,
-} from '../../shared/character/loadoutValidation.js';
-import { applyEquipmentUiGridTransition } from '../../shared/character/equipUiGridTransaction.js';
-import {
-  normalizePlayerLoadoutData,
-  type PlayerLoadoutData,
-} from '../../shared/world/playerLoadout.js';
-import {
-  executeEconomyTransaction,
   getCharacterProfile,
   setAuthoritativePlayerLoadout,
   syncAuthoritativeLoadoutFromEconomyProfile,
 } from '../../Economy/economyStore.js';
-import { globalEventBus } from '../../Economy/EventBus.js';
 import { getWorldProfile, saveWorldProfile } from './worldProfileStore.js';
 import { rejectLoadoutMutationIfInBattle } from './loadoutMutationGuard.js';
 
@@ -41,25 +32,8 @@ export function persistAuthoritativeLoadout(
   return normalized;
 }
 
-function inventoryUpdatedPayload(
-  playerId: string,
-  characterId: number,
-  items: readonly import('../../shared/character/equipmentState.js').InventoryStack[],
-  loadout: PlayerLoadoutData,
-  extras?: { readonly intentId?: string; readonly revision?: number },
-) {
-  return {
-    playerId,
-    characterId,
-    items: items.map((row) => ({ ...row })),
-    equipped: loadout.equipped ?? equipmentUiGridToEquipped(loadout.equipmentUiGrid),
-    equipmentUiGrid: loadout.equipmentUiGrid,
-    ...extras,
-  };
-}
-
 /**
- * Persiste SET no worldProfile e economyStore — fonte da verdade para loot/UI.
+ * Persiste SET no worldProfile — mutação de inventário via economyGateway.
  */
 export async function handleSyncLoadout(
   playerId: string,
@@ -70,66 +44,17 @@ export async function handleSyncLoadout(
   const blocked = rejectLoadoutMutationIfInBattle(playerId, characterId);
   if (blocked) return blocked;
 
-  const profile = getCharacterProfile(playerId, characterId);
-  const currentGrid = profile.equipmentUiGrid ?? equippedToEquipmentUiGrid(profile.equipped);
-  const normalized = normalizePlayerLoadoutData({
-    equipmentUiGrid: sanitizeEquipmentUiGrid(loadoutData.equipmentUiGrid),
-    ...(loadoutData.equipped !== undefined ? { equipped: loadoutData.equipped } : {}),
-  });
-
-  if (!validateLoadoutTransition(normalized.equipmentUiGrid, profile.inventory, currentGrid)) {
-    return { ok: false, message: 'Loadout inválido — item indisponível ou slot incorreto.' };
+  const result = await syncEquipmentLoadoutFromGrid(
+    playerId,
+    characterId,
+    loadoutData,
+    intentId,
+  );
+  if (!result.ok) {
+    return { ok: false, message: result.message };
   }
 
-  let inventorySnapshot: import('../../shared/character/equipmentState.js').InventoryStack[] = [];
-
-  const tx = await executeEconomyTransaction(playerId, characterId, async (store) => {
-    const transition = applyEquipmentUiGridTransition(
-      store.getInventory(),
-      currentGrid,
-      normalized.equipmentUiGrid,
-    );
-    if (!transition.ok) {
-      switch (transition.reason) {
-        case 'inventory_full':
-          throw new Error('Inventário cheio — libere espaço antes de desequipar.');
-        case 'empty':
-          throw new Error('Nada equipado neste slot.');
-        case 'invalid_slot':
-        case 'not_equippable':
-        case 'blocked_swap':
-        case 'loadout_mismatch':
-          throw new Error('Loadout inválido — item indisponível ou slot incorreto.');
-        default: {
-          const _exhaustive: never = transition.reason;
-          throw new Error(_exhaustive);
-        }
-      }
-    }
-
-    // Grid antes do dedupe — evita remover item recém-devolvido à mochila.
-    store.setEquipmentUiGrid(transition.grid);
-    store.setInventory(transition.inventory);
-    inventorySnapshot = store.getInventory().map((row) => ({ ...row }));
-  });
-
-  if (!tx.ok) {
-    return { ok: false, message: tx.message };
-  }
-
-  persistAuthoritativeLoadout(playerId, characterId, normalized);
-
-  globalEventBus.emit({
-    type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
-      playerId,
-      characterId,
-      inventorySnapshot,
-      normalized,
-      { ...(intentId ? { intentId } : {}) },
-    ),
-  });
-
+  persistAuthoritativeLoadout(playerId, characterId, result.loadout);
   return { ok: true };
 }
 

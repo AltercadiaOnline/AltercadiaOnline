@@ -1,5 +1,5 @@
 import { getItemDefinition } from '../items/itemCatalog.js';
-import { getItemById } from '../items/itemCatalog.js';
+import { getItemMechanicalById } from '../items/itemCatalog.js';
 import { getConsumableDefinition } from '../items/consumablesCatalog.js';
 import {
   isChargedInventoryStackItemId,
@@ -31,7 +31,7 @@ const DEFAULT_CURRENCY_MAX_STACK = 9999;
 
 /** Regras de pilha por tipo de item (catálogo = fonte da verdade). */
 export function resolveInventoryStackRules(itemId: string): InventoryStackRules {
-  const catalogItem = getItemById(itemId);
+  const catalogItem = getItemMechanicalById(itemId);
   if (catalogItem?.isUnique) {
     return { stackable: false, maxStack: 1 };
   }
@@ -178,7 +178,7 @@ export function addItemToInventorySlots(
       added += delta;
     }
   } else {
-    const isUnique = getItemById(itemId)?.isUnique === true;
+    const isUnique = getItemMechanicalById(itemId)?.isUnique === true;
     while (remaining > 0) {
       if (isUnique) {
         const alreadyOwned = next.some((slot) => slot.itemId === itemId && slot.quantity > 0);

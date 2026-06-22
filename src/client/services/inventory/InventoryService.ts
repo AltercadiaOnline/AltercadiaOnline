@@ -11,6 +11,7 @@
  * UI NUNCA chama playerItemStore, Supabase ou ActionDispatcher diretamente.
  */
 
+import { validateInventoryDeleteIntent } from '../../../shared/economy/inventoryPolicy.js';
 import type { EquipmentUiSlotId } from '../../../shared/character/equipmentUiSlots.js';
 import { findCompatibleEquipmentUiSlot } from '../../../shared/character/equipItemMapping.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
@@ -95,6 +96,40 @@ export function toggleItemSlot(
 
 export function isInventoryMutationPending(): boolean {
   return getGameStore().hasPendingActions();
+}
+
+export function deleteItemFromInventory(
+  itemId: string,
+  options?: { readonly quantity?: number; readonly slotIndex?: number; readonly slotQuantity?: number; readonly lockedQuantity?: number },
+): InventoryActionResult {
+  const quantity = Math.max(1, Math.floor(options?.quantity ?? 1));
+  const policy = validateInventoryDeleteIntent({
+    itemId,
+    quantity,
+    ...(options?.slotQuantity !== undefined
+      ? {
+          slotQuantity: options.slotQuantity,
+          lockedQuantity: options.lockedQuantity,
+        }
+      : {}),
+  });
+
+  if (!policy.ok) {
+    reportTransactionFailure(null, policy.reason, policy.reason);
+    return { ok: false, reason: policy.reason };
+  }
+
+  return dispatchInventoryAction(
+    {
+      type: 'DELETE_ITEM',
+      payload: {
+        itemId,
+        quantity,
+        ...(options?.slotIndex !== undefined ? { slotIndex: options.slotIndex } : {}),
+      },
+    },
+    'Não foi possível descartar o item.',
+  );
 }
 
 export function subscribeInventoryView(

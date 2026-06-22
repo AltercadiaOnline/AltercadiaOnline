@@ -27,6 +27,8 @@ import {
 import { CombatGateway, type DispatchResult } from './CombatGateway.js';
 import { BattleManager } from '../../shared/combat/BattleEngine.js';
 import { isClassMoveId } from '../../shared/combat/classMovesetCatalog.js';
+import { MarcoCombatTelemetryAccumulator } from '../../shared/progression/marcoCombatTelemetryCore.js';
+import type { MarcoProgressEvent } from '../../shared/progression/marcoProgressEngine.js';
 import { isMirrorBotActorId } from '../../shared/combat/mirrorPlayerConfig.js';
 import {
   buildMirrorInjectedState,
@@ -75,6 +77,7 @@ export class CombatSession {
   private readonly processedRequestIds = new Set<string>();
   /** Cada push = um uso do move na batalha (XP de domínio proporcional). */
   private readonly movesUsedInBattle: string[] = [];
+  private readonly marcoTelemetry: MarcoCombatTelemetryAccumulator;
   private mirrorActorId: string | null = null;
   private pendingRuneSpeed: { readonly amount: number; readonly appliesOnTurn: number } | null = null;
   private runeSpeedAppliedTurn: number | null = null;
@@ -87,6 +90,7 @@ export class CombatSession {
     this.ruleManifest = cloneManifest(options.ruleManifest ?? []);
     this.gateway = CombatGateway.create(initial, playerActorId);
     this.battleManager = new BattleManager(playerActorId);
+    this.marcoTelemetry = new MarcoCombatTelemetryAccumulator(playerActorId);
   }
 
   public getPlayerActorId(): string {
@@ -103,6 +107,10 @@ export class CombatSession {
 
   public getMovesUsedInBattle(): readonly string[] {
     return [...this.movesUsedInBattle];
+  }
+
+  public getMarcoProgressEvents(victory: boolean): readonly MarcoProgressEvent[] {
+    return this.marcoTelemetry.toProgressEvents(victory);
   }
 
   public getCombatClassId(): NonNullable<PlayerCombatLoadout['classId']> {
@@ -230,6 +238,7 @@ export class CombatSession {
       ? this.resolveMirrorDuelRound(resolvedAction, this.mirrorActorId)
       : this.resolvePveRound(resolvedAction);
     mergedEvents.push(...round.events);
+    this.marcoTelemetry.recordCombatEvents(mergedEvents);
 
     this.battleManager.markMonsterTurnComplete();
     this.clearExpiredRuneSpeed(round.state.turn);

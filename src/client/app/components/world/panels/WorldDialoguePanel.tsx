@@ -6,6 +6,7 @@ import { hideInteractionCard } from '../../../../world/interactionCardController
 import { endWorldHudInteractionSession } from '../../../../world/worldHudInteractionSession.js';
 import { closeAllNpcModals } from '../../../../ui/npcModalController.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
+import { setPlayerAtMarcosResetNpc } from '../../../../ui/marcos/marcosTrailResetGate.js';
 import { openSurvivalGuideCard } from '../../../../ui/components/SurvivalGuideCard.js';
 import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
@@ -63,6 +64,7 @@ export function WorldDialoguePanel({
         uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
       }
     }
+    setPlayerAtMarcosResetNpc(false);
     preserveWorldHudRef.current = false;
     suppressWorldHudReleaseRef.current = false;
   }, []);
@@ -103,6 +105,21 @@ export function WorldDialoguePanel({
       alertSystem(
         `Ração Especial adquirida. ${total} carga${total === 1 ? '' : 's'} na HUD Pet Love.`,
       );
+    },
+  });
+
+  const handleResetMarcosTrail = useCallback(() => {
+    return getActionDispatcher().dispatch({
+      type: 'RESET_MARCO_TRAIL',
+      payload: { npcId: dialogue.npcId },
+    });
+  }, [dialogue.npcId]);
+
+  const resetTrailGateway = useActionGatewaySubmit({
+    onClick: handleResetMarcosTrail,
+    onResolved: () => {
+      alertSystem('Trilha Marcos reiniciada. Escolha uma nova ramificação na Ficha.');
+      tryCloseReactWorldPanel('dialogue');
     },
   });
 
@@ -249,6 +266,31 @@ export function WorldDialoguePanel({
               onClick={handleClose}
             >
               Não, obrigado
+            </button>
+          </div>
+        </div>
+      ) : state.isMarcosTrailMaster ? (
+        <div className="ui-dialogue-body">
+          <p className="ui-dialogue-text">{dialogue.text}</p>
+          <p className="ui-dialogue-heal-hint">
+            Isso zera marcos ativos e progressão de nós. Ação irreversível.
+          </p>
+          <div className="ui-dialogue-choices">
+            <button
+              type="button"
+              className="ui-dialogue-heal-btn ui-dialogue-choice--accept"
+              disabled={resetTrailGateway.pending}
+              aria-busy={resetTrailGateway.pending}
+              onClick={resetTrailGateway.submit}
+            >
+              {resetTrailGateway.pending ? 'Resetando…' : 'Resetar trilha'}
+            </button>
+            <button
+              type="button"
+              className="ui-dialogue-heal-btn ui-dialogue-choice--decline"
+              onClick={handleClose}
+            >
+              Cancelar
             </button>
           </div>
         </div>

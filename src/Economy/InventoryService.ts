@@ -1,9 +1,10 @@
-import { getItemById } from '../shared/items/itemCatalog.js';
+import { getItemMechanicalById } from '../shared/items/itemCatalog.js';
 import type { InventoryStack } from '../shared/character/equipmentState.js';
 import {
   SOULBOUND_DISCARD_MESSAGE,
   validateSoulboundRetention,
 } from '../shared/economy/soulboundInventoryPolicy.js';
+import { validateInventoryDeleteIntent } from '../shared/economy/inventoryPolicy.js';
 
 export { SOULBOUND_DISCARD_MESSAGE };
 
@@ -15,10 +16,11 @@ function validateRemoval(itemId: string): InventoryServiceResult {
   const soulbound = validateSoulboundRetention(itemId);
   if (!soulbound.ok) return soulbound;
 
-  const item = getItemById(itemId);
-  if (!item) {
-    return { ok: false, reason: 'Item desconhecido.' };
+  const policy = validateInventoryDeleteIntent({ itemId, quantity: 1 });
+  if (!policy.ok) {
+    return { ok: false, reason: policy.reason };
   }
+
   return { ok: true };
 }
 
@@ -27,7 +29,7 @@ export function validateDeleteItem(itemId: string): InventoryServiceResult {
   return validateRemoval(itemId);
 }
 
-/** Bloqueia drop no chão — mesma regra do delete para itens indestrutíveis. */
+/** Bloqueia descarte destrutivo — mesma regra do delete (sem drop no mapa). */
 export function validateDropItem(itemId: string): InventoryServiceResult {
   return validateRemoval(itemId);
 }
@@ -37,9 +39,19 @@ export function validateSellItem(itemId: string): InventoryServiceResult {
   return validateSoulboundRetention(itemId);
 }
 
+const NON_TRADABLE_TRANSFER_MESSAGE = 'Este item não pode ser transferido.';
+
 /** Bloqueia transferência para cofre ou outro jogador. */
 export function validateTransferItem(itemId: string): InventoryServiceResult {
-  return validateSoulboundRetention(itemId);
+  const soulbound = validateSoulboundRetention(itemId);
+  if (!soulbound.ok) return soulbound;
+
+  const item = getItemMechanicalById(itemId);
+  if (item?.isTradable === false) {
+    return { ok: false, reason: NON_TRADABLE_TRANSFER_MESSAGE };
+  }
+
+  return { ok: true };
 }
 
 export function deleteItem(itemId: string): InventoryServiceResult {
@@ -58,7 +70,7 @@ export function validateAddItem(
 ): InventoryServiceResult {
   if (quantity <= 0) return { ok: true };
 
-  const item = getItemById(itemId);
+  const item = getItemMechanicalById(itemId);
   if (!item) {
     return { ok: false, reason: 'Item desconhecido.' };
   }

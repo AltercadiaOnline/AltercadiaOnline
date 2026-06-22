@@ -33,6 +33,7 @@ import type { EquipmentUiGridState, EquipmentUiSlotId } from '../../../shared/ch
 import { EquipmentUiSlotId as UiSlot } from '../../../shared/character/equipmentUiSlots.js';
 
 import { buildInventorySnapshot, type InventorySnapshot } from '../../../shared/character/inventorySlots.js';
+import { computeInventoryChecksumFromStacks } from '../../../shared/character/inventoryChecksum.js';
 
 import {
 
@@ -89,6 +90,8 @@ class PlayerItemStore {
   private pendingServerRecords: PlayerItemRecord[] | null = null;
 
   private serverHydrateFrame: number | null = null;
+
+  private lastServerInventoryChecksum: string | null = null;
 
 
 
@@ -368,6 +371,18 @@ class PlayerItemStore {
 
   }
 
+  computeLocalInventoryChecksum(): string {
+    return computeInventoryChecksumFromStacks(this.toInventoryStacks());
+  }
+
+  getLastServerInventoryChecksum(): string | null {
+    return this.lastServerInventoryChecksum;
+  }
+
+  setLastServerInventoryChecksum(checksum: string): void {
+    this.lastServerInventoryChecksum = checksum;
+  }
+
 
 
   toEquipmentGrid(): EquipmentUiGridState {
@@ -541,6 +556,8 @@ class PlayerItemStore {
     this.cancelPendingServerHydrate();
 
     this.items = [];
+
+    this.lastServerInventoryChecksum = null;
 
     this.revision += 1;
 

@@ -16,6 +16,7 @@ import {
 import {
   getBookDefinition,
   getEquipableItem,
+  getItemMechanicalById,
   getRuneDefinition,
 } from '../../../shared/items/itemCatalog.js';
 import {
@@ -80,8 +81,11 @@ function canPlaceInUiSlot(itemId: string, uiSlotId: EquipmentUiSlotId): boolean 
 
   const equip = getEquipableItem(itemId);
   if (equip) {
-    if (equip.slot === EquipmentSlot.Bottom && (uiSlotId === 'legs' || uiSlotId === 'boots')) {
-      return true;
+    if (equip.slot === EquipmentSlot.Bottom) {
+      const slotCode = getItemMechanicalById(itemId)?.slot;
+      if (slotCode === 'B') return uiSlotId === 'boots';
+      if (slotCode === 'P') return uiSlotId === 'legs';
+      return uiSlotId === 'legs' || uiSlotId === 'boots';
     }
     return equip.slot === expected;
   }

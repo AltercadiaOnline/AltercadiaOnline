@@ -5,8 +5,8 @@ import {
   loadPendingLootPersistence,
   shutdownPersistenceStorage,
 } from './PersistenceGateway.js';
-import { createPersistenceStorage } from './storage/createPersistenceStorage.js';
-import {
+import { loadGlobalMarketplacePersistence } from './globalMarketplacePersistence.js';
+import { createPersistenceStorage } from './storage/createPersistenceStorage.js';import {
   getActivePersistenceStorage,
   setActivePersistenceStorage,
 } from './storage/persistenceStorageRegistry.js';
@@ -36,6 +36,7 @@ export async function initializePersistence(
 
   if (storage.isDurable()) {
     await loadPendingLootPersistence();
+    await loadGlobalMarketplacePersistence();
   }
 
   switch (mode) {

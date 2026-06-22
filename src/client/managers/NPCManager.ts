@@ -31,6 +31,8 @@ import {
   NpcActionType,
 } from '../../shared/world/npcRegistry.js';
 import { grantMarketTerminalAccess } from '../../shared/economy/marketAccessGate.js';
+import { MESTRE_TRILHAS_NPC_ID } from '../../shared/world/marcosTrailResetPolicy.js';
+import { setPlayerAtMarcosResetNpc } from '../ui/marcos/marcosTrailResetGate.js';
 import { ARENA_PULPIT_AUDIENCE_FACING } from '../../shared/world/maps/city01LayoutConstants.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 import { beginWorldHudInteractionSession } from '../world/worldHudInteractionSession.js';
@@ -172,6 +174,9 @@ export class NPCManager {
           y: player.y,
           facing: player.facing,
         });
+      }
+      if (npc.id === MESTRE_TRILHAS_NPC_ID) {
+        setPlayerAtMarcosResetNpc(true);
       }
       uiEvents.emit(UIEventType.SHOW_DIALOGUE, {
         npcId: npc.id,

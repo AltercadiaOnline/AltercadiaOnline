@@ -11,6 +11,7 @@ import {
   INVENTORY_SLOT_COUNT,
   stacksToInventorySlots,
 } from '../../shared/character/inventorySlots.js';
+import { computeInventoryChecksumFromStacks } from '../../shared/character/inventoryChecksum.js';
 import { buildBankStorageView } from '../../shared/bank/bankService.js';
 import { buildMovesProgressionData } from '../../shared/progression/moveProgression.js';
 import {
@@ -19,7 +20,9 @@ import {
   resolveClassMovePoolForMastery,
 } from '../../shared/progression/movesetMasterySeed.js';
 import type { ClassType } from '../../shared/types/classes.js';
-import { createEmptyPetRoster } from '../../shared/pet/petRoster.js';
+import { getPetAffinityRecord } from '../../Economy/petAffinityStore.js';
+import { getPetRosterSnapshot } from '../../Economy/petRosterStore.js';
+import { getOwnedSkinsRecord } from '../../Economy/skinOwnershipStore.js';
 import {
   exportCharacterEconomyPersistence,
   getPlayerWallet,
@@ -74,6 +77,7 @@ export function buildAuthoritativePlayerSnapshot(
     inventory: {
       ...buildInventorySnapshot(inventorySlots, INVENTORY_SLOT_COUNT),
       revision,
+      inventoryChecksum: computeInventoryChecksumFromStacks(inventoryStacks),
     },
     equipped: { ...economy.profile.equipped },
     equipmentUiGrid,
@@ -102,15 +106,14 @@ export function buildAuthoritativePlayerSnapshot(
       revision,
     },
     petRoster: {
-      ...createEmptyPetRoster(),
+      ...getPetRosterSnapshot(playerId, characterId),
       revision,
     },
     petAffinity: {
-      lastPetAffectionAtMs: null,
-      lastPetRationFeedAtMs: null,
-      rationCharges: 0,
+      ...getPetAffinityRecord(playerId, characterId),
       revision,
     },
+    ownedSkins: getOwnedSkinsRecord(playerId, characterId),
     gameTime: getTimeManager().getGameTimeSeconds(),
     gameTimeServerMs: revision,
   };

@@ -7,8 +7,11 @@ import { createDefaultPlayerProgressionData } from '../progression/playerProgres
 import { emptyMarcosNodeProgression } from '../progression/marcoProgression.js';
 import { createDefaultWorldProfile } from '../world/playerWorldProfile.js';
 
+import type { PlayerPetRosterSnapshot } from '../pet/petRoster.js';
+import type { SkinSlotId } from '../character/playerSkin.js';
+
 /** Versão do schema JSON — incrementar ao mudar formato. */
-export const CHARACTER_PERSISTENCE_SCHEMA_VERSION = 1;
+export const CHARACTER_PERSISTENCE_SCHEMA_VERSION = 2;
 
 export type PersistedWalletSlice = {
   readonly dollarVolt: number;
@@ -34,9 +37,46 @@ export type PersistedMarcosSlice = {
   readonly nodeProgression: MarcosNodeProgressionData;
 };
 
+export type PersistedPetAffinitySlice = {
+  readonly rationCharges: number;
+  readonly lastPetRationFeedAtMs: number | null;
+  readonly lastPetAffectionAtMs: number | null;
+};
+
+export type PersistedOwnedSkinsSlice = Record<SkinSlotId, readonly string[]>;
+
+export type PersistedMarketplaceListingSlice = {
+  readonly id: string;
+  readonly itemId: string;
+  readonly itemName: string;
+  readonly quantity: number;
+  readonly unitPriceVolts: number;
+  readonly totalPriceVolts: number;
+  readonly status: 'LISTED' | 'SOLD';
+  readonly anonymous?: boolean;
+  readonly createdAt: number;
+  readonly soldAt?: number;
+};
+
+export type PersistedMarketplaceBuyOrderSlice = {
+  readonly id: string;
+  readonly itemId: string;
+  readonly itemName: string;
+  readonly quantity: number;
+  readonly unitPriceVolts: number;
+  readonly totalPriceVolts: number;
+  readonly anonymous: boolean;
+  readonly createdAt: number;
+};
+
+export type PersistedMarketplaceSlice = {
+  readonly listings: readonly PersistedMarketplaceListingSlice[];
+  readonly buyOrders: readonly PersistedMarketplaceBuyOrderSlice[];
+};
+
 /** Snapshot autoritativo persistido por personagem (playerId + characterId). */
 export type CharacterPersistenceRecord = {
-  readonly schemaVersion: typeof CHARACTER_PERSISTENCE_SCHEMA_VERSION;
+  readonly schemaVersion: 1 | typeof CHARACTER_PERSISTENCE_SCHEMA_VERSION;
   readonly playerId: string;
   readonly characterId: number;
   readonly updatedAt: number;
@@ -51,6 +91,10 @@ export type CharacterPersistenceRecord = {
   readonly progression: PlayerProgressionData;
   readonly marcos: PersistedMarcosSlice;
   readonly characterProfile: PersistedCharacterProfileSlice;
+  readonly petRoster?: PlayerPetRosterSnapshot;
+  readonly petAffinity?: PersistedPetAffinitySlice;
+  readonly ownedSkins?: PersistedOwnedSkinsSlice;
+  readonly marketplace?: PersistedMarketplaceSlice;
 };
 
 export function characterPersistenceKey(playerId: string, characterId: number): string {
@@ -100,7 +144,7 @@ export function isCharacterPersistenceRecord(value: unknown): value is Character
   if (!value || typeof value !== 'object') return false;
   const record = value as CharacterPersistenceRecord;
   return (
-    record.schemaVersion === CHARACTER_PERSISTENCE_SCHEMA_VERSION
+    (record.schemaVersion === 1 || record.schemaVersion === CHARACTER_PERSISTENCE_SCHEMA_VERSION)
     && typeof record.playerId === 'string'
     && typeof record.characterId === 'number'
     && typeof record.updatedAt === 'number'

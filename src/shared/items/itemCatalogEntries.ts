@@ -1,7 +1,10 @@
 import {
   ItemCategory,
   ItemEffectValueType,
+  type ItemCoreDefinition,
   type ItemDefinition,
+  type ItemExtendedDetails,
+  type ItemMechanicalDefinition,
   type ItemCombatTrigger,
   type ItemSlotCode,
 } from './itemSchema.js';
@@ -383,13 +386,83 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
   ),
 ];
 
-export function buildItemCatalogRecord(): Record<string, ItemDefinition> {
-  const record: Record<string, ItemDefinition> = {};
+function splitCatalogItem(full: ItemDefinition): {
+  readonly core: ItemCoreDefinition;
+  readonly mechanical: ItemMechanicalDefinition;
+  readonly extended: ItemExtendedDetails;
+} {
+  const {
+    id,
+    name,
+    iconPath,
+    description,
+    effects,
+    history,
+    ...mechanical
+  } = full;
+
+  return {
+    core: {
+      id,
+      name,
+      ...(iconPath !== undefined ? { iconPath } : {}),
+    },
+    mechanical: mechanical as ItemMechanicalDefinition,
+    extended: {
+      effects,
+      ...(description !== undefined ? { description } : {}),
+      ...(history !== undefined ? { history } : {}),
+    },
+  };
+}
+
+function buildCatalogSplitRecords(): {
+  readonly full: Record<string, ItemDefinition>;
+  readonly core: Record<string, ItemCoreDefinition>;
+  readonly mechanical: Record<string, ItemMechanicalDefinition>;
+  readonly extra: Record<string, ItemExtendedDetails>;
+} {
+  const full: Record<string, ItemDefinition> = {};
+  const core: Record<string, ItemCoreDefinition> = {};
+  const mechanical: Record<string, ItemMechanicalDefinition> = {};
+  const extra: Record<string, ItemExtendedDetails> = {};
+
   for (const entry of CATALOG_ENTRIES) {
-    if (record[entry.id]) {
+    if (full[entry.id]) {
       throw new Error(`[itemCatalog] ID duplicado: ${entry.id}`);
     }
-    record[entry.id] = applyLootEconomyToItem(entry);
+    const item = applyLootEconomyToItem(entry);
+    full[item.id] = item;
+    const split = splitCatalogItem(item);
+    core[item.id] = split.core;
+    mechanical[item.id] = split.mechanical;
+    extra[item.id] = split.extended;
   }
-  return record;
+
+  return { full, core, mechanical, extra };
+}
+
+let catalogSplitCache: ReturnType<typeof buildCatalogSplitRecords> | null = null;
+
+function getCatalogSplitRecords(): ReturnType<typeof buildCatalogSplitRecords> {
+  if (!catalogSplitCache) {
+    catalogSplitCache = buildCatalogSplitRecords();
+  }
+  return catalogSplitCache;
+}
+
+export function buildItemCatalogRecord(): Record<string, ItemDefinition> {
+  return getCatalogSplitRecords().full;
+}
+
+export function buildItemCatalogCoreRecord(): Record<string, ItemCoreDefinition> {
+  return getCatalogSplitRecords().core;
+}
+
+export function buildItemCatalogMechanicalRecord(): Record<string, ItemMechanicalDefinition> {
+  return getCatalogSplitRecords().mechanical;
+}
+
+export function buildItemCatalogExtraRecord(): Record<string, ItemExtendedDetails> {
+  return getCatalogSplitRecords().extra;
 }

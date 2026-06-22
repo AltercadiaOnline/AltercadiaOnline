@@ -1,4 +1,4 @@
-import { getItemById } from '../items/itemCatalog.js';
+import { getItemMechanicalById } from '../items/itemCatalog.js';
 import { ItemCategory } from '../items/itemSchema.js';
 import { isNpcVendorSellableByRarity } from './npcSellRarityPolicy.js';
 import {
@@ -10,7 +10,7 @@ import {
 export { NPC_BUY_PRICE_RATIO, NPC_SELL_PRICE_RATIO };
 
 export function resolveItemValorBase(itemId: string): number | null {
-  const item = getItemById(itemId);
+  const item = getItemMechanicalById(itemId);
   if (!item?.valorBase || item.valorBase <= 0) return null;
   return item.valorBase;
 }
@@ -37,7 +37,7 @@ export function resolveNpcSellPriceForItem(itemId: string): number | null {
 
 /** Item com valor de mercado definido — elegível ao Marketplace (qualquer raridade). */
 export function isMarketplaceListableItem(itemId: string): boolean {
-  const item = getItemById(itemId);
+  const item = getItemMechanicalById(itemId);
   if (!item) return false;
   if (item.category === ItemCategory.Currency) return false;
   if (item.isTradable === false) return false;

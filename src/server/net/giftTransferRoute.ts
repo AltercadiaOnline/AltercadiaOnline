@@ -2,6 +2,10 @@ import type http from 'node:http';
 import { SecurityGuard } from '../middleware/securityGuard.js';
 import type { ServerEnv } from '../config/env.js';
 import type { GiftTransferRequest } from '../../shared/gift/giftTransferProtocol.js';
+import {
+  finalizeGiftTransferSender,
+  validateGiftTransferRequest,
+} from '../../Economy/economyGateway.js';
 import { executeTransferItem } from '../supabase/transferItem.js';
 
 async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
@@ -88,9 +92,23 @@ export async function handleGiftTransferRoute(
     return true;
   }
 
+  const policy = validateGiftTransferRequest({
+    senderPlayerId: auth.userId,
+    senderCharacterId: auth.characterId,
+    itemId: payload.itemId,
+    ...(payload.quantity !== undefined ? { quantity: payload.quantity } : {}),
+  });
+
+  if (!policy.ok) {
+    res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ ok: false, error: policy.message }));
+    return true;
+  }
+
   const result = await executeTransferItem(auth.userId, auth.serverId, {
     ...payload,
     characterId: auth.characterId,
+    quantity: policy.quantity,
   });
 
   if (!result.ok) {
@@ -98,6 +116,8 @@ export async function handleGiftTransferRoute(
     res.end(JSON.stringify({ ok: false, error: result.message }));
     return true;
   }
+
+  finalizeGiftTransferSender(auth.userId, auth.characterId, result.data);
 
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify({

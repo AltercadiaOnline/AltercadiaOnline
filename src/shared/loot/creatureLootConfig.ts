@@ -1,5 +1,5 @@
 import { getCreatureDropEntry } from '../items/creatureDrops.js';
-import { getItemById } from '../items/itemCatalog.js';
+import { getItemMechanicalById } from '../items/itemCatalog.js';
 import type { ZoneId } from '../items/itemTypes.js';
 import { resolveCreatureArchetype } from './archetypeLootTables.js';
 import {
@@ -74,7 +74,7 @@ function resolveItemWeight(
   const override = profile.itemWeights?.[itemId];
   if (override !== undefined && override > 0) return override;
 
-  const catalogWeight = getItemById(itemId)?.weight;
+  const catalogWeight = getItemMechanicalById(itemId)?.weight;
   if (typeof catalogWeight === 'number' && catalogWeight > 0) return catalogWeight;
 
   return 1;

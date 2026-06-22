@@ -2,6 +2,7 @@ import type { PetSnapshot } from '../shared/pet/petModel.js';
 import {
   appendPetToRoster,
   createEmptyPetRoster,
+  updatePetInRoster,
   type PlayerPetRosterSnapshot,
 } from '../shared/pet/petRoster.js';
 
@@ -42,6 +43,20 @@ export function adoptPetOnServer(
   return cloneRoster(next);
 }
 
+export function updatePetAtSlot(
+  playerId: string,
+  characterId: number,
+  slotIndex: number,
+  pet: PetSnapshot,
+): PlayerPetRosterSnapshot | null {
+  const key = profileKey(playerId, characterId);
+  const current = rosters.get(key) ?? createEmptyPetRoster();
+  const next = updatePetInRoster(current, slotIndex, pet);
+  if (next === current) return null;
+  rosters.set(key, next);
+  return cloneRoster(next);
+}
+
 export function setPetRosterSnapshot(
   playerId: string,
   characterId: number,
@@ -56,4 +71,19 @@ export function setPetRosterSnapshot(
 
 export function resetPetRosterStore(): void {
   rosters.clear();
+}
+
+export function exportPetRosterPersistence(
+  playerId: string,
+  characterId: number,
+): PlayerPetRosterSnapshot {
+  return getPetRosterSnapshot(playerId, characterId);
+}
+
+export function hydratePetRosterPersistence(
+  playerId: string,
+  characterId: number,
+  roster: PlayerPetRosterSnapshot,
+): void {
+  setPetRosterSnapshot(playerId, characterId, roster);
 }

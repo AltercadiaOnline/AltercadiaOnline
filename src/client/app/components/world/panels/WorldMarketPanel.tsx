@@ -26,10 +26,12 @@ function MarketOfferTable({
   rows,
   side,
   onCancel,
+  onPurchase,
 }: {
   readonly rows: readonly (MarketOfferRow | null)[];
   readonly side: MarketOfferSide;
   readonly onCancel: (offerId: string, offerSide: MarketOfferSide) => void;
+  readonly onPurchase?: (offerId: string) => void;
 }) {
   return (
     <table className="market-terminal__offer-table">
@@ -88,6 +90,17 @@ function MarketOfferTable({
                   >
                     Cancelar
                   </button>
+                ) : side === 'sell' && onPurchase ? (
+                  <button
+                    type="button"
+                    className="market-terminal__offer-buy"
+                    data-action="purchase-offer"
+                    data-offer-id={row.id}
+                    aria-label="Comprar oferta"
+                    onClick={() => onPurchase(row.id)}
+                  >
+                    Comprar
+                  </button>
                 ) : null}
               </td>
             </tr>
@@ -124,6 +137,7 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
     updateUnitPrice,
     setAnonymous,
     cancelOffer,
+    purchaseOffer,
     publishOffer,
   } = useMarketPanelState();
 
@@ -262,6 +276,7 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                     rows={sellView.paddedRows}
                     side="sell"
                     onCancel={cancelOffer}
+                    onPurchase={purchaseOffer}
                   />
                 </section>
                 <section

@@ -23,10 +23,12 @@ import { validatePetPurchase, buildAdoptedPet } from '../../shared/economy/petTr
 import type { PetKindId } from '../../shared/pet/petCatalog.js';
 import type { PetGenderId } from '../../shared/pet/petGender.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
+import { validateInventoryDeleteIntent } from '../../shared/economy/inventoryPolicy.js';
 import { isMarketplaceListableItem } from '../../shared/economy/itemValorEconomy.js';
 import { getMarketplaceBuyOrderStore, resetMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
 import { getPlayerMarketStore, resetPlayerMarketStore } from '../ui/market/playerMarketStore.js';
 import { getItemById } from '../../shared/items/itemCatalog.js';
+import { getAuthoritativeItemById } from '../../shared/items/itemCatalogAuthoritative.js';
 import {
   canChooseMarco,
   canSelectBranchStarter,
@@ -434,6 +436,11 @@ export class MockEconomyService implements IEconomyService {
           action.payload.itemId,
           action.payload.quantity,
         );
+      case 'DELETE_ITEM':
+        return this.deleteInventoryItem(
+          action.payload.itemId,
+          action.payload.quantity,
+        );
       case 'PROGRESS_MARCO':
         return this.progressMarco(action.payload.events);
       case 'HEAL_AT_NPC':
@@ -479,6 +486,8 @@ export class MockEconomyService implements IEconomyService {
         return this.cancelMarketListing(action.payload.listingId);
       case 'CANCEL_MARKET_BUY_ORDER':
         return this.cancelMarketBuyOrder(action.payload.orderId);
+      case 'EXECUTE_MARKET_PURCHASE':
+        return { ok: false, reason: 'Compra P2P requer servidor online.' };
       case 'EQUIP_ITEM': {
         const toggle = toggleItemSlot(action.payload.itemId, action.payload.slot);
         if (!toggle.ok) {
@@ -492,6 +501,8 @@ export class MockEconomyService implements IEconomyService {
         return this.unequipToInventory(action.payload.slotId);
       case 'SYNC_LOADOUT':
         return { ok: false, reason: 'Mock aplica equip local — SYNC_LOADOUT não é necessário.' };
+      case 'SYNC_MOVESET':
+        return { ok: true };
       case 'MOVE_INTENT':
         return { ok: false, reason: 'Movimento de exploração usa WorldSocket no mock.' };
       case 'ROTATE_INTENT':
@@ -1002,6 +1013,24 @@ export class MockEconomyService implements IEconomyService {
     });
     this.bumpRevision('inventory');
     alertSystem(`Vendeu ${validation.quote.quantity}× ${validation.quote.itemLabel}.`);
+    return { ok: true };
+  }
+
+  private deleteInventoryItem(itemId: string, quantity?: number): IntentHandleResult {
+    const qty = Math.max(1, Math.floor(quantity ?? 1));
+    const policy = validateInventoryDeleteIntent({
+      itemId,
+      quantity: qty,
+      inventoryStacks: this.state.inventoryStacks,
+    });
+    if (!policy.ok) {
+      return { ok: false, reason: policy.reason };
+    }
+
+    this.removeInventoryItem(itemId, qty);
+    this.bumpRevision('inventory');
+    const label = getItemById(itemId)?.name ?? itemId;
+    alertSystem(`Descartou ${qty}× ${label}.`);
     return { ok: true };
   }
 

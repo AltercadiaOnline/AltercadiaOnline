@@ -11,6 +11,8 @@ import { initSessionAuthGateway } from './auth/SessionAuthGateway.js';
 import { hasDatabaseConnection } from './persistence/databaseConnection.js';
 import { bootstrapSupabase } from './supabase/initializeSupabase.js';
 import { initializeServerInstanceContext } from './instance/ServerInstanceContext.js';
+import { registerServerEconomyAudit } from './services/registerEconomyAudit.js';
+import { flushAuditLogger } from './services/auditLogger.js';
 
 const CLIENT_DIST_ARTIFACTS = [
   'client/browser/main.js',
@@ -42,6 +44,7 @@ async function main(): Promise<void> {
   const supabaseReport = await bootstrapSupabase(env);
 
   const persistence = await initializePersistence();
+  registerServerEconomyAudit();
 
   const dirs = resolveStaticDirs(import.meta.url);
   const httpServer = createStaticServer({
@@ -65,6 +68,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     console.log(`[server] ${signal} — encerrando…`);
     void flushAllPersistence()
+      .then(() => flushAuditLogger())
       .then(() => shutdownPersistenceStorage())
       .catch((error) => {
         console.error('[persistence] Falha no flush final:', error);

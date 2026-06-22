@@ -2,6 +2,7 @@ import type { EquippedSlots, InventoryStack } from '../../shared/character/equip
 import type { EquipmentUiGridState } from '../../shared/character/equipmentUiSlots.js';
 import { equippedToEquipmentUiGrid } from '../../shared/character/equipmentUiSlots.js';
 import type { InventoryUpdatedPayload } from '../../shared/economy/events.js';
+import { computeInventoryChecksum } from '../../shared/character/inventoryChecksum.js';
 import {
   coalescePlayerItemRecords,
   findInventoryEquipmentOverlap,
@@ -16,6 +17,7 @@ import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { cancelScheduledFrame, scheduleNextFrame } from '../sync/frameScheduler.js';
 import { getPlayerStatsGateway } from '../gateway/PlayerStatsGateway.js';
+import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 
 /** @deprecated Use applyServerItemBundle — mantido para mock sync. */
 export function applyAuthoritativeItemState(
@@ -104,10 +106,33 @@ export function applyServerItemBundle(input: {
 
 let pendingInventoryPayload: Pick<
   InventoryUpdatedPayload,
-  'items' | 'equipped' | 'equipmentUiGrid'
+  'items' | 'equipped' | 'equipmentUiGrid' | 'revision' | 'inventoryChecksum'
 > | null = null;
 let inventoryFlushFrame: number | null = null;
 let lastAppliedInventoryRevision: number | undefined;
+let inventoryIntegrityResyncScheduled = false;
+
+function requestInventoryIntegrityResync(reason: string): void {
+  if (getActionDispatcher().getMode() !== 'online') return;
+  if (inventoryIntegrityResyncScheduled) return;
+  inventoryIntegrityResyncScheduled = true;
+  console.warn('[Inventory] Integridade divergente — solicitando full-state-sync.', { reason });
+  scheduleNextFrame(() => {
+    inventoryIntegrityResyncScheduled = false;
+    getGlobalStateSynchronizer().requestFullState();
+  });
+}
+
+function verifyAppliedInventoryChecksum(serverChecksum: string | undefined): boolean {
+  if (!serverChecksum) return true;
+  const localChecksum = getPlayerItemStore().computeLocalInventoryChecksum();
+  if (localChecksum === serverChecksum) {
+    getPlayerItemStore().setLastServerInventoryChecksum(serverChecksum);
+    return true;
+  }
+  requestInventoryIntegrityResync(`checksum mismatch local=${localChecksum} server=${serverChecksum}`);
+  return false;
+}
 
 function flushPendingInventoryPayload(): void {
   inventoryFlushFrame = null;
@@ -119,7 +144,10 @@ function flushPendingInventoryPayload(): void {
 
 /** Batched por frame — evita N re-renders quando vários pacotes chegam seguidos. */
 export function scheduleInventoryUpdatedPayload(
-  payload: Pick<InventoryUpdatedPayload, 'items' | 'equipped' | 'equipmentUiGrid' | 'revision'>,
+  payload: Pick<
+    InventoryUpdatedPayload,
+    'items' | 'equipped' | 'equipmentUiGrid' | 'revision' | 'inventoryChecksum'
+  >,
 ): void {
   if (
     payload.revision !== undefined
@@ -143,10 +171,18 @@ export function resetInventorySyncScheduler(): void {
   inventoryFlushFrame = null;
   pendingInventoryPayload = null;
   lastAppliedInventoryRevision = undefined;
+  inventoryIntegrityResyncScheduled = false;
+}
+
+export function verifyInventoryIntegrityAfterHydrate(serverChecksum: string | undefined): boolean {
+  return verifyAppliedInventoryChecksum(serverChecksum);
 }
 
 export function applyInventoryUpdatedPayload(
-  payload: Pick<InventoryUpdatedPayload, 'items' | 'equipped' | 'equipmentUiGrid' | 'revision'>,
+  payload: Pick<
+    InventoryUpdatedPayload,
+    'items' | 'equipped' | 'equipmentUiGrid' | 'revision' | 'inventoryChecksum'
+  >,
 ): void {
   if (
     payload.revision !== undefined
@@ -187,6 +223,10 @@ export function applyInventoryUpdatedPayload(
   const overlap = findInventoryEquipmentOverlap(store.getItems());
   if (overlap.length > 0) {
     store.replaceAll(coalescePlayerItemRecords(store.getItems()));
+  }
+
+  if (!verifyAppliedInventoryChecksum(payload.inventoryChecksum)) {
+    return;
   }
 
   if (payload.revision !== undefined) {

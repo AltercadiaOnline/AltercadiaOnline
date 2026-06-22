@@ -52,6 +52,7 @@ import {
   type BattleVictoryUiReadyPayload,
 } from '../combat/battleUiEvents.js';
 import { mirrorBattleProgressionGrant } from '../progression/battleProgressionClient.js';
+import { mirrorDeathPenaltyOutcome } from '../progression/deathPenaltyClient.js';
 import { getGameStore } from '../state/GameStore.js';
 import { createCorrelationId } from '../../shared/sync/pendingActionProtocol.js';
 import {
@@ -735,6 +736,10 @@ function finalizeBattleFinishAfterPlayback(
 
   if (combatFinished?.victory && combatFinished.progressionGrant) {
     mirrorBattleProgressionGrant(battleId, combatFinished.progressionGrant);
+  }
+
+  if (!combatFinished?.victory && combatFinished?.deathPenaltyOutcome) {
+    mirrorDeathPenaltyOutcome(battleId, combatFinished.deathPenaltyOutcome);
   }
 
   commitFinalBattleVitals(dispatch);

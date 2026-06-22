@@ -1,6 +1,6 @@
 import { type MouseEvent } from 'react';
-import { getCatalogItem } from '../../../../shared/items/itemCatalog.js';
 import type { BattleConsumableRow } from '../../../hud/battleConsumables.js';
+import { emitItemTooltip } from '../../../ui/tooltip/emitItemTooltip.js';
 import { uiEvents, UIEventType } from '../../../ui/uiEvents.js';
 
 type BattleItemsPaletteProps = {
@@ -11,13 +11,7 @@ type BattleItemsPaletteProps = {
 };
 
 function showItemTooltip(itemId: string, event: MouseEvent<HTMLButtonElement>): void {
-  const item = getCatalogItem(itemId);
-  if (!item) return;
-  uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
-    data: { kind: 'item', data: item },
-    x: event.clientX,
-    y: event.clientY,
-  });
+  emitItemTooltip(itemId, event.clientX, event.clientY);
 }
 
 export function BattleItemsPalette({

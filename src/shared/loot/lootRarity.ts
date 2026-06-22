@@ -1,10 +1,10 @@
 import { ItemCategory } from '../items/itemSchema.js';
-import { getItemById } from '../items/itemCatalog.js';
+import { getItemMechanicalById } from '../items/itemCatalog.js';
 import { LootRarity, type LootRarityId } from './lootTypes.js';
 
 /** Deriva raridade a partir do catálogo — cliente apenas exibe o valor do servidor. */
 export function resolveItemLootRarity(itemId: string): LootRarityId {
-  const item = getItemById(itemId);
+  const item = getItemMechanicalById(itemId);
   if (!item) return LootRarity.Common;
 
   if (item.lootRarity) return item.lootRarity;

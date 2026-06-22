@@ -33,7 +33,9 @@ export type MarcoProgressDelta = {
   readonly levelUps?: readonly string[];
 };
 
-export type InventoryDataSnapshot = WithRevision<InventorySnapshot>;
+export type InventoryDataSnapshot = WithRevision<
+  InventorySnapshot & { readonly inventoryChecksum?: string }
+>;
 
 export type BankStorageDataSnapshot = BankStorageSnapshot;
 
@@ -97,7 +99,7 @@ export type DataStoreSliceSnapshot = {
 export type AuthoritativePlayerSnapshot = {
   readonly revision: number;
   readonly wallet: Omit<WalletSnapshot, 'revision'> & { readonly revision?: number };
-  readonly inventory: InventorySnapshot & { readonly revision?: number };
+  readonly inventory: InventorySnapshot & { readonly revision?: number; readonly inventoryChecksum?: string };
   readonly equipped?: EquippedSlots;
   readonly equipmentUiGrid?: EquipmentUiGridState;
   readonly bankStorage?: Omit<BankStorageDataSnapshot, 'revision'> & { readonly revision?: number };
@@ -105,6 +107,10 @@ export type AuthoritativePlayerSnapshot = {
   readonly movesProgression?: MovesProgressionData & { readonly revision?: number };
   readonly petRoster?: Omit<PetRosterDataSnapshot, 'revision'> & { readonly revision?: number };
   readonly petAffinity?: Omit<PetAffinityStateSnapshot, 'revision'> & { readonly revision?: number };
+  readonly ownedSkins?: Record<
+    import('./character/playerSkin.js').SkinSlotId,
+    readonly string[]
+  >;
   /** Segundos no ciclo dia/noite [0, 1800) — referência do TimeManager. */
   readonly gameTime?: number;
   /** Timestamp do servidor ao capturar gameTime (interpolação no cliente). */
