@@ -64,8 +64,10 @@ import {
 } from '../auth/playerInitLoading.js';
 import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
 import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
+import { getAppScreenBridge } from '../app/bridge/appScreenBridge.js';
 import { authLoginFormHasUserInput, getAuthScreenController } from '../app/screen/authScreenController.js';
 import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
+import { isEmailCredentialAuthInFlight } from '../services/auth/oauthPending.js';
 import {
   markAuthBootstrapFailed,
   markAuthBootstrapPending,
@@ -145,6 +147,14 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
     markAuthBootstrapFailed(message);
     throw error;
   }
+}
+
+/** Evita reset/showLogin tardio do bootstrap sobrepor char select ou mundo. */
+function isPastLoginGate(currentSession: LocalSession | null): boolean {
+  if (currentSession) return true;
+  if (isEmailCredentialAuthInFlight()) return true;
+  const activeScreen = getAppScreenBridge().snapshot().activeScreen;
+  return activeScreen === 'char-select-screen' || activeScreen === 'game-container';
 }
 
 function bindAppShellListeners(onEnterWorld: () => void): void {
@@ -542,18 +552,24 @@ export const AppScreens = {
         });
 
         if (!oauthCompleted) {
-          if (!isPasswordRecoverySession() && !authLoginFormHasUserInput()) {
+          const pastLoginGate = isPastLoginGate(this.currentSession);
+          if (!isPasswordRecoverySession() && !authLoginFormHasUserInput() && !pastLoginGate) {
             this.resetLoginScreenForFreshVisit();
           }
+          if (!pastLoginGate) {
+            this.showLogin();
+            this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
+          }
+        }
+      } else {
+        const pastLoginGate = isPastLoginGate(this.currentSession);
+        if (!isPasswordRecoverySession() && !authLoginFormHasUserInput() && !pastLoginGate) {
+          this.resetLoginScreenForFreshVisit();
+        }
+        if (!pastLoginGate) {
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         }
-      } else {
-        if (!isPasswordRecoverySession() && !authLoginFormHasUserInput()) {
-          this.resetLoginScreenForFreshVisit();
-        }
-        this.showLogin();
-        this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
       }
     } catch (error) {
       console.error('[Auth] Falha ao inicializar Supabase:', error);

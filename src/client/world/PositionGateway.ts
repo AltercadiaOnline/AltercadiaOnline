@@ -104,8 +104,7 @@ export class PositionGateway {
     }
 
     if (!accessToken) {
-      console.error('[PositionGateway] world-login bloqueado — sessão JWT ausente.');
-      this.onWorldLoginBlocked?.('AUTH_REQUIRED');
+      console.warn('[PositionGateway] world-login adiado — JWT ainda indisponível (retry agendado).');
       return;
     }
 

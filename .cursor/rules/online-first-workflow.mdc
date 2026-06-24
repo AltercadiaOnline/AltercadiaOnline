@@ -1,0 +1,46 @@
+---
+description: Fluxo online-first — feedback do jogador em produção (Vercel); agente corrige e publica.
+alwaysApply: true
+---
+
+# Online-first — espelho do jogador em produção
+
+## Papel de cada um
+
+| Quem | Faz |
+|------|-----|
+| **Usuário (produto)** | Testa como jogador no front da **Vercel** (`altercadia-online.vercel.app`). Descreve o que viu, screenshot, passo a passo. Dá sentido de jogo/MMO. |
+| **Agente (mão na massa)** | Diagnostica, corrige no repo, roda `deploy:check`, sugere/publica com `npm run deploy` quando pedido. Valida no online após deploy. |
+
+**Padrão:** todo relato de bug/ajuste = **comportamento em produção**, salvo se o usuário disser explicitamente "local".
+
+## Ciclo de correção (curto)
+
+1. **Reproduzir** — tratar o relato como player online; usar browser/CDP na URL Vercel quando precisar confirmar.
+2. **Corrigir** — diff mínimo no código; respeitar arquitetura server-authoritative e gateways.
+3. **Validar build** — `npm run deploy:check` antes de concluir.
+4. **Publicar** — `npm run deploy` só com pedido explícito do usuário.
+5. **Smoke online** — após deploy: login → char select → mundo → (se aplicável) combate/WS.
+
+## O que o usuário não precisa fazer
+
+- Não exigir que ele depure localhost, console local ou `npm run dev` para cada bug.
+- Não pedir conhecimento profundo de TypeScript/infra — pedir **o que aconteceu na tela** e **o que deveria acontecer**.
+
+## O que o agente deve pedir ao usuário (quando útil)
+
+- URL exata (se não for a Vercel canônica).
+- Passos: login → char → entrar no mundo, etc.
+- Screenshot ou mensagem na UI (ex.: "Login realizado." preso na tela).
+- Se o bug é **novo após deploy** ou **já existia antes**.
+
+## Localhost
+
+- Ferramenta do agente para editar e typecheck — **não** critério final de "pronto".
+- `npm run dev` só quando UI/layout exigir iteração rápida sem deploy.
+
+## Produção = dois hosts
+
+- **Vercel** — HTML/JS estático + `/config/client`.
+- **Railway** — WebSocket + API autoritativa.
+- Bug de "entrou e voltou" / WS / snapshot → checar **ambos**; `deploy:sync-check` se suspeita de versões diferentes.
