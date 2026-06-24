@@ -4,69 +4,50 @@ import {
   GROUND_TILE_SPECS,
 } from '../../../assets/terrain/groundTileManifest.js';
 import {
-  drawPlaceholder,
-  type PlaceholderTypeId,
-} from '../../world/placeholderRenderer.js';
-import {
   getCachedGroundTile,
   preloadGroundTile,
-  resolveGroundTileId,
 } from '../../world/groundTileImageLoader.js';
 import type { WorldTerrainTileSnapshot } from '../../world/worldTerrainRenderSnapshot.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from '../player/phaserPlayerAssets.js';
-
-type PhaserTerrainImage = {
-  setPosition: (x: number, y: number) => PhaserTerrainImage;
-  setOrigin: (x: number, y: number) => PhaserTerrainImage;
-  setDepth: (depth: number) => PhaserTerrainImage;
-  setDisplaySize: (width: number, height: number) => PhaserTerrainImage;
-  setVisible: (visible: boolean) => PhaserTerrainImage;
-  destroy: () => void;
-};
-
-type PhaserTerrainScene = {
-  textures: {
-    exists: (key: string) => boolean;
-    addImage: (key: string, source: HTMLImageElement) => unknown;
-    get: (key: string) => { setFilter: (mode: number) => void };
-  };
-  load: {
-    image: (key: string, url: string) => void;
-  };
-  add: {
-    image: (x: number, y: number, textureKey: string) => PhaserTerrainImage;
-  };
-};
+import { CITY_01_MAP_CONFIG } from '../layout/MapConfig.js';
+import {
+  mountPhaserLayoutRoots,
+  queueTerrainLayoutPreloads,
+  type PhaserLayoutImage,
+  type PhaserLayoutRectangle,
+  type PhaserLayoutRoots,
+  type PhaserLayoutScene,
+} from '../layout/phaserLayoutScene.js';
+import {
+  getTerrainLayoutStyle,
+  resolveTerrainLayoutKind,
+} from '../layout/terrainLayoutPalette.js';
 
 function groundTileTextureKey(tileId: GroundTileId): string {
   return `altercadia-ground-${tileId}`;
-}
-
-function placeholderTextureKey(
-  type: PlaceholderTypeId,
-  size: number,
-  heightLevel: number | null,
-): string {
-  return `altercadia-ground-ph-${type}-${size}-${heightLevel ?? 0}`;
 }
 
 function tileInstanceKey(tile: WorldTerrainTileSnapshot): string {
   return `${tile.worldX}:${tile.worldY}:${tile.size}`;
 }
 
-async function ensureGroundTileTexture(
-  textures: PhaserTerrainScene['textures'],
+type TerrainTileNode = {
+  layoutRect: PhaserLayoutRectangle;
+  assetSprite: PhaserLayoutImage | null;
+};
+
+function tryRegisterGroundTexture(
+  textures: PhaserLayoutScene['textures'],
   tileId: GroundTileId,
-): Promise<boolean> {
+): string | null {
   const key = groundTileTextureKey(tileId);
   if (textures.exists(key)) {
-    return true;
+    return key;
   }
 
-  const image = await preloadGroundTile(tileId);
-  const cached = image ?? getCachedGroundTile(tileId);
+  const cached = getCachedGroundTile(tileId);
   if (!cached || cached.naturalWidth <= 0) {
-    return false;
+    return null;
   }
 
   textures.addImage(key, cached);
@@ -75,89 +56,32 @@ async function ensureGroundTileTexture(
   } catch {
     /* noop */
   }
-  return true;
-}
-
-async function ensurePlaceholderTexture(
-  textures: PhaserTerrainScene['textures'],
-  type: PlaceholderTypeId,
-  size: number,
-  heightLevel: number | null,
-): Promise<boolean> {
-  const key = placeholderTextureKey(type, size, heightLevel);
-  if (textures.exists(key)) {
-    return true;
-  }
-
-  if (typeof document === 'undefined') {
-    return false;
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return false;
-  }
-
-  drawPlaceholder(ctx, type, 0, 0, {
-    tileSize: size,
-    ...(heightLevel !== null ? { heightLevel } : {}),
-  });
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      textures.addImage(key, img);
-      try {
-        textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
-      } catch {
-        /* noop */
-      }
-      resolve(true);
-    };
-    img.onerror = () => resolve(false);
-    img.src = canvas.toDataURL('image/png');
-  });
-}
-
-async function resolveTerrainTextureKey(
-  textures: PhaserTerrainScene['textures'],
-  tile: WorldTerrainTileSnapshot,
-): Promise<string | null> {
-  if (tile.groundTileId) {
-    const pngReady = await ensureGroundTileTexture(textures, tile.groundTileId);
-    if (pngReady) {
-      return groundTileTextureKey(tile.groundTileId);
-    }
-  }
-
-  const placeholderReady = await ensurePlaceholderTexture(
-    textures,
-    tile.placeholderType,
-    tile.size,
-    tile.heightLevel,
-  );
-  if (!placeholderReady) {
-    return null;
-  }
-
-  return placeholderTextureKey(tile.placeholderType, tile.size, tile.heightLevel);
+  return key;
 }
 
 /**
- * Camada 0 Phaser — tiles de chão espelhando WorldMapRenderer / city01PlaceholderRenderer.
+ * Camada 0 — terreno espelhando `terrainTiles` do ExplorationScene.
+ *
+ * **Layout base:** retângulos coloridos por tipo (rua, praça, comercial, água…).
+ * **Arte final:** quando `groundTileId` tiver PNG em `public/assets/terrain/`,
+ * troca automaticamente para `scene.add.image` — ver `MapConfig.terrainAssets`.
  */
 export class PhaserTerrainController {
-  private readonly sprites = new Map<string, PhaserTerrainImage>();
+  private readonly nodes = new Map<string, TerrainTileNode>();
 
-  private scene: PhaserTerrainScene | null = null;
+  private scene: PhaserLayoutScene | null = null;
+
+  private roots: PhaserLayoutRoots | null = null;
 
   private hasRenderedTiles = false;
 
-  mount(scene: PhaserTerrainScene): void {
+  mount(scene: PhaserLayoutScene): void {
     this.scene = scene;
+    this.roots = mountPhaserLayoutRoots(scene);
+  }
+
+  getLayoutRoots(): PhaserLayoutRoots | null {
+    return this.roots;
   }
 
   isActive(): boolean {
@@ -166,7 +90,8 @@ export class PhaserTerrainController {
 
   sync(tiles: readonly WorldTerrainTileSnapshot[]): void {
     const scene = this.scene;
-    if (!scene) return;
+    const container = this.roots?.mapContainer;
+    if (!scene || !container) return;
 
     const seen = new Set<string>();
     this.hasRenderedTiles = tiles.length > 0;
@@ -174,57 +99,97 @@ export class PhaserTerrainController {
     for (const tile of tiles) {
       const key = tileInstanceKey(tile);
       seen.add(key);
-      void this.ensureAndUpdate(scene, tile, key);
+      this.ensureAndUpdate(scene, container, tile, key);
     }
 
-    for (const [key, sprite] of this.sprites) {
+    for (const [key, node] of this.nodes) {
       if (seen.has(key)) continue;
-      sprite.destroy();
-      this.sprites.delete(key);
+      node.layoutRect.destroy();
+      node.assetSprite?.destroy();
+      this.nodes.delete(key);
     }
   }
 
   destroy(): void {
-    for (const sprite of this.sprites.values()) {
-      sprite.destroy();
+    for (const node of this.nodes.values()) {
+      node.layoutRect.destroy();
+      node.assetSprite?.destroy();
     }
-    this.sprites.clear();
+    this.nodes.clear();
+    this.roots?.worldRoot.destroy();
+    this.roots = null;
     this.scene = null;
     this.hasRenderedTiles = false;
   }
 
-  private async ensureAndUpdate(
-    scene: PhaserTerrainScene,
+  private ensureAndUpdate(
+    scene: PhaserLayoutScene,
+    container: PhaserLayoutRoots['mapContainer'],
     tile: WorldTerrainTileSnapshot,
     instanceKey: string,
-  ): Promise<void> {
-    const textureKey = await resolveTerrainTextureKey(scene.textures, tile);
-    if (!textureKey) {
-      this.sprites.get(instanceKey)?.setVisible(false);
-      return;
-    }
-    let sprite = this.sprites.get(instanceKey);
-    if (!sprite) {
-      sprite = scene.add.image(tile.worldX, tile.worldY, textureKey);
-      sprite.setOrigin(0, 0);
-      sprite.setDepth(0);
-      this.sprites.set(instanceKey, sprite);
+  ): void {
+    let node = this.nodes.get(instanceKey);
+    if (!node) {
+      const layoutKind = resolveTerrainLayoutKind(tile.placeholderType);
+      const style = getTerrainLayoutStyle(layoutKind);
+      const layoutRect = scene.add.rectangle(
+        tile.worldX + tile.size / 2,
+        tile.worldY + tile.size / 2,
+        tile.size,
+        tile.size,
+        style.fill,
+      );
+      layoutRect.setOrigin(0.5, 0.5);
+      layoutRect.setStrokeStyle(1, style.stroke, style.alpha);
+      layoutRect.setDepth(0);
+      container.add(layoutRect);
+
+      node = { layoutRect, assetSprite: null };
+      this.nodes.set(instanceKey, node);
     }
 
-    sprite.setPosition(Math.floor(tile.worldX), Math.floor(tile.worldY));
-    sprite.setDisplaySize(tile.size, tile.size);
-    sprite.setVisible(true);
+    const layoutKind = resolveTerrainLayoutKind(tile.placeholderType);
+    const style = getTerrainLayoutStyle(layoutKind);
+    node.layoutRect.setPosition(tile.worldX + tile.size / 2, tile.worldY + tile.size / 2);
+    node.layoutRect.setSize(tile.size, tile.size);
+    node.layoutRect.setFillStyle(style.fill, style.alpha);
+    node.layoutRect.setStrokeStyle(1, style.stroke, style.alpha);
+
+    const textureKey = tile.groundTileId
+      ? tryRegisterGroundTexture(scene.textures, tile.groundTileId)
+      : null;
+
+    if (textureKey) {
+      // —— Game Designer: PNG de terreno carregado — oculta placeholder, usa pixel art ——
+      if (!node.assetSprite) {
+        const sprite = scene.add.image(tile.worldX, tile.worldY, textureKey);
+        sprite.setOrigin(0, 0);
+        sprite.setDepth(1);
+        container.add(sprite);
+        node.assetSprite = sprite;
+      }
+
+      node.assetSprite.setPosition(Math.floor(tile.worldX), Math.floor(tile.worldY));
+      node.assetSprite.setDisplaySize(tile.size, tile.size);
+      node.assetSprite.setVisible(true);
+      node.layoutRect.setVisible(false);
+      return;
+    }
+
+    node.assetSprite?.setVisible(false);
+    node.layoutRect.setVisible(true);
   }
 }
 
-/** Preload via Phaser.Loader — PNGs canônicos de chão. */
-export function queueGroundTilePreloads(scene: PhaserTerrainScene): void {
+/** preload() — chaves de terreno via MapConfig + manifest legado. */
+export function queueGroundTilePreloads(scene: PhaserLayoutScene): void {
+  queueTerrainLayoutPreloads(scene, CITY_01_MAP_CONFIG.terrainAssets);
   for (const spec of GROUND_TILE_SPECS) {
     scene.load.image(groundTileTextureKey(spec.id), GROUND_TILE_IMAGE_URLS[spec.id]);
   }
 }
 
-/** Preload cache legado — arena/torre usam canvas placeholder on-demand. */
+/** Aquece cache HTMLImage para promote rápido em textura Phaser. */
 export function preloadLegacyGroundTileCache(): void {
   for (const spec of GROUND_TILE_SPECS) {
     void preloadGroundTile(spec.id);

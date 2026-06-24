@@ -140,7 +140,8 @@ import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
-import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
+import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { bootOnlinePhaserExploration } from '../app/phaser/initPhaserReadyLayer.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
@@ -762,7 +763,7 @@ function enterWorldAfterHudReady(): void {
         world?.prepareFrame(deltaMs);
       },
       onRender: (timestampMs) => {
-        if (isPhaserRenderEngineActive()) {
+        if (isPhaserRenderPipelineReady()) {
           world?.syncWorldDomOverlay(timestampMs);
           return;
         }
@@ -776,11 +777,19 @@ function enterWorldAfterHudReady(): void {
   focusGameRenderSurfaceForInput();
 
   activeWorld.prepareFrame(0);
-  if (!isPhaserRenderEngineActive()) {
-    activeWorld.renderWorld(performance.now());
-  }
+  activeWorld.renderWorld(performance.now());
 
   worldStarted = true;
+
+  void bootOnlinePhaserExploration().then((phaserReady) => {
+    if (!phaserReady || !world) {
+      console.warn('[Altercadia] Phaser indisponível — mantendo canvas legado.');
+      return;
+    }
+    world.prepareFrame(0);
+    world.syncWorldDomOverlay(performance.now());
+    console.debug('[Altercadia] Render Phaser online ativo.');
+  });
 
   console.log('[Altercadia] Entrou no mundo', {
     userId: AppScreens.currentSession?.id,

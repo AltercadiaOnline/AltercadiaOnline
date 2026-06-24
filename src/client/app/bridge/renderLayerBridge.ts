@@ -101,6 +101,12 @@ export function isPhaserRenderEngineActive(): boolean {
   return getRenderLayerBridge().snapshot().renderEngine === 'phaser';
 }
 
+/** Modo Phaser ativo e cena pronta — seguro para desligar canvas legado e publicar frames. */
+export function isPhaserRenderPipelineReady(): boolean {
+  const snap = getRenderLayerBridge().snapshot();
+  return snap.renderEngine === 'phaser' && snap.phaserSceneReady;
+}
+
 export function resolveRenderHostElement(): HTMLElement {
   const bridge = getRenderLayerBridge();
   const phaserHost = document.getElementById('phaser-mount-root');

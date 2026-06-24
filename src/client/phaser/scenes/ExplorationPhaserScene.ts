@@ -4,6 +4,11 @@ import { PHASER_EXPLORATION_SCENE_KEY } from '../PhaserConfig.js';
 import type { MinimapSnapshot } from '../../world/minimap/minimapTypes.js';
 import type { ExplorationRenderFrame } from '../../app/bridge/explorationRenderBridge.js';
 import { bindExplorationPhaserSync } from '../explorationPhaserSync.js';
+import { CITY_01_MAP_CONFIG } from '../layout/MapConfig.js';
+import {
+  queueStructureLayoutPreloads,
+  queueTerrainLayoutPreloads,
+} from '../layout/phaserLayoutScene.js';
 import { createMainSceneClass, type PhaserWorldSceneBase } from './MainScene.js';
 import { PhaserPlayerSpriteController } from '../player/phaserPlayerSpriteController.js';
 import { PhaserWorldActorsController } from '../player/phaserWorldActorsController.js';
@@ -58,6 +63,8 @@ export function createExplorationPhaserScene(Phaser: PhaserNamespace): new () =>
     }
 
     onMainPreload(): void {
+      queueTerrainLayoutPreloads(this as never, CITY_01_MAP_CONFIG.terrainAssets);
+      queueStructureLayoutPreloads(this as never, CITY_01_MAP_CONFIG.structureAssets);
       this.playerSprite.queuePreload(this as never);
       queueGroundTilePreloads(this as never);
       queueStructurePreloads(this as never);
@@ -67,6 +74,9 @@ export function createExplorationPhaserScene(Phaser: PhaserNamespace): new () =>
     onMainCreate(): void {
       this.cameras.main.setBounds(0, 0, DESIGN_MAP_PIXEL_WIDTH, DESIGN_MAP_PIXEL_HEIGHT);
 
+      this.terrain.mount(this as never);
+      const layoutRoots = this.terrain.getLayoutRoots();
+      this.structures.mount(this as never, layoutRoots);
       void this.playerSprite.mount(this as never).then(() => {
         if (this.lastFrame) {
           this.playerSprite.applyFrame(this.lastFrame);
@@ -75,8 +85,6 @@ export function createExplorationPhaserScene(Phaser: PhaserNamespace): new () =>
       });
 
       this.worldActors.mount(this as never);
-      this.terrain.mount(this as never);
-      this.structures.mount(this as never);
       this.pet.mount(this as never);
       this.worldOverlay.mount(this as never);
 
@@ -113,7 +121,7 @@ export function createExplorationPhaserScene(Phaser: PhaserNamespace): new () =>
       this.cameras.main.setScroll(frame.cameraX, frame.cameraY);
 
       this.terrain.sync(frame.terrainTiles);
-      this.structures.sync(frame.worldStructures, frame.timestampMs);
+      this.structures.sync(frame.worldStructures, frame.timestampMs, frame.worldActors);
       this.pet.sync(frame.pet, frame.timestampMs);
 
       if (this.playerSprite.isReady()) {

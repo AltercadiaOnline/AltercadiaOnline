@@ -74,7 +74,7 @@ import {
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
-import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
+import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
 import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
 import { sortWorldActorsByDepth } from '../world/worldActorsRenderSnapshot.js';
@@ -881,7 +881,7 @@ export class ExplorationScene implements Disposable {
 
     this.publishMinimapState();
 
-    if (isPhaserRenderEngineActive()) {
+    if (isPhaserRenderPipelineReady()) {
       const timestampMs = performance.now();
       publishExplorationRenderFrame({
         mapId: this.mapManager.currentMapId,

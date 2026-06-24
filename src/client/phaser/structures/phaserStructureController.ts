@@ -2,19 +2,30 @@ import {
   resolveTrimmedAssetSourceRect,
 } from '../../entities/player/playerSpriteSourceTrim.js';
 import {
-  drawPortalGlyph,
-} from '../../world/portalRenderer.js';
-import {
-  renderAsset,
-} from '../../world/placeholderRenderer.js';
-import {
   getCachedWorldAssetImage,
   preloadWorldAssetImage,
-  resolveWorldAssetImageUrl,
   WORLD_ASSET_IMAGE_URLS,
 } from '../../world/worldAssetImageLoader.js';
+import type { WorldActorRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
 import type { WorldStructureRenderSnapshot } from '../../world/worldStructureRenderSnapshot.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from '../player/phaserPlayerAssets.js';
+import { CITY_01_MAP_CONFIG } from '../layout/MapConfig.js';
+import {
+  createDebugLabelStyle,
+  mountPhaserLayoutRoots,
+  queueStructureLayoutPreloads,
+  type PhaserLayoutImage,
+  type PhaserLayoutRectangle,
+  type PhaserLayoutRoots,
+  type PhaserLayoutScene,
+  type PhaserLayoutText,
+} from '../layout/phaserLayoutScene.js';
+import {
+  resolveActorDebugColors,
+  resolveActorDebugLabel,
+  resolveStructureDebugColors,
+  resolveStructureDebugLabel,
+} from '../layout/structureDebugLabels.js';
 
 const STRUCTURE_TRIM = {
   top: 0.02,
@@ -23,60 +34,31 @@ const STRUCTURE_TRIM = {
   right: 0.02,
 } as const;
 
-type PhaserStructureImage = {
-  setPosition: (x: number, y: number) => PhaserStructureImage;
-  setOrigin: (x: number, y: number) => PhaserStructureImage;
-  setCrop: (x: number, y: number, width: number, height: number) => PhaserStructureImage;
-  setDepth: (depth: number) => PhaserStructureImage;
-  setDisplaySize: (width: number, height: number) => PhaserStructureImage;
-  setTexture: (textureKey: string) => PhaserStructureImage;
-  setVisible: (visible: boolean) => PhaserStructureImage;
-  destroy: () => void;
-};
-
-type PhaserStructureScene = {
-  textures: {
-    exists: (key: string) => boolean;
-    addImage: (key: string, source: HTMLImageElement) => unknown;
-    get: (key: string) => { setFilter: (mode: number) => void };
-  };
-  load: {
-    image: (key: string, url: string) => void;
-  };
-  add: {
-    image: (x: number, y: number, textureKey: string) => PhaserStructureImage;
-  };
-};
-
 function structureTextureKey(assetKey: string): string {
   return `altercadia-structure-${assetKey}`;
 }
 
-function placeholderTextureKey(
-  assetKey: string,
-  widthPx: number,
-  heightPx: number,
-  heightLevel: number | null,
-): string {
-  return `altercadia-structure-ph-${assetKey}-${widthPx}x${heightPx}-${heightLevel ?? 0}`;
-}
+type StructureDebugNode = {
+  readonly debugSquare: PhaserLayoutRectangle;
+  readonly label: PhaserLayoutText;
+  assetSprite: PhaserLayoutImage | null;
+};
 
-function portalTextureKey(timestampBucket: number): string {
-  return `altercadia-portal-glyph-${timestampBucket}`;
-}
+type ActorDebugNode = {
+  readonly marker: PhaserLayoutRectangle;
+  readonly label: PhaserLayoutText;
+};
 
-async function ensureStructurePngTexture(
-  textures: PhaserStructureScene['textures'],
+function tryRegisterStructureTexture(
+  textures: PhaserLayoutScene['textures'],
   assetKey: string,
-): Promise<{ readonly ready: boolean; readonly trimmed: ReturnType<typeof resolveTrimmedAssetSourceRect> | null }> {
+): { readonly ready: boolean; readonly trimmed: ReturnType<typeof resolveTrimmedAssetSourceRect> | null } {
   const key = structureTextureKey(assetKey);
   if (!textures.exists(key)) {
-    const image = await preloadWorldAssetImage(assetKey);
-    const cached = image ?? getCachedWorldAssetImage(assetKey);
+    const cached = getCachedWorldAssetImage(assetKey);
     if (!cached || cached.naturalWidth <= 0) {
       return { ready: false, trimmed: null };
     }
-
     textures.addImage(key, cached);
     try {
       textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
@@ -100,246 +82,238 @@ async function ensureStructurePngTexture(
   };
 }
 
-async function ensurePlaceholderStructureTexture(
-  textures: PhaserStructureScene['textures'],
-  snapshot: WorldStructureRenderSnapshot,
-): Promise<boolean> {
-  const key = placeholderTextureKey(
-    snapshot.assetKey,
-    snapshot.widthPx,
-    snapshot.heightPx,
-    snapshot.heightLevel,
-  );
-  if (textures.exists(key)) {
-    return true;
-  }
-
-  if (typeof document === 'undefined') {
-    return false;
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(snapshot.widthPx));
-  canvas.height = Math.max(1, Math.round(snapshot.heightPx));
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return false;
-  }
-
-  renderAsset(ctx, snapshot.assetKey, 0, 0, {
-    tileSize: snapshot.widthPx,
-    widthPx: snapshot.widthPx,
-    heightPx: snapshot.heightPx,
-    ...(snapshot.heightLevel !== null ? { heightLevel: snapshot.heightLevel } : {}),
-  });
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      textures.addImage(key, img);
-      try {
-        textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
-      } catch {
-        /* noop */
-      }
-      resolve(true);
-    };
-    img.onerror = () => resolve(false);
-    img.src = canvas.toDataURL('image/png');
-  });
-}
-
-async function ensurePortalTexture(
-  textures: PhaserStructureScene['textures'],
-  snapshot: WorldStructureRenderSnapshot,
-  timestampMs: number,
-): Promise<string | null> {
-  const bucket = Math.floor(timestampMs / 120);
-  const key = portalTextureKey(bucket);
-
-  if (!textures.exists(key)) {
-    if (typeof document === 'undefined') {
-      return null;
-    }
-
-    const size = Math.max(1, Math.round(snapshot.widthPx * 2));
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      return null;
-    }
-
-    drawPortalGlyph(ctx, size / 2, size / 2, timestampMs);
-
-    const ready = await new Promise<boolean>((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        textures.addImage(key, img);
-        try {
-          textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
-        } catch {
-          /* noop */
-        }
-        resolve(true);
-      };
-      img.onerror = () => resolve(false);
-      img.src = canvas.toDataURL('image/png');
-    });
-
-    if (!ready) {
-      return null;
-    }
-  }
-
-  return key;
-}
-
-type StructureRenderMode =
-  | { readonly mode: 'png'; readonly textureKey: string; readonly trimmed: ReturnType<typeof resolveTrimmedAssetSourceRect> }
-  | { readonly mode: 'placeholder'; readonly textureKey: string }
-  | { readonly mode: 'portal'; readonly textureKey: string };
-
-async function resolveStructureRenderMode(
-  textures: PhaserStructureScene['textures'],
-  snapshot: WorldStructureRenderSnapshot,
-  timestampMs: number,
-): Promise<StructureRenderMode | null> {
-  if (snapshot.kind === 'portal') {
-    const textureKey = await ensurePortalTexture(textures, snapshot, timestampMs);
-    return textureKey ? { mode: 'portal', textureKey } : null;
-  }
-
-  const png = await ensureStructurePngTexture(textures, snapshot.assetKey);
-  if (png.ready && png.trimmed) {
-    return {
-      mode: 'png',
-      textureKey: structureTextureKey(snapshot.assetKey),
-      trimmed: png.trimmed,
-    };
-  }
-
-  const placeholderReady = await ensurePlaceholderStructureTexture(textures, snapshot);
-  if (!placeholderReady) {
-    return null;
-  }
-
-  return {
-    mode: 'placeholder',
-    textureKey: placeholderTextureKey(
-      snapshot.assetKey,
-      snapshot.widthPx,
-      snapshot.heightPx,
-      snapshot.heightLevel,
-    ),
-  };
-}
-
 /**
- * Estruturas e portais — Y-sort via depthY (base do footprint).
+ * Estruturas, portais e marcadores de atores — espelha snapshots do ExplorationScene.
+ *
+ * **Layout base:** quadrados de debug + labels (ex.: "Loja NPC", "Spawn Criatura").
+ * **Arte final:** PNG em `public/assets/structures/` — ver `MapConfig.structureAssets`.
  */
 export class PhaserStructureController {
-  private readonly sprites = new Map<string, PhaserStructureImage>();
+  private readonly structureNodes = new Map<string, StructureDebugNode>();
 
-  private readonly spriteTextureKeys = new Map<string, string>();
+  private readonly actorNodes = new Map<string, ActorDebugNode>();
 
-  private scene: PhaserStructureScene | null = null;
+  private scene: PhaserLayoutScene | null = null;
+
+  private roots: PhaserLayoutRoots | null = null;
 
   private hasRenderedStructures = false;
 
-  mount(scene: PhaserStructureScene): void {
+  mount(scene: PhaserLayoutScene, existingRoots?: PhaserLayoutRoots | null): void {
     this.scene = scene;
+    this.roots = existingRoots ?? mountPhaserLayoutRoots(scene);
+  }
+
+  getLayoutRoots(): PhaserLayoutRoots | null {
+    return this.roots;
   }
 
   isActive(): boolean {
     return this.hasRenderedStructures;
   }
 
-  sync(structures: readonly WorldStructureRenderSnapshot[], timestampMs: number): void {
+  sync(
+    structures: readonly WorldStructureRenderSnapshot[],
+    timestampMs: number,
+    actors: readonly WorldActorRenderSnapshot[] = [],
+  ): void {
     const scene = this.scene;
-    if (!scene) return;
+    const structuresContainer = this.roots?.structuresContainer;
+    const actorsContainer = this.roots?.actorsContainer;
+    if (!scene || !structuresContainer || !actorsContainer) return;
 
-    const seen = new Set<string>();
-    this.hasRenderedStructures = structures.length > 0;
+    void timestampMs;
+
+    const seenStructures = new Set<string>();
+    this.hasRenderedStructures = structures.length > 0 || actors.length > 0;
 
     for (const snapshot of structures) {
-      seen.add(snapshot.instanceKey);
-      void this.ensureAndUpdate(scene, snapshot, timestampMs);
+      seenStructures.add(snapshot.instanceKey);
+      this.ensureStructureNode(scene, structuresContainer, snapshot);
     }
 
-    for (const [key, sprite] of this.sprites) {
-      if (seen.has(key)) continue;
-      sprite.destroy();
-      this.sprites.delete(key);
-      this.spriteTextureKeys.delete(key);
+    for (const [key, node] of this.structureNodes) {
+      if (seenStructures.has(key)) continue;
+      node.debugSquare.destroy();
+      node.label.destroy();
+      node.assetSprite?.destroy();
+      this.structureNodes.delete(key);
+    }
+
+    const seenActors = new Set<string>();
+    for (const actor of actors) {
+      const actorKey = actor.kind === 'npc'
+        ? `npc:${actor.npcId}`
+        : `creature:${actor.instanceId}`;
+      seenActors.add(actorKey);
+      this.ensureActorNode(scene, actorsContainer, actor, actorKey);
+    }
+
+    for (const [key, node] of this.actorNodes) {
+      if (seenActors.has(key)) continue;
+      node.marker.destroy();
+      node.label.destroy();
+      this.actorNodes.delete(key);
     }
   }
 
   destroy(): void {
-    for (const sprite of this.sprites.values()) {
-      sprite.destroy();
+    for (const node of this.structureNodes.values()) {
+      node.debugSquare.destroy();
+      node.label.destroy();
+      node.assetSprite?.destroy();
     }
-    this.sprites.clear();
-    this.spriteTextureKeys.clear();
+    this.structureNodes.clear();
+
+    for (const node of this.actorNodes.values()) {
+      node.marker.destroy();
+      node.label.destroy();
+    }
+    this.actorNodes.clear();
+
+    if (!this.roots) {
+      this.scene = null;
+      this.hasRenderedStructures = false;
+      return;
+    }
+
+    this.roots = null;
     this.scene = null;
     this.hasRenderedStructures = false;
   }
 
-  private async ensureAndUpdate(
-    scene: PhaserStructureScene,
+  private ensureStructureNode(
+    scene: PhaserLayoutScene,
+    container: PhaserLayoutRoots['structuresContainer'],
     snapshot: WorldStructureRenderSnapshot,
-    timestampMs: number,
-  ): Promise<void> {
-    const renderMode = await resolveStructureRenderMode(scene.textures, snapshot, timestampMs);
-    if (!renderMode) {
-      this.sprites.get(snapshot.instanceKey)?.setVisible(false);
+  ): void {
+    let node = this.structureNodes.get(snapshot.instanceKey);
+    const colors = resolveStructureDebugColors(snapshot);
+    const labelText = resolveStructureDebugLabel(snapshot);
+
+    if (!node) {
+      const debugSquare = scene.add.rectangle(
+        snapshot.worldX + snapshot.widthPx / 2,
+        snapshot.worldY + snapshot.heightPx / 2,
+        snapshot.widthPx,
+        snapshot.heightPx,
+        colors.fill,
+      );
+      debugSquare.setOrigin(0.5, 0.5);
+      debugSquare.setStrokeStyle(2, colors.stroke, 0.95);
+      debugSquare.setDepth(Math.floor(snapshot.depthY));
+
+      const label = scene.add.text(
+        snapshot.worldX + 4,
+        snapshot.worldY + 4,
+        labelText,
+        createDebugLabelStyle(),
+      );
+      label.setOrigin(0, 0);
+      label.setDepth(Math.floor(snapshot.depthY) + 1);
+
+      container.add(debugSquare);
+      container.add(label);
+
+      node = { debugSquare, label, assetSprite: null };
+      this.structureNodes.set(snapshot.instanceKey, node);
+    }
+
+    node.label.setText(labelText);
+    node.debugSquare.setPosition(
+      snapshot.worldX + snapshot.widthPx / 2,
+      snapshot.worldY + snapshot.heightPx / 2,
+    );
+    node.debugSquare.setSize(snapshot.widthPx, snapshot.heightPx);
+    node.debugSquare.setFillStyle(colors.fill, 0.88);
+    node.debugSquare.setStrokeStyle(2, colors.stroke, 0.95);
+    node.debugSquare.setDepth(Math.floor(snapshot.depthY));
+    node.label.setPosition(snapshot.worldX + 4, snapshot.worldY + 4);
+    node.label.setDepth(Math.floor(snapshot.depthY) + 1);
+
+    if (snapshot.kind === 'portal') {
+      node.assetSprite?.setVisible(false);
+      node.debugSquare.setVisible(true);
+      node.label.setVisible(true);
       return;
     }
 
-    let sprite = this.sprites.get(snapshot.instanceKey);
-    if (!sprite) {
-      sprite = scene.add.image(0, 0, renderMode.textureKey);
-      this.sprites.set(snapshot.instanceKey, sprite);
-      this.spriteTextureKeys.set(snapshot.instanceKey, renderMode.textureKey);
-    } else if (this.spriteTextureKeys.get(snapshot.instanceKey) !== renderMode.textureKey) {
-      sprite.setTexture(renderMode.textureKey);
-      this.spriteTextureKeys.set(snapshot.instanceKey, renderMode.textureKey);
-    }
+    const png = tryRegisterStructureTexture(scene.textures, snapshot.assetKey);
+    if (png.ready && png.trimmed) {
+      // —— Game Designer: PNG de estrutura — oculta debug square, usa sprite ——
+      const textureKey = structureTextureKey(snapshot.assetKey);
+      if (!node.assetSprite) {
+        const sprite = scene.add.image(0, 0, textureKey);
+        container.add(sprite);
+        node.assetSprite = sprite;
+      }
 
-    sprite.setDepth(Math.floor(snapshot.depthY));
-
-    if (renderMode.mode === 'png') {
       const feetX = snapshot.worldX + snapshot.widthPx / 2;
       const feetY = snapshot.worldY + snapshot.heightPx;
-      sprite.setOrigin(0.5, 1);
-      sprite.setCrop(
-        renderMode.trimmed.sx,
-        renderMode.trimmed.sy,
-        renderMode.trimmed.sw,
-        renderMode.trimmed.sh,
+      node.assetSprite.setOrigin(0.5, 1);
+      node.assetSprite.setCrop(
+        png.trimmed.sx,
+        png.trimmed.sy,
+        png.trimmed.sw,
+        png.trimmed.sh,
       );
-      sprite.setPosition(Math.floor(feetX), Math.floor(feetY));
-      sprite.setVisible(true);
+      node.assetSprite.setPosition(Math.floor(feetX), Math.floor(feetY));
+      node.assetSprite.setDepth(Math.floor(snapshot.depthY));
+      node.assetSprite.setVisible(true);
+      node.debugSquare.setVisible(false);
+      node.label.setVisible(false);
       return;
     }
 
-    if (renderMode.mode === 'portal') {
-      sprite.setOrigin(0.5, 0.5);
-      sprite.setPosition(Math.floor(snapshot.worldX), Math.floor(snapshot.worldY));
-      sprite.setDisplaySize(snapshot.widthPx * 2, snapshot.heightPx * 2);
-      sprite.setVisible(true);
-      return;
+    node.assetSprite?.setVisible(false);
+    node.debugSquare.setVisible(true);
+    node.label.setVisible(true);
+  }
+
+  private ensureActorNode(
+    scene: PhaserLayoutScene,
+    container: PhaserLayoutRoots['actorsContainer'],
+    actor: WorldActorRenderSnapshot,
+    actorKey: string,
+  ): void {
+    let node = this.actorNodes.get(actorKey);
+    const colors = resolveActorDebugColors(actor);
+    const labelText = resolveActorDebugLabel(actor);
+
+    const size = actor.kind === 'npc' ? 22 : 18;
+    const x = actor.kind === 'npc' ? actor.feetX : actor.feetX;
+    const y = actor.kind === 'npc' ? actor.feetY - actor.drawHeight : actor.feetY - size;
+
+    if (!node) {
+      const marker = scene.add.rectangle(x, y, size, size, colors.fill);
+      marker.setOrigin(0.5, 1);
+      marker.setStrokeStyle(2, colors.stroke, 0.95);
+      marker.setDepth(Math.floor(actor.depthY));
+
+      const label = scene.add.text(x, y - size - 4, labelText, createDebugLabelStyle());
+      label.setOrigin(0.5, 1);
+      label.setDepth(Math.floor(actor.depthY) + 1);
+
+      container.add(marker);
+      container.add(label);
+
+      node = { marker, label };
+      this.actorNodes.set(actorKey, node);
     }
 
-    sprite.setOrigin(0, 0);
-    sprite.setPosition(Math.floor(snapshot.worldX), Math.floor(snapshot.worldY));
-    sprite.setDisplaySize(snapshot.widthPx, snapshot.heightPx);
-    sprite.setVisible(true);
+    node.marker.setPosition(x, y);
+    node.marker.setDepth(Math.floor(actor.depthY));
+    node.label.setText(labelText);
+    node.label.setPosition(x, y - size - 4);
+    node.label.setDepth(Math.floor(actor.depthY) + 1);
+    node.marker.setVisible(true);
+    node.label.setVisible(true);
   }
 }
 
-export function queueStructurePreloads(scene: PhaserStructureScene): void {
+/** preload() — chaves de estrutura via MapConfig + registry legado. */
+export function queueStructurePreloads(scene: PhaserLayoutScene): void {
+  queueStructureLayoutPreloads(scene, CITY_01_MAP_CONFIG.structureAssets);
   for (const [assetKey, url] of Object.entries(WORLD_ASSET_IMAGE_URLS)) {
     if (!url) continue;
     scene.load.image(structureTextureKey(assetKey), url);

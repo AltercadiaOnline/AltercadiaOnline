@@ -1,5 +1,9 @@
 import { getGameUiBridge } from '../bridge/gameUiBridge.js';
-import { getRenderLayerBridge } from '../bridge/renderLayerBridge.js';
+import {
+  getRenderLayerBridge,
+  isPhaserRenderEngineActive,
+  isPhaserRenderPipelineReady,
+} from '../bridge/renderLayerBridge.js';
 import { ensurePhaserRuntimeForCurrentEngine } from '../../phaser/PhaserRuntime.js';
 
 const PHASER_HYBRID_QUERY = 'phaser';
@@ -33,11 +37,30 @@ export function enablePhaserForOnlineSession(): void {
   enablePhaserRenderMode();
 }
 
+/**
+ * Boot Phaser ao entrar no mundo — canvas legado segue visível até a cena estar pronta.
+ * Retorna false se o runtime falhar (fallback automático para canvas).
+ */
+export async function bootOnlinePhaserExploration(): Promise<boolean> {
+  if (!isPhaserRenderEngineActive()) {
+    enablePhaserRenderMode();
+  }
+
+  try {
+    await ensurePhaserRuntimeForCurrentEngine();
+  } catch (error) {
+    console.error('[Phaser] Falha ao iniciar render online:', error);
+    return false;
+  }
+
+  return isPhaserRenderPipelineReady();
+}
+
 /** @deprecated Use enablePhaserForOnlineSession */
 export const enablePhaserHybridForOnlineSession = enablePhaserForOnlineSession;
 
 /**
- * Prepara camada de render Phaser sem ativar por padrão (canvas legado permanece ativo).
+ * Prepara camada Phaser — online usa bootOnlinePhaserExploration() ao entrar no mundo.
  */
 export function initPhaserReadyLayer(): void {
   teardownPhaserReadyLayer();
