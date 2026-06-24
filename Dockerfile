@@ -20,7 +20,7 @@ COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
 
-RUN npm run build
+RUN npm run build:core
 
 # --- stage 2: runtime enxuto ---
 FROM node:22-alpine AS runner
