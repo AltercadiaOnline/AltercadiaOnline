@@ -25,6 +25,12 @@
       ]
     },
     {
+      "source": "/game/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
@@ -45,7 +51,7 @@
     { "source": "/api/servers", "destination": "/api/servers" },
     { "source": "/api/gift/transfer", "destination": "/api/gift/transfer" },
     {
-      "source": "/((?!api/|client/|shared/|config/|assets/|vendor/|styles\\.css|favicon\\.svg|index\\.html).*)",
+      "source": "/((?!api/|client/|shared/|config/|game/|assets/|vendor/|styles\\.css|favicon\\.svg|index\\.html).*)",
       "destination": "/index.html"
     }
   ],

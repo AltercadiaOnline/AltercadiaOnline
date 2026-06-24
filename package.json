@@ -10,7 +10,7 @@
     "build:tsx-runtime": "node ./scripts/build-client-tsx-runtime.mjs",
     "build:sync": "node ./scripts/sync-vercel-public.mjs",
     "build:ui": "node ./scripts/build-react-ui.mjs",
-    "build": "npm run build:compile && npm run build:tsx-runtime && npm run build:sync && npm run build:ui && node ./scripts/write-game-origin-config.mjs && node ./scripts/write-deploy-manifest.mjs",
+    "build": "npm run build:compile && npm run build:tsx-runtime && npm run build:sync && npm run build:ui && node ./scripts/audit-static-bundle.mjs && node ./scripts/write-game-origin-config.mjs && node ./scripts/write-deploy-manifest.mjs",
     "vercel-build": "npm run build",
     "start": "node dist/server/index.js",
     "test": "node -e \"console.error('Nenhuma suíte automatizada configurada. Use: npm run deploy:check'); process.exit(1)\"",

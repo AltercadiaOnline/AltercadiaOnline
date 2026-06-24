@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Pós-build Vercel — espelha artefatos compilados e vendors em public/
- * para servir como estáticos (evita 404 em /client/*, /shared/*, /config/*, /assets/*.js).
+ * para servir como estáticos (evita 404 em /client/*, /shared/*, /config/*, /game/*, /assets/*.js).
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -106,6 +106,7 @@ function mergeCompiledAssetsTree(fromJsDir, fromJsonDir, toDir) {
 const clientSrc = path.join(distDir, 'client');
 const sharedSrc = path.join(distDir, 'shared');
 const configSrc = path.join(distDir, 'config');
+const gameSrc = path.join(distDir, 'game');
 const assetsSrc = path.join(distDir, 'assets');
 const assetsJsonSrc = path.join(root, 'src', 'assets');
 const gsapSrc = path.join(root, 'node_modules', 'gsap');
@@ -113,6 +114,7 @@ const gsapSrc = path.join(root, 'node_modules', 'gsap');
 copyDir(clientSrc, path.join(publicDir, 'client'));
 copyDir(sharedSrc, path.join(publicDir, 'shared'));
 copyDir(configSrc, path.join(publicDir, 'config'));
+copyDir(gameSrc, path.join(publicDir, 'game'));
 mergeCompiledAssetsTree(assetsSrc, assetsJsonSrc, path.join(publicDir, 'assets'));
 
 if (existsSync(gsapSrc)) {
