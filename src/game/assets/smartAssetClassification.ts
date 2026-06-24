@@ -5,6 +5,7 @@
 export type SmartAssetCategory = 'TILE_TERRAIN' | 'TILE_STRUCTURE' | 'ENTITY_PROP';
 
 export const TEST_ASSETS_PUBLIC_ROOT = '/assets/testes.01.assets.free';
+export const MEU_PACK_PUBLIC_ROOT = '/assets/meu-pack';
 
 const STRUCTURE_KEYWORDS = [
   'wall',
@@ -97,18 +98,42 @@ export function resolveSmartAssetDepthSort(category: SmartAssetCategory): boolea
   return category === 'ENTITY_PROP';
 }
 
-export function buildTestAssetPublicUrl(relativePath: string, fileName: string): string {
+export function buildPackAssetPublicUrl(
+  publicRoot: string,
+  relativePath: string,
+  fileName: string,
+): string {
   const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
   const segments = normalized ? `${normalized}/${fileName}` : fileName;
-  return `${TEST_ASSETS_PUBLIC_ROOT}/${segments}`.replace(/\/+/g, '/');
+  return `${publicRoot}/${segments}`.replace(/\/+/g, '/');
 }
 
-export function buildTestAssetId(relativePath: string, fileName: string): string {
+export function buildPackAssetId(
+  prefix: string,
+  relativePath: string,
+  fileName: string,
+): string {
   const base = `${relativePath}/${fileName}`
-    .replace(/\.png$/i, '')
+    .replace(/\.(png|webp|jpe?g)$/i, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
 
-  return `test_${base}`.slice(0, 128);
+  return `${prefix}_${base}`.slice(0, 128);
+}
+
+export function buildTestAssetPublicUrl(relativePath: string, fileName: string): string {
+  return buildPackAssetPublicUrl(TEST_ASSETS_PUBLIC_ROOT, relativePath, fileName);
+}
+
+export function buildTestAssetId(relativePath: string, fileName: string): string {
+  return buildPackAssetId('test', relativePath, fileName);
+}
+
+export function buildMeuPackAssetPublicUrl(relativePath: string, fileName: string): string {
+  return buildPackAssetPublicUrl(MEU_PACK_PUBLIC_ROOT, relativePath, fileName);
+}
+
+export function buildMeuPackAssetId(relativePath: string, fileName: string): string {
+  return buildPackAssetId('meu', relativePath, fileName);
 }

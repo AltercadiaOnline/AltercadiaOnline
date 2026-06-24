@@ -126,9 +126,14 @@ if (existsSync(gsapSrc)) {
 const requiredBundles = [
   path.join(publicDir, 'client', 'browser', 'main.js'),
   path.join(publicDir, 'config', 'designConstants.js'),
+  path.join(publicDir, 'game', 'constants', 'GameConfig.js'),
+  path.join(publicDir, 'game', 'AssetRegistry.js'),
+  path.join(publicDir, 'game', 'assetAtlasImageLoader.js'),
+  path.join(publicDir, 'game', 'generated', 'city01TestPackWiring.js'),
   path.join(publicDir, 'assets', 'urban', 'urbanAssetManifest.js'),
   path.join(publicDir, 'assets', 'creatures', 'zone1', 'aranha', 'manifest.json'),
   path.join(publicDir, 'assets', 'creatures', 'zone1', 'corvo', 'manifest.json'),
+  path.join(publicDir, 'app-ui', 'ui-runtime.js'),
 ];
 
 for (const bundlePath of requiredBundles) {

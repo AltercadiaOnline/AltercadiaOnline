@@ -10,6 +10,9 @@ public/config/
 public/game/
 public/vendor/
 
+# Arquivos de asset locais (não versionar)
+public/assets/player/*.zip
+
 # Segredos locais — nunca versionar
 .env
 .env.local

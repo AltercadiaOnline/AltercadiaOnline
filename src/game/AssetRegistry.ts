@@ -1,5 +1,5 @@
 /**
- * Registro central de assets — atlas legado + pack testes.01.assets.free (auto-gerado).
+ * Registro central de assets — atlas legado + meu-pack + testes.01.assets.free (auto-gerado).
  * Classificação por nomenclatura; escala forçada 40×40 via assetNormalizer.
  */
 
@@ -9,6 +9,11 @@ import {
   GENERATED_TEST_ASSET_STATS,
   type GeneratedTestAsset,
 } from './generated/testAssetsRegistry.js';
+import {
+  GENERATED_MEU_PACK_ASSETS,
+  GENERATED_MEU_PACK_ASSET_STATS,
+  type GeneratedMeuPackAsset,
+} from './generated/meuPackAssetsRegistry.js';
 import {
   classifySmartAssetCategory,
   type SmartAssetCategory,
@@ -115,6 +120,10 @@ const TEST_ASSET_BY_ID = new Map<string, GeneratedTestAsset>(
   GENERATED_TEST_ASSETS.map((asset) => [asset.id, asset]),
 );
 
+const MEU_PACK_ASSET_BY_ID = new Map<string, GeneratedMeuPackAsset>(
+  GENERATED_MEU_PACK_ASSETS.map((asset) => [asset.id, asset]),
+);
+
 const TEST_ASSET_BY_FILE = new Map<string, GeneratedTestAsset>();
 for (const asset of GENERATED_TEST_ASSETS) {
   const key = asset.fileName.toLowerCase();
@@ -123,7 +132,39 @@ for (const asset of GENERATED_TEST_ASSETS) {
   }
 }
 
+const MEU_PACK_ASSET_BY_FILE = new Map<string, GeneratedMeuPackAsset>();
+for (const asset of GENERATED_MEU_PACK_ASSETS) {
+  const key = asset.fileName.toLowerCase();
+  if (!MEU_PACK_ASSET_BY_FILE.has(key)) {
+    MEU_PACK_ASSET_BY_FILE.set(key, asset);
+  }
+}
+
 let verificationLogged = false;
+
+function formatPackNames<T extends { readonly fileName: string }>(
+  items: readonly T[],
+  limit = 24,
+): string {
+  return items.slice(0, limit).map((item) => item.fileName).join(', ')
+    + (items.length > limit ? ` … (+${items.length - limit})` : '');
+}
+
+function logPackVerificationGroup(
+  label: string,
+  assets: readonly { readonly fileName: string; readonly category: SmartAssetCategory }[],
+): void {
+  const terrain = assets.filter((a) => a.category === 'TILE_TERRAIN');
+  const structure = assets.filter((a) => a.category === 'TILE_STRUCTURE');
+  const props = assets.filter((a) => a.category === 'ENTITY_PROP');
+
+  console.group(`[AssetRegistry] ${label}`);
+  console.log(`Total: ${assets.length} @ ${REGISTRY_TILE_SIZE}×${REGISTRY_TILE_SIZE}px (escala forçada)`);
+  console.log(`Terreno (${terrain.length}):`, formatPackNames(terrain));
+  console.log(`Estrutura (${structure.length}, colisão ON):`, formatPackNames(structure));
+  console.log(`Props (${props.length}, depth sort ON):`, formatPackNames(props));
+  console.groupEnd();
+}
 
 function mapLegacyCategory(frame: AssetFrame): SmartAssetCategory {
   if (frame.category === 'tileset') return 'TILE_TERRAIN';
@@ -151,6 +192,14 @@ function legacyToRegistry(id: LegacyAssetId, frame: AssetFrame): RegistryAsset {
 }
 
 function testToRegistry(asset: GeneratedTestAsset): RegistryAsset {
+  return packAssetToRegistry(asset);
+}
+
+function meuPackToRegistry(asset: GeneratedMeuPackAsset): RegistryAsset {
+  return packAssetToRegistry(asset);
+}
+
+function packAssetToRegistry(asset: GeneratedTestAsset | GeneratedMeuPackAsset): RegistryAsset {
   const isTerrain = asset.category === 'TILE_TERRAIN';
 
   return {
@@ -182,7 +231,10 @@ export function classifyAssetByName(relativePath: string, fileName: string): Sma
 export function resolveAssetId(key: string): string | null {
   const wired = resolveTestPackGameKey(key);
   if (wired) return wired;
+  if (MEU_PACK_ASSET_BY_ID.has(key)) return key;
   if (TEST_ASSET_BY_ID.has(key)) return key;
+  const meuByFile = MEU_PACK_ASSET_BY_FILE.get(key.toLowerCase());
+  if (meuByFile) return meuByFile.id;
   const byFile = TEST_ASSET_BY_FILE.get(key.toLowerCase());
   if (byFile) return byFile.id;
   const legacy = resolveLegacyId(key);
@@ -196,6 +248,12 @@ export function getRegistryAsset(assetKey: string): RegistryAsset | null {
   if (wiredId) {
     const wiredAsset = TEST_ASSET_BY_ID.get(wiredId);
     if (wiredAsset) return testToRegistry(wiredAsset);
+  }
+
+  const directMeu = MEU_PACK_ASSET_BY_ID.get(assetKey)
+    ?? MEU_PACK_ASSET_BY_FILE.get(assetKey.toLowerCase());
+  if (directMeu) {
+    return meuPackToRegistry(directMeu);
   }
 
   const directTest = TEST_ASSET_BY_ID.get(assetKey)
@@ -238,6 +296,7 @@ export function getAssetFrame(id: LegacyAssetId): AssetFrame {
 export function listAssetIds(): readonly string[] {
   return [
     ...Object.keys(ATLAS_FRAMES),
+    ...GENERATED_MEU_PACK_ASSETS.map((asset) => asset.id),
     ...GENERATED_TEST_ASSETS.map((asset) => asset.id),
   ];
 }
@@ -246,8 +305,9 @@ export function listRegistryAssets(): readonly RegistryAsset[] {
   const legacy = (Object.keys(ATLAS_FRAMES) as LegacyAssetId[]).map((id) =>
     legacyToRegistry(id, ATLAS_FRAMES[id]),
   );
+  const meuPack = GENERATED_MEU_PACK_ASSETS.map(meuPackToRegistry);
   const generated = GENERATED_TEST_ASSETS.map(testToRegistry);
-  return [...legacy, ...generated];
+  return [...legacy, ...meuPack, ...generated];
 }
 
 export function listAssetsByCategory(category: SmartAssetCategory): readonly RegistryAsset[] {
@@ -268,32 +328,26 @@ export function resolveAssetOrigin(
   };
 }
 
-/** Log único no browser — verificação do catálogo testes.01.assets.free. */
+/** Log único no browser — verificação dos catálogos de assets. */
 export function logAssetRegistryVerification(): void {
   if (verificationLogged || typeof console === 'undefined') {
     return;
   }
   verificationLogged = true;
 
-  const terrain = GENERATED_TEST_ASSETS.filter((a) => a.category === 'TILE_TERRAIN');
-  const structure = GENERATED_TEST_ASSETS.filter((a) => a.category === 'TILE_STRUCTURE');
-  const props = GENERATED_TEST_ASSETS.filter((a) => a.category === 'ENTITY_PROP');
+  if (GENERATED_MEU_PACK_ASSET_STATS.total > 0) {
+    logPackVerificationGroup('meu-pack', GENERATED_MEU_PACK_ASSETS);
+  } else {
+    console.info('[AssetRegistry] meu-pack vazio — coloque PNGs em public/assets/meu-pack/ e rode npm run generate:meu-pack');
+  }
 
-  const formatNames = (items: readonly GeneratedTestAsset[], limit = 24): string =>
-    items.slice(0, limit).map((item) => item.fileName).join(', ')
-      + (items.length > limit ? ` … (+${items.length - limit})` : '');
+  logPackVerificationGroup('testes.01.assets.free', GENERATED_TEST_ASSETS);
 
-  console.group('[AssetRegistry] Catálogo testes.01.assets.free');
-  console.log(`Total: ${GENERATED_TEST_ASSET_STATS.total} PNGs @ ${REGISTRY_TILE_SIZE}×${REGISTRY_TILE_SIZE}px (escala forçada)`);
-  console.log(`Terreno (${terrain.length}):`, formatNames(terrain));
-  console.log(`Estrutura (${structure.length}, colisão ON):`, formatNames(structure));
-  console.log(`Props (${props.length}, depth sort ON):`, formatNames(props));
   console.log(
     `[City01 wiring] aliases=${CITY_01_TEST_PACK_WIRING_STATS.gameKeyAliases} `
     + `decorativos=${CITY_01_TEST_PACK_WIRING_STATS.decorativeProps} `
     + `paredes=${CITY_01_TEST_PACK_WIRING_STATS.wallProps}`,
   );
-  console.groupEnd();
 }
 
-export { GENERATED_TEST_ASSET_STATS };
+export { GENERATED_TEST_ASSET_STATS, GENERATED_MEU_PACK_ASSET_STATS };

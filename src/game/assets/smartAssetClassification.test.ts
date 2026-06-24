@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  buildMeuPackAssetId,
   buildTestAssetId,
   classifySmartAssetCategory,
   resolveSmartAssetCollision,
@@ -29,5 +30,11 @@ describe('smartAssetClassification', () => {
     const id = buildTestAssetId('PNG/City1', 'road.png');
     assert.ok(id.startsWith('test_'));
     assert.ok(id.includes('road'));
+  });
+
+  it('gera id meu-pack com prefixo meu_', () => {
+    const id = buildMeuPackAssetId('tiles', 'grass_floor.png');
+    assert.ok(id.startsWith('meu_'));
+    assert.ok(id.includes('grass'));
   });
 });
