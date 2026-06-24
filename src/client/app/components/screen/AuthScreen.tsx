@@ -32,7 +32,7 @@ export function AuthScreen() {
   const state = useAuthScreen();
   const actions = useAuthScreenActions();
   const disabled = state.busy;
-  const authBlocked = disabled || !state.loginActionsReady;
+  const authBlocked = disabled || state.authBootstrapPending;
 
   return (
     <div
@@ -302,7 +302,7 @@ export function AuthScreen() {
 
         <AuthStatus message={state.statusMessage} isError={state.statusIsError} />
 
-        {(!state.loginActionsReady || state.authBootstrapPending) && !state.statusMessage ? (
+        {state.authBootstrapPending && !state.statusMessage ? (
           <p className="auth-status" aria-live="polite">
             Preparando autenticação…
           </p>

@@ -1,4 +1,5 @@
 import type { PublicClientConfig } from '../publicClientConfig.js';
+import { isLocalMonolithDevHost, resolveLocalMonolithGameHttpUrl } from './localMonolithDev.js';
 
 /** Deriva base HTTP a partir de wss://host/ws → https://host */
 export function deriveGameHttpUrlFromWsUrl(gameWsUrl: string): string | null {
@@ -19,9 +20,13 @@ export function deriveGameHttpUrlFromWsUrl(gameWsUrl: string): string | null {
  * Prioridade: gameHttpUrl → derivado de gameWsUrl → mesma origem (monólito local).
  */
 export function resolveGameHttpUrl(
-  location: Pick<Location, 'origin'>,
+  location: Pick<Location, 'origin' | 'hostname'>,
   config?: Pick<PublicClientConfig, 'gameHttpUrl' | 'gameWsUrl'> | null,
 ): string {
+  if (isLocalMonolithDevHost(location.hostname)) {
+    return resolveLocalMonolithGameHttpUrl(location);
+  }
+
   const explicit = config?.gameHttpUrl?.trim();
   if (explicit) {
     return explicit.replace(/\/+$/, '');
