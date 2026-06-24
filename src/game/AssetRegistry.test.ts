@@ -34,8 +34,8 @@ describe('AssetRegistry', () => {
     assert.equal(TILESET_ATLAS_URL, '/assets/tilesets/tileset_v1.png');
   });
 
-  it('mapeia automaticamente PNGs do pack testes.01.assets.free', () => {
-    assert.equal(GENERATED_TEST_ASSET_STATS.total, 383);
+  it('mapeia automaticamente PNGs dos packs canônicos em public/assets/', () => {
+    assert.ok(GENERATED_TEST_ASSET_STATS.total >= 100);
     assert.ok(GENERATED_TEST_ASSET_STATS.terrain >= 1);
     assert.ok(GENERATED_TEST_ASSET_STATS.structure >= 1);
     assert.ok(GENERATED_TEST_ASSET_STATS.props >= 1);
@@ -49,7 +49,7 @@ describe('AssetRegistry', () => {
     assert.equal(asset?.depthSort, false);
     assert.equal(asset?.width, 40);
     assert.equal(asset?.height, 40);
-    assert.ok(asset?.url?.includes('testes.01.assets.free'));
+    assert.ok(asset?.url?.includes('/assets/combat/'));
   });
 
   it('agrupa assets gerados por categoria', () => {

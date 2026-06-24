@@ -1,0 +1,32 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "439a5609-e510-432d-84d9-c024190a63ae",
+        "name": "\"Pixel art sprite, top-down view, a small cat sitting, 32x32 resolution, retro game style, clean edges, dark aesthetic with subtle neon blue highlights, flat shadow, isolated on neutral background.\"",
+        "prompt": "\"Pixel art sprite, top-down view, a small cat sitting, 32x32 resolution, retro game style, clean edges, dark aesthetic with subtle neon blue highlights, flat shadow, isolated on neutral background.\"",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "cat",
+        "directions": 4,
+        "view": "low top-down",
+        "created_at": "2026-06-24T19:30:53.622959+00:00"
+      },
+      "folder": "Pixel_art_sprite_top-down_view_a_small_cat_sitting",
+      "frames": {
+        "rotations": {
+          "south": "Pixel_art_sprite_top-down_view_a_small_cat_sitting/rotations/south.png",
+          "west": "Pixel_art_sprite_top-down_view_a_small_cat_sitting/rotations/west.png",
+          "east": "Pixel_art_sprite_top-down_view_a_small_cat_sitting/rotations/east.png",
+          "north": "Pixel_art_sprite_top-down_view_a_small_cat_sitting/rotations/north.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-24T19:32:04.987255"
+}

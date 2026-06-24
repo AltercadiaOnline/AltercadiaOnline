@@ -1,5 +1,5 @@
 /**
- * Gera wiring city01 ↔ pack testes.01.assets.free
+ * Gera wiring city01 ↔ packs em public/assets/{terrain,tilesets,combat,…}
  * Uso: npm run generate:city01-wiring
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -293,7 +293,7 @@ export type City01TestPackPropPlacement = {
   readonly tileH: number;
 };
 
-/** Chave do jogo → id do asset no pack testes.01.assets.free */
+/** Chave do jogo → id do asset nos packs canônicos de public/assets/ */
 export const TEST_PACK_GAME_KEY_ALIASES: Readonly<Record<string, string>> = ${JSON.stringify(gameKeyAliases, null, 2)} as const;
 
 export const CITY_01_TEST_PACK_DECORATIVE_PROPS: readonly City01TestPackPropPlacement[] = ${JSON.stringify(decorativePlacements, null, 2)} as const;

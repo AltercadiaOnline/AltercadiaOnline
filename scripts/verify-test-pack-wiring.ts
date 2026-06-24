@@ -6,7 +6,10 @@ import { getRegistryAsset, resolveAssetId } from '../src/game/AssetRegistry.js';
 import { CITY_01_TEST_PACK_WIRING_STATS } from '../src/game/generated/city01TestPackWiring.js';
 
 const scene = buildCity01PlaceholderScene();
-const testPackEntities = scene.entities.filter((entity) => entity.assetKey.startsWith('test_'));
+const testPackEntities = scene.entities.filter((entity) => {
+  const asset = getRegistryAsset(entity.assetKey);
+  return asset?.source === 'file';
+});
 const road = getRegistryAsset('ground_road');
 
 console.log('[verify:test-pack] Wiring stats:', CITY_01_TEST_PACK_WIRING_STATS);
@@ -24,7 +27,7 @@ if (testPackEntities.length < 300) {
   process.exit(1);
 }
 
-if (road?.source !== 'file') {
+if (road?.source !== 'file' || !road.url?.endsWith('.png')) {
   console.error('[verify:test-pack] FAIL — ground_road não aponta para PNG do pack');
   process.exit(1);
 }

@@ -1,5 +1,5 @@
 /**
- * Registro central de assets — atlas legado + meu-pack + testes.01.assets.free (auto-gerado).
+ * Registro central de assets — atlas legado + meu-pack + packs canônicos em public/assets/.
  * Classificação por nomenclatura; escala forçada 40×40 via assetNormalizer.
  */
 
@@ -341,7 +341,7 @@ export function logAssetRegistryVerification(): void {
     console.info('[AssetRegistry] meu-pack vazio — coloque PNGs em public/assets/meu-pack/ e rode npm run generate:meu-pack');
   }
 
-  logPackVerificationGroup('testes.01.assets.free', GENERATED_TEST_ASSETS);
+  logPackVerificationGroup('public/assets (terrain·tilesets·combat·…)', GENERATED_TEST_ASSETS);
 
   console.log(
     `[City01 wiring] aliases=${CITY_01_TEST_PACK_WIRING_STATS.gameKeyAliases} `

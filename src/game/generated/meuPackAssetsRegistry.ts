@@ -3,6 +3,7 @@ import type { SmartAssetCategory } from '../assets/smartAssetClassification.js';
 
 export type GeneratedMeuPackAsset = {
   readonly id: string;
+  readonly packRoot: string;
   readonly fileName: string;
   readonly relativePath: string;
   readonly url: string;

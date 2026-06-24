@@ -1,0 +1,32 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "26f3aef9-12b9-4216-a5e5-745b09c73253",
+        "name": "Pixel art sprite, top-down view, a medium-sized caramel-colored dog standing, light brown fur, 32x32 resolution, retro game style, clean edges, dark aesthetic with subtle neon orange highlights, flat shadow, isolated on neutral background.\"",
+        "prompt": "Pixel art sprite, top-down view, a medium-sized caramel-colored dog standing, light brown fur, 32x32 resolution, retro game style, clean edges, dark aesthetic with subtle neon orange highlights, flat shadow, isolated on neutral background.\"",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "bear",
+        "directions": 4,
+        "view": "low top-down",
+        "created_at": "2026-06-24T19:36:32.321509+00:00"
+      },
+      "folder": "Pixel_art_sprite_top-down_view_a_medium-sized_cara",
+      "frames": {
+        "rotations": {
+          "south": "Pixel_art_sprite_top-down_view_a_medium-sized_cara/rotations/south.png",
+          "west": "Pixel_art_sprite_top-down_view_a_medium-sized_cara/rotations/west.png",
+          "east": "Pixel_art_sprite_top-down_view_a_medium-sized_cara/rotations/east.png",
+          "north": "Pixel_art_sprite_top-down_view_a_medium-sized_cara/rotations/north.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-24T19:37:23.251381"
+}

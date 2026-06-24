@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildMeuPackAssetId,
-  buildTestAssetId,
+  buildScannedAssetId,
   classifySmartAssetCategory,
   resolveSmartAssetCollision,
   resolveSmartAssetDepthSort,
@@ -27,8 +27,8 @@ describe('smartAssetClassification', () => {
   });
 
   it('gera id estável para o registro', () => {
-    const id = buildTestAssetId('PNG/City1', 'road.png');
-    assert.ok(id.startsWith('test_'));
+    const id = buildScannedAssetId('combat', 'background.batle/PNG/City1', 'road.png');
+    assert.ok(id.startsWith('combat_'));
     assert.ok(id.includes('road'));
   });
 

@@ -1,9 +1,10 @@
 /**
- * Classificação inteligente por nomenclatura — testes.01.assets.free e futuros packs.
+ * Classificação inteligente por nomenclatura — packs em public/assets/{terrain,tilesets,…}
  */
 
 export type SmartAssetCategory = 'TILE_TERRAIN' | 'TILE_STRUCTURE' | 'ENTITY_PROP';
 
+/** @deprecated Use buildScannedAssetPublicUrl — mantido para compat de testes legados */
 export const TEST_ASSETS_PUBLIC_ROOT = '/assets/testes.01.assets.free';
 export const MEU_PACK_PUBLIC_ROOT = '/assets/meu-pack';
 
@@ -87,6 +88,24 @@ export function classifySmartAssetCategory(
     return 'ENTITY_PROP';
   }
 
+  if (haystack.includes('plants.tileset') || haystack.includes('trees.tileset')) {
+    return 'ENTITY_PROP';
+  }
+
+  if (haystack.includes('background.batle') || haystack.includes('background.battle')) {
+    if (includesKeyword(haystack, STRUCTURE_KEYWORDS)) {
+      return 'TILE_STRUCTURE';
+    }
+    if (includesKeyword(haystack, TERRAIN_KEYWORDS)) {
+      return 'TILE_TERRAIN';
+    }
+    return 'ENTITY_PROP';
+  }
+
+  if (haystack.includes('tile.map.2.test') || haystack.includes('terrain/tiles')) {
+    return 'TILE_TERRAIN';
+  }
+
   return 'ENTITY_PROP';
 }
 
@@ -120,6 +139,22 @@ export function buildPackAssetId(
     .replace(/^_+|_+$/g, '');
 
   return `${prefix}_${base}`.slice(0, 128);
+}
+
+export function buildScannedAssetPublicUrl(
+  packRoot: string,
+  relativePath: string,
+  fileName: string,
+): string {
+  return buildPackAssetPublicUrl(`/assets/${packRoot}`, relativePath, fileName);
+}
+
+export function buildScannedAssetId(
+  idPrefix: string,
+  relativePath: string,
+  fileName: string,
+): string {
+  return buildPackAssetId(idPrefix, relativePath, fileName);
 }
 
 export function buildTestAssetPublicUrl(relativePath: string, fileName: string): string {
