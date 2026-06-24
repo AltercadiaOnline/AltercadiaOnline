@@ -1,4 +1,5 @@
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { drawRegistryTile } from '../../game/assetAtlasImageLoader.js';
 import { drawWorldAssetImage1To1 } from './worldAssetImageLoader.js';
 
 /**
@@ -288,21 +289,27 @@ export function drawPlaceholder(
 
   switch (type) {
     case PlaceholderType.GRASS:
-      ctx.fillStyle = PLACEHOLDER_COLORS.grass;
-      ctx.fillRect(x, y, w, h);
+      if (!drawRegistryTile(ctx, 'chao_grama', x, y, w)) {
+        ctx.fillStyle = PLACEHOLDER_COLORS.grass;
+        ctx.fillRect(x, y, w, h);
+      }
       break;
 
     case PlaceholderType.PLAZA:
-      ctx.fillStyle = PLACEHOLDER_COLORS.plaza;
-      ctx.fillRect(x, y, w, h);
+      if (!drawRegistryTile(ctx, 'chao_praca', x, y, w)) {
+        ctx.fillStyle = PLACEHOLDER_COLORS.plaza;
+        ctx.fillRect(x, y, w, h);
+      }
       break;
 
     case PlaceholderType.ROAD_TILE:
-      ctx.fillStyle = PLACEHOLDER_COLORS.road;
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      if (!drawRegistryTile(ctx, 'chao_rua', x, y, w)) {
+        ctx.fillStyle = PLACEHOLDER_COLORS.road;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      }
       break;
 
     case PlaceholderType.SPECTATOR_RING:
@@ -440,6 +447,13 @@ export function drawPlaceholder(
       break;
 
     case PlaceholderType.URBAN_PROP: {
+      const assetKey = options.assetKey;
+      if (
+        assetKey
+        && drawWorldAssetImage1To1(ctx, assetKey, x, y, w, h)
+      ) {
+        break;
+      }
       ctx.fillStyle = PLACEHOLDER_COLORS.road;
       ctx.fillRect(x + w * 0.15, y + h - Math.max(3, h * 0.08), w * 0.7, Math.max(3, h * 0.08));
       ctx.fillStyle = PLACEHOLDER_COLORS.urbanConcrete;

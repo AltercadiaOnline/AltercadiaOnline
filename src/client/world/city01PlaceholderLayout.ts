@@ -22,6 +22,10 @@ import { getWorldObjectsForMap } from '../../shared/world/worldObjectRegistry.js
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { CITY_01_TOWER_STRUCTURE_DEFS } from '../../shared/world/maps/city01TowerLayout.js';
 import { CITY_01_URBAN_PROP_DEFS } from '../../shared/world/maps/city01UrbanProps.js';
+import {
+  CITY_01_TEST_PACK_DECORATIVE_PROPS,
+  CITY_01_TEST_PACK_WALL_PROPS,
+} from '../../game/generated/city01TestPackWiring.js';
 import { portalCenterTile, portalInteractionContains } from '../../shared/world/portals.js';
 import {
   PlaceholderType,
@@ -175,6 +179,30 @@ function buildNpcSpots(): City01PlaceholderEntity[] {
   }));
 }
 
+function buildTestPackPropEntities(): City01PlaceholderEntity[] {
+  const decorative = CITY_01_TEST_PACK_DECORATIVE_PROPS.map((prop) => ({
+    assetKey: prop.assetId,
+    type: PlaceholderType.URBAN_PROP,
+    label: prop.label,
+    tileX: prop.tileX,
+    tileY: prop.tileY,
+    tileW: prop.tileW,
+    tileH: prop.tileH,
+  }));
+
+  const walls = CITY_01_TEST_PACK_WALL_PROPS.map((prop) => ({
+    assetKey: prop.assetId,
+    type: PlaceholderType.BUILDING,
+    label: prop.label,
+    tileX: prop.tileX,
+    tileY: prop.tileY,
+    tileW: prop.tileW,
+    tileH: prop.tileH,
+  }));
+
+  return [...decorative, ...walls];
+}
+
 function buildUrbanPropEntities(): City01PlaceholderEntity[] {
   return CITY_01_URBAN_PROP_DEFS.map((prop) => ({
     assetKey: prop.assetKey,
@@ -210,6 +238,7 @@ export function buildCity01PlaceholderScene(mapTiles = CITY_01_MAP_TILES): City0
   if (portal) entities.push(portal);
   entities.push(...buildWorldObjectEntities());
   entities.push(...buildUrbanPropEntities());
+  entities.push(...buildTestPackPropEntities());
 
   return {
     mapTiles,

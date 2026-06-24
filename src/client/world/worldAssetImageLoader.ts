@@ -1,5 +1,10 @@
 import { URBAN_PROP_IMAGE_URLS } from '../../assets/urban/urbanAssetManifest.js';
 import {
+  drawRegistryAssetAtFeet,
+  hasRegistryAsset,
+  preloadTilesetAtlas,
+} from '../../game/assetAtlasImageLoader.js';
+import {
   resolveTrimmedAssetSourceRect,
   type AssetTrimRatios,
 } from '../entities/player/playerSpriteSourceTrim.js';
@@ -91,6 +96,15 @@ export function drawWorldAssetImage1To1(
   footprintW: number,
   footprintH: number,
 ): boolean {
+  void preloadTilesetAtlas();
+  if (hasRegistryAsset(assetKey)) {
+    const feetX = footprintX + footprintW / 2;
+    const feetY = footprintY + footprintH;
+    if (drawRegistryAssetAtFeet(ctx, assetKey, feetX, feetY, footprintW, footprintH)) {
+      return true;
+    }
+  }
+
   const image = getCachedWorldAssetImage(assetKey);
   if (!image?.complete || image.naturalWidth <= 0) return false;
 
@@ -103,7 +117,16 @@ export function drawWorldAssetImage1To1(
   const feetX = footprintX + footprintW / 2;
   const feetY = footprintY + footprintH;
 
-  drawImage1To1AtFeet(ctx, image, trimmed, feetX, feetY, assetKey);
+  drawImage1To1AtFeet(
+    ctx,
+    image,
+    trimmed,
+    feetX,
+    feetY,
+    `${assetKey}.png`,
+    footprintW,
+    footprintH,
+  );
   return true;
 }
 

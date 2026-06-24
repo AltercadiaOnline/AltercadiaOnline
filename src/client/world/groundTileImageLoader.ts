@@ -3,6 +3,8 @@ import {
   PLACEHOLDER_TYPE_TO_GROUND_TILE,
   type GroundTileId,
 } from '../../assets/terrain/groundTileManifest.js';
+import { drawRegistryTile, preloadTilesetAtlas } from '../../game/assetAtlasImageLoader.js';
+import { applyCanvasAssetWarningTint, planCanvasAssetDraw } from '../../game/assets/assetNormalizer.js';
 import { disableCanvasImageSmoothing } from '../layout/gamePixelScale.js';
 import { snapDrawImageDest } from '../render/pixelSnap.js';
 import type { PlaceholderTypeId } from './placeholderRenderer.js';
@@ -62,12 +64,27 @@ export function drawGroundTileImage(
   const tileId = resolveGroundTileId(type);
   if (!tileId) return false;
 
+  void preloadTilesetAtlas();
+  if (drawRegistryTile(ctx, tileId, x, y, size)) {
+    return true;
+  }
+
   const image = getCachedGroundTile(tileId);
   if (!image?.complete || image.naturalWidth <= 0) return false;
 
-  const { dx, dy, dWidth, dHeight } = snapDrawImageDest(x, y, size, size);
+  const plan = planCanvasAssetDraw(
+    image.naturalWidth,
+    image.naturalHeight,
+    size,
+    size,
+    `${tileId}.png`,
+  );
+  const { dx, dy, dWidth, dHeight } = snapDrawImageDest(x, y, plan.targetWidth, plan.targetHeight);
   disableCanvasImageSmoothing(ctx);
   ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, dx, dy, dWidth, dHeight);
+  if (plan.proportionMismatch) {
+    applyCanvasAssetWarningTint(ctx, dx, dy, dWidth, dHeight);
+  }
   return true;
 }
 

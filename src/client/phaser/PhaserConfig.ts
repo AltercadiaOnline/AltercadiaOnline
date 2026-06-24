@@ -1,4 +1,4 @@
-import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { GAME_CONFIG } from '../../game/constants/GameConfig.js';
 
 /** Cena raiz (esqueleto) — filhas especializam exploração/combate. */
 export const PHASER_MAIN_SCENE_KEY = 'MainScene';
@@ -13,8 +13,8 @@ export const PHASER_BATTLE_SCENE_KEY = 'BattleArena';
 export const GAME_RENDER_COLUMN_ID = 'game-render-column';
 
 export const PHASER_RUNTIME_CONFIG = {
-  width: DESIGN_CONFIG.VIEWPORT.WIDTH,
-  height: DESIGN_CONFIG.VIEWPORT.HEIGHT,
+  width: GAME_CONFIG.VIEWPORT_WIDTH,
+  height: GAME_CONFIG.VIEWPORT_HEIGHT,
   pixelArt: true,
   antialias: false,
   antialiasGL: false,

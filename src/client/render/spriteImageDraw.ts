@@ -1,6 +1,10 @@
 import { disableCanvasImageSmoothing } from '../layout/gamePixelScale.js';
 import { snapDrawImageDest } from './pixelSnap.js';
 import type { TrimmedSourceRect } from '../entities/player/playerSpriteSourceTrim.js';
+import {
+  applyCanvasAssetWarningTint,
+  planCanvasAssetDraw,
+} from '../../game/assets/assetNormalizer.js';
 
 /** Auditoria de dimensões 1:1 — ative só para debug local. */
 export const DEBUG_ASSET_DIMENSIONS = false;
@@ -34,8 +38,8 @@ export function logAssetDrawDimensions(
 }
 
 /**
- * drawImage 1:1 — dWidth/dHeight = trimmed.sw/sh (sem escala para 35, 40 ou 54).
- * Âncora: base central (pés em feetX, feetY).
+ * Desenha imagem ancorada nos pés — escala forçada via Asset Normalizer.
+ * Sem targetWidth/targetHeight usa o recorte fonte 1:1.
  */
 export function drawImage1To1AtFeet(
   ctx: CanvasRenderingContext2D,
@@ -44,16 +48,20 @@ export function drawImage1To1AtFeet(
   feetX: number,
   feetY: number,
   assetName: string,
+  targetWidth?: number,
+  targetHeight?: number,
 ): void {
   if (trimmed.sw <= 0 || trimmed.sh <= 0) return;
 
-  const dWidth = trimmed.sw;
-  const dHeight = trimmed.sh;
+  const dWidth = targetWidth ?? trimmed.sw;
+  const dHeight = targetHeight ?? trimmed.sh;
+  const plan = planCanvasAssetDraw(trimmed.sw, trimmed.sh, dWidth, dHeight, assetName);
+
   const { dx, dy, dWidth: dw, dHeight: dh } = snapDrawImageDest(
-    feetX - dWidth / 2,
-    feetY - dHeight,
-    dWidth,
-    dHeight,
+    feetX - plan.targetWidth / 2,
+    feetY - plan.targetHeight,
+    plan.targetWidth,
+    plan.targetHeight,
   );
 
   logAssetDrawDimensions(assetName, image, trimmed, dw, dh);
@@ -70,9 +78,13 @@ export function drawImage1To1AtFeet(
     dw,
     dh,
   );
+
+  if (plan.proportionMismatch) {
+    applyCanvasAssetWarningTint(ctx, dx, dy, dw, dh);
+  }
 }
 
-/** 1:1 ancorado no canto superior-esquerdo (estruturas multi-tile). */
+/** 1:1 ancorado no canto superior-esquerdo — escala forçada via Asset Normalizer. */
 export function drawImage1To1AtTopLeft(
   ctx: CanvasRenderingContext2D,
   image: CanvasImageSource,
@@ -80,12 +92,15 @@ export function drawImage1To1AtTopLeft(
   x: number,
   y: number,
   assetName: string,
+  targetWidth?: number,
+  targetHeight?: number,
 ): void {
   if (trimmed.sw <= 0 || trimmed.sh <= 0) return;
 
-  const dWidth = trimmed.sw;
-  const dHeight = trimmed.sh;
-  const { dx, dy, dWidth: dw, dHeight: dh } = snapDrawImageDest(x, y, dWidth, dHeight);
+  const dWidth = targetWidth ?? trimmed.sw;
+  const dHeight = targetHeight ?? trimmed.sh;
+  const plan = planCanvasAssetDraw(trimmed.sw, trimmed.sh, dWidth, dHeight, assetName);
+  const { dx, dy, dWidth: dw, dHeight: dh } = snapDrawImageDest(x, y, plan.targetWidth, plan.targetHeight);
 
   logAssetDrawDimensions(assetName, image, trimmed, dw, dh);
 
@@ -101,4 +116,8 @@ export function drawImage1To1AtTopLeft(
     dw,
     dh,
   );
+
+  if (plan.proportionMismatch) {
+    applyCanvasAssetWarningTint(ctx, dx, dy, dw, dh);
+  }
 }

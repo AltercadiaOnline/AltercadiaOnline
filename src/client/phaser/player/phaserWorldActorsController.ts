@@ -15,6 +15,10 @@ import type {
   WorldNpcRenderSnapshot,
 } from '../../world/worldActorsRenderSnapshot.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from './phaserPlayerAssets.js';
+import type { PhaserLayoutContainer } from '../layout/phaserLayoutScene.js';
+import { resolvePhaserWorldDepth } from '../layout/phaserWorldDepth.js';
+import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
+import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
 
 const CREATURE_TRIM: AssetTrimRatios = {
   top: 0.04,
@@ -30,6 +34,8 @@ type PhaserActorImage = {
   setDepth: (depth: number) => PhaserActorImage;
   setAlpha: (alpha: number) => PhaserActorImage;
   setDisplaySize: (width: number, height: number) => PhaserActorImage;
+  setTint?: (color: number) => PhaserActorImage;
+  clearTint?: () => PhaserActorImage;
   setVisible: (visible: boolean) => PhaserActorImage;
   destroy: () => void;
 };
@@ -134,10 +140,13 @@ export class PhaserWorldActorsController {
 
   private scene: PhaserActorScene | null = null;
 
+  private ySortContainer: PhaserLayoutContainer | null = null;
+
   private hasRenderedActors = false;
 
-  mount(scene: PhaserActorScene): void {
+  mount(scene: PhaserActorScene, ySortContainer?: PhaserLayoutContainer | null): void {
     this.scene = scene;
+    this.ySortContainer = ySortContainer ?? null;
   }
 
   isActive(): boolean {
@@ -170,6 +179,7 @@ export class PhaserWorldActorsController {
     }
     this.sprites.clear();
     this.scene = null;
+    this.ySortContainer = null;
     this.hasRenderedActors = false;
   }
 
@@ -195,6 +205,7 @@ export class PhaserWorldActorsController {
     if (!sprite) {
       sprite = scene.add.image(0, 0, textureKey);
       sprite.setOrigin(0.5, 1);
+      this.ySortContainer?.add(sprite);
       this.sprites.set(instanceKey, sprite);
     }
 
@@ -218,7 +229,15 @@ export class PhaserWorldActorsController {
 
     sprite.setCrop(trimmed.sx, trimmed.sy, trimmed.sw, trimmed.sh);
     sprite.setPosition(Math.floor(actor.feetX), Math.floor(actor.feetY));
-    sprite.setDepth(Math.floor(actor.depthY));
+    normalizePhaserAsset(
+      sprite,
+      trimmed.sw,
+      trimmed.sh,
+      GAME_ASSET_TARGETS.npc.width,
+      GAME_ASSET_TARGETS.npc.height,
+      `${actor.creatureId}.png`,
+    );
+    sprite.setDepth(resolvePhaserWorldDepth(actor.feetY));
 
     if (actor.adjacent) {
       const pulse = 0.82 + Math.sin(actor.alertPulse) * 0.12;
@@ -231,12 +250,19 @@ export class PhaserWorldActorsController {
   }
 
   private applyNpc(sprite: PhaserActorImage, actor: WorldNpcRenderSnapshot): void {
-    sprite.setDisplaySize(actor.drawWidth, actor.drawHeight);
+    normalizePhaserAsset(
+      sprite,
+      actor.drawWidth,
+      actor.drawHeight,
+      GAME_ASSET_TARGETS.npc.width,
+      GAME_ASSET_TARGETS.npc.height,
+      `${actor.npcId}.png`,
+    );
     sprite.setPosition(
       Math.floor(actor.feetX),
       Math.floor(actor.feetY + actor.bobOffset),
     );
-    sprite.setDepth(Math.floor(actor.depthY));
+    sprite.setDepth(resolvePhaserWorldDepth(actor.feetY));
     sprite.setAlpha(1);
     sprite.setVisible(true);
   }

@@ -1,8 +1,11 @@
-import type { GroundTileId } from '../../../assets/terrain/groundTileManifest.js';
 import {
-  GROUND_TILE_IMAGE_URLS,
-  GROUND_TILE_SPECS,
-} from '../../../assets/terrain/groundTileManifest.js';
+  getRegistryAsset,
+  resolveAssetId,
+} from '../../../game/AssetRegistry.js';
+import { preloadTilesetAtlas } from '../../../game/assetAtlasImageLoader.js';
+import { GAME_CONFIG } from '../../../game/constants/GameConfig.js';
+import { preloadRegistryFileAsset } from '../../../game/registryFileImageLoader.js';
+import type { GroundTileId } from '../../../assets/terrain/groundTileManifest.js';
 import {
   getCachedGroundTile,
   preloadGroundTile,
@@ -10,6 +13,10 @@ import {
 import type { WorldTerrainTileSnapshot } from '../../world/worldTerrainRenderSnapshot.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from '../player/phaserPlayerAssets.js';
 import { CITY_01_MAP_CONFIG } from '../layout/MapConfig.js';
+import {
+  getTerrainLayoutStyle,
+  resolveTerrainLayoutKind,
+} from '../layout/terrainLayoutPalette.js';
 import {
   mountPhaserLayoutRoots,
   queueTerrainLayoutPreloads,
@@ -19,9 +26,15 @@ import {
   type PhaserLayoutScene,
 } from '../layout/phaserLayoutScene.js';
 import {
-  getTerrainLayoutStyle,
-  resolveTerrainLayoutKind,
-} from '../layout/terrainLayoutPalette.js';
+  PHASER_GROUND_DEPTH,
+} from '../layout/phaserWorldDepth.js';
+import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
+import {
+  isRegistryAssetRenderable,
+  positionRegistryTileAtCorner,
+  queueTilesetAtlasPreload,
+  tryCreateRegistrySprite,
+} from '../assets/phaserAssetRegistry.js';
 
 function groundTileTextureKey(tileId: GroundTileId): string {
   return `altercadia-ground-${tileId}`;
@@ -31,12 +44,14 @@ function tileInstanceKey(tile: WorldTerrainTileSnapshot): string {
   return `${tile.worldX}:${tile.worldY}:${tile.size}`;
 }
 
-type TerrainTileNode = {
-  layoutRect: PhaserLayoutRectangle;
-  assetSprite: PhaserLayoutImage | null;
-};
+function resolveTerrainAssetKey(tile: WorldTerrainTileSnapshot): string | null {
+  if (tile.groundTileId) {
+    return resolveAssetId(tile.groundTileId);
+  }
+  return resolveAssetId(tile.placeholderType);
+}
 
-function tryRegisterGroundTexture(
+function tryRegisterLegacyGroundTexture(
   textures: PhaserLayoutScene['textures'],
   tileId: GroundTileId,
 ): string | null {
@@ -59,12 +74,13 @@ function tryRegisterGroundTexture(
   return key;
 }
 
+type TerrainTileNode = {
+  layoutRect: PhaserLayoutRectangle | null;
+  assetSprite: PhaserLayoutImage | null;
+};
+
 /**
- * Camada 0 — terreno espelhando `terrainTiles` do ExplorationScene.
- *
- * **Layout base:** retângulos coloridos por tipo (rua, praça, comercial, água…).
- * **Arte final:** quando `groundTileId` tiver PNG em `public/assets/terrain/`,
- * troca automaticamente para `scene.add.image` — ver `MapConfig.terrainAssets`.
+ * Camada 0 — terreno via atlas (`AssetRegistry.get`) com fallback para tiles legados.
  */
 export class PhaserTerrainController {
   private readonly nodes = new Map<string, TerrainTileNode>();
@@ -104,7 +120,7 @@ export class PhaserTerrainController {
 
     for (const [key, node] of this.nodes) {
       if (seen.has(key)) continue;
-      node.layoutRect.destroy();
+      node.layoutRect?.destroy();
       node.assetSprite?.destroy();
       this.nodes.delete(key);
     }
@@ -112,7 +128,7 @@ export class PhaserTerrainController {
 
   destroy(): void {
     for (const node of this.nodes.values()) {
-      node.layoutRect.destroy();
+      node.layoutRect?.destroy();
       node.assetSprite?.destroy();
     }
     this.nodes.clear();
@@ -130,8 +146,74 @@ export class PhaserTerrainController {
   ): void {
     let node = this.nodes.get(instanceKey);
     if (!node) {
-      const layoutKind = resolveTerrainLayoutKind(tile.placeholderType);
-      const style = getTerrainLayoutStyle(layoutKind);
+      node = { layoutRect: null, assetSprite: null };
+      this.nodes.set(instanceKey, node);
+    }
+
+    const assetKey = resolveTerrainAssetKey(tile);
+    const asset = assetKey ? getRegistryAsset(assetKey) : null;
+    const registryReady = assetKey !== null
+      && asset !== null
+      && isRegistryAssetRenderable(scene.textures, assetKey);
+
+    if (assetKey && asset && !registryReady && asset.source === 'file') {
+      void preloadRegistryFileAsset(assetKey);
+    }
+
+    if (registryReady && assetKey && asset) {
+      if (!node.assetSprite) {
+        const created = tryCreateRegistrySprite(scene, assetKey);
+        if (!created) return;
+        created.sprite.setDepth(PHASER_GROUND_DEPTH);
+        container.add(created.sprite);
+        node.assetSprite = created.sprite;
+      }
+
+      node.layoutRect?.setVisible(false);
+      positionRegistryTileAtCorner(
+        node.assetSprite,
+        asset,
+        tile.worldX,
+        tile.worldY,
+        tile.size,
+      );
+      node.assetSprite.setVisible(true);
+      return;
+    }
+
+    if (tile.groundTileId) {
+      const textureKey = tryRegisterLegacyGroundTexture(scene.textures, tile.groundTileId);
+      if (textureKey) {
+        const cached = getCachedGroundTile(tile.groundTileId);
+        const sourceW = cached?.naturalWidth ?? GAME_CONFIG.TILE_SIZE;
+        const sourceH = cached?.naturalHeight ?? GAME_CONFIG.TILE_SIZE;
+
+        if (!node.assetSprite) {
+          const sprite = scene.add.image(tile.worldX, tile.worldY, textureKey);
+          sprite.setOrigin(0, 0);
+          sprite.setDepth(PHASER_GROUND_DEPTH);
+          container.add(sprite);
+          node.assetSprite = sprite;
+        }
+
+        node.layoutRect?.setVisible(false);
+        node.assetSprite.setPosition(Math.floor(tile.worldX), Math.floor(tile.worldY));
+        normalizePhaserAsset(
+          node.assetSprite,
+          sourceW,
+          sourceH,
+          tile.size,
+          tile.size,
+          `${tile.groundTileId}.png`,
+        );
+        node.assetSprite.setVisible(true);
+        return;
+      }
+    }
+
+    const layoutKind = resolveTerrainLayoutKind(tile.placeholderType);
+    const style = getTerrainLayoutStyle(layoutKind);
+    if (!node.layoutRect) {
       const layoutRect = scene.add.rectangle(
         tile.worldX + tile.size / 2,
         tile.worldY + tile.size / 2,
@@ -141,57 +223,31 @@ export class PhaserTerrainController {
       );
       layoutRect.setOrigin(0.5, 0.5);
       layoutRect.setStrokeStyle(1, style.stroke, style.alpha);
-      layoutRect.setDepth(0);
+      layoutRect.setDepth(PHASER_GROUND_DEPTH);
       container.add(layoutRect);
-
-      node = { layoutRect, assetSprite: null };
-      this.nodes.set(instanceKey, node);
+      node.layoutRect = layoutRect;
     }
 
-    const layoutKind = resolveTerrainLayoutKind(tile.placeholderType);
-    const style = getTerrainLayoutStyle(layoutKind);
+    node.assetSprite?.setVisible(false);
     node.layoutRect.setPosition(tile.worldX + tile.size / 2, tile.worldY + tile.size / 2);
     node.layoutRect.setSize(tile.size, tile.size);
     node.layoutRect.setFillStyle(style.fill, style.alpha);
     node.layoutRect.setStrokeStyle(1, style.stroke, style.alpha);
-
-    const textureKey = tile.groundTileId
-      ? tryRegisterGroundTexture(scene.textures, tile.groundTileId)
-      : null;
-
-    if (textureKey) {
-      // —— Game Designer: PNG de terreno carregado — oculta placeholder, usa pixel art ——
-      if (!node.assetSprite) {
-        const sprite = scene.add.image(tile.worldX, tile.worldY, textureKey);
-        sprite.setOrigin(0, 0);
-        sprite.setDepth(1);
-        container.add(sprite);
-        node.assetSprite = sprite;
-      }
-
-      node.assetSprite.setPosition(Math.floor(tile.worldX), Math.floor(tile.worldY));
-      node.assetSprite.setDisplaySize(tile.size, tile.size);
-      node.assetSprite.setVisible(true);
-      node.layoutRect.setVisible(false);
-      return;
-    }
-
-    node.assetSprite?.setVisible(false);
     node.layoutRect.setVisible(true);
   }
 }
 
-/** preload() — chaves de terreno via MapConfig + manifest legado. */
+/** preload() — atlas único + manifest legado. */
 export function queueGroundTilePreloads(scene: PhaserLayoutScene): void {
+  queueTilesetAtlasPreload(scene);
   queueTerrainLayoutPreloads(scene, CITY_01_MAP_CONFIG.terrainAssets);
-  for (const spec of GROUND_TILE_SPECS) {
-    scene.load.image(groundTileTextureKey(spec.id), GROUND_TILE_IMAGE_URLS[spec.id]);
-  }
 }
 
-/** Aquece cache HTMLImage para promote rápido em textura Phaser. */
+/** Aquece cache HTMLImage do atlas e tiles legados. */
 export function preloadLegacyGroundTileCache(): void {
-  for (const spec of GROUND_TILE_SPECS) {
-    void preloadGroundTile(spec.id);
+  void preloadTilesetAtlas();
+  for (const descriptor of CITY_01_MAP_CONFIG.terrainAssets) {
+    if (!descriptor.groundTileId) continue;
+    void preloadGroundTile(descriptor.groundTileId);
   }
 }

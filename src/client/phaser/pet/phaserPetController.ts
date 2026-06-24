@@ -2,6 +2,8 @@ import type { PetRenderSnapshot } from '../../entities/pet/PetFollowEntity.js';
 import { renderPetSprite } from '../../entities/pet/petRenderer.js';
 import { getPetFeetWorldY, getPetVisualBounds } from '../../../shared/world/petEntity.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from '../player/phaserPlayerAssets.js';
+import type { PhaserLayoutContainer } from '../layout/phaserLayoutScene.js';
+import { resolvePhaserWorldDepth } from '../layout/phaserWorldDepth.js';
 
 const PET_TEXTURE_KEY = 'altercadia-pet-follow';
 
@@ -34,12 +36,15 @@ export class PhaserPetController {
 
   private scene: PhaserPetScene | null = null;
 
+  private ySortContainer: PhaserLayoutContainer | null = null;
+
   private canvas: HTMLCanvasElement | null = null;
 
   private lastDrawKey = '';
 
-  mount(scene: PhaserPetScene): void {
+  mount(scene: PhaserPetScene, ySortContainer?: PhaserLayoutContainer | null): void {
     this.scene = scene;
+    this.ySortContainer = ySortContainer ?? null;
   }
 
   sync(snapshot: PetRenderSnapshot | null, timestampMs: number): void {
@@ -63,11 +68,12 @@ export class PhaserPetController {
       if (!this.sprite) {
         this.sprite = scene.add.image(feetX, feetY, PET_TEXTURE_KEY);
         this.sprite.setOrigin(0.5, 1);
+        this.ySortContainer?.add(this.sprite);
       }
 
       this.sprite.setPosition(feetX, feetY);
       this.sprite.setDisplaySize(bounds.width, bounds.height);
-      this.sprite.setDepth(feetY);
+      this.sprite.setDepth(resolvePhaserWorldDepth(feetY));
       this.sprite.setVisible(true);
     });
   }
@@ -78,6 +84,7 @@ export class PhaserPetController {
     this.canvas = null;
     this.lastDrawKey = '';
     this.scene = null;
+    this.ySortContainer = null;
   }
 
   private async ensureTexture(

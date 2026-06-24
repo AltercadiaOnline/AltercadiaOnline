@@ -1,31 +1,33 @@
+import { getRegistryAsset, resolveAssetId } from '../../../game/AssetRegistry.js';
+import { hasRegistryAsset } from '../../../game/assetAtlasImageLoader.js';
+import { preloadRegistryFileAsset } from '../../../game/registryFileImageLoader.js';
 import {
   resolveTrimmedAssetSourceRect,
 } from '../../entities/player/playerSpriteSourceTrim.js';
 import {
   getCachedWorldAssetImage,
   preloadWorldAssetImage,
-  WORLD_ASSET_IMAGE_URLS,
 } from '../../world/worldAssetImageLoader.js';
 import type { WorldActorRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
 import type { WorldStructureRenderSnapshot } from '../../world/worldStructureRenderSnapshot.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from '../player/phaserPlayerAssets.js';
 import { CITY_01_MAP_CONFIG } from '../layout/MapConfig.js';
 import {
-  createDebugLabelStyle,
   mountPhaserLayoutRoots,
   queueStructureLayoutPreloads,
   type PhaserLayoutImage,
-  type PhaserLayoutRectangle,
   type PhaserLayoutRoots,
   type PhaserLayoutScene,
-  type PhaserLayoutText,
 } from '../layout/phaserLayoutScene.js';
+import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
+import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
 import {
-  resolveActorDebugColors,
-  resolveActorDebugLabel,
-  resolveStructureDebugColors,
-  resolveStructureDebugLabel,
-} from '../layout/structureDebugLabels.js';
+  isRegistryAssetRenderable,
+  positionRegistryAssetAtFeet,
+  queueTilesetAtlasPreload,
+  tryCreateRegistrySprite,
+} from '../assets/phaserAssetRegistry.js';
+import { resolvePhaserWorldDepth } from '../layout/phaserWorldDepth.js';
 
 const STRUCTURE_TRIM = {
   top: 0.02,
@@ -38,18 +40,16 @@ function structureTextureKey(assetKey: string): string {
   return `altercadia-structure-${assetKey}`;
 }
 
-type StructureDebugNode = {
-  readonly debugSquare: PhaserLayoutRectangle;
-  readonly label: PhaserLayoutText;
-  assetSprite: PhaserLayoutImage | null;
+type StructureNode = {
+  assetSprite: PhaserLayoutImage;
+  legacySprite: PhaserLayoutImage | null;
 };
 
-type ActorDebugNode = {
-  readonly marker: PhaserLayoutRectangle;
-  readonly label: PhaserLayoutText;
+type ActorNode = {
+  assetSprite: PhaserLayoutImage;
 };
 
-function tryRegisterStructureTexture(
+function tryRegisterLegacyStructureTexture(
   textures: PhaserLayoutScene['textures'],
   assetKey: string,
 ): { readonly ready: boolean; readonly trimmed: ReturnType<typeof resolveTrimmedAssetSourceRect> | null } {
@@ -82,16 +82,33 @@ function tryRegisterStructureTexture(
   };
 }
 
+function resolveStructureAssetKey(snapshot: WorldStructureRenderSnapshot): string | null {
+  if (snapshot.kind === 'portal') {
+    return null;
+  }
+  return resolveAssetId(snapshot.assetKey);
+}
+
+function resolveActorAssetKey(actor: WorldActorRenderSnapshot): string | null {
+  if (actor.kind !== 'npc') return null;
+
+  const npcKey = `npc_${actor.npcId}`;
+  if (hasRegistryAsset(npcKey)) {
+    return resolveAssetId(npcKey);
+  }
+  if (hasRegistryAsset(actor.npcId)) {
+    return resolveAssetId(actor.npcId);
+  }
+  return null;
+}
+
 /**
- * Estruturas, portais e marcadores de atores — espelha snapshots do ExplorationScene.
- *
- * **Layout base:** quadrados de debug + labels (ex.: "Loja NPC", "Spawn Criatura").
- * **Arte final:** PNG em `public/assets/structures/` — ver `MapConfig.structureAssets`.
+ * Estruturas e atores — atlas via `AssetRegistry.get()`; edifícios grandes usam PNG legado até entrarem no atlas.
  */
 export class PhaserStructureController {
-  private readonly structureNodes = new Map<string, StructureDebugNode>();
+  private readonly structureNodes = new Map<string, StructureNode>();
 
-  private readonly actorNodes = new Map<string, ActorDebugNode>();
+  private readonly actorNodes = new Map<string, ActorNode>();
 
   private scene: PhaserLayoutScene | null = null;
 
@@ -118,9 +135,8 @@ export class PhaserStructureController {
     actors: readonly WorldActorRenderSnapshot[] = [],
   ): void {
     const scene = this.scene;
-    const structuresContainer = this.roots?.structuresContainer;
-    const actorsContainer = this.roots?.actorsContainer;
-    if (!scene || !structuresContainer || !actorsContainer) return;
+    const ySortContainer = this.roots?.ySortContainer;
+    if (!scene || !ySortContainer) return;
 
     void timestampMs;
 
@@ -129,14 +145,13 @@ export class PhaserStructureController {
 
     for (const snapshot of structures) {
       seenStructures.add(snapshot.instanceKey);
-      this.ensureStructureNode(scene, structuresContainer, snapshot);
+      this.ensureStructureNode(scene, ySortContainer, snapshot);
     }
 
     for (const [key, node] of this.structureNodes) {
       if (seenStructures.has(key)) continue;
-      node.debugSquare.destroy();
-      node.label.destroy();
-      node.assetSprite?.destroy();
+      node.assetSprite.destroy();
+      node.legacySprite?.destroy();
       this.structureNodes.delete(key);
     }
 
@@ -146,36 +161,27 @@ export class PhaserStructureController {
         ? `npc:${actor.npcId}`
         : `creature:${actor.instanceId}`;
       seenActors.add(actorKey);
-      this.ensureActorNode(scene, actorsContainer, actor, actorKey);
+      this.ensureActorNode(scene, ySortContainer, actor, actorKey);
     }
 
     for (const [key, node] of this.actorNodes) {
       if (seenActors.has(key)) continue;
-      node.marker.destroy();
-      node.label.destroy();
+      node.assetSprite.destroy();
       this.actorNodes.delete(key);
     }
   }
 
   destroy(): void {
     for (const node of this.structureNodes.values()) {
-      node.debugSquare.destroy();
-      node.label.destroy();
-      node.assetSprite?.destroy();
+      node.assetSprite.destroy();
+      node.legacySprite?.destroy();
     }
     this.structureNodes.clear();
 
     for (const node of this.actorNodes.values()) {
-      node.marker.destroy();
-      node.label.destroy();
+      node.assetSprite.destroy();
     }
     this.actorNodes.clear();
-
-    if (!this.roots) {
-      this.scene = null;
-      this.hasRenderedStructures = false;
-      return;
-    }
 
     this.roots = null;
     this.scene = null;
@@ -184,139 +190,139 @@ export class PhaserStructureController {
 
   private ensureStructureNode(
     scene: PhaserLayoutScene,
-    container: PhaserLayoutRoots['structuresContainer'],
+    container: PhaserLayoutRoots['ySortContainer'],
     snapshot: WorldStructureRenderSnapshot,
   ): void {
-    let node = this.structureNodes.get(snapshot.instanceKey);
-    const colors = resolveStructureDebugColors(snapshot);
-    const labelText = resolveStructureDebugLabel(snapshot);
-
-    if (!node) {
-      const debugSquare = scene.add.rectangle(
-        snapshot.worldX + snapshot.widthPx / 2,
-        snapshot.worldY + snapshot.heightPx / 2,
-        snapshot.widthPx,
-        snapshot.heightPx,
-        colors.fill,
-      );
-      debugSquare.setOrigin(0.5, 0.5);
-      debugSquare.setStrokeStyle(2, colors.stroke, 0.95);
-      debugSquare.setDepth(Math.floor(snapshot.depthY));
-
-      const label = scene.add.text(
-        snapshot.worldX + 4,
-        snapshot.worldY + 4,
-        labelText,
-        createDebugLabelStyle(),
-      );
-      label.setOrigin(0, 0);
-      label.setDepth(Math.floor(snapshot.depthY) + 1);
-
-      container.add(debugSquare);
-      container.add(label);
-
-      node = { debugSquare, label, assetSprite: null };
-      this.structureNodes.set(snapshot.instanceKey, node);
-    }
-
-    node.label.setText(labelText);
-    node.debugSquare.setPosition(
-      snapshot.worldX + snapshot.widthPx / 2,
-      snapshot.worldY + snapshot.heightPx / 2,
-    );
-    node.debugSquare.setSize(snapshot.widthPx, snapshot.heightPx);
-    node.debugSquare.setFillStyle(colors.fill, 0.88);
-    node.debugSquare.setStrokeStyle(2, colors.stroke, 0.95);
-    node.debugSquare.setDepth(Math.floor(snapshot.depthY));
-    node.label.setPosition(snapshot.worldX + 4, snapshot.worldY + 4);
-    node.label.setDepth(Math.floor(snapshot.depthY) + 1);
-
     if (snapshot.kind === 'portal') {
-      node.assetSprite?.setVisible(false);
-      node.debugSquare.setVisible(true);
-      node.label.setVisible(true);
       return;
     }
 
-    const png = tryRegisterStructureTexture(scene.textures, snapshot.assetKey);
-    if (png.ready && png.trimmed) {
-      // —— Game Designer: PNG de estrutura — oculta debug square, usa sprite ——
-      const textureKey = structureTextureKey(snapshot.assetKey);
-      if (!node.assetSprite) {
-        const sprite = scene.add.image(0, 0, textureKey);
-        container.add(sprite);
-        node.assetSprite = sprite;
+    const registryKey = resolveStructureAssetKey(snapshot);
+    const asset = registryKey ? getRegistryAsset(registryKey) : null;
+    const useRegistry = registryKey !== null
+      && asset !== null
+      && isRegistryAssetRenderable(scene.textures, registryKey);
+    const feetX = snapshot.worldX + snapshot.widthPx / 2;
+    const feetY = snapshot.worldY + snapshot.heightPx;
+
+    let node = this.structureNodes.get(snapshot.instanceKey);
+
+    if (registryKey && asset && !useRegistry && asset.source === 'file') {
+      void preloadRegistryFileAsset(registryKey);
+    }
+
+    if (useRegistry && registryKey && asset) {
+      if (!node) {
+        const created = tryCreateRegistrySprite(scene, registryKey);
+        if (!created) return;
+        container.add(created.sprite);
+        node = { assetSprite: created.sprite, legacySprite: null };
+        this.structureNodes.set(snapshot.instanceKey, node);
       }
 
-      const feetX = snapshot.worldX + snapshot.widthPx / 2;
-      const feetY = snapshot.worldY + snapshot.heightPx;
-      node.assetSprite.setOrigin(0.5, 1);
-      node.assetSprite.setCrop(
-        png.trimmed.sx,
-        png.trimmed.sy,
-        png.trimmed.sw,
-        png.trimmed.sh,
+      node.legacySprite?.setVisible(false);
+      positionRegistryAssetAtFeet(
+        node.assetSprite,
+        asset,
+        feetX,
+        feetY,
+        snapshot.widthPx,
+        snapshot.heightPx,
       );
-      node.assetSprite.setPosition(Math.floor(feetX), Math.floor(feetY));
-      node.assetSprite.setDepth(Math.floor(snapshot.depthY));
+      node.assetSprite.setDepth(resolvePhaserWorldDepth(feetY));
       node.assetSprite.setVisible(true);
-      node.debugSquare.setVisible(false);
-      node.label.setVisible(false);
       return;
     }
 
-    node.assetSprite?.setVisible(false);
-    node.debugSquare.setVisible(true);
-    node.label.setVisible(true);
+    const legacy = tryRegisterLegacyStructureTexture(scene.textures, snapshot.assetKey);
+    if (!legacy.ready || !legacy.trimmed) {
+      return;
+    }
+
+    if (!node) {
+      const placeholder = scene.add.image(0, 0, structureTextureKey(snapshot.assetKey));
+      container.add(placeholder);
+      node = { assetSprite: placeholder, legacySprite: placeholder };
+      this.structureNodes.set(snapshot.instanceKey, node);
+    } else if (!node.legacySprite) {
+      const sprite = scene.add.image(0, 0, structureTextureKey(snapshot.assetKey));
+      container.add(sprite);
+      node.legacySprite = sprite;
+    }
+
+    node.assetSprite.setVisible(false);
+    const sprite = node.legacySprite ?? node.assetSprite;
+    sprite.setOrigin(0.5, 1);
+    sprite.setCrop(
+      legacy.trimmed.sx,
+      legacy.trimmed.sy,
+      legacy.trimmed.sw,
+      legacy.trimmed.sh,
+    );
+    sprite.setPosition(Math.floor(feetX), Math.floor(feetY));
+    normalizePhaserAsset(
+      sprite,
+      legacy.trimmed.sw,
+      legacy.trimmed.sh,
+      snapshot.widthPx,
+      snapshot.heightPx,
+      `${snapshot.assetKey}.png`,
+    );
+    sprite.setDepth(resolvePhaserWorldDepth(feetY));
+    sprite.setVisible(true);
   }
 
   private ensureActorNode(
     scene: PhaserLayoutScene,
-    container: PhaserLayoutRoots['actorsContainer'],
+    container: PhaserLayoutRoots['ySortContainer'],
     actor: WorldActorRenderSnapshot,
     actorKey: string,
   ): void {
+    if (actor.kind !== 'npc') {
+      return;
+    }
+
+    const assetKey = resolveActorAssetKey(actor);
+    const asset = assetKey ? getRegistryAsset(assetKey) : null;
+    if (!assetKey || !asset || !isRegistryAssetRenderable(scene.textures, assetKey)) {
+      if (assetKey && asset?.source === 'file') {
+        void preloadRegistryFileAsset(assetKey);
+      }
+      return;
+    }
+
     let node = this.actorNodes.get(actorKey);
-    const colors = resolveActorDebugColors(actor);
-    const labelText = resolveActorDebugLabel(actor);
-
-    const size = actor.kind === 'npc' ? 22 : 18;
-    const x = actor.kind === 'npc' ? actor.feetX : actor.feetX;
-    const y = actor.kind === 'npc' ? actor.feetY - actor.drawHeight : actor.feetY - size;
-
     if (!node) {
-      const marker = scene.add.rectangle(x, y, size, size, colors.fill);
-      marker.setOrigin(0.5, 1);
-      marker.setStrokeStyle(2, colors.stroke, 0.95);
-      marker.setDepth(Math.floor(actor.depthY));
+      const created = tryCreateRegistrySprite(scene, assetKey);
+      if (!created) return;
 
-      const label = scene.add.text(x, y - size - 4, labelText, createDebugLabelStyle());
-      label.setOrigin(0.5, 1);
-      label.setDepth(Math.floor(actor.depthY) + 1);
-
-      container.add(marker);
-      container.add(label);
-
-      node = { marker, label };
+      container.add(created.sprite);
+      node = { assetSprite: created.sprite };
       this.actorNodes.set(actorKey, node);
     }
 
-    node.marker.setPosition(x, y);
-    node.marker.setDepth(Math.floor(actor.depthY));
-    node.label.setText(labelText);
-    node.label.setPosition(x, y - size - 4);
-    node.label.setDepth(Math.floor(actor.depthY) + 1);
-    node.marker.setVisible(true);
-    node.label.setVisible(true);
+    const targetW = GAME_ASSET_TARGETS.npc.width;
+    const targetH = GAME_ASSET_TARGETS.npc.height;
+    positionRegistryAssetAtFeet(
+      node.assetSprite,
+      asset,
+      actor.feetX,
+      actor.feetY,
+      targetW,
+      targetH,
+    );
+    node.assetSprite.setDepth(resolvePhaserWorldDepth(actor.feetY));
+    node.assetSprite.setVisible(true);
   }
 }
 
-/** preload() — chaves de estrutura via MapConfig + registry legado. */
+/** preload() — atlas + PNGs legados de estruturas grandes. */
 export function queueStructurePreloads(scene: PhaserLayoutScene): void {
+  queueTilesetAtlasPreload(scene);
   queueStructureLayoutPreloads(scene, CITY_01_MAP_CONFIG.structureAssets);
-  for (const [assetKey, url] of Object.entries(WORLD_ASSET_IMAGE_URLS)) {
-    if (!url) continue;
-    scene.load.image(structureTextureKey(assetKey), url);
+  for (const descriptor of CITY_01_MAP_CONFIG.structureAssets) {
+    const assetKey = descriptor.key.replace('altercadia-structure-', '');
+    scene.load.image(descriptor.key, descriptor.path);
     void preloadWorldAssetImage(assetKey);
   }
 }

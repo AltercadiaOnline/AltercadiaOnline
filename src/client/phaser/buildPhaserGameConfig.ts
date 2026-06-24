@@ -1,4 +1,4 @@
-import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { GAME_CONFIG } from '../../game/constants/GameConfig.js';
 import { PHASER_CANVAS_STYLE, PHASER_RUNTIME_CONFIG } from './PhaserConfig.js';
 
 type PhaserScaleNamespace = {
@@ -49,6 +49,6 @@ export function buildPhaserGameConfig(deps: PhaserGameConfigDeps): Record<string
 }
 
 export const PHASER_DESIGN_VIEWPORT = {
-  width: DESIGN_CONFIG.VIEWPORT.WIDTH,
-  height: DESIGN_CONFIG.VIEWPORT.HEIGHT,
+  width: GAME_CONFIG.VIEWPORT_WIDTH,
+  height: GAME_CONFIG.VIEWPORT_HEIGHT,
 } as const;

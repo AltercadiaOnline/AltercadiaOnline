@@ -37,6 +37,8 @@ export type PhaserLayoutImage = {
   setDepth: (depth: number) => PhaserLayoutImage;
   setDisplaySize: (width: number, height: number) => PhaserLayoutImage;
   setTexture: (textureKey: string) => PhaserLayoutImage;
+  setTint?: (color: number) => PhaserLayoutImage;
+  clearTint?: () => PhaserLayoutImage;
   setVisible: (visible: boolean) => PhaserLayoutImage;
   destroy: () => void;
 };
@@ -72,9 +74,13 @@ export type PhaserLayoutScene = {
 
 export type PhaserLayoutRoots = {
   readonly worldRoot: PhaserLayoutContainer;
+  /** Camada 0 — terreno (depth fixo, sempre atrás). */
   readonly mapContainer: PhaserLayoutContainer;
-  readonly structuresContainer: PhaserLayoutContainer;
-  readonly actorsContainer: PhaserLayoutContainer;
+  /**
+   * Camada Y-sort — estruturas, jogador, NPCs, pets e criaturas.
+   * Todos os filhos usam `setDepth(feetY)` para ordenação 2D correta.
+   */
+  readonly ySortContainer: PhaserLayoutContainer;
 };
 
 const DEBUG_LABEL_STYLE = {
@@ -91,27 +97,23 @@ export function createDebugLabelStyle(): Record<string, unknown> {
 
 /**
  * Agrupa camadas de layout — câmera do Phaser scrolla o mundo; containers ficam em (0,0).
- * Game Designer: não precisa mover containers; use coordenadas de mundo nos filhos.
+ * `mapContainer` desenha primeiro; `ySortContainer` compartilha depth por coordenada Y dos pés.
  */
 export function mountPhaserLayoutRoots(scene: PhaserLayoutScene): PhaserLayoutRoots {
   const worldRoot = scene.add.container(0, 0);
   const mapContainer = scene.add.container(0, 0);
-  const structuresContainer = scene.add.container(0, 0);
-  const actorsContainer = scene.add.container(0, 0);
+  const ySortContainer = scene.add.container(0, 0);
 
   mapContainer.setDepth(0);
-  structuresContainer.setDepth(100);
-  actorsContainer.setDepth(200);
+  ySortContainer.setDepth(0);
 
   worldRoot.add(mapContainer);
-  worldRoot.add(structuresContainer);
-  worldRoot.add(actorsContainer);
+  worldRoot.add(ySortContainer);
 
   return {
     worldRoot,
     mapContainer,
-    structuresContainer,
-    actorsContainer,
+    ySortContainer,
   };
 }
 

@@ -14,6 +14,8 @@ export type PhaserSceneGraphics = {
 export type PhaserSceneCamera = {
   setBounds: (x: number, y: number, width: number, height: number) => void;
   setScroll: (x: number, y: number) => void;
+  setZoom: (zoom: number) => void;
+  setRoundPixels?: (value: boolean) => void;
 };
 
 /** Superfície mínima de Phaser.Scene usada pelas cenas de mundo. */
