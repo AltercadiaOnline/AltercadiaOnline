@@ -16,8 +16,10 @@ import {
 
 } from '../../shared/sync/syncProtocol.js';
 
+import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
 import { getGameStore } from '../state/GameStore.js';
+import { isWorldSessionReady } from '../world/worldSessionGate.js';
 
 import { getGameTimeStore } from '../world/gameTimeStore.js';
 
@@ -129,23 +131,21 @@ export class GlobalStateSynchronizer {
 
 
   requestFullState(): void {
+    if (
+      getActionDispatcher().getMode() === 'online'
+      && !isWorldSessionReady()
+    ) {
+      return;
+    }
 
     if (this.customTransport) {
-
       this.customTransport();
-
       return;
-
     }
-
-
 
     if (this.socket && this.socket.readyState === WS_OPEN) {
-
       this.socket.send('request-full-state', { characterId: this.characterId });
-
     }
-
   }
 
 

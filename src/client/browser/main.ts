@@ -316,6 +316,13 @@ function handleWorldAuthError(reason: string): void {
   const msg = WORLD_AUTH_ERROR_MESSAGES[reason] ?? `Erro de conexão (${reason}).`;
 
   if (reason === 'AUTH_REQUIRED' || reason === 'AUTH_INVALID' || reason === 'AUTH_MISMATCH') {
+    // Corrida WS: mensagens (ex. request-full-state) antes de world-login-result.
+    if (reason === 'AUTH_REQUIRED' && worldStarted && !isWorldSessionReady()) {
+      setStatus('Sincronizando sessão…');
+      requestWorldLoginIfPossible();
+      return;
+    }
+
     setStatus(msg);
     resetWorldSessionGate();
     setWorldSessionActive(false);
@@ -374,6 +381,7 @@ function handleWorldLoginResult(raw: unknown): void {
   world?.setPaused(false);
   positionGateway?.startHeartbeat();
   syncExplorationOnlineFromSocket();
+  getGlobalStateSynchronizer().requestFullState();
   setStatus('Conectado');
 
   presentMinorAccountAviso(raw.aviso_menor);

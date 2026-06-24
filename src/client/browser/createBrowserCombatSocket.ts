@@ -144,9 +144,12 @@ export function createBrowserCombatSocket(
     bindWsEvents(ws, store, options.onSystemError);
 
     ws.addEventListener('open', () => {
+      const wasReconnect = reconnectAttempt > 0;
       reconnectAttempt = 0;
       notifyPhase('connected');
-      options.onReconnect?.();
+      if (wasReconnect) {
+        options.onReconnect?.();
+      }
       emitOpen();
     });
 
