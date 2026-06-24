@@ -74,8 +74,6 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     const { createExplorationPhaserScene } = await import('./scenes/ExplorationPhaserScene.js');
     const { createBattlePhaserScene } = await import('./scenes/BattlePhaserScene.js');
 
-    setRenderHostVisibility('phaser');
-
     const gameConfig = buildPhaserGameConfig({
       Phaser: PhaserNs,
       parent: host,
@@ -95,6 +93,7 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     syncPhaserSceneForGameState(getGameStateManager().getState());
 
     getRenderLayerBridge().markPhaserSceneReady(true);
+    setRenderHostVisibility('phaser');
 
     return activeGame;
   })().catch((error) => {

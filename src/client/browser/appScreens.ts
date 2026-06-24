@@ -37,7 +37,7 @@ import {
 } from '../services/auth/oauthPending.js';
 import { showAuthView } from '../services/authFlow.js';
 import { showScreen } from '../navigation.js';
-import { mountWorldMapScene } from './sceneManager.js';
+import { mountWorldMapScene, SceneManager } from './sceneManager.js';
 import {
   resetCharacterSelectPreviewManager,
 } from './characterSelectPreview.js';
@@ -306,6 +306,7 @@ export const AppScreens = {
     exploration?.setAttribute('aria-hidden', 'false');
     document.getElementById('scene-combat')?.classList.add('hidden');
     document.getElementById('scene-combat')?.setAttribute('aria-hidden', 'true');
+    SceneManager.showExploration();
   },
 
   async setAuthenticatedUser(user: AuthUser): Promise<void> {
