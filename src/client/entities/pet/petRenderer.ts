@@ -3,12 +3,56 @@ import type { PlayerFacing } from '../../../shared/world/playerFacing.js';
 import type { PetKindId } from '../../../shared/pet/petCatalog.js';
 import { getPetColorPalette, type PetColorId } from '../../../shared/pet/petColorPalette.js';
 import { getDefaultPetGenderId, type PetGenderId } from '../../../shared/pet/petGender.js';
+import { disableCanvasImageSmoothing } from '../../layout/gamePixelScale.js';
+import { resolveTrimmedAssetSourceRect } from '../player/playerSpriteSourceTrim.js';
 import type { PetRenderSnapshot } from './PetFollowEntity.js';
+import { PetSpriteLoader } from './PetSpriteLoader.js';
 
 const OUTLINE = '#142026';
 
+const PET_SRC_TRIM = {
+  top: 0.04,
+  bottom: 0.12,
+  left: 0.04,
+  right: 0.04,
+} as const;
+
 function facingMirrorScale(facing: PlayerFacing): number {
   return facing === 'west' ? -1 : 1;
+}
+
+function resolvePetFacing(snapshot: PetRenderSnapshot): PlayerFacing {
+  return snapshot.facing;
+}
+
+function renderPetPngSprite(
+  ctx: CanvasRenderingContext2D,
+  kindId: PetKindId,
+  facing: PlayerFacing,
+  w: number,
+  h: number,
+): boolean {
+  const frame = PetSpriteLoader.getCachedRotation(kindId, facing)
+    ?? PetSpriteLoader.getCachedRotation(kindId, 'south');
+  if (!frame) return false;
+
+  const naturalW = frame.image.naturalWidth || frame.image.width;
+  const naturalH = frame.image.naturalHeight || frame.image.height;
+  const trimmed = resolveTrimmedAssetSourceRect(naturalW, naturalH, PET_SRC_TRIM);
+
+  disableCanvasImageSmoothing(ctx);
+  ctx.drawImage(
+    frame.image,
+    trimmed.sx,
+    trimmed.sy,
+    trimmed.sw,
+    trimmed.sh,
+    -w / 2,
+    -h / 2,
+    w,
+    h,
+  );
+  return true;
 }
 
 function drawTechCollar(ctx: CanvasRenderingContext2D, w: number, y: number, ledColor: string): void {
@@ -179,7 +223,12 @@ function renderPetBody(
   h: number,
   animPhase: number,
   gender: PetGenderId = getDefaultPetGenderId(),
+  facing: PlayerFacing = 'south',
 ): void {
+  if (renderPetPngSprite(ctx, kindId, facing, w, h)) {
+    return;
+  }
+
   const palette = getPetColorPalette(colorId);
   if (kindId === 'dimensional_dog') {
     renderDimensionalDog(ctx, w, h, animPhase, palette, gender);
@@ -197,14 +246,17 @@ export function renderPetSprite(
   const bob = Math.sin(timestampMs * 0.006 + snapshot.animPhase) * (snapshot.kindId === 'dimensional_cat' ? 2.5 : 1.2);
   const cx = bounds.x + bounds.width / 2;
   const cy = bounds.y + bounds.height / 2 + bob;
+  const w = bounds.width * 0.82;
+  const h = bounds.height * 0.72;
+  const facing = resolvePetFacing(snapshot);
+  const usePng = PetSpriteLoader.hasPngSprites(snapshot.kindId);
 
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.scale(facingMirrorScale(snapshot.facing), 1);
-
-  const w = bounds.width * 0.82;
-  const h = bounds.height * 0.72;
-  renderPetBody(ctx, snapshot.kindId, snapshot.colorId, w, h, snapshot.animPhase, snapshot.gender);
+  if (!usePng) {
+    ctx.scale(facingMirrorScale(facing), 1);
+  }
+  renderPetBody(ctx, snapshot.kindId, snapshot.colorId, w, h, snapshot.animPhase, snapshot.gender, facing);
 
   ctx.restore();
 }
@@ -223,7 +275,7 @@ export function renderPetShopPreview(
   const resolvedGender = gender ?? getDefaultPetGenderId();
   ctx.save();
   ctx.translate(x + size / 2, y + size / 2);
-  renderPetBody(ctx, kindId, resolvedColor, size * 0.72, size * 0.62, 0, resolvedGender);
+  renderPetBody(ctx, kindId, resolvedColor, size * 0.72, size * 0.62, 0, resolvedGender, 'south');
   ctx.restore();
 }
 
@@ -239,6 +291,6 @@ export function renderPetPortrait(
   ctx.clearRect(0, 0, size, size);
   ctx.save();
   ctx.translate(size / 2, size / 2);
-  renderPetBody(ctx, kindId, colorId, size * 0.72, size * 0.62, animPhase, gender);
+  renderPetBody(ctx, kindId, colorId, size * 0.72, size * 0.62, animPhase, gender, 'south');
   ctx.restore();
 }

@@ -423,6 +423,7 @@ export class ExplorationScene implements Disposable {
 
 
     void preloadPlayerSprites();
+    void import('../entities/pet/PetSpriteLoader.js').then((mod) => mod.preloadPetSprites());
     void import('../loaders/npcAssetImageLoader.js').then((mod) => mod.preloadAllNpcDefinitionAssets());
 
 
