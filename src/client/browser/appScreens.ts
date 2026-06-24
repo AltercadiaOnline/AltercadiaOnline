@@ -8,6 +8,7 @@ import {
   getUser,
   getSupabaseClient,
   initSupabaseAuth,
+  isSupabaseReady,
   restorePersistedSession,
   signOutSupabase,
   clearLocalSupabaseSession,
@@ -17,6 +18,7 @@ import { activateGameStoreAfterAuth, resetGameStoreState } from '../state/GameSt
 import { initAuthSessionBridge, tryCompleteOAuthReturn, type AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 import { isSupabaseConfigured, type PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { redirectToCanonicalGameOriginIfNeeded } from '../net/canonicalGameOrigin.js';
+import { applyLocalMonolithDevClientConfig } from '../../shared/net/localMonolithDev.js';
 import { hasAuthTokensInUrl, normalizeAuthCallbackLocationIfNeeded } from '../../shared/auth/authCallback.js';
 import { isGameServerReachable } from '../services/serverReachability.js';
 import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
@@ -68,6 +70,7 @@ import { getAppScreenBridge } from '../app/bridge/appScreenBridge.js';
 import { authLoginFormHasUserInput, getAuthScreenController } from '../app/screen/authScreenController.js';
 import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
 import { isEmailCredentialAuthInFlight } from '../services/auth/oauthPending.js';
+import { withAuthDeadline } from '../auth/authDeadline.js';
 import {
   markAuthBootstrapFailed,
   markAuthBootstrapPending,
@@ -84,18 +87,21 @@ export type ClientAuthBootstrapResult = {
 };
 
 let clientAuthBootstrapCache: ClientAuthBootstrapResult | null = null;
+let clientAuthBootstrapInFlight: Promise<ClientAuthBootstrapResult> | null = null;
 
-/** Bootstrap: /config/client (Vercel estático) → health Railway → Supabase Auth. */
-export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
-  if (clientAuthBootstrapCache) {
-    markAuthBootstrapReady();
-    return clientAuthBootstrapCache;
-  }
+export function resetClientAuthBootstrapCache(): void {
+  clientAuthBootstrapCache = null;
+  clientAuthBootstrapInFlight = null;
+}
 
+async function runClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
   markAuthBootstrapPending();
 
   try {
-    const config = await fetchPublicClientConfig();
+    const config = applyLocalMonolithDevClientConfig(
+      await fetchPublicClientConfig(),
+      window.location,
+    );
     setClientRuntimeConfig(config);
 
     if (normalizeAuthCallbackLocationIfNeeded(config)) {
@@ -131,7 +137,11 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
       throw new Error(USER_AUTH_UNAVAILABLE);
     }
 
-    await restorePersistedSession();
+    await withAuthDeadline(
+      restorePersistedSession(),
+      'Restauração de sessão demorou demais. Verifique sua conexão e tente de novo.',
+      12_000,
+    );
 
     clientAuthBootstrapCache = {
       serverOk,
@@ -146,6 +156,29 @@ export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapR
     const message = error instanceof Error ? error.message : 'Falha ao preparar autenticação.';
     markAuthBootstrapFailed(message);
     throw error;
+  }
+}
+
+/** Bootstrap: /config/client (Vercel estático) → health Railway → Supabase Auth. */
+export async function prepareClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
+  if (clientAuthBootstrapCache && isSupabaseReady()) {
+    markAuthBootstrapReady();
+    return clientAuthBootstrapCache;
+  }
+
+  if (clientAuthBootstrapCache && !isSupabaseReady()) {
+    clientAuthBootstrapCache = null;
+  }
+
+  if (clientAuthBootstrapInFlight) {
+    return clientAuthBootstrapInFlight;
+  }
+
+  clientAuthBootstrapInFlight = runClientAuthBootstrap();
+  try {
+    return await clientAuthBootstrapInFlight;
+  } finally {
+    clientAuthBootstrapInFlight = null;
   }
 }
 

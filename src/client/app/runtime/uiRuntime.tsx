@@ -1,5 +1,5 @@
 import { showScreen } from '../../navigation.js';
-import { markAuthBootstrapPending, subscribeAuthBootstrap, getAuthBootstrapPhase } from '../../auth/authBootstrapState.js';
+import { subscribeAuthBootstrap, getAuthBootstrapPhase } from '../../auth/authBootstrapState.js';
 import { getAuthScreenController } from '../screen/authScreenController.js';
 import { initClientApp } from '../bootstrap/initClientApp.js';
 import { ensureClientArchitectureRoots } from '../shell/clientArchitecture.js';
@@ -11,8 +11,6 @@ import { mountScreenRuntime } from './mountScreenRuntime.js';
  * HUD in-game monta em ensureGameHudRuntime() ao entrar no mundo.
  */
 export function mountReactUiRuntime(root: ParentNode = document): void {
-  markAuthBootstrapPending();
-
   subscribeAuthBootstrap(() => {
     const pending = getAuthBootstrapPhase() === 'pending';
     getAuthScreenController().patchAuthBootstrapPending(pending);

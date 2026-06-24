@@ -98,7 +98,7 @@ export function registerAuthBootstrapPromise(promise: Promise<unknown>): void {
   });
 }
 
-const AUTH_BOOTSTRAP_WAIT_MS = 45_000;
+const AUTH_BOOTSTRAP_WAIT_MS = 20_000;
 const AUTH_BOOTSTRAP_POLL_MS = 200;
 
 function sleep(ms: number): Promise<void> {
@@ -123,7 +123,8 @@ export async function waitForAuthBootstrapReady(): Promise<boolean> {
         bootstrapPromise,
         sleep(Math.min(remaining, AUTH_BOOTSTRAP_POLL_MS)).then(() => false),
       ]);
-      if (ready || isSupabaseReady()) return true;
+      if (isSupabaseReady()) return true;
+      if (ready) continue;
       continue;
     }
 

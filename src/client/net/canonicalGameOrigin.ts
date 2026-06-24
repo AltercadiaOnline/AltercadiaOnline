@@ -1,4 +1,5 @@
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
+import { isLocalMonolithDevHost } from '../../shared/net/localMonolithDev.js';
 import { resolveGameHttpUrl } from '../../shared/net/resolveGameHttpUrl.js';
 import {
   hasAuthTokensInUrl,
@@ -27,6 +28,10 @@ export function isOnCanonicalGameOrigin(
 export function redirectToCanonicalGameOriginIfNeeded(
   config: Pick<PublicClientConfig, 'gameHttpUrl' | 'gameWsUrl' | 'publicSiteUrl'>,
 ): boolean {
+  if (isLocalMonolithDevHost(window.location.hostname)) {
+    return false;
+  }
+
   const publicSite = normalizePublicSiteOrigin(config.publicSiteUrl);
   const currentOrigin = window.location.origin.replace(/\/+$/, '');
   if (publicSite && currentOrigin === publicSite) {

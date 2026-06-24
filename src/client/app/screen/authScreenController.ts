@@ -45,6 +45,7 @@ import { getUser } from '../../auth/supabaseAuth.js';
 import { getAuthBridge } from '../bridge/authBridge.js';
 import {
   getAuthBootstrapPhase,
+  getAuthBootstrapFailureMessage,
   subscribeAuthBootstrap,
   waitForAuthBootstrapReady,
 } from '../../auth/authBootstrapState.js';
@@ -74,6 +75,7 @@ type AuthScreenMutableState = {
   showProfileGuardianConsent: boolean;
   bootstrapFatalVisible: boolean;
   authBootstrapPending: boolean;
+  loginActionsReady: boolean;
 };
 
 export type AuthScreenSnapshot = Readonly<AuthScreenMutableState>;
@@ -161,6 +163,7 @@ class AuthScreenController {
     showProfileGuardianConsent: false,
     bootstrapFatalVisible: false,
     authBootstrapPending: getAuthBootstrapPhase() === 'pending',
+    loginActionsReady: isSupabaseReady(),
   };
 
   subscribe(listener: AuthScreenListener): () => void {
@@ -188,7 +191,14 @@ class AuthScreenController {
   }
 
   patchAuthBootstrapPending(pending: boolean): void {
-    this.patch({ authBootstrapPending: pending });
+    this.patch({
+      authBootstrapPending: pending,
+      loginActionsReady: isSupabaseReady(),
+    });
+  }
+
+  syncLoginActionsReady(): void {
+    this.patch({ loginActionsReady: isSupabaseReady() });
   }
 
   syncView(view: AuthView): void {
@@ -343,12 +353,22 @@ class AuthScreenController {
   private async ensureAuthReady(): Promise<boolean> {
     if (isSupabaseReady()) return true;
 
+    const bootstrapPhase = getAuthBootstrapPhase();
+    if (bootstrapPhase === 'failed') {
+      this.setStatus(
+        getAuthBootstrapFailureMessage() ?? 'Falha ao preparar autenticação.',
+        true,
+      );
+      return false;
+    }
+
     this.setStatus('Preparando autenticação…', false);
 
     try {
       const ready = await waitForAuthBootstrapReady();
       if (!ready && !isSupabaseReady()) {
-        const { prepareClientAuthBootstrap } = await import('../../browser/appScreens.js');
+        const { prepareClientAuthBootstrap, resetClientAuthBootstrapCache } = await import('../../browser/appScreens.js');
+        resetClientAuthBootstrapCache();
         await prepareClientAuthBootstrap();
       }
     } catch (error) {
@@ -358,10 +378,17 @@ class AuthScreenController {
     }
 
     if (isSupabaseReady()) {
+      this.syncLoginActionsReady();
       if (this.state.statusMessage === 'Preparando autenticação…') {
         this.setStatus('', false);
       }
       return true;
+    }
+
+    const failure = getAuthBootstrapFailureMessage();
+    if (failure) {
+      this.setStatus(failure, true);
+      return false;
     }
 
     return this.requireAuthReady();
@@ -756,6 +783,16 @@ export function initAuthScreenController(options: AuthScreenBootstrapOptions): b
   const syncBootstrapPhase = (): void => {
     const phase = getAuthBootstrapPhase();
     controller.patchAuthBootstrapPending(phase === 'pending');
+    controller.syncLoginActionsReady();
+    if (phase === 'failed') {
+      const failure = getAuthBootstrapFailureMessage();
+      if (failure && controller.snapshot().statusMessage.trim().length === 0) {
+        controller.setStatus(failure, true);
+      }
+    }
+    if (phase === 'ready') {
+      controller.syncLoginActionsReady();
+    }
   };
   syncBootstrapPhase();
   subscribeAuthBootstrap(syncBootstrapPhase);

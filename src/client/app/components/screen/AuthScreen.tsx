@@ -32,6 +32,7 @@ export function AuthScreen() {
   const state = useAuthScreen();
   const actions = useAuthScreenActions();
   const disabled = state.busy;
+  const authBlocked = disabled || !state.loginActionsReady;
 
   return (
     <div
@@ -67,10 +68,10 @@ export function AuthScreen() {
               />
             </AuthField>
             <div className="auth-actions">
-              <button type="button" disabled={disabled} onClick={actions.handleLogin}>
+              <button type="button" disabled={authBlocked} onClick={actions.handleLogin}>
                 LOGIN
               </button>
-              <button type="button" disabled={disabled} onClick={actions.goToRegister}>
+              <button type="button" disabled={authBlocked} onClick={actions.goToRegister}>
                 CADASTRAR
               </button>
             </div>
@@ -85,7 +86,7 @@ export function AuthScreen() {
             <button
               type="button"
               className="auth-google-btn"
-              disabled={disabled}
+              disabled={authBlocked}
               onClick={actions.handleGoogleLogin}
             >
               ENTRAR COM GOOGLE
@@ -273,7 +274,7 @@ export function AuthScreen() {
               />
             </AuthField>
             <div className="auth-actions">
-              <button type="button" disabled={disabled} onClick={actions.handleRegister}>
+              <button type="button" disabled={authBlocked} onClick={actions.handleRegister}>
                 CRIAR CONTA
               </button>
               <button type="button" disabled={disabled} onClick={actions.goToLogin}>
@@ -291,7 +292,7 @@ export function AuthScreen() {
             <button
               type="button"
               className="auth-google-btn"
-              disabled={disabled}
+              disabled={authBlocked}
               onClick={actions.handleGoogleLogin}
             >
               CADASTRAR COM GOOGLE
@@ -301,7 +302,7 @@ export function AuthScreen() {
 
         <AuthStatus message={state.statusMessage} isError={state.statusIsError} />
 
-        {state.authBootstrapPending && !state.statusMessage ? (
+        {(!state.loginActionsReady || state.authBootstrapPending) && !state.statusMessage ? (
           <p className="auth-status" aria-live="polite">
             Preparando autenticação…
           </p>
