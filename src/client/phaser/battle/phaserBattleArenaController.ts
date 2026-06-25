@@ -1,5 +1,6 @@
 import type { BattleRenderFrame } from '../../app/bridge/battleRenderBridge.js';
 import type { PhaserSceneGraphics } from '../scenes/MainScene.js';
+import { resolveBattleArenaBackdropUrl } from './battleArenaBackdrop.js';
 import { BATTLE_PHASER_ARENA_LAYOUT } from './battlePhaserArenaLayout.js';
 import { PhaserBattleCombatFxController } from './phaserBattleCombatFxController.js';
 import { PhaserBattleFighterController } from './phaserBattleFighterController.js';
@@ -8,7 +9,12 @@ import {
   PhaserBattleVfxController,
   registerPhaserBattleVfxController,
 } from './phaserBattleVfxController.js';
-import { clearBattleTextureImageCache } from './phaserBattleTextureLoader.js';
+import {
+  clearBattleTextureImageCache,
+  ensureBattleSpriteTexture,
+} from './phaserBattleTextureLoader.js';
+
+type PhaserBattleArenaImage = ReturnType<PhaserBattleArenaScene['add']['image']>;
 
 type PhaserBattleArenaScene = {
   textures: Parameters<typeof import('./phaserBattleTextureLoader.js').ensureBattleSpriteTexture>[0];
@@ -53,6 +59,10 @@ export class PhaserBattleArenaController {
 
   private staticLayers: PhaserSceneGraphics[] = [];
 
+  private backgroundImage: PhaserBattleArenaImage | null = null;
+
+  private backgroundUrl: string | null = null;
+
   private lastFrame: BattleRenderFrame | null = null;
 
   private pendingApply: Promise<void> = Promise.resolve();
@@ -80,6 +90,8 @@ export class PhaserBattleArenaController {
     this.vfx.mount(scene as never);
     registerPhaserBattleVfxController(this.vfx);
     this.paintStaticArena(scene);
+    this.backgroundUrl = resolveBattleArenaBackdropUrl(this.lastFrame?.monsterId ?? null);
+    void this.paintBackgroundImage(scene, this.backgroundUrl);
     if (this.lastFrame) {
       void this.applyFrame(this.lastFrame);
     }
@@ -87,6 +99,16 @@ export class PhaserBattleArenaController {
 
   applyFrame(frame: BattleRenderFrame): void {
     this.lastFrame = frame;
+
+    // Mesmo oponente → mesma arena; troca o cenário se o adversário mudar.
+    if (this.scene) {
+      const desiredUrl = resolveBattleArenaBackdropUrl(frame.monsterId);
+      if (desiredUrl !== this.backgroundUrl) {
+        this.backgroundUrl = desiredUrl;
+        void this.paintBackgroundImage(this.scene, desiredUrl);
+      }
+    }
+
     this.pendingApply = this.pendingApply
       .then(async () => {
         await this.allyFighter.applySlot(frame.ally);
@@ -104,6 +126,9 @@ export class PhaserBattleArenaController {
       layer.destroy();
     }
     this.staticLayers = [];
+    this.backgroundImage?.destroy();
+    this.backgroundImage = null;
+    this.backgroundUrl = null;
     this.allyFighter.destroy();
     this.foeFighter.destroy();
     this.pet.destroy();
@@ -131,13 +156,17 @@ export class PhaserBattleArenaController {
 
     const platformRadiusX = platformEllipseWidth / 2;
 
+    // Fallback sólido — fica atrás do cenário PNG (depth menor) e evita flash
+    // enquanto a imagem carrega.
     const backdrop = scene.add.graphics();
     backdrop.fillStyle(0x060806, 1);
     backdrop.fillRect(0, 0, width, height);
-    backdrop.setDepth(floorDepth);
+    backdrop.setDepth(floorDepth - 1);
 
+    // Piso translúcido — escurece levemente a base para contraste dos lutadores
+    // sem ocultar a calçada do cenário urbano.
     const floor = scene.add.graphics();
-    floor.fillStyle(0x081218, 0.92);
+    floor.fillStyle(0x081218, 0.3);
     floor.fillRect(0, floorTopY, width, height - floorTopY);
     floor.fillStyle(0x5efcff, 0.08);
     floor.fillRect(0, floorTopY, width, 2);
@@ -167,5 +196,25 @@ export class PhaserBattleArenaController {
     platforms.setDepth(platformDepth);
 
     this.staticLayers = [backdrop, floor, ambient, platforms];
+  }
+
+  /** Carrega e posiciona o cenário urbano atrás de tudo (acima do fallback sólido). */
+  private async paintBackgroundImage(
+    scene: PhaserBattleArenaScene,
+    url: string,
+  ): Promise<void> {
+    const key = await ensureBattleSpriteTexture(scene.textures, url);
+    if (!key || this.scene !== scene) {
+      return;
+    }
+
+    const { width, height, floorDepth } = BATTLE_PHASER_ARENA_LAYOUT;
+    this.backgroundImage?.destroy();
+
+    const image = scene.add.image(0, 0, key);
+    image.setOrigin(0, 0);
+    image.setDisplaySize(width, height);
+    image.setDepth(floorDepth - 0.5);
+    this.backgroundImage = image;
   }
 }

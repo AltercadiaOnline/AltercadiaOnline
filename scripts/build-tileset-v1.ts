@@ -11,18 +11,44 @@ import { fileURLToPath } from 'node:url';
 import { inflateSync, deflateSync } from 'node:zlib';
 import {
   getAssetFrame,
-  listAssetIds,
   TILESET_ATLAS_FILE,
   TILESET_ATLAS_HEIGHT,
   TILESET_ATLAS_WIDTH,
-  type AssetId,
+  type LegacyAssetId,
 } from '../src/game/AssetRegistry.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'public', 'assets', 'tilesets');
 const outFile = path.join(outDir, TILESET_ATLAS_FILE);
 
-const SOURCE_BY_ID: Partial<Record<AssetId, string>> = {
+/**
+ * Lista de permissão explícita — o ÚNICO conteúdo que entra no atlas estático.
+ * Build determinístico: nada é escaneado automaticamente. Tudo que não estiver
+ * aqui é tratado como asset dinâmico, resolvido pelo renderer direto do PNG no
+ * sistema de arquivos (packs canônicos em public/assets/**).
+ */
+const ATLAS_ASSETS: readonly LegacyAssetId[] = [
+  // Chão (tileset 40×40)
+  'chao_grama',
+  'chao_praca',
+  'chao_rua',
+  'parede_concreto',
+  // Props urbanos legados
+  'poste_metal',
+  'lixeira',
+  'correio',
+  'hidrante',
+  'extintor',
+  'banco',
+  'grafite',
+  // Personagens base
+  'player_idle',
+  'npc_anciao',
+  'npc_treinador',
+  'npc_vendedor',
+];
+
+const SOURCE_BY_ID: Partial<Record<LegacyAssetId, string>> = {
   chao_grama: 'public/assets/terrain/tiles/ground_grass.png',
   chao_praca: 'public/assets/terrain/tiles/ground_plaza.png',
   chao_rua: 'public/assets/terrain/tiles/ground_road.png',
@@ -184,7 +210,7 @@ function cropCenter(source: { width: number; height: number; rgba: Buffer }, cro
   return { width: cropW, height: cropH, rgba };
 }
 
-function resolveSource(id: AssetId) {
+function resolveSource(id: LegacyAssetId) {
   if (id === 'parede_concreto') {
     return drawWallTile(40);
   }
@@ -213,7 +239,7 @@ mkdirSync(path.join(root, 'public', 'assets', 'characters'), { recursive: true }
 
 const atlas = createCanvas(TILESET_ATLAS_WIDTH, TILESET_ATLAS_HEIGHT);
 
-for (const id of listAssetIds()) {
+for (const id of ATLAS_ASSETS) {
   const frame = getAssetFrame(id);
   const source = resolveSource(id);
   atlas.blit(source, frame.x, frame.y);

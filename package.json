@@ -25,6 +25,7 @@
     "seed:npc-placeholders": "node scripts/seed-npc-placeholders.mjs",
     "seed:terrain": "npm run seed:ground-tiles && npm run seed:structures && npm run seed:urban-placeholders",
     "build:tileset": "tsx scripts/build-tileset-v1.ts",
+    "build:ground-tiles": "tsx scripts/build-ground-tiles-from-pack.ts",
     "generate:test-assets": "tsx scripts/generate-test-asset-registry.ts",
     "generate:meu-pack": "tsx scripts/generate-meu-pack-registry.ts",
     "generate:city01-wiring": "tsx scripts/generate-city01-test-pack-wiring.ts",

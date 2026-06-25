@@ -65,6 +65,17 @@ function pickByKeyword(
 const terrain = GENERATED_TEST_ASSETS.filter((a) => a.category === 'TILE_TERRAIN');
 const structures = GENERATED_TEST_ASSETS.filter((a) => a.category === 'TILE_STRUCTURE');
 const props = GENERATED_TEST_ASSETS.filter((a) => a.category === 'ENTITY_PROP');
+const treeProps = props.filter((asset) => haystack(asset).includes('trees.tileset/'));
+const plantProps = props.filter((asset) => {
+  const h = haystack(asset);
+  if (!h.includes('plants.tileset/')) return false;
+  if (!h.includes('/png/assets/')) return false;
+  if (h.includes('assets_shadow')) return false;
+  if (h.includes('_source')) return false;
+  // Árvores canônicas ficam em trees.tileset — aqui só arbustos/flores/samambaias/cactos.
+  if (h.includes('_tree')) return false;
+  return true;
+});
 
 const gameKeyAliases: Record<string, string> = {};
 
@@ -190,9 +201,74 @@ if (gameKeyAliases.park_bench) gameKeyAliases.banco = gameKeyAliases.park_bench;
 if (gameKeyAliases.fire_extinguisher) gameKeyAliases.extintor = gameKeyAliases.fire_extinguisher;
 if (gameKeyAliases.graffiti_wall) gameKeyAliases.grafite = gameKeyAliases.graffiti_wall;
 
-// —— Props decorativos: todos ENTITY_PROP não usados ——
+// —— Árvores canônicas ——
+// Tudo que for árvore deve vir de public/assets/tilesets/trees.tileset. Preferimos
+// Assets_no_shadow para não duplicar sombra projetada pelo motor.
+function pickTreeByKeyword(keyword: string): GeneratedTestAsset | null {
+  const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]+/g, '');
+  const kw = normalize(keyword);
+  return pickBest(treeProps, (asset) => {
+    const raw = haystack(asset);
+    const h = normalize(raw);
+    return raw.includes('assets_no_shadow') && h.includes(kw);
+  }) ?? pickBest(treeProps, (asset) => normalize(haystack(asset)).includes(kw));
+}
+
+const treeAliases: Record<string, GeneratedTestAsset | null> = {
+  tree_default: pickTreeByKeyword('blue-green_balls_tree1'),
+  tree_blue_green: pickTreeByKeyword('blue-green_balls_tree1'),
+  tree_willow: pickTreeByKeyword('willow1'),
+  tree_mega: pickTreeByKeyword('mega_tree1'),
+  tree_luminous: pickTreeByKeyword('luminous_tree1'),
+  tree_curved: pickTreeByKeyword('curved_tree1'),
+  tree_swirling: pickTreeByKeyword('swirling_tree1'),
+  tree_white: pickTreeByKeyword('white_tree1'),
+};
+
+for (const [key, asset] of Object.entries(treeAliases)) {
+  wire(key, asset);
+}
+if (gameKeyAliases.tree_default) {
+  gameKeyAliases.tree = gameKeyAliases.tree_default;
+  gameKeyAliases.arvore = gameKeyAliases.tree_default;
+}
+
+// —— Plantas canônicas ——
+// Tudo que for planta (arbusto, flor, samambaia, cacto) vem de
+// public/assets/tilesets/plants.tileset/PNG/Assets (sem sombra embutida).
+function pickPlantByKeyword(keyword: string): GeneratedTestAsset | null {
+  const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]+/g, '');
+  const kw = normalize(keyword);
+  return pickBest(plantProps, (asset) => normalize(haystack(asset)).includes(kw));
+}
+
+const plantAliases: Record<string, GeneratedTestAsset | null> = {
+  plant_default: pickPlantByKeyword('bush_simple1_1'),
+  plant_bush_simple: pickPlantByKeyword('bush_simple1_2'),
+  plant_bush_autumn: pickPlantByKeyword('autumn_bush1'),
+  plant_bush_snow: pickPlantByKeyword('snow_bush1'),
+  plant_flower_blue: pickPlantByKeyword('bush_blue_flowers1'),
+  plant_flower_orange: pickPlantByKeyword('bush_orange_flowers1'),
+  plant_flower_pink: pickPlantByKeyword('bush_pink_flowers1'),
+  plant_flower_red: pickPlantByKeyword('bush_red_flowers1'),
+  plant_fern: pickPlantByKeyword('fern1_1'),
+  plant_cactus: pickPlantByKeyword('cactus1_1'),
+  plant_cherry: pickPlantByKeyword('bush_pink_flowers2'),
+};
+
+for (const [key, asset] of Object.entries(plantAliases)) {
+  wire(key, asset);
+}
+if (gameKeyAliases.plant_default) {
+  gameKeyAliases.plant = gameKeyAliases.plant_default;
+  gameKeyAliases.planta = gameKeyAliases.plant_default;
+  gameKeyAliases.bush = gameKeyAliases.plant_default;
+  gameKeyAliases.flor = gameKeyAliases.plant_default;
+}
+
+// —— Props decorativos: plantas do pack canônico ——
 const usedAssetIds = new Set(Object.values(gameKeyAliases));
-const decorativeAssets = props.filter((asset) => !usedAssetIds.has(asset.id));
+const decorativeAssets = plantProps.filter((asset) => !usedAssetIds.has(asset.id));
 
 function isPlazaTile(tileX: number, tileY: number): boolean {
   return tileX >= CITY_01_PLAZA_MIN && tileX <= CITY_01_PLAZA_MAX
@@ -232,6 +308,53 @@ for (let y = 1; y < CITY_01_MAP_TILES - 1; y += 1) {
 }
 
 const decorativePlacements: PropPlacement[] = [];
+let automaticDecorativePlaced = 0;
+const fixedTreePlacements: readonly PropPlacement[] = [
+  { assetId: 'tree_blue_green', label: 'Árvore azul-esverdeada', tileX: 6, tileY: 6, tileW: 2, tileH: 2 },
+  { assetId: 'tree_willow', label: 'Salgueiro', tileX: 31, tileY: 8, tileW: 2, tileH: 2 },
+  { assetId: 'tree_luminous', label: 'Árvore luminosa', tileX: 8, tileY: 31, tileW: 2, tileH: 2 },
+  { assetId: 'tree_mega', label: 'Mega árvore', tileX: 30, tileY: 30, tileW: 3, tileH: 3 },
+];
+const fixedPlantPlacements: readonly PropPlacement[] = [
+  { assetId: 'plant_cherry', label: 'Arbusto florido', tileX: CITY_01_PLAZA_MIN, tileY: CITY_01_PLAZA_MIN, tileW: 1, tileH: 1 },
+  { assetId: 'plant_flower_pink', label: 'Flores rosas', tileX: CITY_01_PLAZA_MIN, tileY: CITY_01_PLAZA_MAX, tileW: 1, tileH: 1 },
+  { assetId: 'plant_flower_red', label: 'Flores vermelhas', tileX: CITY_01_PLAZA_MAX, tileY: CITY_01_PLAZA_MIN, tileW: 1, tileH: 1 },
+  { assetId: 'plant_flower_blue', label: 'Flores azuis', tileX: CITY_01_PLAZA_MAX, tileY: CITY_01_PLAZA_MAX, tileW: 1, tileH: 1 },
+];
+
+function canReserveFootprint(prop: PropPlacement, options?: { allowRoad?: boolean }): boolean {
+  if (!gameKeyAliases[prop.assetId]) return false;
+  for (let y = prop.tileY; y < prop.tileY + prop.tileH; y += 1) {
+    for (let x = prop.tileX; x < prop.tileX + prop.tileW; x += 1) {
+      if (x <= 0 || y <= 0 || x >= CITY_01_MAP_TILES - 1 || y >= CITY_01_MAP_TILES - 1) return false;
+      if (!options?.allowRoad && isCity01RoadNetworkTile(x, y)) return false;
+      if (structureOccupies(x, y)) return false;
+      if (reservedTiles.has(tileKey(x, y))) return false;
+    }
+  }
+  return true;
+}
+
+for (const prop of fixedTreePlacements) {
+  if (!canReserveFootprint(prop)) continue;
+  for (let y = prop.tileY; y < prop.tileY + prop.tileH; y += 1) {
+    for (let x = prop.tileX; x < prop.tileX + prop.tileW; x += 1) {
+      reservedTiles.add(tileKey(x, y));
+    }
+  }
+  decorativePlacements.push(prop);
+}
+
+for (const prop of fixedPlantPlacements) {
+  if (!canReserveFootprint(prop, { allowRoad: true })) continue;
+  for (let y = prop.tileY; y < prop.tileY + prop.tileH; y += 1) {
+    for (let x = prop.tileX; x < prop.tileX + prop.tileW; x += 1) {
+      reservedTiles.add(tileKey(x, y));
+    }
+  }
+  decorativePlacements.push(prop);
+}
+
 let tileIndex = 0;
 for (const asset of decorativeAssets) {
   while (tileIndex < candidateTiles.length) {
@@ -248,6 +371,7 @@ for (const asset of decorativeAssets) {
       tileW: 1,
       tileH: 1,
     });
+    automaticDecorativePlaced += 1;
     break;
   }
 }
@@ -304,7 +428,7 @@ export const CITY_01_TEST_PACK_WIRING_STATS = {
   gameKeyAliases: ${Object.keys(gameKeyAliases).length},
   decorativeProps: ${decorativePlacements.length},
   wallProps: ${wallPlacements.length},
-  decorativeSkipped: ${decorativeAssets.length - decorativePlacements.length},
+  decorativeSkipped: ${decorativeAssets.length - automaticDecorativePlaced},
 } as const;
 
 export function resolveTestPackGameKey(assetKey: string): string | null {
@@ -323,5 +447,5 @@ writeFileSync(outFile, fileContents, 'utf8');
 
 console.log(`[generate:city01-wiring] → ${outFile}`);
 console.log(`  Aliases: ${Object.keys(gameKeyAliases).length}`);
-console.log(`  Decorativos: ${decorativePlacements.length}/${decorativeAssets.length}`);
+console.log(`  Decorativos: ${decorativePlacements.length} (${automaticDecorativePlaced}/${decorativeAssets.length} automáticos)`);
 console.log(`  Paredes perímetro: ${wallPlacements.length}/${wallAssets.length}`);

@@ -1,5 +1,6 @@
 import type { BattleFighterRenderSlot } from '../../app/bridge/battleRenderBridge.js';
 import { BATTLE_PHASER_ARENA_LAYOUT } from './battlePhaserArenaLayout.js';
+import { ensureBattlePlaceholderTexture } from './phaserBattlePlaceholderTexture.js';
 import { ensureBattleSpriteTexture } from './phaserBattleTextureLoader.js';
 
 type PhaserBattleFighterImage = {
@@ -14,7 +15,9 @@ type PhaserBattleFighterImage = {
 };
 
 type PhaserBattleFighterScene = {
-  textures: Parameters<typeof ensureBattleSpriteTexture>[0];
+  textures: Parameters<typeof ensureBattleSpriteTexture>[0] & {
+    addCanvas: (key: string, canvas: HTMLCanvasElement) => unknown;
+  };
   add: {
     image: (x: number, y: number, textureKey: string) => PhaserBattleFighterImage;
   };
@@ -40,16 +43,26 @@ export class PhaserBattleFighterController {
   async applySlot(slot: BattleFighterRenderSlot): Promise<void> {
     if (!this.scene) return;
 
-    if (!slot.spriteSrc) {
+    // Sem combatente algum no slot → esconde. Com combatente mas sem PNG →
+    // silhueta procedural (nunca deixa buraco visual no protótipo).
+    const hasCombatant = Boolean(slot.spriteSrc || slot.creatureId || slot.monsterId);
+    if (!hasCombatant) {
       this.sprite?.setVisible(false);
       return;
     }
 
-    const textureKey = await ensureBattleSpriteTexture(
-      this.scene.textures,
-      slot.spriteSrc,
-      slot.spriteSrcFallbacks,
-    );
+    let textureKey = slot.spriteSrc
+      ? await ensureBattleSpriteTexture(
+          this.scene.textures,
+          slot.spriteSrc,
+          slot.spriteSrcFallbacks,
+        )
+      : null;
+
+    if (!textureKey) {
+      const seed = slot.creatureId ?? slot.monsterId ?? slot.label ?? this.side;
+      textureKey = ensureBattlePlaceholderTexture(this.scene.textures, seed, this.side);
+    }
 
     if (!textureKey) {
       this.sprite?.setVisible(false);
