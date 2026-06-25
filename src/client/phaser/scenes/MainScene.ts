@@ -18,11 +18,22 @@ export type PhaserSceneCamera = {
   setRoundPixels?: (value: boolean) => void;
 };
 
+type PhaserLoaderFile = {
+  readonly key?: string;
+  readonly src?: string;
+  readonly url?: string;
+};
+
+type PhaserSceneLoader = {
+  on: (event: 'fileerror' | 'progress', callback: (...args: unknown[]) => void) => void;
+};
+
 /** Superfície mínima de Phaser.Scene usada pelas cenas de mundo. */
 export type PhaserWorldSceneBase = {
   preload: () => void;
   create: () => void;
   update: (time: number, delta: number) => void;
+  load: PhaserSceneLoader;
   events: {
     on: (event: string, callback: () => void) => void;
   };
@@ -37,6 +48,13 @@ export type PhaserWorldSceneBase = {
 type PhaserNamespace = {
   Scene: new (config?: string | Record<string, unknown>) => Record<string, unknown>;
 };
+
+function resolveLoaderFile(args: readonly unknown[]): PhaserLoaderFile {
+  const [first, second] = args;
+  if (second && typeof second === 'object') return second as PhaserLoaderFile;
+  if (first && typeof first === 'object') return first as PhaserLoaderFile;
+  return {};
+}
 
 /**
  * Esqueleto base — somente mundo (física, colisão, sprites).
@@ -53,6 +71,15 @@ export function createMainSceneClass(
     }
 
     preload(): void {
+      const scene = this as unknown as PhaserWorldSceneBase;
+      scene.load.on('fileerror', (...args: unknown[]) => {
+        const file = resolveLoaderFile(args);
+        console.error('ERRO AO CARREGAR:', file.key, 'Caminho:', file.src ?? file.url);
+      });
+      scene.load.on('progress', (value: unknown) => {
+        const progress = typeof value === 'number' ? value : 0;
+        console.log('Progresso do loading:', progress * 100, '%');
+      });
       this.onMainPreload();
     }
 

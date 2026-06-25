@@ -10,6 +10,7 @@ import {
 } from '../../world/worldAssetImageLoader.js';
 import type { WorldActorRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
 import type { WorldStructureRenderSnapshot } from '../../world/worldStructureRenderSnapshot.js';
+import { PlaceholderType } from '../../world/placeholderRenderer.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from '../player/phaserPlayerAssets.js';
 import { CITY_01_MAP_CONFIG } from '../layout/MapConfig.js';
 import {
@@ -19,6 +20,13 @@ import {
   type PhaserLayoutRoots,
   type PhaserLayoutScene,
 } from '../layout/phaserLayoutScene.js';
+import {
+  getCachedPropAliasImage,
+  listPropAliasKeys,
+  preloadPropAliasImage,
+  propAliasTextureKey,
+} from '../../world/propAliasImageLoader.js';
+import { ensureDrawnPlaceholderSprite } from '../layout/phaserDrawPlaceholder.js';
 import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
 import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
 import {
@@ -41,13 +49,37 @@ function structureTextureKey(assetKey: string): string {
 }
 
 type StructureNode = {
-  assetSprite: PhaserLayoutImage;
+  assetSprite: PhaserLayoutImage | null;
   legacySprite: PhaserLayoutImage | null;
+  placeholder: PhaserLayoutImage | null;
 };
 
 type ActorNode = {
-  assetSprite: PhaserLayoutImage;
+  assetSprite: PhaserLayoutImage | null;
+  placeholder: PhaserLayoutImage | null;
 };
+
+function tryRegisterPropAliasTexture(
+  textures: PhaserLayoutScene['textures'],
+  assetKey: string,
+): boolean {
+  const cached = getCachedPropAliasImage(assetKey);
+  if (!cached || cached.naturalWidth <= 0) {
+    void preloadPropAliasImage(assetKey);
+    return false;
+  }
+
+  const key = propAliasTextureKey(assetKey);
+  if (!textures.exists(key)) {
+    textures.addImage(key, cached);
+    try {
+      textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
+    } catch {
+      /* noop */
+    }
+  }
+  return textures.exists(key);
+}
 
 function tryRegisterLegacyStructureTexture(
   textures: PhaserLayoutScene['textures'],
@@ -150,8 +182,9 @@ export class PhaserStructureController {
 
     for (const [key, node] of this.structureNodes) {
       if (seenStructures.has(key)) continue;
-      node.assetSprite.destroy();
+      node.assetSprite?.destroy();
       node.legacySprite?.destroy();
+      node.placeholder?.destroy();
       this.structureNodes.delete(key);
     }
 
@@ -166,20 +199,23 @@ export class PhaserStructureController {
 
     for (const [key, node] of this.actorNodes) {
       if (seenActors.has(key)) continue;
-      node.assetSprite.destroy();
+      node.assetSprite?.destroy();
+      node.placeholder?.destroy();
       this.actorNodes.delete(key);
     }
   }
 
   destroy(): void {
     for (const node of this.structureNodes.values()) {
-      node.assetSprite.destroy();
+      node.assetSprite?.destroy();
       node.legacySprite?.destroy();
+      node.placeholder?.destroy();
     }
     this.structureNodes.clear();
 
     for (const node of this.actorNodes.values()) {
-      node.assetSprite.destroy();
+      node.assetSprite?.destroy();
+      node.placeholder?.destroy();
     }
     this.actorNodes.clear();
 
@@ -212,64 +248,124 @@ export class PhaserStructureController {
     }
 
     if (useRegistry && registryKey && asset) {
-      if (!node) {
-        const created = tryCreateRegistrySprite(scene, registryKey);
-        if (!created) return;
-        container.add(created.sprite);
-        node = { assetSprite: created.sprite, legacySprite: null };
-        this.structureNodes.set(snapshot.instanceKey, node);
-      }
+      const created = node?.assetSprite
+        ? { sprite: node.assetSprite }
+        : tryCreateRegistrySprite(scene, registryKey);
+      if (created?.sprite) {
+        if (!node) {
+          container.add(created.sprite);
+          node = { assetSprite: created.sprite, legacySprite: null, placeholder: null };
+          this.structureNodes.set(snapshot.instanceKey, node);
+        } else if (!node.assetSprite) {
+          container.add(created.sprite);
+          node.assetSprite = created.sprite;
+        }
 
-      node.legacySprite?.setVisible(false);
-      positionRegistryAssetAtFeet(
-        node.assetSprite,
-        asset,
-        feetX,
-        feetY,
-        snapshot.widthPx,
-        snapshot.heightPx,
-      );
-      node.assetSprite.setDepth(resolvePhaserWorldDepth(feetY));
-      node.assetSprite.setVisible(true);
-      return;
+        node.legacySprite?.setVisible(false);
+        node.placeholder?.setVisible(false);
+        positionRegistryAssetAtFeet(
+          node.assetSprite!,
+          asset,
+          feetX,
+          feetY,
+          snapshot.widthPx,
+          snapshot.heightPx,
+        );
+        node.assetSprite!.setDepth(resolvePhaserWorldDepth(feetY));
+        node.assetSprite!.setVisible(true);
+        return;
+      }
     }
 
     const legacy = tryRegisterLegacyStructureTexture(scene.textures, snapshot.assetKey);
-    if (!legacy.ready || !legacy.trimmed) {
+    if (legacy.ready && legacy.trimmed) {
+      if (!node) {
+        const sprite = scene.add.image(0, 0, structureTextureKey(snapshot.assetKey));
+        container.add(sprite);
+        node = { assetSprite: null, legacySprite: sprite, placeholder: null };
+        this.structureNodes.set(snapshot.instanceKey, node);
+      } else if (!node.legacySprite) {
+        const sprite = scene.add.image(0, 0, structureTextureKey(snapshot.assetKey));
+        container.add(sprite);
+        node.legacySprite = sprite;
+      }
+
+      node.assetSprite?.setVisible(false);
+      node.placeholder?.setVisible(false);
+      const sprite = node.legacySprite!;
+      sprite.setOrigin(0.5, 1);
+      sprite.setCrop(
+        legacy.trimmed.sx,
+        legacy.trimmed.sy,
+        legacy.trimmed.sw,
+        legacy.trimmed.sh,
+      );
+      sprite.setPosition(Math.floor(feetX), Math.floor(feetY));
+      normalizePhaserAsset(
+        sprite,
+        legacy.trimmed.sw,
+        legacy.trimmed.sh,
+        snapshot.widthPx,
+        snapshot.heightPx,
+        `${snapshot.assetKey}.png`,
+      );
+      sprite.setDepth(resolvePhaserWorldDepth(feetY));
+      sprite.setVisible(true);
       return;
     }
 
-    if (!node) {
-      const placeholder = scene.add.image(0, 0, structureTextureKey(snapshot.assetKey));
-      container.add(placeholder);
-      node = { assetSprite: placeholder, legacySprite: placeholder };
-      this.structureNodes.set(snapshot.instanceKey, node);
-    } else if (!node.legacySprite) {
-      const sprite = scene.add.image(0, 0, structureTextureKey(snapshot.assetKey));
-      container.add(sprite);
-      node.legacySprite = sprite;
+    // Alias drop-in: `/assets/props/props/<alias>.png` substitui placeholder automaticamente.
+    void preloadPropAliasImage(snapshot.assetKey);
+    if (tryRegisterPropAliasTexture(scene.textures, snapshot.assetKey)) {
+      const aliasKey = propAliasTextureKey(snapshot.assetKey);
+      const aliasImage = getCachedPropAliasImage(snapshot.assetKey);
+      if (!node) {
+        const sprite = scene.add.image(feetX, feetY, aliasKey);
+        sprite.setOrigin(0.5, 1);
+        container.add(sprite);
+        node = { assetSprite: sprite, legacySprite: null, placeholder: null };
+        this.structureNodes.set(snapshot.instanceKey, node);
+      } else if (!node.assetSprite) {
+        const sprite = scene.add.image(feetX, feetY, aliasKey);
+        sprite.setOrigin(0.5, 1);
+        container.add(sprite);
+        node.assetSprite = sprite;
+      }
+
+      node.legacySprite?.setVisible(false);
+      node.placeholder?.setVisible(false);
+      node.assetSprite!.setPosition(Math.floor(feetX), Math.floor(feetY));
+      if (aliasImage) {
+        normalizePhaserAsset(
+          node.assetSprite!,
+          aliasImage.naturalWidth,
+          aliasImage.naturalHeight,
+          snapshot.widthPx,
+          snapshot.heightPx,
+          `${snapshot.assetKey}.png`,
+        );
+      }
+      node.assetSprite!.setDepth(resolvePhaserWorldDepth(feetY));
+      node.assetSprite!.setVisible(true);
+      return;
     }
 
-    node.assetSprite.setVisible(false);
-    const sprite = node.legacySprite ?? node.assetSprite;
-    sprite.setOrigin(0.5, 1);
-    sprite.setCrop(
-      legacy.trimmed.sx,
-      legacy.trimmed.sy,
-      legacy.trimmed.sw,
-      legacy.trimmed.sh,
-    );
-    sprite.setPosition(Math.floor(feetX), Math.floor(feetY));
-    normalizePhaserAsset(
-      sprite,
-      legacy.trimmed.sw,
-      legacy.trimmed.sh,
-      snapshot.widthPx,
-      snapshot.heightPx,
-      `${snapshot.assetKey}.png`,
-    );
-    sprite.setDepth(resolvePhaserWorldDepth(feetY));
-    sprite.setVisible(true);
+    // Sem PNG (registry nem legado prontos) → placeholder procedural (forma + borda).
+    // Nunca deixa buraco: o footprint aparece e some sozinho quando o PNG carregar.
+    if (!node) {
+      node = { assetSprite: null, legacySprite: null, placeholder: null };
+      this.structureNodes.set(snapshot.instanceKey, node);
+    }
+    node.assetSprite?.setVisible(false);
+    node.legacySprite?.setVisible(false);
+    node.placeholder = ensureDrawnPlaceholderSprite(scene, container, node.placeholder, {
+      assetKey: snapshot.assetKey,
+      feetX,
+      feetY,
+      widthPx: snapshot.widthPx,
+      heightPx: snapshot.heightPx,
+      depth: resolvePhaserWorldDepth(feetY),
+    });
   }
 
   private ensureActorNode(
@@ -282,37 +378,64 @@ export class PhaserStructureController {
       return;
     }
 
-    const assetKey = resolveActorAssetKey(actor);
-    const asset = assetKey ? getRegistryAsset(assetKey) : null;
-    if (!assetKey || !asset || !isRegistryAssetRenderable(scene.textures, assetKey)) {
-      if (assetKey && asset?.source === 'file') {
-        void preloadRegistryFileAsset(assetKey);
-      }
-      return;
-    }
-
-    let node = this.actorNodes.get(actorKey);
-    if (!node) {
-      const created = tryCreateRegistrySprite(scene, assetKey);
-      if (!created) return;
-
-      container.add(created.sprite);
-      node = { assetSprite: created.sprite };
-      this.actorNodes.set(actorKey, node);
-    }
-
     const targetW = GAME_ASSET_TARGETS.npc.width;
     const targetH = GAME_ASSET_TARGETS.npc.height;
-    positionRegistryAssetAtFeet(
-      node.assetSprite,
-      asset,
-      actor.feetX,
-      actor.feetY,
-      targetW,
-      targetH,
+    const assetKey = resolveActorAssetKey(actor);
+    const asset = assetKey ? getRegistryAsset(assetKey) : null;
+    const renderable = Boolean(
+      assetKey && asset && isRegistryAssetRenderable(scene.textures, assetKey),
     );
-    node.assetSprite.setDepth(resolvePhaserWorldDepth(actor.feetY));
-    node.assetSprite.setVisible(true);
+
+    let node = this.actorNodes.get(actorKey);
+
+    if (renderable && assetKey && asset) {
+      const created = node?.assetSprite
+        ? { sprite: node.assetSprite }
+        : tryCreateRegistrySprite(scene, assetKey);
+      if (created?.sprite) {
+        if (!node) {
+          container.add(created.sprite);
+          node = { assetSprite: created.sprite, placeholder: null };
+          this.actorNodes.set(actorKey, node);
+        } else if (!node.assetSprite) {
+          container.add(created.sprite);
+          node.assetSprite = created.sprite;
+        }
+
+        node.placeholder?.setVisible(false);
+        positionRegistryAssetAtFeet(
+          node.assetSprite!,
+          asset,
+          actor.feetX,
+          actor.feetY,
+          targetW,
+          targetH,
+        );
+        node.assetSprite!.setDepth(resolvePhaserWorldDepth(actor.feetY));
+        node.assetSprite!.setVisible(true);
+        return;
+      }
+    }
+
+    if (assetKey && asset?.source === 'file') {
+      void preloadRegistryFileAsset(assetKey);
+    }
+
+    // NPC sem sprite ainda → placeholder procedural (nunca some).
+    if (!node) {
+      node = { assetSprite: null, placeholder: null };
+      this.actorNodes.set(actorKey, node);
+    }
+    node.assetSprite?.setVisible(false);
+    node.placeholder = ensureDrawnPlaceholderSprite(scene, container, node.placeholder, {
+      assetKey: `npc_${actor.npcId}`,
+      placeholderType: PlaceholderType.NPC_SPOT,
+      feetX: actor.feetX,
+      feetY: actor.feetY,
+      widthPx: targetW,
+      heightPx: targetH,
+      depth: resolvePhaserWorldDepth(actor.feetY),
+    });
   }
 }
 
@@ -324,5 +447,8 @@ export function queueStructurePreloads(scene: PhaserLayoutScene): void {
     const assetKey = descriptor.key.replace('altercadia-structure-', '');
     scene.load.image(descriptor.key, descriptor.path);
     void preloadWorldAssetImage(assetKey);
+  }
+  for (const alias of listPropAliasKeys()) {
+    void preloadPropAliasImage(alias);
   }
 }

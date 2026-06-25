@@ -25,7 +25,10 @@ async function loadHtmlImage(url: string): Promise<HTMLImageElement | null> {
       imageCache.set(url, img);
       resolve(img);
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      console.error('ERRO AO CARREGAR:', textureKeyForUrl(url), 'Caminho:', url);
+      resolve(null);
+    };
     img.src = url;
   });
 }

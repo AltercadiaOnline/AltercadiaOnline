@@ -18,6 +18,11 @@ import {
   resolveTerrainLayoutKind,
 } from '../layout/terrainLayoutPalette.js';
 import {
+  ensureGroundPlaceholderTexture,
+  ensurePlaceholderTexture,
+} from '../layout/phaserDrawPlaceholder.js';
+import { PlaceholderType } from '../../world/placeholderRenderer.js';
+import {
   mountPhaserLayoutRoots,
   queueTerrainLayoutPreloads,
   type PhaserLayoutImage,
@@ -212,6 +217,28 @@ export class PhaserTerrainController {
     }
 
     const layoutKind = resolveTerrainLayoutKind(tile.placeholderType);
+    const isStairTile = tile.placeholderType === PlaceholderType.ARENA_STEP
+      || tile.placeholderType === PlaceholderType.TOWER_STEP;
+    const textureKey = isStairTile
+      ? ensurePlaceholderTexture(scene.textures, 'stairs', tile.size, tile.size)
+      : ensureGroundPlaceholderTexture(scene.textures, layoutKind, tile.size);
+
+    if (textureKey) {
+      if (!node.assetSprite) {
+        const sprite = scene.add.image(tile.worldX, tile.worldY, textureKey);
+        sprite.setOrigin(0, 0);
+        sprite.setDepth(PHASER_GROUND_DEPTH);
+        container.add(sprite);
+        node.assetSprite = sprite;
+      }
+
+      node.layoutRect?.setVisible(false);
+      node.assetSprite.setPosition(Math.floor(tile.worldX), Math.floor(tile.worldY));
+      node.assetSprite.setDisplaySize(tile.size, tile.size);
+      node.assetSprite.setVisible(true);
+      return;
+    }
+
     const style = getTerrainLayoutStyle(layoutKind);
     if (!node.layoutRect) {
       const layoutRect = scene.add.rectangle(

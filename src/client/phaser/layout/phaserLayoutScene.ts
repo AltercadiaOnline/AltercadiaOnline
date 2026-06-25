@@ -48,6 +48,7 @@ export type PhaserLayoutScene = {
   readonly textures: {
     exists: (key: string) => boolean;
     addImage: (key: string, source: HTMLImageElement) => unknown;
+    addCanvas: (key: string, canvas: HTMLCanvasElement) => unknown;
     get: (key: string) => { setFilter: (mode: number) => void };
   };
   readonly load: {

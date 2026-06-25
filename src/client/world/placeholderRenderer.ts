@@ -31,7 +31,7 @@ export const PlaceholderType = {
   TOWER_STEP: 'TOWER_STEP',
   /** Ala / bloco da torre com Z local. */
   TOWER_BUILDING: 'TOWER_BUILDING',
-  /** Prop urbano decorativo — PNG em public/assets/urban/props/. */
+  /** Prop urbano decorativo — PNG em public/assets/props/props/. */
   URBAN_PROP: 'URBAN_PROP',
 } as const;
 

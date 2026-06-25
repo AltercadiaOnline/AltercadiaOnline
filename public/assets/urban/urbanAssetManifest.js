@@ -3,7 +3,7 @@
  * Grid: 40×40 px · top-down levemente inclinado · sem sombra projetada no PNG.
  * Iluminação: canto superior direito (motor desenha sombra dinâmica).
  */
-export const URBAN_ASSET_PUBLIC_BASE = '/assets/urban/props';
+export const URBAN_ASSET_PUBLIC_BASE = '/assets/props/props';
 /** Paleta urbana consistente — evitar saturação excessiva. */
 export const URBAN_PALETTE = {
     outline: '#1e2024',
