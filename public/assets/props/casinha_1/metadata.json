@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "b77ec68b-d25a-4d00-a5b6-a78b3c379595",
+      "name": null,
+      "prompt": "\"view Top-down 2d game asset, modular row house building, japanese 90s cyberpunk style, flat roof with mechanical ventilation units, detailed storefront ground floor, residential upper floor with windows, side walls flat for seamless tiling, consistent top-down south perspective, bold outlines, cel-shaded, 32x32 grid aligned, white background, high quality pixel art --v 6.0\"",
+      "size": {
+        "width": 96,
+        "height": 96
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-28T20:00:50.200058"
+}

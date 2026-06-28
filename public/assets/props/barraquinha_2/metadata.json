@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "e50116aa-4e21-4c37-bd6b-42b8ab53b50e",
+      "name": null,
+      "prompt": "VIEW TOP DOWN 2D \"64x64 pixel art game asset (downscaled to 64x64). Perspective: Low top-down view (facing South). Style: Stardew Valley-meets-Cyberpunk urban aesthetic. A compact, weathered market stall used for commerce in a Tokyo-NY alley. The stall features a colorful, slightly torn fabric awning, a wooden counter with small display boxes, and urban details like a metal lamp or a small neon sign on the side. Gritty industrial textures, clean pixel outlines. Isolated on a neutral background. Seamless style.\"",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T06:45:49.469842"
+}

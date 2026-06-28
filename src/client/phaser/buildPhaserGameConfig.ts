@@ -45,6 +45,13 @@ export function buildPhaserGameConfig(deps: PhaserGameConfigDeps): Record<string
       height,
     },
     scene: deps.scenes,
+    physics: {
+      default: 'arcade',
+      arcade: {
+        gravity: { x: 0, y: 0 },
+        debug: false,
+      },
+    },
   };
 }
 

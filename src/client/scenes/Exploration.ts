@@ -28,6 +28,8 @@ import { Camera } from './Camera.js';
 import { CameraManager } from './CameraManager.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { resolveSceneConfigForMapId } from '../../config/sceneConfig.js';
+import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
+import { applyPhaserMapInstanceSwap } from '../phaser/MapInstanceTransitionCoordinator.js';
 
 import { Player } from '../entities/Player.js';
 
@@ -630,6 +632,13 @@ export class ExplorationScene implements Disposable {
       x: payload.lastPosition.x,
       y: payload.lastPosition.y,
     });
+
+    applyPhaserMapInstanceSwap({
+      mapId: payload.currentMapId,
+      x: payload.lastPosition.x,
+      y: payload.lastPosition.y,
+      facing: payload.facing,
+    });
   }
 
   private syncMockWorldAuthority(snapshot: {
@@ -897,11 +906,15 @@ export class ExplorationScene implements Disposable {
           ...this.worldMap.collectCreatureRenderSnapshots(),
           ...this.npcManager.collectNpcRenderSnapshots(timestampMs),
         ]),
-        terrainTiles: this.worldMapRenderer.collectGroundTileSnapshots(),
-        worldStructures: this.worldMapRenderer.collectStructureSnapshots({
-          x: this.player.renderX,
-          y: this.player.renderY,
-        }),
+        terrainTiles: isTiledMapEnabled(this.mapManager.currentMapId)
+          ? []
+          : this.worldMapRenderer.collectGroundTileSnapshots(),
+        worldStructures: isTiledMapEnabled(this.mapManager.currentMapId)
+          ? []
+          : this.worldMapRenderer.collectStructureSnapshots({
+              x: this.player.renderX,
+              y: this.player.renderY,
+            }),
         pet: this.petFollow.toRenderSnapshot(),
         navigationDestination: this.navigationDestination,
         debugOverlay: buildExplorationDebugOverlaySnapshot({

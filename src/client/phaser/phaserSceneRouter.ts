@@ -7,9 +7,8 @@ import {
 } from '../app/bridge/renderLayerBridge.js';
 import {
   PHASER_BATTLE_SCENE_KEY,
-  PHASER_EXPLORATION_SCENE_KEY,
 } from './PhaserConfig.js';
-import { isPhaserRuntimeActive, switchPhaserScene } from './PhaserRuntime.js';
+import { isPhaserRuntimeActive, switchPhaserScene, switchPhaserToActiveMapInstance } from './PhaserRuntime.js';
 
 function resolveTargetScene(state: GameState): ActivePhaserScene {
   if (state === GameStateValue.Exploration) return 'exploration';
@@ -36,8 +35,10 @@ export function syncPhaserSceneForGameState(state: GameState): void {
     return;
   }
 
-  const sceneKey =
-    target === 'exploration' ? PHASER_EXPLORATION_SCENE_KEY : PHASER_BATTLE_SCENE_KEY;
-  switchPhaserScene(sceneKey);
+  if (target === 'exploration') {
+    switchPhaserToActiveMapInstance();
+  } else {
+    switchPhaserScene(PHASER_BATTLE_SCENE_KEY);
+  }
   getRenderLayerBridge().setActivePhaserScene(target);
 }

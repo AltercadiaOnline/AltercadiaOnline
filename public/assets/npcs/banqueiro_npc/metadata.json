@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "3f723ff3-e887-41a0-91bf-a85b9af98b94",
+        "name": "\"35x54pixel art game character sprite.",
+        "prompt": "\"35x54pixel art game character sprite. Role: Bank/Pet Trainer Manager. Style: Chibi, 90s anime, cel-shaded. Design: Wearing a sleek, formal blazer modified with techwear elements (buckles, high collar), sophisticated glasses, holding a small digital pet containment device. Front-facing, low top-down perspective. Optimized to fit 35x54 px bounding box, vertically elongated. Base central anchor. Flat color blocks, bold outlines. Isolated on neutral background.\"",
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-27T07:41:20.350339+00:00"
+      },
+      "folder": "35x54pixel_art_game_character_sprite.",
+      "frames": {
+        "rotations": {
+          "south": "35x54pixel_art_game_character_sprite./rotations/south.png",
+          "south-east": "35x54pixel_art_game_character_sprite./rotations/south-east.png",
+          "east": "35x54pixel_art_game_character_sprite./rotations/east.png",
+          "north-east": "35x54pixel_art_game_character_sprite./rotations/north-east.png",
+          "north": "35x54pixel_art_game_character_sprite./rotations/north.png",
+          "north-west": "35x54pixel_art_game_character_sprite./rotations/north-west.png",
+          "west": "35x54pixel_art_game_character_sprite./rotations/west.png",
+          "south-west": "35x54pixel_art_game_character_sprite./rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-27T07:45:29.297834"
+}

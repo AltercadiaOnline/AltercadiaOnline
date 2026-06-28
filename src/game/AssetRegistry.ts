@@ -1,6 +1,6 @@
 /**
  * Registro central de assets — atlas legado + meu-pack + packs canônicos em public/assets/.
- * Classificação por nomenclatura; escala forçada 40×40 via assetNormalizer.
+ * Classificação por nomenclatura; escala forçada 32×32 via assetNormalizer.
  */
 
 import { GAME_CONFIG } from './constants/GameConfig.js';
@@ -75,27 +75,29 @@ export type LegacyAssetId =
 
 export type AssetId = LegacyAssetId | string;
 
-export const TILESET_ATLAS_WIDTH = 384;
-export const TILESET_ATLAS_HEIGHT = 256;
-
 export const REGISTRY_TILE_SIZE = GAME_CONFIG.TILE_SIZE;
 
+export const TILESET_ATLAS_WIDTH = REGISTRY_TILE_SIZE * 8;
+export const TILESET_ATLAS_HEIGHT = REGISTRY_TILE_SIZE * 4;
+
+const T = REGISTRY_TILE_SIZE;
+
 const ATLAS_FRAMES: Readonly<Record<LegacyAssetId, AssetFrame>> = {
-  chao_grama: { x: 0, y: 0, width: 40, height: 40, category: 'tileset', originX: 0, originY: 0 },
-  chao_praca: { x: 40, y: 0, width: 40, height: 40, category: 'tileset', originX: 0, originY: 0 },
-  chao_rua: { x: 80, y: 0, width: 40, height: 40, category: 'tileset', originX: 0, originY: 0 },
-  parede_concreto: { x: 120, y: 0, width: 40, height: 40, category: 'tileset', originX: 0, originY: 0 },
-  poste_metal: { x: 0, y: 40, width: 40, height: 80, category: 'entity', originX: 0.5, originY: 1 },
-  lixeira: { x: 40, y: 80, width: 40, height: 40, category: 'entity', originX: 0.5, originY: 1 },
-  correio: { x: 80, y: 80, width: 40, height: 40, category: 'entity', originX: 0.5, originY: 1 },
-  hidrante: { x: 120, y: 80, width: 40, height: 40, category: 'entity', originX: 0.5, originY: 1 },
-  extintor: { x: 160, y: 80, width: 40, height: 40, category: 'entity', originX: 0.5, originY: 1 },
-  banco: { x: 0, y: 120, width: 80, height: 40, category: 'entity', originX: 0.5, originY: 1 },
-  grafite: { x: 80, y: 120, width: 40, height: 40, category: 'entity', originX: 0.5, originY: 1 },
-  player_idle: { x: 160, y: 0, width: 40, height: 40, category: 'character', originX: 0.5, originY: 1 },
-  npc_anciao: { x: 200, y: 0, width: 40, height: 40, category: 'character', originX: 0.5, originY: 1 },
-  npc_treinador: { x: 240, y: 0, width: 40, height: 40, category: 'character', originX: 0.5, originY: 1 },
-  npc_vendedor: { x: 280, y: 0, width: 40, height: 40, category: 'character', originX: 0.5, originY: 1 },
+  chao_grama: { x: 0, y: 0, width: T, height: T, category: 'tileset', originX: 0, originY: 0 },
+  chao_praca: { x: T, y: 0, width: T, height: T, category: 'tileset', originX: 0, originY: 0 },
+  chao_rua: { x: T * 2, y: 0, width: T, height: T, category: 'tileset', originX: 0, originY: 0 },
+  parede_concreto: { x: T * 3, y: 0, width: T, height: T, category: 'tileset', originX: 0, originY: 0 },
+  poste_metal: { x: 0, y: T, width: T, height: T * 2, category: 'entity', originX: 0.5, originY: 1 },
+  lixeira: { x: T, y: T * 2, width: T, height: T, category: 'entity', originX: 0.5, originY: 1 },
+  correio: { x: T * 2, y: T * 2, width: T, height: T, category: 'entity', originX: 0.5, originY: 1 },
+  hidrante: { x: T * 3, y: T * 2, width: T, height: T, category: 'entity', originX: 0.5, originY: 1 },
+  extintor: { x: T * 4, y: T * 2, width: T, height: T, category: 'entity', originX: 0.5, originY: 1 },
+  banco: { x: 0, y: T * 3, width: T * 2, height: T, category: 'entity', originX: 0.5, originY: 1 },
+  grafite: { x: T * 2, y: T * 3, width: T, height: T, category: 'entity', originX: 0.5, originY: 1 },
+  player_idle: { x: T * 4, y: 0, width: T, height: T, category: 'character', originX: 0.5, originY: 1 },
+  npc_anciao: { x: T * 5, y: 0, width: T, height: T, category: 'character', originX: 0.5, originY: 1 },
+  npc_treinador: { x: T * 6, y: 0, width: T, height: T, category: 'character', originX: 0.5, originY: 1 },
+  npc_vendedor: { x: T * 7, y: 0, width: T, height: T, category: 'character', originX: 0.5, originY: 1 },
 };
 
 const LEGACY_ALIASES: Readonly<Record<string, LegacyAssetId>> = {

@@ -10,24 +10,24 @@ export type Zone1CreatureId = (typeof ZONE1_ALLEY_CREATURES)[number];
 
 export const ZONE1_TEST_MONSTER_COUNT = 16;
 
-/** Posições walkable no corredor central do beco (38×60 @ 40px). */
+/** Posições walkable no corredor central do beco (20×60 @ 32px). */
 export const ZONE1_SPAWN_TILES: readonly { readonly tileX: number; readonly tileY: number }[] = [
-  { tileX: 18, tileY: 8 },
-  { tileX: 19, tileY: 11 },
-  { tileX: 18, tileY: 14 },
-  { tileX: 19, tileY: 17 },
-  { tileX: 18, tileY: 20 },
-  { tileX: 19, tileY: 23 },
-  { tileX: 18, tileY: 26 },
-  { tileX: 19, tileY: 29 },
-  { tileX: 18, tileY: 32 },
-  { tileX: 19, tileY: 35 },
-  { tileX: 18, tileY: 38 },
-  { tileX: 19, tileY: 41 },
-  { tileX: 18, tileY: 44 },
-  { tileX: 19, tileY: 47 },
-  { tileX: 18, tileY: 50 },
-  { tileX: 19, tileY: 53 },
+  { tileX: 8, tileY: 8 },
+  { tileX: 9, tileY: 11 },
+  { tileX: 8, tileY: 14 },
+  { tileX: 9, tileY: 17 },
+  { tileX: 8, tileY: 20 },
+  { tileX: 9, tileY: 23 },
+  { tileX: 8, tileY: 26 },
+  { tileX: 9, tileY: 29 },
+  { tileX: 8, tileY: 32 },
+  { tileX: 9, tileY: 35 },
+  { tileX: 8, tileY: 38 },
+  { tileX: 9, tileY: 41 },
+  { tileX: 8, tileY: 44 },
+  { tileX: 9, tileY: 47 },
+  { tileX: 8, tileY: 50 },
+  { tileX: 9, tileY: 53 },
 ] as const;
 
 const CREATURE_DISPLAY_FALLBACK: Record<Zone1CreatureId, string> = {

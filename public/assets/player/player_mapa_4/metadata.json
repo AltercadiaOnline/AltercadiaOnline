@@ -1,0 +1,47 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "182f625b-d21a-4028-ac30-921f32a0516d",
+        "name": "2D game sprite asset, teenage",
+        "prompt": "2D game sprite asset, teenage Japanese boy protagonist for Altercadia. 2D top-down flat perspective, front-facing character view (Stardew Valley style). Stylized chibi proportions with a slightly oversized head relative to the body. Pixel art with clean line art and flat color blocks. He is a modern adolescent with a cool, confident facial expression, messy anime-style dark hair. He is wearing detailed youth urban techwear: a stylish oversized streetwear jacket with utility straps and zippers, a graphic t-shirt underneath, techwear cargo pants, and futuristic sneakers. Casual but ready standing posture. Color palette: cool gray, matte black, stark white, with striking neon purple or cyber green accents on the jacket straps and shoes. Standing frame, front view under a top-down camera angle, isolated on a solid flat white background.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-05-24T07:31:04.598572+00:00"
+      },
+      "folder": "2D_game_sprite_asset_teenage",
+      "frames": {
+        "rotations": {
+          "south": "2D_game_sprite_asset_teenage/rotations/south.png",
+          "south-east": "2D_game_sprite_asset_teenage/rotations/south-east.png",
+          "east": "2D_game_sprite_asset_teenage/rotations/east.png",
+          "north-east": "2D_game_sprite_asset_teenage/rotations/north-east.png",
+          "north": "2D_game_sprite_asset_teenage/rotations/north.png",
+          "north-west": "2D_game_sprite_asset_teenage/rotations/north-west.png",
+          "west": "2D_game_sprite_asset_teenage/rotations/west.png",
+          "south-west": "2D_game_sprite_asset_teenage/rotations/south-west.png"
+        },
+        "animations": {
+          "Pull_Object-2d0f3cc0": {
+            "south": [
+              "2D_game_sprite_asset_teenage/animations/Pull_Object-2d0f3cc0/south/frame_000.png",
+              "2D_game_sprite_asset_teenage/animations/Pull_Object-2d0f3cc0/south/frame_001.png",
+              "2D_game_sprite_asset_teenage/animations/Pull_Object-2d0f3cc0/south/frame_002.png",
+              "2D_game_sprite_asset_teenage/animations/Pull_Object-2d0f3cc0/south/frame_003.png",
+              "2D_game_sprite_asset_teenage/animations/Pull_Object-2d0f3cc0/south/frame_004.png",
+              "2D_game_sprite_asset_teenage/animations/Pull_Object-2d0f3cc0/south/frame_005.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-05-30T04:37:50.741008"
+}

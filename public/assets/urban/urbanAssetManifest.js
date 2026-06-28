@@ -1,6 +1,6 @@
 /**
  * Manifesto SSOT — props urbanos (Urban Pixel Art Detalhado).
- * Grid: 40×40 px · top-down levemente inclinado · sem sombra projetada no PNG.
+ * Grid: 32×32 px · top-down levemente inclinado · sem sombra projetada no PNG.
  * Iluminação: canto superior direito (motor desenha sombra dinâmica).
  */
 export const URBAN_ASSET_PUBLIC_BASE = '/assets/props/props';
@@ -30,8 +30,8 @@ export const URBAN_PROP_SPECS = [
     {
         id: 'street_light',
         fileName: 'street_light.png',
-        widthPx: 40,
-        heightPx: 80,
+        widthPx: 32,
+        heightPx: 64,
         tileW: 1,
         tileH: 2,
         label: 'Poste',
@@ -39,8 +39,8 @@ export const URBAN_PROP_SPECS = [
     {
         id: 'trash_can',
         fileName: 'trash_can.png',
-        widthPx: 40,
-        heightPx: 40,
+        widthPx: 32,
+        heightPx: 32,
         tileW: 1,
         tileH: 1,
         label: 'Lixeira',
@@ -48,8 +48,8 @@ export const URBAN_PROP_SPECS = [
     {
         id: 'mailbox',
         fileName: 'mailbox.png',
-        widthPx: 40,
-        heightPx: 40,
+        widthPx: 32,
+        heightPx: 32,
         tileW: 1,
         tileH: 1,
         label: 'Correio',
@@ -57,8 +57,8 @@ export const URBAN_PROP_SPECS = [
     {
         id: 'fire_hydrant',
         fileName: 'fire_hydrant.png',
-        widthPx: 40,
-        heightPx: 40,
+        widthPx: 32,
+        heightPx: 32,
         tileW: 1,
         tileH: 1,
         label: 'Hidrante',
@@ -66,8 +66,8 @@ export const URBAN_PROP_SPECS = [
     {
         id: 'park_bench',
         fileName: 'park_bench.png',
-        widthPx: 80,
-        heightPx: 40,
+        widthPx: 64,
+        heightPx: 32,
         tileW: 2,
         tileH: 1,
         label: 'Banco',
@@ -75,8 +75,8 @@ export const URBAN_PROP_SPECS = [
     {
         id: 'fire_extinguisher',
         fileName: 'fire_extinguisher.png',
-        widthPx: 40,
-        heightPx: 40,
+        widthPx: 32,
+        heightPx: 32,
         tileW: 1,
         tileH: 1,
         label: 'Extintor',
@@ -84,8 +84,8 @@ export const URBAN_PROP_SPECS = [
     {
         id: 'graffiti_wall',
         fileName: 'graffiti_wall.png',
-        widthPx: 40,
-        heightPx: 40,
+        widthPx: 32,
+        heightPx: 32,
         tileW: 1,
         tileH: 1,
         label: 'Grafite',
@@ -117,8 +117,8 @@ export const URBAN_ASSET_GENERATION_BRIEF = [
     'Urban Pixel Art Detalhado — Altercadia',
     'Paleta: concreto #6b6f75, tijolo #8b4a3a, asfalto #2e3238, metal #5a6270, ferrugem #8b5a3c, néons suaves #4ac8b8/#e8a848/#c878d8',
     'Pixel art nítido, sem antialiasing, contornos escuros #1e2024',
-    'Top-down ortogonal levemente inclinado, grid 40×40 px',
-    'Resolução: múltiplos de 40px · alpha 100% transparente · sem padding morto',
+    'Top-down ortogonal levemente inclinado, grid 32×32 px',
+    'Resolução: múltiplos de 32px · alpha 100% transparente · sem padding morto',
     'Iluminação: canto superior direito em todos os objetos',
     'Sem sombra projetada no arquivo',
 ].join('\n');

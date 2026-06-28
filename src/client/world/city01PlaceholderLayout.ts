@@ -230,7 +230,7 @@ function buildPortalEntity(): City01PlaceholderEntity | null {
   };
 }
 
-/** Monta a cena data-driven — grade alinhada a CITY_01_MAP_TILES (40×40 @ 40px). */
+/** Monta a cena data-driven — grade alinhada a CITY_01_MAP_TILES (40×40 @ 32px). */
 export function buildCity01PlaceholderScene(mapTiles = CITY_01_MAP_TILES): City01PlaceholderScene {
   const entities = buildStructureEntities();
   entities.push(...buildTowerEntities());

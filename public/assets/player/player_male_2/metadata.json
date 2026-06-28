@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "bf290c30-591a-414e-b8fd-963f4080da31",
+        "name": "chibi 35x54pixel topdown Outfit: Layered",
+        "prompt": "chibi 35x54pixel topdown Outfit: Layered look with a windbreaker jacket tied around the waist, graphic t-shirt, modern beanie, single shoulder sling bag, stylish street shorts with leggings underneath, chunky sneakers. Design priority: Energetic stance and accessories that highlight him as the central hero character.\"",
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-27T07:54:19.493508+00:00"
+      },
+      "folder": "chibi_35x54pixel_topdown_Outfit_Layered",
+      "frames": {
+        "rotations": {
+          "south": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/south.png",
+          "south-east": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/south-east.png",
+          "east": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/east.png",
+          "north-east": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/north-east.png",
+          "north": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/north.png",
+          "north-west": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/north-west.png",
+          "west": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/west.png",
+          "south-west": "chibi_35x54pixel_topdown_Outfit_Layered/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-27T07:58:01.363120"
+}

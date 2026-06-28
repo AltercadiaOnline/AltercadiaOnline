@@ -1,6 +1,14 @@
-import { DESIGN_CONFIG, DESIGN_MAP_PIXEL_HEIGHT, DESIGN_MAP_PIXEL_WIDTH } from './designConstants.js';
+import { DESIGN_CONFIG } from './designConstants.js';
 import { CITY_01_ID } from '../shared/world/maps/city01.js';
-import { FARM_ZONE_01_ID } from '../shared/world/maps/farm_zone_01.js';
+import {
+  FARM_ZONE_01_ID,
+  farmZone01PixelHeight,
+  farmZone01PixelWidth,
+} from '../shared/world/maps/farm_zone_01.js';
+import {
+  FARM_ZONE_01_TILES_HIGH,
+  FARM_ZONE_01_TILES_WIDE,
+} from '../shared/world/maps/farmZone01LayoutConstants.js';
 
 export type SceneConfig = {
   readonly id: string;
@@ -17,23 +25,23 @@ export type SceneConfig = {
   readonly visibleTilesHigh: number;
 };
 
-/** Beco dos Fundos — cena top-down oficial (38×60 tiles @ 40px). */
+/** Beco dos Fundos — corredor vertical (20×60 tiles @ 32px). */
 export const BECO_DOS_FUNDOS_SCENE: SceneConfig = {
   id: 'beco_dos_fundos',
   mapId: FARM_ZONE_01_ID,
   displayName: 'Beco dos Fundos',
-  tilesWide: DESIGN_CONFIG.MAP.MAX_TILES_WIDTH,
-  tilesHigh: DESIGN_CONFIG.MAP.MAX_TILES_HEIGHT,
+  tilesWide: FARM_ZONE_01_TILES_WIDE,
+  tilesHigh: FARM_ZONE_01_TILES_HIGH,
   tileSize: DESIGN_CONFIG.TILE.SIZE,
-  mapPixelWidth: DESIGN_MAP_PIXEL_WIDTH,
-  mapPixelHeight: DESIGN_MAP_PIXEL_HEIGHT,
+  mapPixelWidth: farmZone01PixelWidth(),
+  mapPixelHeight: farmZone01PixelHeight(),
   viewportWidth: DESIGN_CONFIG.VIEWPORT.WIDTH,
   viewportHeight: DESIGN_CONFIG.VIEWPORT.HEIGHT,
   visibleTilesWide: DESIGN_CONFIG.VISIBLE_TILES.WIDTH,
   visibleTilesHigh: DESIGN_CONFIG.VISIBLE_TILES.HEIGHT,
 };
 
-/** Cidade 01 — grade 40×40 @ 40px; câmera 16×9 tiles. */
+/** Cidade 01 — grade 40×40 @ 32px. */
 export const CITY_01_SCENE: SceneConfig = {
   id: 'city_01',
   mapId: CITY_01_ID,

@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "fe89df7c-e832-45b7-8437-eb55f319a696",
+      "name": null,
+      "prompt": "\"Pixel art game assets, 32x32 and 64x64 sprites. Theme: Urban pet shop props. Include: A metal cage with a small creature inside, a stack of pet food bags, a neon sign with a paw print, a water/food bowl set, and a leash hook mounted on a wall. Style: 90s anime aesthetic, cel-shaded, bold outlines, gritty urban setting. Isolated on white background.\"",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T17:14:19.573263"
+}

@@ -2,6 +2,10 @@ import { buildCity01PlaceholderScene } from '../city01PlaceholderLayout.js';
 import { PLACEHOLDER_COLORS } from '../placeholderRenderer.js';
 import { CITY_01_ID } from '../../../shared/world/maps/city01.js';
 import { FARM_ZONE_01_ID } from '../../../shared/world/maps/farm_zone_01.js';
+import {
+  FARM_ZONE_01_ALLEY_MAX,
+  FARM_ZONE_01_ALLEY_MIN,
+} from '../../../shared/world/maps/farmZone01LayoutConstants.js';
 import { getMapDefinition, type MapId } from '../../../shared/world/mapRegistry.js';
 import { TileType } from '../../../shared/world/tileTypes.js';
 import type { MinimapTerrain } from './minimapTypes.js';
@@ -51,7 +55,7 @@ function tileToFarmColor(tile: number, tileX: number): string {
     case TileType.Obstacle:
       return FARM_PALETTE.alley;
     default: {
-      const isSidewalk = tileX === 16 || tileX === 21;
+      const isSidewalk = tileX === FARM_ZONE_01_ALLEY_MIN - 1 || tileX === FARM_ZONE_01_ALLEY_MAX + 1;
       return isSidewalk ? FARM_PALETTE.sidewalk : FARM_PALETTE.alley;
     }
   }

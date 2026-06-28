@@ -1,5 +1,5 @@
 /**
- * Estruturas urbanas — casas e edifícios da Cidade 01 (múltiplos de 40px).
+ * Estruturas urbanas — casas e edifícios da Cidade 01 (múltiplos de 32px).
  * Saída: public/assets/structures/*.png
  */
 import { createHash } from 'node:crypto';
@@ -10,7 +10,7 @@ import { deflateSync } from 'node:zlib';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'public', 'assets', 'structures');
-const TILE = 40;
+const TILE = 32;
 
 const P = {
   outline: [30, 32, 36],

@@ -67,7 +67,7 @@ export class Camera {
     this.targetY = clamped.y;
   }
 
-  /** Recorte fixo 640×360 = 16×9 tiles @ 40px — ignora dimensões da janela. */
+  /** Recorte fixo 640×360 sobre grade 40×40 @ 32px — ignora dimensões da janela. */
   setViewport(_width?: number, _height?: number): void {
     this.width = DESIGN_CONFIG.VIEWPORT.WIDTH;
     this.height = DESIGN_CONFIG.VIEWPORT.HEIGHT;

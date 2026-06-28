@@ -1,4 +1,4 @@
-/** Grade compacta da Cidade 01 — 40×40 tiles (independente da zona padrão 64×64). */
+/** Grade compacta da Cidade 01 — 40×40 blocos na grade oficial 32×32. */
 export const CITY_01_MAP_TILES = 40;
 
 /** Metade da grade — eixo urbano da Cidade 01. */

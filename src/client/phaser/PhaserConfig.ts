@@ -9,6 +9,9 @@ export const PHASER_EXPLORATION_SCENE_KEY = 'ExplorationWorld';
 /** Cena de arena de combate (Phaser). */
 export const PHASER_BATTLE_SCENE_KEY = 'BattleArena';
 
+/** Mediadora de carregamento entre instâncias de mapa (Phaser). */
+export const PHASER_MAP_LOADING_SCENE_KEY = 'MapInstanceLoading';
+
 /** Coluna de render compartilhada — filha direta de #game-container. */
 export const GAME_RENDER_COLUMN_ID = 'game-render-column';
 

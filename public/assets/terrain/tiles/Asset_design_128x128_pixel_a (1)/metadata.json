@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "54ba571d-efc3-4361-8f1e-bde0f72aae63",
+      "name": null,
+      "prompt": "\"Asset design: 128x128 pixel art. A perfectly flat 2D graphic marking on the floor. Absolutely NO side-faces, NO 3D cylinder depth, NO thickness. It must look like a flat circle painted directly on the ground, 0-pixel elevation. Like a flat UI decal or a graffiti stencil seen from a 90-degree perfectly vertical top-down angle. Cyberpunk Tokyo style, vibrant neon cyan circuit patterns, clean pixel outlines. Isolated on a neutral background.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T06:36:29.389203"
+}

@@ -1,4 +1,12 @@
-import type { StructureAssetDescriptor, TerrainAssetDescriptor } from './MapConfig.js';
+export type TerrainAssetDescriptor = {
+  readonly key: string;
+  readonly path: string;
+};
+
+export type StructureAssetDescriptor = {
+  readonly key: string;
+  readonly path: string;
+};
 
 export type PhaserLayoutContainer = {
   readonly x: number;
@@ -123,8 +131,7 @@ export function destroyPhaserLayoutRoots(roots: PhaserLayoutRoots | null): void 
 }
 
 /**
- * preload() — registra chaves de terreno.
- * Game Designer: adicione entradas em MapConfig.terrainAssets com key + path do PNG.
+ * preload() — registra chaves de terreno (paths em /assets/terrain/).
  */
 export function queueTerrainLayoutPreloads(
   scene: PhaserLayoutScene,

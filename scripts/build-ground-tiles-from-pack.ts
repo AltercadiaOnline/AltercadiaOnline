@@ -1,5 +1,5 @@
 /**
- * Recria os tiles de chão 40×40 do jogo a partir do pacote Craftpix em
+ * Recria os tiles de chão 32×32 do jogo a partir do pacote Craftpix em
  * public/assets/terrain. Os tilesets de estrada são grids 16×16; extraímos a
  * célula de preenchimento sólido (cobblestone) para rua/praça e sintetizamos a
  * grama a partir da paleta verde do pacote (não há tile de campo sólido nele).
@@ -7,7 +7,7 @@
  * Uso: npm run build:ground-tiles
  *
  * Mantém o contrato de src/assets/terrain/groundTileManifest.ts:
- *   ground_grass.png · ground_plaza.png · ground_road.png — 40×40.
+ *   ground_grass.png · ground_plaza.png · ground_road.png — 32×32.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -28,7 +28,7 @@ const GROUND_GRASS_PACK = path.join(PACK_DIR, 'Ground_grass.png');
 const OUT_DIR = path.join(root, 'public', 'assets', 'terrain', 'tiles');
 
 const CELL = 16;
-const TILE = 40;
+const TILE = 32;
 
 function load(file: string): RgbaImage {
   return decodePng(readFileSync(file));
@@ -114,7 +114,7 @@ function sampleGreenBase(sheet: RgbaImage): [number, number, number] {
   return [Math.round(r / count), Math.round(g / count), Math.round(b / count)];
 }
 
-/** Gera grama 40×40 tileável a partir do verde base, com ruído determinístico. */
+/** Gera grama 32×32 tileável a partir do verde base, com ruído determinístico. */
 function synthesizeGrass(base: [number, number, number]): RgbaImage {
   const out: RgbaImage = { width: TILE, height: TILE, rgba: Buffer.alloc(TILE * TILE * 4) };
   let seed = 0x9e3779b9;

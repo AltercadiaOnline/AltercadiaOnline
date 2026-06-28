@@ -28,7 +28,7 @@ const outFile = path.join(outDir, TILESET_ATLAS_FILE);
  * sistema de arquivos (packs canônicos em public/assets/**).
  */
 const ATLAS_ASSETS: readonly LegacyAssetId[] = [
-  // Chão (tileset 40×40)
+  // Chão (tileset 32×32)
   'chao_grama',
   'chao_praca',
   'chao_rua',

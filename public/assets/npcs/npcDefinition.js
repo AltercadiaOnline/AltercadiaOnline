@@ -3,18 +3,19 @@
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
 export const NPC_ASSET_PUBLIC_BASE = '/assets/npcs';
+import { GAME_CONFIG } from '../../game/constants/GameConfig.js';
 export const NPC_DEFINITION_REGISTRY = {
     anciao_cael: {
         sprite: 'npc_anciao.png',
-        width: 40,
-        height: 40,
+        width: GAME_CONFIG.TILE_SIZE,
+        height: GAME_CONFIG.TILE_SIZE,
         isCollidable: true,
         animationSpeed: 0.1,
     },
     treinador_zeno: {
         sprite: 'npc_treinador.png',
-        width: 40,
-        height: 40,
+        width: GAME_CONFIG.TILE_SIZE,
+        height: GAME_CONFIG.TILE_SIZE,
         isCollidable: true,
         animationSpeed: 0.15,
     },

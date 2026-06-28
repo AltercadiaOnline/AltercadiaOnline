@@ -1,18 +1,23 @@
-import { DESIGN_CONFIG } from '../../../config/designConstants.js';
 import { TileType } from '../tileTypes.js';
 import type { Portal } from '../portals.js';
 import { CITY_01_ID } from './city01.js';
 import {
   FARM_ZONE_01_ALLEY_MAX,
   FARM_ZONE_01_ALLEY_MIN,
+  FARM_ZONE_01_TILE_SIZE,
+  FARM_ZONE_01_TILES_HIGH,
+  FARM_ZONE_01_TILES_WIDE,
 } from './farmZone01LayoutConstants.js';
 
 export const FARM_ZONE_01_ID = 'farm_zone_01' as const;
 
-/** Beco dos Fundos — extensão urbana da cidade; grade 38×60 @ 40px. */
-export const FARM_ZONE_01_TILES_WIDE = DESIGN_CONFIG.MAP.MAX_TILES_WIDTH;
-export const FARM_ZONE_01_TILES_HIGH = DESIGN_CONFIG.MAP.MAX_TILES_HEIGHT;
-export const FARM_ZONE_01_TILE_SIZE = DESIGN_CONFIG.TILE.SIZE;
+export {
+  FARM_ZONE_01_TILES_WIDE,
+  FARM_ZONE_01_TILES_HIGH,
+  FARM_ZONE_01_TILE_SIZE,
+} from './farmZone01LayoutConstants.js';
+
+/** Beco dos Fundos — corredor vertical 20×60 tiles @ 32px (640×1920 px). */
 
 const ALLEY_CENTER_MIN = FARM_ZONE_01_ALLEY_MIN;
 const ALLEY_CENTER_MAX = FARM_ZONE_01_ALLEY_MAX;

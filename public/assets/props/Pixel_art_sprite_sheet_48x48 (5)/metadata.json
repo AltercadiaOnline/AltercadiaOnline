@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "3864c4a2-7581-499f-bf73-08673e3d5628",
+      "name": null,
+      "prompt": "\"Pixel art sprite sheet, 48x48 per item, strict top-down orthographic view, 90-degree camera angle looking straight down. Collection of urban street props: a park bench, a trash can, a streetlight pole, a mailbox, and a utility box. Cyberpunk Tokyo and NYC aesthetic. Flat design, no isometric angles, no side faces, no perspective depth, clean lines, isolated on white background.\"",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T03:24:21.795841"
+}

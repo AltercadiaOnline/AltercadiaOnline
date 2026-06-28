@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "02f83e54-6123-431b-abd1-e6b4df80f51b",
+        "name": "35x54pixel topdown chibi\"Outfit: Oversized techwear",
+        "prompt": "35x54pixel topdown chibi\"Outfit: Oversized techwear hoodie with glowing neon accents, large technical tactical backpack with visible straps, futuristic over-ear headphones worn over a baseball cap, baggy cargo pants, high-top sneakers. Design priority: Emphasize the backpack and technical gear as a signature look for the protagonist.\"",
+        "size": {
+          "width": 104,
+          "height": 104
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-27T07:53:27.485586+00:00"
+      },
+      "folder": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear",
+      "frames": {
+        "rotations": {
+          "south": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south.png",
+          "south-east": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south-east.png",
+          "east": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/east.png",
+          "north-east": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/north-east.png",
+          "north": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/north.png",
+          "north-west": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/north-west.png",
+          "west": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/west.png",
+          "south-west": "35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-27T07:57:59.423295"
+}

@@ -1,5 +1,5 @@
 /**
- * Gera PNGs 40×40 para NPCs declarados em npcDefinition.ts.
+ * Gera PNGs 32×32 para NPCs declarados em npcDefinition.ts.
  * Saída: public/assets/npcs/*.png
  */
 import { createHash } from 'node:crypto';
@@ -53,24 +53,26 @@ function setPixel(rgba, width, x, y, color, alpha = 255) {
   rgba[i + 3] = alpha;
 }
 
+const TILE = 32;
+
 function drawNpcPlaceholder(spec) {
-  const size = 40;
+  const size = TILE;
   const rgba = Buffer.alloc(size * size * 4, 0);
   const outline = [30, 32, 36];
 
-  for (let y = 8; y < 38; y += 1) {
-    for (let x = 12; x < 28; x += 1) {
+  for (let y = 6; y < 30; y += 1) {
+    for (let x = 10; x < 22; x += 1) {
       setPixel(rgba, size, x, y, spec.body);
     }
   }
-  for (let y = 4; y < 14; y += 1) {
-    for (let x = 14; x < 26; x += 1) {
+  for (let y = 3; y < 11; y += 1) {
+    for (let x = 11; x < 21; x += 1) {
       setPixel(rgba, size, x, y, spec.accent);
     }
   }
-  for (let y = 6; y < 36; y += 1) {
-    setPixel(rgba, size, 11, y, outline);
-    setPixel(rgba, size, 28, y, outline);
+  for (let y = 5; y < 29; y += 1) {
+    setPixel(rgba, size, 9, y, outline);
+    setPixel(rgba, size, 22, y, outline);
   }
 
   const raw = Buffer.alloc(size * (size * 4 + 1));

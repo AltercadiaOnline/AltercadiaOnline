@@ -53,7 +53,7 @@ export function getCachedGroundTile(tileId: GroundTileId): HTMLImageElement | nu
   return cache.get(tileId) ?? null;
 }
 
-/** Desenha tile 40×40 (ou escala inteira) ancorado no canto superior-esquerdo. */
+/** Desenha tile 32×32 (ou escala inteira) ancorado no canto superior-esquerdo. */
 export function drawGroundTileImage(
   ctx: CanvasRenderingContext2D,
   type: PlaceholderTypeId,

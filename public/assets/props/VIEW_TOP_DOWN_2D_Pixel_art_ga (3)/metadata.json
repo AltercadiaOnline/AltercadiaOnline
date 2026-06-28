@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "b99988aa-fac8-4a4f-b31e-8043fd511993",
+      "name": null,
+      "prompt": "VIEW TOP DOWN 2D \"Pixel art game asset pack, 48x48 grid spritesheet. Theme: Modern urban city life. Include a variety of high-detail props: a sleek vending machine with glowing buttons, a metallic ATM terminal, a large dumpster with trash bags, a complex rooftop HVAC unit, a set of stacked shipping crates, and an industrial electrical transformer box. Style: 90s anime aesthetic, cel-shaded, bold dark outlines, vibrant urban color palette with hints of neon. Perspective: Top-down with slight isometric slant to show volume. Isolated on a white background. Each prop must feel solid, weighty, and vertically oriented to add depth to the game map.\"",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T16:56:49.989255"
+}

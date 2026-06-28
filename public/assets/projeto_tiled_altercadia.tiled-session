@@ -1,0 +1,338 @@
+{
+    "activeFile": "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+    "expandedProjectPaths": [
+        "urban",
+        "npcs",
+        "maps",
+        "creatures",
+        "player",
+        "props",
+        "map_mund",
+        "terrain",
+        "combat",
+        "."
+    ],
+    "file.lastUsedOpenFilter": "Todos os Ficheiros (*)",
+    "fileStates": {
+        "map_mund/Ground_grass.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 4
+        },
+        "map_mund/city_01_test.tmx": {
+            "expandedObjectLayers": [
+                12,
+                11
+            ],
+            "scale": 0.75,
+            "selectedLayer": 6,
+            "viewCenter": {
+                "x": 680.6666666666667,
+                "y": 518.6666666666665
+            }
+        },
+        "map_mund/computador_antigo_Test.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx": {
+            "scale": 0.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 335,
+                "y": 1336
+            }
+        },
+        "props/Living gazebo1.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/Trees_shadow_source_Test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/alquimia_estrutura_Test1.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/area_pet_1_Test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/area_pet_2.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/banco_madeira_2_Test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/banco_madeira_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 3
+        },
+        "props/casinha_1_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/casinha_2_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/casinha_3_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/casinha_4_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/casinha_test_2.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/chao_2_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/computador_props_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/estrutura_1_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/estrutura_2_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/estrutura_3_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/estrutura_4_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/estrutura_Casa_1_TEst.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 2
+        },
+        "props/estrutura_Casa_2_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/geladeira_props_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/lixeira_props_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/lixeira_test_props.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/mercado_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/mercado_test_props.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/poste_2_test_props.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "props/poste_props_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 5.5
+        },
+        "props/poste_test_prop.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/abusto_outono_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/arbustro_pequeno_test.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/arvore_rosa_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/arvore_verde_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_Batalha_2_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_batalha_1_test.tsx": {
+            "scaleInDock": 2,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_batalha_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_beco_dos_fundos.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_cidade_Test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1.5,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_cidade_roxo_test.tsx": {
+            "scaleInDock": 2,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_cidade_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 4,
+            "scaleInEditor": 5.5
+        },
+        "terrain/chao_grama_1_Test.tsx": {
+            "scaleInDock": 0.25,
+            "scaleInEditor": 0.33
+        },
+        "terrain/chao_grama_test.tsx": {
+            "scaleInDock": 2,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_madeira_Escuro_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/chao_madeira_Test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1.5,
+            "scaleInEditor": 1
+        },
+        "terrain/chão_asfalto_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/chão_cidade_Test.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/chão_grama_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/cidade_Teste_01.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 3
+        },
+        "terrain/cidade_chao_Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/cidade_chao_Test1.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/pulpito_pvp_base_test_Aseet.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/terrain_pack_2_TEst.tsx": {
+            "scaleInDock": 0.5,
+            "scaleInEditor": 1
+        },
+        "terrain/terrain_pack_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/terrain_test_pack_3.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/tile_chao_test_2.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "terrain/tiles/chao_cidade_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 2,
+            "scaleInEditor": 1
+        },
+        "terrain/tiles/chão_cidade_test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1.5
+        },
+        "terrain/tiles/cidade_chao_test.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 2,
+            "scaleInEditor": 3
+        }
+    },
+    "last.exportedFilePath": "C:/Users/Usuario/Desktop/MMO BROWSER/public/assets/map_mund",
+    "last.imagePath": "C:/Users/Usuario/Desktop/MMO BROWSER/public/assets/props/casinha_4/view_Top-down_2d_game_asset_modular_ro/rotations",
+    "map.height": 60,
+    "map.lastUsedExportFilter": "Arquivos de mapa JSON (*.tmj *.json)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 32,
+    "map.tileWidth": 32,
+    "map.width": 20,
+    "openFiles": [
+        "map_mund/city_01_test.tmx",
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+        "terrain/terrain_pack_test.tsx",
+        "terrain/terrain_pack_2_TEst.tsx",
+        "terrain/terrain_test_pack_3.tsx",
+        "props/casinha_1_Test.tsx",
+        "props/casinha_2_Test.tsx",
+        "props/Living gazebo1.tsx",
+        "props/lixeira_test_props.tsx",
+        "props/casinha_4_test.tsx"
+    ],
+    "project": "projeto_tiled_altercadia.tiled-project",
+    "recentFiles": [
+        "map_mund/city_01_test.tmx",
+        "props/casinha_4_test.tsx",
+        "props/lixeira_test_props.tsx",
+        "props/Living gazebo1.tsx",
+        "props/casinha_2_Test.tsx",
+        "props/casinha_1_Test.tsx",
+        "terrain/terrain_test_pack_3.tsx",
+        "terrain/terrain_pack_2_TEst.tsx",
+        "terrain/terrain_pack_test.tsx",
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+        "terrain/chao_madeira_Test.tsx",
+        "props/area_pet_2.tsx"
+    ],
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.margin": 0,
+    "tileset.spacing": 0,
+    "tileset.tileSize": {
+        "height": 96,
+        "width": 96
+    },
+    "tileset.type": 0
+}

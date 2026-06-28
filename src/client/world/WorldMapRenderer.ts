@@ -143,7 +143,7 @@ export class WorldMapRenderer implements Disposable {
     };
   }
 
-  /** Retângulo de tiles visíveis — exatamente 16×9 @ 40px (+1 margem de desenho). */
+  /** Retângulo de tiles visíveis — derivado da grade oficial 32px (+1 margem de desenho). */
   private getVisibleTileBounds(): {
     readonly startX: number;
     readonly startY: number;

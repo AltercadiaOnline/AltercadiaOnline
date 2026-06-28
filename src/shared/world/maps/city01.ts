@@ -45,7 +45,7 @@ export const portals: readonly Portal[] = [
     tileW: 1,
     tileH: 1,
     targetMapId: 'farm_zone_01',
-    targetPosition: { x: 18, y: 57 },
+    targetPosition: { x: 9, y: 56 },
     targetZoneId: ZoneId.Zone1,
   },
 ];

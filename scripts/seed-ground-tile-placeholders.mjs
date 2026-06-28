@@ -1,5 +1,5 @@
 /**
- * Tiles de chão 40×40 — grass, plaza, road (tileáveis).
+ * Tiles de chão 32×32 — grass, plaza, road (tileáveis).
  * Saída: public/assets/terrain/tiles/
  */
 import { createHash } from 'node:crypto';
@@ -10,7 +10,7 @@ import { deflateSync } from 'node:zlib';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'public', 'assets', 'terrain', 'tiles');
-const SIZE = 40;
+const SIZE = 32;
 
 const P = {
   grass: [52, 78, 48],
@@ -142,7 +142,7 @@ for (const [id, draw] of [
   const png = encodePng(canvas);
   writeFileSync(path.join(outDir, `${id}.png`), png);
   const hash = createHash('md5').update(png).digest('hex').slice(0, 8);
-  console.log(`[seed] ${id}: 40x40 (${hash})`);
+  console.log(`[seed] ${id}: 32x32 (${hash})`);
 }
 
 console.log(`[seed] Tiles de chão em ${outDir}`);

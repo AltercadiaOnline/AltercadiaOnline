@@ -139,15 +139,15 @@ Esta regra governa toda lógica que cruza exploração (`WorldMap` / `Exploratio
 
 ```ts
 VIEWPORT: { WIDTH: 640, HEIGHT: 360 }
-TILE: { SIZE: 40 }
+TILE: { SIZE: 32 }
 PLAYER: { WIDTH: 35, HEIGHT: 54 }
-MAP: { MAX_TILES_WIDTH: 38, MAX_TILES_HEIGHT: 60 }
+MAP: { MAX_TILES_WIDTH: 40, MAX_TILES_HEIGHT: 40 }
 ```
 
 ### Regras de ouro (design)
 
-1. **Renderização:** Qualquer cálculo de posição `(x, y)` deve considerar que o sprite do Player (**35×54**) é ancorado na **base** do tile (**40×40**).
-2. **Câmera:** `CameraManager` / `Camera` deve travar o limite exatamente em `MAP.MAX_TILES_WIDTH × TILE.SIZE` (**1520 px**) e `MAP.MAX_TILES_HEIGHT × TILE.SIZE` (**2400 px**).
+1. **Renderização:** Qualquer cálculo de posição `(x, y)` deve considerar que o sprite do Player (**35×54**) é ancorado na **base** do tile (**32×32**).
+2. **Câmera:** `CameraManager` / `Camera` deve travar o limite exatamente em `MAP.MAX_TILES_WIDTH × TILE.SIZE` (**1280 px**) e `MAP.MAX_TILES_HEIGHT × TILE.SIZE` (**1280 px**).
 3. **Proporção:** **Nunca** alterar a resolução da tela (**640×360**) sem aprovação explícita — grid de combate e exploração estão ancorados nesses valores.
 
 **Antes de sugerir ou implementar mudança visual/mapa:** importar `DESIGN_CONFIG` (ou derivados `DESIGN_MAP_PIXEL_*`) e verificar conformidade. Não duplicar magic numbers fora de `designConstants.ts`.

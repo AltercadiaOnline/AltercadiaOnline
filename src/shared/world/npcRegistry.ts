@@ -66,7 +66,7 @@ export const ANCIAO_CAEL_ARENA_TILE = {
 
 /**
  * Registro autoritativo de NPCs — data-driven.
- * Posições em tiles da Cidade 01 (grade 40×40).
+ * Posições em tiles da Cidade 01 (40×40 blocos @ 32px).
  */
 export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
   {

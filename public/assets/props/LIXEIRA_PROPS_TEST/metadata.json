@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "9e66b6e3-0f84-4618-a617-836de3eee535",
+      "name": null,
+      "prompt": "\"Top-down 2d game assets, street props collection, urban cyberpunk style, including vending machines, street lamps, metal crates, electrical boxes, and trash cans, consistent 32x32 pixel art style, bold outlines, cel-shaded, clear separation between items, white background, high quality, modular and grid-aligned --v 6.0\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-28T21:49:06.893618"
+}

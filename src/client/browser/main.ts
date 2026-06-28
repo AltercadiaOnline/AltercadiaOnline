@@ -6,6 +6,7 @@ import {
   registerCombatDevTransportResolver,
   refreshCombatDevBindings,
 } from '../dev/combatDevBindings.js';
+import { initDebugMenuIfAllowed } from '../dev/debugTools.js';
 import { notifyMirrorPlayerDispatch } from '../combat/MirrorPlayerController.js';
 import { configureCombatClient, GameClient, initBattleHud, registerActiveBattleId } from '../hud/index.js';
 import { getBattleStore } from '../hud/battleStore.js';
@@ -146,6 +147,10 @@ import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBri
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
 export const CLIENT_RUNTIME_VERSION = 'items-slot-v5';
+
+// Debug local: preencha com o e-mail exato da conta autorizada.
+// A segurança real de comandos persistentes deve ser validada no servidor também.
+const DEV_DEBUG_ALLOWED_EMAILS: readonly string[] = ['juninhomc94@gmail.com'];
 
 let mapManager: MapManager | null = null;
 let worldSocket: WorldSocket | null = null;
@@ -780,6 +785,11 @@ function enterWorldAfterHudReady(): void {
   activeWorld.renderWorld(performance.now());
 
   worldStarted = true;
+  initDebugMenuIfAllowed({
+    currentUserEmail: AppScreens.currentSession?.email ?? null,
+    allowedEmails: DEV_DEBUG_ALLOWED_EMAILS,
+    onLevelChanged: (level) => activeWorld.setPlayerLevel(level),
+  });
 
   void bootOnlinePhaserExploration().then((phaserReady) => {
     if (!phaserReady || !world) {

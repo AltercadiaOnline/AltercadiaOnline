@@ -4,11 +4,11 @@
  */
 
 export const GAME_CONFIG = {
-  TILE_SIZE: 40,
+  TILE_SIZE: 32,
   VIEWPORT_WIDTH: 640,
   VIEWPORT_HEIGHT: 360,
-  MAP_WIDTH_TILES: 38,
-  MAP_HEIGHT_TILES: 60,
+  MAP_WIDTH_TILES: 40,
+  MAP_HEIGHT_TILES: 40,
   PLAYER_WIDTH: 35,
   PLAYER_HEIGHT: 54,
   /** Âncora do sprite — base central dos pés (pivot Phaser / drawImage). */
@@ -41,7 +41,7 @@ export function resolvePlayerFeetWorldX(logicalX: number): number {
 
 /**
  * Posição lógica → Y dos pés no chão do tile.
- * O sprite tem 54px de altura (> tile 40px); a profundidade usa os pés, não o topo.
+ * O sprite tem 54px de altura (> tile 32px); a profundidade usa os pés, não o topo.
  */
 export function resolvePlayerFeetWorldY(logicalY: number): number {
   return logicalY + GAME_CONFIG.TILE_SIZE / 2;

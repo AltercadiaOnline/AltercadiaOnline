@@ -1,0 +1,1 @@
+import{a as e}from"./chunk-OQTESISK.js";var o="MainScene",r="ExplorationWorld",E="BattleArena";var n={width:e.VIEWPORT_WIDTH,height:e.VIEWPORT_HEIGHT,pixelArt:!0,antialias:!1,antialiasGL:!1,roundPixels:!0};export{o as a,r as b,E as c};

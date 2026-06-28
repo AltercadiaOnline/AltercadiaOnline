@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "69fdbc54-3f4c-41c6-9f1d-95e07de0435a",
+      "name": null,
+      "prompt": "view top down 2d! style stardew valley \"Base Prompt... with a detailed grey roof. The front facade features a prominent, glowing neon pink and blue sign with Japanese characters for 'Combini'. Below the sign is a small blue striped awning over a central automatic sliding glass door. The detailed facade includes small poster signs in the window and a clear entrance tile.\"",
+      "size": {
+        "width": 144,
+        "height": 144
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T05:29:43.748866"
+}

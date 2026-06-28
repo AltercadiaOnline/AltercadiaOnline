@@ -1,9 +1,9 @@
 /**
- * Estruturas da Cidade 01 — footprints em tiles (40px) → PNG 1:1.
+ * Estruturas da Cidade 01 — footprints em tiles (32px) → PNG 1:1.
  * Chaves alinhadas a worldAssetImageLoader / city01PlaceholderLayout.
  */
 export const STRUCTURE_ASSET_PUBLIC_BASE = '/assets/structures';
-const TILE = 40;
+const TILE = 32;
 export const STRUCTURE_ASSET_SPECS = [
     { id: 'casa_anciao', fileName: 'casa_anciao.png', tileW: 5, tileH: 4, widthPx: 5 * TILE, heightPx: 4 * TILE, label: 'Casa do Ancião' },
     { id: 'casa_mercenario', fileName: 'casa_mercenario.png', tileW: 4, tileH: 3, widthPx: 4 * TILE, heightPx: 3 * TILE, label: 'Casa Mercenário' },

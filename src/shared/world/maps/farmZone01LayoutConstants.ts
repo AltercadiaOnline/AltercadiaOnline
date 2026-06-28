@@ -9,6 +9,7 @@ import { DESIGN_CONFIG } from '../../../config/designConstants.js';
  *   fios e dutos, lixeiras e hidrantes americanos, néon magenta/teal estilo izakaya
  *   e kanji em grafites — sem sair do distrito comercial leste.
  * - Norte: beco sem saída (dead end). Sul: retorno manual à cidade.
+ * - Grade própria: 20×60 tiles (800×2400 px) — corredor vertical longo e estreito.
  */
 export const FARM_ZONE_01_LORE_BRIEF = [
   'Beco dos Fundos — extensão da Cidade 01, não periferia rural.',
@@ -16,8 +17,10 @@ export const FARM_ZONE_01_LORE_BRIEF = [
   'Distrito de oficinas e becos antes da gentrificação NexGrid.',
 ].join(' ');
 
-export const FARM_ZONE_01_TILES_WIDE = DESIGN_CONFIG.MAP.MAX_TILES_WIDTH;
-export const FARM_ZONE_01_TILES_HIGH = DESIGN_CONFIG.MAP.MAX_TILES_HEIGHT;
+/** Corredor vertical — 20 tiles de largura × 60 de altura @ 32px. */
+export const FARM_ZONE_01_TILES_WIDE = 20;
+export const FARM_ZONE_01_TILES_HIGH = 60;
+export const FARM_ZONE_01_TILE_SIZE = DESIGN_CONFIG.TILE.SIZE;
 
 export const FARM_ZONE_01_ALLEY_CENTER = Math.floor(FARM_ZONE_01_TILES_WIDE / 2);
 export const FARM_ZONE_01_ALLEY_MIN = FARM_ZONE_01_ALLEY_CENTER - 2;

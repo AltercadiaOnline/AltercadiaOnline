@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "7b1bc062-fcd2-4664-9498-932ab15e7e59",
+        "name": "\"35x54 pixel art game character",
+        "prompt": "\"35x54 pixel art game character sprite. Role: Street Merchant. Style: Chibi, 90s anime, cel-shaded. Design: Wearing a tactical vest with many utility pockets, modern cap, casual tech-sneakers, holding a holographic tablet. Front-facing, low top-down perspective. Optimized to fit 35x54 px bounding box, vertically elongated. Base central anchor. Flat color blocks, bold outlines. Isolated on neutral background.\"",
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-27T07:36:21.270562+00:00"
+      },
+      "folder": "35x54_pixel_art_game_character",
+      "frames": {
+        "rotations": {
+          "south": "35x54_pixel_art_game_character/rotations/south.png",
+          "south-east": "35x54_pixel_art_game_character/rotations/south-east.png",
+          "east": "35x54_pixel_art_game_character/rotations/east.png",
+          "north-east": "35x54_pixel_art_game_character/rotations/north-east.png",
+          "north": "35x54_pixel_art_game_character/rotations/north.png",
+          "north-west": "35x54_pixel_art_game_character/rotations/north-west.png",
+          "west": "35x54_pixel_art_game_character/rotations/west.png",
+          "south-west": "35x54_pixel_art_game_character/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-27T07:39:48.376204"
+}

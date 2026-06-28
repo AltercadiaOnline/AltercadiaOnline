@@ -2,7 +2,7 @@ import { DESIGN_CONFIG } from './designConstants.js';
 import { DESIGN_SPRITE_DIMENSIONS, type SpriteDimensions } from './spriteDimensions.js';
 import type { WorldPoint } from '../shared/world/playerEntity.js';
 
-/** Pés do jogador na base do tile (40px) — posição lógica = centro do tile. */
+/** Pés do jogador na base do tile (32px) — posição lógica = centro do tile. */
 export function getDesignPlayerFeetWorldY(position: WorldPoint): number {
   return position.y + DESIGN_CONFIG.TILE.SIZE / 2;
 }
@@ -57,7 +57,7 @@ export function getDesignPlayerVisualCenter(position: WorldPoint): WorldPoint {
   };
 }
 
-/** Pés na base do tile ativo — usa tileSize do mapa (40px design / 64px legado). */
+/** Pés na base do tile ativo — usa tileSize do mapa (32px oficial). */
 export function getEntityFeetWorldY(position: WorldPoint, tileSize: number): number {
   return position.y + tileSize / 2;
 }

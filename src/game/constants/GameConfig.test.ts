@@ -10,21 +10,21 @@ import {
 
 describe('GameConfig', () => {
   it('define grid e viewport oficiais', () => {
-    assert.equal(GAME_CONFIG.TILE_SIZE, 40);
+    assert.equal(GAME_CONFIG.TILE_SIZE, 32);
     assert.equal(GAME_CONFIG.VIEWPORT_WIDTH, 640);
     assert.equal(GAME_CONFIG.VIEWPORT_HEIGHT, 360);
-    assert.equal(GAME_CONFIG.MAP_WIDTH_TILES, 38);
-    assert.equal(GAME_CONFIG.MAP_HEIGHT_TILES, 60);
+    assert.equal(GAME_CONFIG.MAP_WIDTH_TILES, 40);
+    assert.equal(GAME_CONFIG.MAP_HEIGHT_TILES, 40);
   });
 
   it('calcula mapa em pixels', () => {
-    assert.equal(GAME_MAP_WIDTH_PX, 1520);
-    assert.equal(GAME_MAP_HEIGHT_PX, 2400);
+    assert.equal(GAME_MAP_WIDTH_PX, 1280);
+    assert.equal(GAME_MAP_HEIGHT_PX, 1280);
   });
 
   it('profundidade usa Y dos pés (tile base)', () => {
-    assert.equal(resolvePlayerFeetWorldY(100), 120);
-    assert.equal(resolvePlayerDepthY(200, 100), 120);
+    assert.equal(resolvePlayerFeetWorldY(100), 116);
+    assert.equal(resolvePlayerDepthY(200, 100), 116);
   });
 
   it('hitbox do jogador 35×54 com pivot nos pés', () => {

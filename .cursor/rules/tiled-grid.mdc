@@ -1,0 +1,14 @@
+---
+description: Enforce the official 32px Tiled grid and 40x40 base map
+alwaysApply: true
+---
+
+# Official World Grid
+
+- The official world grid is **32×32 pixels per tile**.
+- The base map size is **40×40 tiles**, exactly **1280×1280 pixels**.
+- Camera bounds, collision, entity positions, spawns, portals, and Tiled object placement must derive from `DESIGN_CONFIG.TILE.SIZE` / `GAME_CONFIG.TILE_SIZE`, never hardcoded 40/64 values.
+- Tiled exports in `public/assets/map_mund/*.tmj` (or `.json`) should use `tilewidth: 32` and `tileheight: 32`.
+- Runtime Phaser loads from `/assets/map_mund/` — mirror via `npm run mirror:map-mund` → `src/config/maps/`.
+- `/terrain/` contains 32px grid tilesets for tile layers. `/structures/` and `/props/` contain loose PNG sprites for object layers.
+- Do not guess or rescale at runtime. If an old export uses a different tile size, normalize it in the Tiled export/mirror tooling before runtime.

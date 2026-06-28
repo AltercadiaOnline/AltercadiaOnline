@@ -6,14 +6,24 @@ import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
   CANVAS_LEGACY_ID,
   PHASER_BATTLE_SCENE_KEY,
-  PHASER_EXPLORATION_SCENE_KEY,
+  PHASER_MAP_LOADING_SCENE_KEY,
   PHASER_MOUNT_ROOT_ID,
 } from './PhaserConfig.js';
+import { DEFAULT_MAP_ID, MAP_REGISTRY, type MapId } from '../../shared/world/mapRegistry.js';
+import {
+  getMapInstanceSceneManager,
+  resetMapInstanceSceneManager,
+} from './scenes/MapInstanceSceneManager.js';
+import { createAllMapInstancePhaserScenes } from './scenes/ExplorationPhaserScene.js';
+import { createLoadingPhaserScene } from './scenes/createLoadingPhaserScene.js';
+import { resolveActiveMapInstanceSceneKey } from './scenes/MapInstanceSceneManager.js';
 
 type PhaserGameInstance = {
   destroy: (removeCanvas: boolean) => void;
   scene: {
-    start: (key: string) => void;
+    start: (key: string, data?: Record<string, unknown>) => void;
+    stop: (key: string) => void;
+    getScenes?: (active?: boolean) => readonly { readonly scene: { readonly key: string } }[];
   };
 };
 
@@ -71,20 +81,27 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     }
 
     const PhaserNs = (await import('phaser')) as unknown as PhaserModule;
-    const { createExplorationPhaserScene } = await import('./scenes/ExplorationPhaserScene.js');
     const { createBattlePhaserScene } = await import('./scenes/BattlePhaserScene.js');
+
+    const mapIds = Object.keys(MAP_REGISTRY) as MapId[];
+    const mapInstanceScenes = createAllMapInstancePhaserScenes(PhaserNs as never, mapIds);
+    const loadingScene = createLoadingPhaserScene(PhaserNs as never);
 
     const gameConfig = buildPhaserGameConfig({
       Phaser: PhaserNs,
       parent: host,
       scenes: [
-        createExplorationPhaserScene(PhaserNs as never),
+        loadingScene,
+        ...mapInstanceScenes,
         createBattlePhaserScene(PhaserNs as never),
       ],
     });
 
     activeGame = new PhaserNs.Game(gameConfig);
     applyPhaserCanvasTransparency(host);
+
+    getMapInstanceSceneManager().init(activeGame, mapIds);
+    getMapInstanceSceneManager().bootDefaultMap(DEFAULT_MAP_ID);
 
     getRenderLayerBridge().markPhaserBooted(true);
 
@@ -114,6 +131,7 @@ export function shutdownPhaserRuntime(): void {
     activeGame.destroy(true);
     activeGame = null;
   }
+  resetMapInstanceSceneManager();
   getRenderLayerBridge().markPhaserBooted(false);
   getRenderLayerBridge().markPhaserSceneReady(false);
   getRenderLayerBridge().setActivePhaserScene(null);
@@ -128,10 +146,16 @@ export function switchPhaserScene(sceneKey: string): void {
   const activeScene =
     sceneKey === PHASER_BATTLE_SCENE_KEY
       ? 'battle'
-      : sceneKey === PHASER_EXPLORATION_SCENE_KEY
+      : sceneKey === PHASER_MAP_LOADING_SCENE_KEY
+          || sceneKey.startsWith('MapInstance:')
         ? 'exploration'
         : null;
   getRenderLayerBridge().setActivePhaserScene(activeScene);
+}
+
+/** Inicia a instância Phaser do mapa ativo (exploração). */
+export function switchPhaserToActiveMapInstance(): void {
+  switchPhaserScene(resolveActiveMapInstanceSceneKey());
 }
 
 export function isPhaserRuntimeActive(): boolean {

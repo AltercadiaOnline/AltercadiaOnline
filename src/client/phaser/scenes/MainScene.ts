@@ -33,12 +33,30 @@ export type PhaserWorldSceneBase = {
   preload: () => void;
   create: () => void;
   update: (time: number, delta: number) => void;
-  load: PhaserSceneLoader;
+  load: PhaserSceneLoader & {
+    tilemapTiledJSON: (key: string, url: string) => void;
+    image: (key: string, url: string) => void;
+  };
+  make: {
+    tilemap: (config: { key: string }) => {
+      readonly widthInPixels: number;
+      readonly heightInPixels: number;
+      destroy: () => void;
+    };
+  };
+  textures: {
+    exists: (key: string) => boolean;
+  };
   events: {
     on: (event: string, callback: () => void) => void;
   };
   add: {
     graphics: () => PhaserSceneGraphics;
+    container: (x: number, y: number) => {
+      add: (child: unknown) => unknown;
+      setDepth: (depth: number) => unknown;
+      destroy: () => void;
+    };
   };
   cameras: {
     main: PhaserSceneCamera;

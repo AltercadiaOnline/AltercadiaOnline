@@ -12,6 +12,7 @@ import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 import { getZoneMapPreloader } from './zoneMapPreloader.js';
 import { getZoneTransitionController } from './zoneTransitionController.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
+import { setPortalZonePhaserTriggerHandler } from '../phaser/world/portalZonePhaserBridge.js';
 
 
 
@@ -118,6 +119,10 @@ export class PortalConfirmationController {
 
     );
 
+    setPortalZonePhaserTriggerHandler((portalId) => {
+      this.tryShowConfirmation(portalId);
+    });
+
   }
 
 
@@ -127,6 +132,8 @@ export class PortalConfirmationController {
     for (const off of this.unsubscribers) off();
 
     this.unsubscribers.length = 0;
+
+    setPortalZonePhaserTriggerHandler(null);
 
     uiEvents.emit(UIEventType.HIDE_PORTAL_CONFIRMATION, {});
 

@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "2ff48ecb-4438-4212-a81c-b1c64c8da3a5",
+      "name": null,
+      "prompt": "VIEW TOP DOWN 2D \"Pixel art game asset, 32x32 sprite sheet. Theme: Modern city urban props. Include a collection of: metal fire hydrant, electrical utility box, wooden and metal bench, street trash bin, traffic cones, and a small urban plant pot. Style: 90s anime aesthetic, cel-shaded, bold dark outlines, flat color palette. Perspective: Top-down, consistent lighting source from the top-right. Isolated on a neutral white background for easy transparency removal. High readability, minimal dithering.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T16:56:51.511765"
+}

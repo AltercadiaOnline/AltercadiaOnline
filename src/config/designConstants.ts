@@ -13,9 +13,9 @@ import {
  * Fonte canônica: `src/game/constants/GameConfig.ts`.
  *
  * VIEWPORT: 640×360 fixo. Escala na tela via transform: scale(min(w/640,h/360)) no #game-stage-scale.
- * GRID: tile 40×40 — posição em pixels = (tileX × 40, tileY × 40).
+ * GRID: tile 32×32 — posição em pixels = (tileX × 32, tileY × 32).
  * PLAYER: bounding box 35×54; âncora na base central (17.5, 54).
- * MAPA: 38×60 tiles = 1520×2400 px. CÂMERA clamp (0,0) … (880, 2040).
+ * MAPA: 40×40 tiles = 1280×1280 px. CÂMERA clamp (0,0) … (640, 920).
  */
 
 export const DESIGN_CONFIG = {

@@ -17,6 +17,7 @@ import type { MapId } from '../../shared/world/mapRegistry.js';
 import { postGameChatMessage } from '../ui/gameChat.js';
 
 import { applyExplorationMapTransition, type ExplorationMapTransitionDeps } from '../scenes/explorationMapTransition.js';
+import { applyPhaserMapInstanceSwap } from '../phaser/MapInstanceTransitionCoordinator.js';
 
 import type { ZoneMapPreloader } from './zoneMapPreloader.js';
 
@@ -372,6 +373,10 @@ export class ZoneTransitionController {
     applyExplorationMapTransition(this.deps, payload, zoneLink);
 
     this.deps.applyPlayerPosition(payload);
+
+    applyPhaserMapInstanceSwap(payload, {
+      beforeTransition: () => this.deps.flushPositionToServer?.(),
+    });
 
   }
 

@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "d4c7a7f1-45c9-4fea-bbda-9357d40c19bf",
+      "name": null,
+      "prompt": "VIEW TOP DOWN 2D\"Highly detailed 32x32 pixel art game arena floor asset. Perspective: Low top-down view from the South (facing camera). The asset is a rectangular combat arena floor surface. Style is a fusion of Stardew Valley-like charm with a modern Tokyo-meets-New York urban aesthetic. The surface features weathered industrial concrete with glowing neon blue power-grid lines embedded in the floor, reinforced metal plates in the corners, and clear circular indicator markings for combat bounds. Gritty, high-contrast, clean pixel outlines. Isolated on a neutral background.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-27T05:57:30.533386"
+}

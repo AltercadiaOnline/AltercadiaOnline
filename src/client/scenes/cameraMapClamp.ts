@@ -29,7 +29,7 @@ export type CameraClampLimits = {
   readonly maxCameraY: number;
 };
 
-/** MapaTotal = mapWidthInTiles × 40 */
+/** MapaTotal = mapWidthInTiles × tileSize (oficial: DESIGN_CONFIG.TILE.SIZE). */
 export function computeMapTotalPixels(
   tilesWide: number,
   tilesHigh: number,
@@ -43,8 +43,8 @@ export function computeMapTotalPixels(
 
 /**
  * Limites máximos do canto superior-esquerdo da câmera:
- * maxCameraX = (mapWidthInTiles * 40) - viewportWidth
- * maxCameraY = (mapHeightInTiles * 40) - viewportHeight
+ * maxCameraX = (mapWidthInTiles × tileSize) − viewportWidth
+ * maxCameraY = (mapHeightInTiles × tileSize) − viewportHeight
  */
 export function computeCameraClampLimits(
   mapWidthInTiles: number,
@@ -66,7 +66,7 @@ export function computeCameraClampLimitsFromPixels(
   };
 }
 
-/** Clamp oficial do mapa design (38×60 tiles = 1520×2400). */
+/** Clamp oficial do mapa design (40×40 tiles @ 32px = 1280×1280). */
 export function clampCameraToDesignMap(
   playerX: number,
   playerY: number,
@@ -101,7 +101,7 @@ export function clampCameraToPlayerFollow(
   };
 }
 
-/** Variante por tiles — mesma fórmula com mapWidthInTiles × 40. */
+/** Variante por tiles — mesma fórmula com mapWidthInTiles × tileSize. */
 export function clampCameraToPlayerFollowTiles(
   playerX: number,
   playerY: number,

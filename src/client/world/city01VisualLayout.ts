@@ -235,7 +235,7 @@ function stampArenaAndPortals(
   }
 }
 
-/** Grade 40×40 — malha de ruas, praça, placeholders e portal norte. */
+/** Grade 40×40 @ 32px — malha de ruas, praça, placeholders e portal norte. */
 export function buildCity01VisualLayout(): City01VisualLayout {
   const tiles = createGrassGrid();
 
