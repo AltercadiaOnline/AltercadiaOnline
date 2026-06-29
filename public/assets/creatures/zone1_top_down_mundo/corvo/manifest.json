@@ -1,8 +1,0 @@
-{
-  "id": "corvo_z1",
-  "displayName": "Corvo",
-  "sprites": {
-    "idle": "idle.png",
-    "attack": "attack.png"
-  }
-}

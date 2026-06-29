@@ -10,8 +10,20 @@ public/config/
 public/game/
 public/vendor/
 
-# Arquivos de asset locais (não versionar)
-public/assets/player/*.zip
+# Assets pesados de AUTORIA (fonte do designer) — NÃO versionar.
+# Mantemos a estrutura de pastas intacta; só ignoramos os arquivos que não
+# são consumidos em runtime e que pesam (PSD/ZIP/PDF) ou lixo de SO.
+# O runtime usa apenas .png/.tsx/.tmj/.json — esses continuam versionados.
+public/assets/**/*.psd
+public/assets/**/*.PSD
+public/assets/**/*.zip
+public/assets/**/*.pdf
+public/assets/**/*.tiled-session
+
+# Lixo de sistema operacional (macOS / arquivos AppleDouble)
+public/assets/**/__MACOSX/
+public/assets/**/._*
+**/.DS_Store
 
 # Segredos locais — nunca versionar
 .env

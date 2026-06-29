@@ -8,6 +8,7 @@ import {
   resolveZone1CreatureEntry,
   ZONE1_ID,
 } from '../../shared/world/zone1CreatureRegistry.js';
+import { resolveZone1TopDownRotationUrl } from '../../shared/assets/zone1TopDownCreatureAssets.js';
 
 import { DEFAULT_PLAYER_SOUTH_ROTATION_URL } from '../entities/player/playerConstants.js';
 
@@ -21,6 +22,24 @@ function bundleFromManifest(
   folder: string,
   manifest: CreatureManifest,
 ): CreatureAssetBundle {
+  // Zona 1: assets top-down (rotations). Sem frame de ataque dedicado — reusa sul.
+  const topDownSouth =
+    zoneId === ZONE1_ID ? resolveZone1TopDownRotationUrl(creatureId, 'south') : null;
+
+  if (topDownSouth) {
+    return {
+      id: manifest.id,
+      displayName: manifest.displayName,
+      creatureId,
+      zoneId,
+      folder,
+      sprites: {
+        idle: topDownSouth,
+        attack: topDownSouth,
+      },
+    };
+  }
+
   return {
     id: manifest.id,
     displayName: manifest.displayName,

@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "5c054a2a-6711-49d8-a9eb-935c2756c72e",
+        "name": "\"Top-down 2d game character sprite, small realistic mouse, grey fur, simple walking pose, viewed from top-down south perspective, 32x32 pixel art style, bold outlines, cel-shaded, small size, clean white background, high quality, grid-aligned --v 6.0\"",
+        "prompt": "\"Top-down 2d game character sprite, small realistic mouse, grey fur, simple walking pose, viewed from top-down south perspective, 32x32 pixel art style, bold outlines, cel-shaded, small size, clean white background, high quality, grid-aligned --v 6.0\"",
+        "size": {
+          "width": 36,
+          "height": 36
+        },
+        "template_id": "cat",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-28T22:16:29.521768+00:00"
+      },
+      "folder": "Top-down_2d_game_character_sprite_small_realistic",
+      "frames": {
+        "rotations": {
+          "south": "Top-down_2d_game_character_sprite_small_realistic/rotations/south.png",
+          "south-east": "Top-down_2d_game_character_sprite_small_realistic/rotations/south-east.png",
+          "east": "Top-down_2d_game_character_sprite_small_realistic/rotations/east.png",
+          "north-east": "Top-down_2d_game_character_sprite_small_realistic/rotations/north-east.png",
+          "north": "Top-down_2d_game_character_sprite_small_realistic/rotations/north.png",
+          "north-west": "Top-down_2d_game_character_sprite_small_realistic/rotations/north-west.png",
+          "west": "Top-down_2d_game_character_sprite_small_realistic/rotations/west.png",
+          "south-west": "Top-down_2d_game_character_sprite_small_realistic/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-28T22:17:48.179497"
+}

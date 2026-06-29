@@ -1,8 +1,0 @@
-{
-  "id": "morcego_z1",
-  "displayName": "Morcego",
-  "sprites": {
-    "idle": "idle.png",
-    "attack": "attack.png"
-  }
-}

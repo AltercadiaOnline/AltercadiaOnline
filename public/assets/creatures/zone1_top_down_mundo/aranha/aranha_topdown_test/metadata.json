@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "c9519700-55ff-4f04-ba12-f754b2161385",
+        "name": "\"Top-down 2d game character sprite,",
+        "prompt": "\"Top-down 2d game character sprite, realistic small house spider, eight legs splayed in a walking pose on the floor, dark mottled brown and black pattern, viewed from top-down south perspective, 32x32 pixel art style, bold outlines, cel-shaded, clean white background, high quality, grid-aligned --v 6.0\"",
+        "size": {
+          "width": 56,
+          "height": 56
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-28T22:56:15.811959+00:00"
+      },
+      "folder": "Top-down_2d_game_character_sprite",
+      "frames": {
+        "rotations": {
+          "south": "Top-down_2d_game_character_sprite/rotations/south.png",
+          "south-east": "Top-down_2d_game_character_sprite/rotations/south-east.png",
+          "east": "Top-down_2d_game_character_sprite/rotations/east.png",
+          "north-east": "Top-down_2d_game_character_sprite/rotations/north-east.png",
+          "north": "Top-down_2d_game_character_sprite/rotations/north.png",
+          "north-west": "Top-down_2d_game_character_sprite/rotations/north-west.png",
+          "west": "Top-down_2d_game_character_sprite/rotations/west.png",
+          "south-west": "Top-down_2d_game_character_sprite/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-28T23:02:01.757953"
+}

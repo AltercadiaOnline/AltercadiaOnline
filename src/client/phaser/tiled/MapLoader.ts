@@ -238,7 +238,7 @@ export class MapLoader {
       if (layer.type !== 'objectgroup') continue;
       if (!isTiledRenderableObjectLayer(layer.name)) continue;
 
-      const layerData = mapData?.layers.find((entry) => entry.name === layer.name);
+      const layerData = mapData?.data.layers.find((entry) => entry.name === layer.name);
       const layerObjects = layerData?.objects ?? [];
 
       const createdFromGid = map.createFromObjects(layer.name, tilesets, 0, 0, true);
@@ -285,7 +285,7 @@ export class MapLoader {
     const mapData = scene.cache.tilemap.get(cacheKey);
     if (!mapData) return null;
 
-    for (const layer of mapData.layers) {
+    for (const layer of mapData.data.layers) {
       if (!isTiledSpawnObjectLayer(layer.name)) continue;
 
       for (const object of layer.objects ?? []) {

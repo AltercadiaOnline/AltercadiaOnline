@@ -1,8 +1,0 @@
-{
-  "id": "cao_z1",
-  "displayName": "Cão Selvagem",
-  "sprites": {
-    "idle": "idle.png",
-    "attack": "attack.png"
-  }
-}

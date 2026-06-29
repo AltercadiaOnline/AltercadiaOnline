@@ -1,9 +1,11 @@
 import type { ExplorationRenderFrame } from '../../app/bridge/explorationRenderBridge.js';
+import { PlayerSpriteLoader } from '../../entities/player/PlayerSpriteLoader.js';
 import { resolveSheetSourceRect } from '../../entities/player/playerConfig.js';
 import { resolveTrimmedPlayerSourceRect } from '../../entities/player/playerSpriteSourceTrim.js';
 import {
   ensurePlayerSheetTexture,
   PHASER_PLAYER_TEXTURE_KEY,
+  resolvePlayerPhaserTextureKey,
   resolvePrimaryPlayerSheetUrl,
 } from './phaserPlayerAssets.js';
 import type { PhaserLayoutContainer } from '../layout/phaserLayoutScene.js';
@@ -21,6 +23,7 @@ type PhaserPlayerImage = {
   setOrigin: (x: number, y: number) => PhaserPlayerImage;
   setDepth: (depth: number) => PhaserPlayerImage;
   setDisplaySize: (width: number, height: number) => PhaserPlayerImage;
+  setTexture?: (key: string) => PhaserPlayerImage;
   setTint?: (color: number) => PhaserPlayerImage;
   clearTint?: () => PhaserPlayerImage;
   setVisible: (visible: boolean) => PhaserPlayerImage;
@@ -28,7 +31,9 @@ type PhaserPlayerImage = {
 };
 
 type PhaserPlayerScene = {
-  textures: Parameters<typeof ensurePlayerSheetTexture>[0];
+  textures: Parameters<typeof ensurePlayerSheetTexture>[0] & {
+    exists: (key: string) => boolean;
+  };
   load: {
     image: (key: string, url: string) => void;
   };
@@ -40,12 +45,18 @@ type PhaserPlayerScene = {
 const PLAYER_SPRITE_DEPTH = 0;
 
 /**
- * Sprite do jogador no Phaser — recorte 1:1 do sheet, pés ancorados (mesmo contrato do canvas).
+ * Sprite do jogador no Phaser — spritesheet (recorte) ou rotações do metadata (bundle top-down).
  */
 export class PhaserPlayerSpriteController {
   private sprite: PhaserPlayerImage | null = null;
 
   private sheetReady = false;
+
+  private rotationMode = false;
+
+  private catalogFrameWidth = 104;
+
+  private catalogFrameHeight = 104;
 
   queuePreload(scene: PhaserPlayerScene): void {
     scene.load.image(PHASER_PLAYER_TEXTURE_KEY, resolvePrimaryPlayerSheetUrl());
@@ -60,8 +71,20 @@ export class PhaserPlayerSpriteController {
       return false;
     }
 
+    this.rotationMode = !scene.textures.exists(PHASER_PLAYER_TEXTURE_KEY);
+
+    if (this.rotationMode) {
+      const catalog = await PlayerSpriteLoader.getTopDownCatalog();
+      this.catalogFrameWidth = catalog.frameWidth;
+      this.catalogFrameHeight = catalog.frameHeight;
+    }
+
+    const initialTextureKey = this.rotationMode
+      ? resolvePlayerPhaserTextureKey('south')
+      : PHASER_PLAYER_TEXTURE_KEY;
+
     this.sprite?.destroy();
-    this.sprite = scene.add.image(0, 0, PHASER_PLAYER_TEXTURE_KEY);
+    this.sprite = scene.add.image(0, 0, initialTextureKey);
     this.sprite.setOrigin(0.5, 1);
     this.sprite.setDepth(PLAYER_SPRITE_DEPTH);
     if (ySortContainer) {
@@ -78,28 +101,49 @@ export class PhaserPlayerSpriteController {
     if (!this.sprite) return;
 
     const { playerSprite } = frame;
-    const sheetRect = resolveSheetSourceRect(
-      playerSprite.frameIndex,
-      playerSprite.state,
-      playerSprite.direction,
-    );
-    const trimmed = resolveTrimmedPlayerSourceRect(sheetRect.sw, sheetRect.sh);
 
-    this.sprite.setCrop(
-      sheetRect.sx + trimmed.sx,
-      sheetRect.sy + trimmed.sy,
-      trimmed.sw,
-      trimmed.sh,
-    );
+    if (this.rotationMode) {
+      const textureKey = resolvePlayerPhaserTextureKey(playerSprite.direction);
+      this.sprite.setTexture?.(textureKey);
 
-    normalizePhaserAsset(
-      this.sprite,
-      trimmed.sw,
-      trimmed.sh,
-      GAME_ASSET_TARGETS.player.width,
-      GAME_ASSET_TARGETS.player.height,
-      PHASER_PLAYER_TEXTURE_KEY,
-    );
+      const trimmed = resolveTrimmedPlayerSourceRect(
+        this.catalogFrameWidth,
+        this.catalogFrameHeight,
+      );
+
+      this.sprite.setCrop(trimmed.sx, trimmed.sy, trimmed.sw, trimmed.sh);
+      normalizePhaserAsset(
+        this.sprite,
+        trimmed.sw,
+        trimmed.sh,
+        GAME_ASSET_TARGETS.player.width,
+        GAME_ASSET_TARGETS.player.height,
+        textureKey,
+      );
+    } else {
+      const sheetRect = resolveSheetSourceRect(
+        playerSprite.frameIndex,
+        playerSprite.state,
+        playerSprite.direction,
+      );
+      const trimmed = resolveTrimmedPlayerSourceRect(sheetRect.sw, sheetRect.sh);
+
+      this.sprite.setCrop(
+        sheetRect.sx + trimmed.sx,
+        sheetRect.sy + trimmed.sy,
+        trimmed.sw,
+        trimmed.sh,
+      );
+
+      normalizePhaserAsset(
+        this.sprite,
+        trimmed.sw,
+        trimmed.sh,
+        GAME_ASSET_TARGETS.player.width,
+        GAME_ASSET_TARGETS.player.height,
+        PHASER_PLAYER_TEXTURE_KEY,
+      );
+    }
 
     const feet = resolvePlayerFeetWorld({ x: frame.playerX, y: frame.playerY });
     const feetX = Math.floor(feet.x);
@@ -113,5 +157,6 @@ export class PhaserPlayerSpriteController {
     this.sprite?.destroy();
     this.sprite = null;
     this.sheetReady = false;
+    this.rotationMode = false;
   }
 }

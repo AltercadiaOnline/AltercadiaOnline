@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "0e9f461d-f031-442f-b049-229655723e45",
+        "name": "\"Top-down 2d game character sprite, aggressive guard dog, snarling expression with visible teeth, sharp eyes, bristled fur, tense and alert posture, brown and black fur, viewed from top-down south perspective, 32x32 pixel art style, bold outlines, cel-shaded, clean white background, high quality, grid-aligned --v 6.0\"",
+        "prompt": "\"Top-down 2d game character sprite, aggressive guard dog, snarling expression with visible teeth, sharp eyes, bristled fur, tense and alert posture, brown and black fur, viewed from top-down south perspective, 32x32 pixel art style, bold outlines, cel-shaded, clean white background, high quality, grid-aligned --v 6.0\"",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "bear",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-28T22:30:58.203233+00:00"
+      },
+      "folder": "Top-down_2d_game_character_sprite_aggressive_guard",
+      "frames": {
+        "rotations": {
+          "south": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/south.png",
+          "south-east": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/south-east.png",
+          "east": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/east.png",
+          "north-east": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/north-east.png",
+          "north": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/north.png",
+          "north-west": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/north-west.png",
+          "west": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/west.png",
+          "south-west": "Top-down_2d_game_character_sprite_aggressive_guard/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-28T22:32:23.014024"
+}

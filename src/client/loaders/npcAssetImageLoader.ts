@@ -1,17 +1,22 @@
 import {
-  listNpcDefinitionIds,
-  resolveNpcSpriteImageUrl,
+  hasNpcAssetBundle,
+  listNpcAssetBundleIds,
 } from '../../assets/npcs/npcDefinition.js';
+import { NpcSpriteLoader } from './NpcSpriteLoader.js';
 
 const cache = new Map<string, HTMLImageElement | null>();
 const pending = new Map<string, Promise<HTMLImageElement | null>>();
 
 export function getCachedNpcAssetImage(npcId: string): HTMLImageElement | null {
-  if (!cache.has(npcId)) {
-    const url = resolveNpcSpriteImageUrl(npcId);
-    if (url) void preloadNpcAssetImage(npcId);
-    return null;
+  const south = NpcSpriteLoader.getCachedRotation(npcId, 'south');
+  if (south?.image.complete && south.image.naturalWidth > 0) {
+    return south.image;
   }
+
+  if (!cache.has(npcId) && hasNpcAssetBundle(npcId)) {
+    void preloadNpcAssetImage(npcId);
+  }
+
   return cache.get(npcId) ?? null;
 }
 
@@ -26,26 +31,17 @@ export function preloadNpcAssetImage(npcId: string): Promise<HTMLImageElement | 
   const inflight = pending.get(npcId);
   if (inflight) return inflight;
 
-  const url = resolveNpcSpriteImageUrl(npcId);
-  if (!url) {
+  if (!hasNpcAssetBundle(npcId)) {
     cache.set(npcId, null);
     return Promise.resolve(null);
   }
 
-  const promise = new Promise<HTMLImageElement | null>((resolve) => {
-    const image = new Image();
-    image.decoding = 'async';
-    image.onload = () => {
-      cache.set(npcId, image);
-      pending.delete(npcId);
-      resolve(image);
-    };
-    image.onerror = () => {
-      cache.set(npcId, null);
-      pending.delete(npcId);
-      resolve(null);
-    };
-    image.src = url;
+  const promise = NpcSpriteLoader.loadCatalog(npcId).then((catalog) => {
+    const south = catalog?.rotations.south;
+    const image = south?.image ?? null;
+    cache.set(npcId, image);
+    pending.delete(npcId);
+    return image;
   });
 
   pending.set(npcId, promise);
@@ -53,5 +49,5 @@ export function preloadNpcAssetImage(npcId: string): Promise<HTMLImageElement | 
 }
 
 export function preloadAllNpcDefinitionAssets(): Promise<void> {
-  return Promise.all(listNpcDefinitionIds().map((id) => preloadNpcAssetImage(id))).then(() => undefined);
+  return Promise.all(listNpcAssetBundleIds().map((id) => preloadNpcAssetImage(id))).then(() => undefined);
 }

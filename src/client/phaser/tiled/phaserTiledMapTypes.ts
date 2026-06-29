@@ -108,24 +108,30 @@ export type MapLoaderScene = {
   };
   readonly cache: {
     tilemap: {
+      has: (key: string) => boolean;
+      add: (key: string, entry: { format: number; data: unknown }) => void;
+      /** O cache de tilemap do Phaser guarda `{ format, data }` (ver ParseToTilemap.js). */
       get: (key: string) => {
-        readonly layers: readonly {
-          readonly name: string;
-          readonly objects?: readonly {
-            readonly id?: number;
-            readonly name?: string;
-            readonly type?: string;
-            readonly gid?: number;
-            readonly x: number;
-            readonly y: number;
-            readonly width: number;
-            readonly height: number;
-            readonly properties?: readonly {
-              readonly name: string;
-              readonly value: string | number | boolean;
+        readonly format: number;
+        readonly data: {
+          readonly layers: readonly {
+            readonly name: string;
+            readonly objects?: readonly {
+              readonly id?: number;
+              readonly name?: string;
+              readonly type?: string;
+              readonly gid?: number;
+              readonly x: number;
+              readonly y: number;
+              readonly width: number;
+              readonly height: number;
+              readonly properties?: readonly {
+                readonly name: string;
+                readonly value: string | number | boolean;
+              }[];
             }[];
           }[];
-        }[];
+        };
       } | null;
     };
   };

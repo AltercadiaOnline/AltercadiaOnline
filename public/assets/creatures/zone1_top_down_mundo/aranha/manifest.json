@@ -1,8 +1,0 @@
-{
-  "id": "aranha_z1",
-  "displayName": "Aranha",
-  "sprites": {
-    "idle": "idle.png",
-    "attack": "attack.png"
-  }
-}

@@ -1,6 +1,6 @@
-import { resolveNpcSpriteImageUrl } from '../../../assets/npcs/npcDefinition.js';
+import { hasNpcAssetBundle } from '../../../assets/npcs/npcDefinition.js';
 import { getCreatureAssets } from '../../loaders/CreatureAssetLoader.js';
-import { getCachedNpcAssetImage } from '../../loaders/npcAssetImageLoader.js';
+import { getCachedNpcAssetImage, preloadNpcAssetImage } from '../../loaders/npcAssetImageLoader.js';
 import {
   preloadCreatureWorldSprite,
   getCachedCreatureWorldSprite,
@@ -110,25 +110,22 @@ async function ensureNpcTexture(
     return true;
   }
 
-  const url = resolveNpcSpriteImageUrl(npcId);
-  if (!url) {
+  if (!hasNpcAssetBundle(npcId)) {
     return false;
   }
 
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      textures.addImage(key, img);
-      try {
-        textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
-      } catch {
-        /* noop */
-      }
-      resolve(true);
-    };
-    img.onerror = () => resolve(false);
-    img.src = url;
-  });
+  const image = await preloadNpcAssetImage(npcId);
+  if (!image || image.naturalWidth <= 0) {
+    return false;
+  }
+
+  textures.addImage(key, image);
+  try {
+    textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
+  } catch {
+    /* noop */
+  }
+  return true;
 }
 
 /**

@@ -9,16 +9,14 @@ export type PetAssetBundleConfig = {
   readonly metadataUrl: string;
 };
 
-/** Bundles temporários PixelLab v3 — cat e dog dimensionais. */
+/** Bundles PixelLab v3 — public/assets/pets/{bundleFolder}/metadata.json */
 export const PET_ASSET_BUNDLES: Readonly<Record<PetKindId, PetAssetBundleConfig>> = {
   dimensional_cat: {
-    bundleFolder: 'Pixel_art_sprite_top-down_view_a_small_cat_sitting',
-    metadataUrl:
-      `${PET_ASSET_ROOT}/Pixel_art_sprite_top-down_view_a_small_cat_sitting/metadata.json`,
+    bundleFolder: 'cat_pet_1_asset',
+    metadataUrl: `${PET_ASSET_ROOT}/cat_pet_1_asset/metadata.json`,
   },
   dimensional_dog: {
-    bundleFolder: 'Pixel_art_sprite_top-down_view_a_medium-sized_cara',
-    metadataUrl:
-      `${PET_ASSET_ROOT}/Pixel_art_sprite_top-down_view_a_medium-sized_cara/metadata.json`,
+    bundleFolder: 'dog_pet_1_asset',
+    metadataUrl: `${PET_ASSET_ROOT}/dog_pet_1_asset/metadata.json`,
   },
 };

@@ -3,6 +3,10 @@ import { PHASER_MAP_LOADING_SCENE_KEY } from '../PhaserConfig.js';
 import type { MapId } from '../../../shared/world/mapRegistry.js';
 import type { MapTransitionPayload } from '../../../shared/world/protocol.js';
 import {
+  isTiledMapEnabled,
+  resolveTiledMapDescriptor,
+} from '../../../config/tiledMapManifest.js';
+import {
   purgeMapInstanceAssets,
   queueMapInstanceAssets,
 } from './mapInstanceAssetManifest.js';
@@ -101,7 +105,8 @@ export function createLoadingPhaserScene(
 
     private spawn: MapTransitionPayload | undefined;
 
-    private loadFailed = false;
+    /** Algum asset (imagem) falhou — não bloqueia: motor usa placeholder. */
+    private assetErrors = 0;
 
     private statusText: ReturnType<PhaserLoadingScene['add']['text']> | null = null;
 
@@ -115,7 +120,7 @@ export function createLoadingPhaserScene(
       this.targetScene = data?.targetScene ?? '';
       this.targetMapId = data?.targetMapId ?? null;
       this.spawn = data?.spawn;
-      this.loadFailed = false;
+      this.assetErrors = 0;
       this.statusText = null;
       this.progressFill = null;
 
@@ -129,16 +134,15 @@ export function createLoadingPhaserScene(
       this.mountLoadingUi(scene);
 
       scene.load.on('fileerror', (...args: unknown[]) => {
-        this.loadFailed = true;
+        // Imagem ausente NÃO trava o mundo — motor renderiza placeholder no lugar.
+        this.assetErrors += 1;
         const file = resolveLoaderFile(args);
-        console.error(
-          '[LoadingScene] Load error — asset bloqueado:',
+        console.warn(
+          '[LoadingScene] Asset ausente (404) — seguindo com placeholder:',
           file.key,
           'path:',
           file.src ?? file.url,
         );
-        this.statusText?.setText('Erro ao carregar mapa.');
-        this.statusText?.setColor('#f87171');
       });
 
       scene.load.on('progress', (value: unknown) => {
@@ -149,13 +153,10 @@ export function createLoadingPhaserScene(
       });
 
       scene.load.on('complete', () => {
-        if (!this.loadFailed) {
-          this.statusText?.setText('Loading... 100%');
-        }
+        this.statusText?.setText('Loading... 100%');
       });
 
       if (!this.targetMapId) {
-        this.loadFailed = true;
         console.error('[LoadingScene] targetMapId ausente — transição abortada.');
         return;
       }
@@ -166,13 +167,29 @@ export function createLoadingPhaserScene(
     create(): void {
       const scene = this as unknown as PhaserLoadingScene;
 
-      if (this.loadFailed || !this.targetScene || !this.targetMapId) {
-        console.error(
-          '[LoadingScene] Transição bloqueada — mapa não iniciado (assets incompletos ou parâmetros inválidos).',
-        );
+      if (!this.targetScene || !this.targetMapId) {
+        console.error('[LoadingScene] Parâmetros inválidos — transição abortada.');
         this.statusText?.setText('Falha no carregamento. Recarregue a página.');
         this.statusText?.setColor('#f87171');
         return;
+      }
+
+      // Crítico = JSON do mapa Tiled. Sem ele, não há o que montar.
+      // Erros de imagem (tileset/prop/player) são tolerados: o motor usa placeholder.
+      if (!this.isCriticalMapDataReady(scene)) {
+        console.error(
+          '[LoadingScene] JSON do mapa ausente — transição abortada.',
+          this.targetMapId,
+        );
+        this.statusText?.setText('Falha no carregamento do mapa. Recarregue a página.');
+        this.statusText?.setColor('#f87171');
+        return;
+      }
+
+      if (this.assetErrors > 0) {
+        console.warn(
+          `[LoadingScene] Entrando no mundo com ${this.assetErrors} asset(s) em placeholder.`,
+        );
       }
 
       const initData: MapInstanceSceneInitData | undefined = this.spawn
@@ -181,6 +198,16 @@ export function createLoadingPhaserScene(
 
       getMapInstanceSceneManager().commitTransition(this.targetMapId, this.targetScene);
       scene.scene.start(this.targetScene, initData);
+    }
+
+    /** Mapas Tiled exigem o JSON em cache; mapas legados não dependem de preload. */
+    private isCriticalMapDataReady(scene: PhaserLoadingScene): boolean {
+      if (!this.targetMapId || !isTiledMapEnabled(this.targetMapId)) {
+        return true;
+      }
+      const descriptor = resolveTiledMapDescriptor(this.targetMapId);
+      if (!descriptor) return true;
+      return scene.cache.tilemap.exists(descriptor.cacheKey);
     }
 
     private mountLoadingUi(scene: PhaserLoadingScene): void {

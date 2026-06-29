@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "d675d823-9eab-4811-b993-5b10b649376a",
+        "name": "\"Top-down 2d game character sprite, realistic black crow, wings folded, sitting on ground, viewed from top-down south perspective, 32x32 pixel art style, bold outlines, cel-shaded, clean white background, high quality, grid-aligned --v 6.0\"",
+        "prompt": "\"Top-down 2d game character sprite, realistic black crow, wings folded, sitting on ground, viewed from top-down south perspective, 32x32 pixel art style, bold outlines, cel-shaded, clean white background, high quality, grid-aligned --v 6.0\"",
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-28T22:31:49.301068+00:00"
+      },
+      "folder": "Top-down_2d_game_character_sprite_realistic_black",
+      "frames": {
+        "rotations": {
+          "south": "Top-down_2d_game_character_sprite_realistic_black/rotations/south.png",
+          "south-east": "Top-down_2d_game_character_sprite_realistic_black/rotations/south-east.png",
+          "east": "Top-down_2d_game_character_sprite_realistic_black/rotations/east.png",
+          "north-east": "Top-down_2d_game_character_sprite_realistic_black/rotations/north-east.png",
+          "north": "Top-down_2d_game_character_sprite_realistic_black/rotations/north.png",
+          "north-west": "Top-down_2d_game_character_sprite_realistic_black/rotations/north-west.png",
+          "west": "Top-down_2d_game_character_sprite_realistic_black/rotations/west.png",
+          "south-west": "Top-down_2d_game_character_sprite_realistic_black/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-28T22:39:32.970083"
+}

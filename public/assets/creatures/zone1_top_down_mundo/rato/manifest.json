@@ -1,8 +1,0 @@
-{
-  "id": "rato_z1",
-  "displayName": "Rato",
-  "sprites": {
-    "idle": "idle.png",
-    "attack": "attack.png"
-  }
-}

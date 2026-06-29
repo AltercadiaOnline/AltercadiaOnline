@@ -594,17 +594,35 @@ function connectSocket(): void {
   setStatus('Conectando…');
 }
 
+/**
+ * Teto para o boot do HUD React antes de seguir para o mundo. O HUD é um chunk
+ * carregado sob demanda; em produção (CDN/Vercel, hash novo a cada deploy) esse
+ * `import()` pode demorar ou ficar pendente. A entrada no mundo NÃO pode ficar
+ * refém dele — senão o jogador trava na tela de personagem sem erro visível.
+ */
+const HUD_RUNTIME_BOOT_TIMEOUT_MS = 8000;
+
 function enterWorld(): void {
   if (worldStarted) return;
 
-  void (async () => {
-    try {
-      await initReactGameHud();
-    } catch (error) {
-      console.error('[Altercadia] Falha ao montar HUD React in-game:', error);
-    }
+  // Monta o HUD em paralelo; ele aparece assim que a promise resolver. A transição
+  // para o mundo acontece quando o HUD ficar pronto OU quando o timeout estourar.
+  const hudReady = initReactGameHud().catch((error) => {
+    console.error('[Altercadia] Falha ao montar HUD React in-game:', error);
+  });
+
+  const hudTimeout = new Promise<void>((resolve) => {
+    window.setTimeout(() => {
+      console.warn(
+        `[Altercadia] HUD React não montou em ${HUD_RUNTIME_BOOT_TIMEOUT_MS}ms — entrando no mundo mesmo assim.`,
+      );
+      resolve();
+    }, HUD_RUNTIME_BOOT_TIMEOUT_MS);
+  });
+
+  void Promise.race([hudReady, hudTimeout]).then(() => {
     enterWorldAfterHudReady();
-  })();
+  });
 }
 
 function enterWorldAfterHudReady(): void {

@@ -32,6 +32,29 @@ export type TiledMapJson = {
   readonly layers?: readonly TiledJsonLayer[];
 };
 
+/** Objeto Tiled pronto para o parser do Phaser (`Formats.TILED_JSON`). */
+export type PhaserReadyTiledMap = Record<string, unknown>;
+
+/**
+ * O Phaser 4 IGNORA qualquer tileset que tenha o campo `source` (tileset externo .tsx)
+ * — ver node_modules/phaser/src/tilemaps/parsers/tiled/ParseTilesets.js. O espelho
+ * (`src/config/maps/*.json`) é enriquecido com `image`/`name`, mas mantém `source`,
+ * então precisamos removê-lo para o Phaser embutir o tileset e renderizar os tiles.
+ */
+export function buildPhaserTiledMapData(json: TiledMapJson): PhaserReadyTiledMap {
+  const source = json as unknown as Record<string, unknown>;
+  const clone: Record<string, unknown> = { ...source };
+  const tilesets = Array.isArray(source.tilesets) ? source.tilesets : [];
+
+  clone.tilesets = tilesets.map((entry) => {
+    const tileset = { ...(entry as Record<string, unknown>) };
+    delete tileset.source;
+    return tileset;
+  });
+
+  return clone;
+}
+
 /** Tilesets declarados no export Tiled — fonte única para preload (sem lista manual). */
 export function extractTilesetsFromTiledJson(json: TiledMapJson): TiledTilesetDescriptor[] {
   const seen = new Set<string>();

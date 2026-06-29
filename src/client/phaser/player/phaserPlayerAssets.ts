@@ -1,4 +1,8 @@
 import { PlayerSpriteLoader } from '../../entities/player/PlayerSpriteLoader.js';
+import {
+  DEFAULT_PLAYER_SOUTH_ROTATION_URL,
+  DEFAULT_PLAYER_SKIN_ID,
+} from '../../entities/player/playerConstants.js';
 
 export const PHASER_PLAYER_TEXTURE_KEY = 'altercadia-player-sheet';
 
@@ -16,9 +20,12 @@ type PhaserTextureManager = {
 /** FilterMode.NEAREST — espelha pixelArt:true no GameConfig. */
 export const PHASER_TEXTURE_FILTER_NEAREST = 1;
 
+function playerRotationTextureKey(direction: string): string {
+  return `${PHASER_PLAYER_TEXTURE_KEY}:rot:${direction}`;
+}
+
 /**
- * Injeta o spritesheet top-down já carregado pelo PlayerSpriteLoader no cache Phaser.
- * Reutiliza o mesmo asset do canvas legado (online-first).
+ * Injeta texturas do jogador no cache Phaser — spritesheet legado ou rotações do metadata.
  */
 export async function ensurePlayerSheetTexture(
   textures: PhaserTextureManager,
@@ -28,25 +35,54 @@ export async function ensurePlayerSheetTexture(
   }
 
   const sheet = await PlayerSpriteLoader.loadTopDownSpriteSheet();
-  if (!sheet || sheet.naturalWidth <= 0) {
-    return false;
+  if (sheet && sheet.naturalWidth > 0) {
+    const added = textures.addImage(PHASER_PLAYER_TEXTURE_KEY, sheet);
+    if (!added) return false;
+    try {
+      textures.get(PHASER_PLAYER_TEXTURE_KEY).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
+    } catch {
+      /* noop */
+    }
+    return true;
   }
 
-  const added = textures.addImage(PHASER_PLAYER_TEXTURE_KEY, sheet);
-  if (!added) {
-    return false;
+  const catalog = await PlayerSpriteLoader.getTopDownCatalog();
+  let loadedAny = false;
+
+  for (const [direction, frame] of Object.entries(catalog.rotations)) {
+    if (!frame?.image || frame.image.naturalWidth <= 0) continue;
+    const key = playerRotationTextureKey(direction);
+    if (textures.exists(key)) {
+      loadedAny = true;
+      continue;
+    }
+    const added = textures.addImage(key, frame.image);
+    if (added) {
+      loadedAny = true;
+      try {
+        textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
+      } catch {
+        /* noop */
+      }
+    }
   }
 
-  try {
-    textures.get(PHASER_PLAYER_TEXTURE_KEY).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
-  } catch {
-    /* filter opcional — pixelArt no GameConfig já cobre na maioria dos casos */
-  }
-
-  return true;
+  return loadedAny;
 }
 
-/** URLs candidatas — útil para preload via Phaser.Loader (primeira tentativa). */
+export function resolvePlayerPhaserTextureKey(direction: string): string {
+  const rotationKey = playerRotationTextureKey(direction);
+  return rotationKey;
+}
+
+export function isPlayerRotationTextureKey(key: string): boolean {
+  return key.startsWith(`${PHASER_PLAYER_TEXTURE_KEY}:rot:`);
+}
+
+/** URLs candidatas — útil para preload via Phaser.Loader. */
 export function resolvePrimaryPlayerSheetUrl(): string {
-  return PlayerSpriteLoader.resolveTopDownSheetUrls()[0] ?? '/assets/player/player.teste.asset/sheet.png';
+  return (
+    PlayerSpriteLoader.resolveTopDownSheetUrls(DEFAULT_PLAYER_SKIN_ID).find((url) => url.endsWith('.png'))
+    ?? DEFAULT_PLAYER_SOUTH_ROTATION_URL
+  );
 }

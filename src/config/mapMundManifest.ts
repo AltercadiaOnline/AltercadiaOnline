@@ -10,6 +10,9 @@ import type { MapId } from '../shared/world/mapRegistry.js';
  *
  * `src/config/maps/*.json` é espelho interno (preload/typecheck) — gerado por
  * `npm run mirror:map-mund`. Não duplicar mapas em `public/assets/maps/`.
+ *
+ * Packs não usados ficam em `public/assets/_futuro/` (gitignored).
+ * Arquivar: `npm run archive:unused-assets -- --apply`
  */
 export const MAP_MUND_PUBLIC_BASE = '/assets/map_mund';
 

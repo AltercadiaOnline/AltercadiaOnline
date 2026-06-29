@@ -6,8 +6,10 @@ import {
   resolveMapMundPublicUrl,
 } from './mapMundManifest.js';
 import {
+  buildPhaserTiledMapData,
   extractObjectImagePathsFromTiledJson,
   extractTilesetsFromTiledJson,
+  type PhaserReadyTiledMap,
   type TiledMapJson,
 } from './tiledMapJson.js';
 
@@ -24,6 +26,12 @@ export type TiledMapDescriptor = {
   readonly tilesets: readonly TiledTilesetDescriptor[];
   /** Sprites soltos (object layer com propriedade image). */
   readonly objectImages: readonly string[];
+  /**
+   * JSON do mapa pronto para o parser do Phaser (tilesets embutidos, sem `source`).
+   * Injetado direto no cache de tilemap — o `.tmj` cru usa tilesets externos `.tsx`
+   * que o Phaser não consegue carregar. `null` quando não há espelho disponível.
+   */
+  readonly phaserMapData: PhaserReadyTiledMap | null;
 };
 
 const TILED_MAP_JSON_BY_ID: Partial<Record<MapId, TiledMapJson>> = {
@@ -43,6 +51,7 @@ function buildTiledMapDescriptor(
     jsonUrl,
     tilesets: json ? extractTilesetsFromTiledJson(json) : [],
     objectImages: json ? extractObjectImagePathsFromTiledJson(json) : [],
+    phaserMapData: json ? buildPhaserTiledMapData(json) : null,
   };
 }
 

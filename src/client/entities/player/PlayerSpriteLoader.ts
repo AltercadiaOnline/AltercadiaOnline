@@ -1,12 +1,12 @@
 import {
   DEFAULT_PLAYER_SKIN_ID,
-  PLAYER_ASSET_METADATA_URL,
   PLAYER_BASE_LAYER_ID,
   PLAYER_FRAME_SIZE_DEFAULT,
   PLAYER_LAYER_RENDER_ORDER,
   PLAYER_SHEET_ASSET_ROOT,
   PLAYER_SHEET_FILENAME,
-  TOP_DOWN_PLAYER_BUNDLE_ROOT,
+  resolvePlayerBundleRoot,
+  resolvePlayerMetadataUrl,
 } from './playerConstants.js';
 import type { PlayerAssetMetadata, PlayerLayerDescriptor, PlayerSpriteCatalog, SpriteFrame } from './types.js';
 import type { PlayerSkin } from '../../../shared/character/playerSkin.js';
@@ -50,26 +50,26 @@ export function layerCacheKey(slot: string, assetId: string): string {
   return `layer:${slot}:${assetId}`;
 }
 
-function assetUrlCandidates(relativePath: string): string[] {
+function assetUrlCandidates(skinId: string, relativePath: string): string[] {
   const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
-  const bundleFolder = DEFAULT_PLAYER_SKIN_ID;
+  const bundleRoot = resolvePlayerBundleRoot(skinId);
   const out: string[] = [];
 
-  if (normalized.startsWith(`${bundleFolder}/`)) {
-    out.push(`${TOP_DOWN_PLAYER_BUNDLE_ROOT}/${normalized}`);
-    const flat = `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/${normalized.slice(bundleFolder.length + 1)}`;
+  if (normalized.startsWith(`${skinId}/`)) {
+    out.push(`${bundleRoot}/${normalized}`);
+    const flat = `${bundleRoot}/${normalized.slice(skinId.length + 1)}`;
     if (!out.includes(flat)) out.push(flat);
     return out;
   }
 
-  out.push(`${TOP_DOWN_PLAYER_BUNDLE_ROOT}/${normalized}`);
-  const nested = `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/${bundleFolder}/${normalized}`;
+  out.push(`${bundleRoot}/${normalized}`);
+  const nested = `${bundleRoot}/${skinId}/${normalized}`;
   if (!out.includes(nested)) out.push(nested);
   return out;
 }
 
-function assetUrl(relativePath: string): string {
-  return assetUrlCandidates(relativePath)[0]!;
+function assetUrl(skinId: string, relativePath: string): string {
+  return assetUrlCandidates(skinId, relativePath)[0]!;
 }
 
 export { assetUrlCandidates };
@@ -120,12 +120,15 @@ export class PlayerSpriteLoader {
     return results.filter(Boolean).length;
   }
 
-  /** Catálogo top-down — public/assets/player/player.teste.asset/metadata.json */
-  static getCatalog(): Promise<PlayerSpriteCatalog> {
-    if (!this.catalogPromise) {
-      this.catalogPromise = this.loadTopDownCatalog();
+  /** Catálogo top-down — public/assets/player/{skinId}/metadata.json */
+  static getCatalog(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<PlayerSpriteCatalog> {
+    if (skinId === DEFAULT_PLAYER_SKIN_ID) {
+      if (!this.catalogPromise) {
+        this.catalogPromise = this.loadTopDownCatalog(skinId);
+      }
+      return this.catalogPromise;
     }
-    return this.catalogPromise;
+    return this.loadTopDownCatalog(skinId);
   }
 
   /** Alias explícito para o bundle teenage top-down. */
@@ -133,20 +136,22 @@ export class PlayerSpriteLoader {
     return this.getCatalog();
   }
 
-  /** URLs candidatas do spritesheet top-down (grid 8 dir × N frames). */
-  static resolveTopDownSheetUrls(): string[] {
-    const nestedSheet = `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/${DEFAULT_PLAYER_SKIN_ID}/${PLAYER_SHEET_FILENAME}`;
-    const exportNested = `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/${DEFAULT_PLAYER_SKIN_ID}/${DEFAULT_PLAYER_SKIN_ID}/${PLAYER_SHEET_FILENAME}`;
+  /** URLs candidatas do spritesheet top-down (grid 8 dir × N frames) ou rotação sul. */
+  static resolveTopDownSheetUrls(skinId: string = DEFAULT_PLAYER_SKIN_ID): string[] {
+    const bundleRoot = resolvePlayerBundleRoot(skinId);
     return [
-      exportNested,
-      nestedSheet,
-      `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/${PLAYER_SHEET_FILENAME}`,
-      resolvePlayerSheetUrl(DEFAULT_PLAYER_SKIN_ID),
+      `${bundleRoot}/${skinId}/${PLAYER_SHEET_FILENAME}`,
+      `${bundleRoot}/${PLAYER_SHEET_FILENAME}`,
+      resolvePlayerSheetUrl(skinId),
+      `${bundleRoot}/35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south.png`,
+      `${bundleRoot}/35x54_pixel_art_game_character/rotations/south.png`,
+      `${bundleRoot}/2D_game_sprite_asset_teenage/rotations/south.png`,
+      `${bundleRoot}/Pixel_art_character_sprite_front/rotations/south.png`,
     ];
   }
 
   /**
-   * Spritesheet único — public/assets/player/player.teste.asset/sheet.png
+   * Spritesheet único (legado) ou rotação sul como fallback.
    * Retorna null se ausente (fallback para PNGs do metadata).
    */
   static async loadTopDownSpriteSheet(): Promise<HTMLImageElement | null> {
@@ -179,8 +184,8 @@ export class PlayerSpriteLoader {
   }
 
   /** Força recarga do catálogo metadata (ignora promise em cache). */
-  static async loadCatalogFresh(): Promise<PlayerSpriteCatalog> {
-    return this.loadTopDownCatalog();
+  static async loadCatalogFresh(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<PlayerSpriteCatalog> {
+    return this.loadTopDownCatalog(skinId);
   }
 
   private static loadImage(src: string, cacheKey: string): Promise<HTMLImageElement> {
@@ -215,21 +220,15 @@ export class PlayerSpriteLoader {
     throw lastError ?? new Error(`Sprite not found: ${candidates[0]}`);
   }
 
-  private static async loadFrame(relativePath: string): Promise<SpriteFrame> {
-    const candidates = assetUrlCandidates(relativePath);
-    const src = candidates[0]!;
-    const image = await this.loadImageWithFallback(candidates, src);
-    return { image, src };
-  }
-
   /**
-   * Carrega rotações do bundle teenage (top-down 8 direções).
-   * Paths relativos definidos em metadata.json dentro de public/assets/player/player.teste.asset/
+   * Carrega rotações do bundle top-down (8 direções).
+   * Paths relativos definidos em metadata.json dentro de public/assets/player/{skinId}/
    */
-  private static async loadTopDownCatalog(): Promise<PlayerSpriteCatalog> {
-    const response = await fetch(PLAYER_ASSET_METADATA_URL);
+  private static async loadTopDownCatalog(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<PlayerSpriteCatalog> {
+    const metadataUrl = resolvePlayerMetadataUrl(skinId);
+    const response = await fetch(metadataUrl);
     if (!response.ok) {
-      throw new Error(`Metadata indisponível: ${PLAYER_ASSET_METADATA_URL}`);
+      throw new Error(`Metadata indisponível: ${metadataUrl}`);
     }
 
     const metadata = (await response.json()) as PlayerAssetMetadata;
@@ -244,7 +243,7 @@ export class PlayerSpriteLoader {
     const rotations: Record<string, SpriteFrame> = {};
     for (const [direction, relativePath] of Object.entries(state.frames.rotations)) {
       try {
-        rotations[direction] = await this.loadFrame(relativePath);
+        rotations[direction] = await this.loadFrame(skinId, relativePath);
       } catch (error) {
         console.warn('[PlayerSpriteLoader] Rotação ignorada:', direction, error);
       }
@@ -255,6 +254,13 @@ export class PlayerSpriteLoader {
       frameHeight,
       rotations,
     };
+  }
+
+  private static async loadFrame(skinId: string, relativePath: string): Promise<SpriteFrame> {
+    const candidates = assetUrlCandidates(skinId, relativePath);
+    const src = candidates[0]!;
+    const image = await this.loadImageWithFallback(candidates, src);
+    return { image, src };
   }
 }
 

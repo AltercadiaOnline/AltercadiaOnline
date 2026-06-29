@@ -63,7 +63,7 @@ const SOURCE_BY_ID: Partial<Record<LegacyAssetId, string>> = {
   npc_treinador: 'public/assets/npcs/npc_treinador.png',
   npc_vendedor: 'public/assets/npcs/npc_treinador.png',
   player_idle:
-    'public/assets/player/player.teste.asset/Pixel_art_character_sprite_front/rotations/south.png',
+    'public/assets/player/player_male_1/35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south.png',
 };
 
 function crc32(buffer: Buffer): number {

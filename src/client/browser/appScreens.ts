@@ -196,7 +196,10 @@ function bindAppShellListeners(onEnterWorld: () => void): void {
 
   const bridge = getCharSelectBridge();
   bridge.bindEnterWorld(() => {
-    if (AppScreens.selectedCharacterId === null) return;
+    if (AppScreens.selectedCharacterId === null) {
+      console.warn('[CharSelect] "Entrar" sem personagem selecionado — ignorado.');
+      return;
+    }
     void AppScreens.enterWorldWithAuthoritativeSnapshot(onEnterWorld);
   });
   bridge.bindReturnToLogin(() => {
@@ -499,7 +502,17 @@ export const AppScreens = {
 
   async enterWorldWithAuthoritativeSnapshot(onEnterWorld: () => void): Promise<void> {
     const character = this.getSelectedCharacter();
-    if (!character || !this.currentSession) return;
+    if (!character || !this.currentSession) {
+      console.warn('[CharSelect] Entrada bloqueada — personagem/sessão ausente.', {
+        hasCharacter: Boolean(character),
+        hasSession: Boolean(this.currentSession),
+        selectedCharacterId: this.selectedCharacterId,
+      });
+      this.renderCharacterHubError(
+        'Sessão ou seleção perdida. Selecione o personagem novamente.',
+      );
+      return;
+    }
 
     getCharSelectBridge().setEnterWorldBusy(true);
 
