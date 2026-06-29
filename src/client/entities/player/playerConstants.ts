@@ -1,19 +1,17 @@
+import {
+  DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  PLAYER_SKIN_BUNDLE_IDS,
+  type PlayerSkinBundleId,
+} from '../../../shared/character/playerSkinBundle.js';
+
 /** Raiz dos spritesheets modulares por skin — public/assets/player/{skinId}/… */
 export const PLAYER_SHEET_ASSET_ROOT = '/assets/player';
 
 /** Skins top-down disponíveis em public/assets/player/. */
-export const PLAYER_SKIN_BUNDLE_IDS = [
-  'player_male_1',
-  'player_male_2',
-  'player_male_3',
-  'player_male_4',
-  'player_female_1',
-] as const;
-
-export type PlayerSkinBundleId = (typeof PLAYER_SKIN_BUNDLE_IDS)[number];
+export { PLAYER_SKIN_BUNDLE_IDS, type PlayerSkinBundleId };
 
 /** Skin padrão do protagonista (bundle metadata atual). */
-export const DEFAULT_PLAYER_SKIN_ID: PlayerSkinBundleId = 'player_male_1';
+export const DEFAULT_PLAYER_SKIN_ID: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID;
 
 /** Nome do arquivo spritesheet dentro de cada pasta de skin (legado — opcional). */
 export const PLAYER_SHEET_FILENAME = 'sheet.png';

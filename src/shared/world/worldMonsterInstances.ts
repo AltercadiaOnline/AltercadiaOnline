@@ -1,6 +1,6 @@
 import type { MapId } from './mapRegistry.js';
 import type { MonsterRegistryEntry } from './monsterRegistry.js';
-import { isMonsterDefeated, markMonsterDefeated } from './defeatedMonsterState.js';
+import { clearDefeatedMonsters, isMonsterDefeated, markMonsterDefeated } from './defeatedMonsterState.js';
 import { buildZone1TestMonsterInstances } from './zone1MonsterSpawns.js';
 
 const activeById = new Map<string, MonsterRegistryEntry>();
@@ -16,6 +16,7 @@ function seedZone1Monsters(): void {
 
 export function resetWorldMonsterInstances(): void {
   activeById.clear();
+  clearDefeatedMonsters();
   zone1Seeded = false;
 }
 

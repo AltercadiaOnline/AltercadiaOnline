@@ -17,6 +17,8 @@ import { drawSpriteIntoEntityBounds } from './playerSpriteBoundsDraw.js';
 import { resolveTrimmedPlayerSourceRect } from './playerSpriteSourceTrim.js';
 import { PlayerSpriteLoader } from './PlayerSpriteLoader.js';
 import { USE_LAYER_COMPOSITOR } from './playerConstants.js';
+import type { PlayerSkinBundleId } from '../../../shared/character/playerSkinBundle.js';
+import { getActivePlayerSkinBundleId } from './activePlayerSkinBundle.js';
 import { snapToPixel } from '../../render/pixelSnap.js';
 import { IdleBreathingAnimation } from './idleBreathingAnimation.js';
 import type { PlayerSpriteCatalog, AnimatorSnapshot } from './types.js';
@@ -60,12 +62,12 @@ export class PlayerSprite {
   private appliedSkinKey: string | null = null;
   private lastRenderTimestampMs = 0;
 
-  constructor() {
+  constructor(skinBundleId: PlayerSkinBundleId = getActivePlayerSkinBundleId()) {
     this.loadPromise = Promise.all([
-      PlayerSpriteLoader.getTopDownCatalog().then((catalog) => {
+      PlayerSpriteLoader.getTopDownCatalog(skinBundleId).then((catalog) => {
         this.catalog = catalog;
       }),
-      PlayerSpriteLoader.loadTopDownSpriteSheet().then((sheet) => {
+      PlayerSpriteLoader.loadTopDownSpriteSheet(skinBundleId).then((sheet) => {
         this.spriteSheet = sheet;
         this.animator.setSpriteSheetMode(sheet !== null);
       }),

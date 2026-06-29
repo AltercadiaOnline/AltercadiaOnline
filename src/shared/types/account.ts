@@ -1,6 +1,8 @@
 import { isPlayerSkinRecord } from '../character/playerSkin.js';
+import { isValidPlayerSkinBundleId } from '../character/playerSkinBundle.js';
 import type { ClassType } from './classes.js';
 import type { PlayerSkin } from '../character/playerSkin.js';
+import type { PlayerSkinBundleId } from '../character/playerSkinBundle.js';
 
 export interface AccountCharacter {
   readonly id: number;
@@ -12,6 +14,8 @@ export interface AccountCharacter {
   readonly serverId: string;
   /** Aparência top-down — atualizada ao trocar skin no mundo. */
   readonly skin: PlayerSkin;
+  /** Bundle de sprite top-down (public/assets/player/{id}). */
+  readonly skinBundleId: PlayerSkinBundleId;
 }
 
 export interface AccountProfile {
@@ -30,6 +34,9 @@ export function isAccountProfile(value: unknown): value is AccountProfile {
     const character = entry as Record<string, unknown>;
     const classId = character.class;
     const hasValidSkin = character.skin === undefined || isPlayerSkinRecord(character.skin);
+    const skinBundleId = character.skinBundleId;
+    const hasValidBundle = skinBundleId === undefined
+      || (typeof skinBundleId === 'string' && isValidPlayerSkinBundleId(skinBundleId));
     return (
       typeof character.id === 'number'
       && typeof character.name === 'string'
@@ -38,6 +45,7 @@ export function isAccountProfile(value: unknown): value is AccountProfile {
       && typeof character.serverId === 'string'
       && typeof classId === 'string'
       && hasValidSkin
+      && hasValidBundle
       && (classId === 'IMPETUS'
         || classId === 'COGITOR'
         || classId === 'TUTATOR'

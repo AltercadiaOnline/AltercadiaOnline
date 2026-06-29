@@ -6,7 +6,7 @@ import {
   type CreateCharacterRequest,
 } from '../../shared/auth/characterHubProtocol.js';
 import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
-import { gameServerFetch, isGameServerFetchTimeoutError } from '../net/gameServerClient.js';
+import { gameServerFetch, isGameServerFetchTimeoutError, CHAR_SELECT_API_DEADLINE_MS } from '../net/gameServerClient.js';
 
 function buildCharacterHubPath(): string {
   return '/api/character-hub';
@@ -16,17 +16,21 @@ export function shouldUseAuthoritativeCharacterHub(): boolean {
   return true;
 }
 
-export async function fetchAuthoritativeCharacterHub(): Promise<
-  { ok: true; hub: AccountCharacterHub } | { ok: false; message: string }
-> {
+/** Teto curto para listar personagens — UI não pode ficar presa em "Carregando…". */
+export const CHARACTER_HUB_FETCH_DEADLINE_MS = CHAR_SELECT_API_DEADLINE_MS;
+
+export async function fetchAuthoritativeCharacterHub(
+  options: { readonly deadlineMs?: number } = {},
+): Promise<{ ok: true; hub: AccountCharacterHub } | { ok: false; message: string }> {
   let response: Response;
   try {
     response = await gameServerFetch(buildCharacterHubPath(), {
       searchParams: { serverId: resolveActiveServerId() },
+      deadlineMs: options.deadlineMs ?? CHARACTER_HUB_FETCH_DEADLINE_MS,
     });
   } catch (error) {
     if (isGameServerFetchTimeoutError(error)) {
-      return { ok: false, message: 'Servidor demorou demais. Tente novamente em instantes.' };
+      return { ok: false, message: 'Servidor ocupado, tente novamente.' };
     }
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }
@@ -56,6 +60,7 @@ export async function fetchAuthoritativeCharacterHub(): Promise<
 
 export async function createAuthoritativeCharacter(
   input: CreateCharacterRequest,
+  options: { readonly deadlineMs?: number } = {},
 ): Promise<{ ok: true; hub: AccountCharacterHub } | { ok: false; message: string }> {
   let response: Response;
   try {
@@ -64,10 +69,11 @@ export async function createAuthoritativeCharacter(
       searchParams: { serverId: resolveActiveServerId() },
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
+      deadlineMs: options.deadlineMs ?? CHARACTER_HUB_FETCH_DEADLINE_MS,
     });
   } catch (error) {
     if (isGameServerFetchTimeoutError(error)) {
-      return { ok: false, message: 'Servidor demorou demais. Tente novamente em instantes.' };
+      return { ok: false, message: 'Servidor ocupado, tente novamente.' };
     }
     return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
   }

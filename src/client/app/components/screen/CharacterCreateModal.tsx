@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { CLASS_CATALOG } from '../../../../shared/types/classes.js';
 import type { ClassType } from '../../../../shared/types/classes.js';
 import { validateCreateCharacterInput } from '../../../../shared/characterCreation.js';
+import {
+  DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  PLAYER_SKIN_BUNDLE_OPTIONS,
+  resolvePlayerSkinBundleSouthPreviewUrl,
+  type PlayerSkinBundleId,
+} from '../../../../shared/character/playerSkinBundle.js';
 import { getCharSelectBridge } from '../../bridge/charSelectBridge.js';
 
 const CLASS_ORDER: ClassType[] = ['IMPETUS', 'COGITOR', 'TUTATOR', 'DISSOLUTUS'];
@@ -15,6 +21,9 @@ type CharacterCreateModalProps = {
 export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCreateModalProps) {
   const [name, setName] = useState('');
   const [selectedClass, setSelectedClass] = useState<ClassType | null>(null);
+  const [selectedSkinBundleId, setSelectedSkinBundleId] = useState<PlayerSkinBundleId>(
+    DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  );
   const [statusMessage, setStatusMessage] = useState('');
   const [statusIsError, setStatusIsError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,7 +32,8 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
     if (!open) return;
     setName('');
     setSelectedClass(null);
-    setStatusMessage('Escolha um nome e uma classe.');
+    setSelectedSkinBundleId(DEFAULT_PLAYER_SKIN_BUNDLE_ID);
+    setStatusMessage('Escolha nome, aparência e classe.');
     setStatusIsError(false);
     setBusy(false);
   }, [open, slotIndex]);
@@ -55,6 +65,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
         slotIndex,
         name,
         class: selectedClass,
+        skinBundleId: selectedSkinBundleId,
       });
       if (!validation.ok) {
         setStatusMessage(validation.message);
@@ -71,6 +82,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
           slotIndex: validation.slotIndex,
           name: validation.name,
           class: validation.class,
+          skinBundleId: validation.skinBundleId,
         });
         if (!result.ok) {
           setStatusMessage(result.message);
@@ -113,6 +125,42 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
             onChange={(event) => setName(event.target.value)}
           />
         </label>
+
+        <div className="char-skin-picker">
+          <span className="char-skin-picker__label">Aparência (top-down)</span>
+          <div className="char-skin-picker__grid" role="listbox" aria-label="Escolha a aparência">
+            {PLAYER_SKIN_BUNDLE_OPTIONS.map((option) => {
+              const selected = selectedSkinBundleId === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`char-skin-option ${selected ? 'is-selected' : ''}`}
+                  role="option"
+                  aria-selected={selected}
+                  disabled={busy}
+                  onClick={() => {
+                    setSelectedSkinBundleId(option.id);
+                    setStatusMessage('');
+                    setStatusIsError(false);
+                  }}
+                >
+                  <img
+                    className="char-skin-option__preview"
+                    src={resolvePlayerSkinBundleSouthPreviewUrl(option.id)}
+                    alt=""
+                    width={48}
+                    height={48}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span className="char-skin-option__label">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="char-class-picker">
           {CLASS_ORDER.map((classId) => {
             const definition = CLASS_CATALOG[classId];

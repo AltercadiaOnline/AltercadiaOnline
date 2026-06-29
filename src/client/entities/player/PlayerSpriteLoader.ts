@@ -132,8 +132,8 @@ export class PlayerSpriteLoader {
   }
 
   /** Alias explícito para o bundle teenage top-down. */
-  static getTopDownCatalog(): Promise<PlayerSpriteCatalog> {
-    return this.getCatalog();
+  static getTopDownCatalog(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<PlayerSpriteCatalog> {
+    return this.getCatalog(skinId);
   }
 
   /** URLs candidatas do spritesheet top-down (grid 8 dir × N frames) ou rotação sul. */
@@ -154,12 +154,12 @@ export class PlayerSpriteLoader {
    * Spritesheet único (legado) ou rotação sul como fallback.
    * Retorna null se ausente (fallback para PNGs do metadata).
    */
-  static async loadTopDownSpriteSheet(): Promise<HTMLImageElement | null> {
-    const cacheKey = 'top-down:spritesheet';
+  static async loadTopDownSpriteSheet(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<HTMLImageElement | null> {
+    const cacheKey = `top-down:spritesheet:${skinId}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
-    for (const src of this.resolveTopDownSheetUrls()) {
+    for (const src of this.resolveTopDownSheetUrls(skinId)) {
       try {
         return await this.loadImage(src, cacheKey);
       } catch {

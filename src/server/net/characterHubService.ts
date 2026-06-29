@@ -6,6 +6,7 @@ import {
 import type { AccountCharacter } from '../../shared/types/account.js';
 import { validateCreateCharacterInput } from '../../shared/characterCreation.js';
 import { createDefaultPlayerSkin } from '../../shared/character/playerSkin.js';
+import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 import type { ProfileRow } from '../../shared/supabase/gameDatabaseTypes.js';
 import type { ClassType } from '../../shared/types/classes.js';
 import {
@@ -61,6 +62,9 @@ function mapProfileToCharacter(
     slotIndex,
     serverId: profile.server_id,
     skin: createDefaultPlayerSkin(),
+    skinBundleId: resolvePlayerSkinBundleId({
+      skinBundleId: progression.characterProfile.skinBundleId ?? null,
+    }),
   };
 }
 
@@ -122,7 +126,12 @@ function seedClassProgression(
 export async function createAuthoritativeCharacterInSlot(
   playerId: string,
   env: ServerEnv,
-  input: { readonly slotIndex: number; readonly name: string; readonly class: ClassType },
+  input: {
+    readonly slotIndex: number;
+    readonly name: string;
+    readonly class: ClassType;
+    readonly skinBundleId?: string;
+  },
 ): Promise<{ readonly ok: true; readonly hub: AccountCharacterHub } | { readonly ok: false; readonly message: string }> {
   const validation = validateCreateCharacterInput(input);
   if (!validation.ok) {
@@ -169,7 +178,10 @@ export async function createAuthoritativeCharacterInSlot(
 
   seedClassProgression(playerId, characterId, validation.class, validation.name);
   patchAuthoritativeProgression(playerId, characterId, {
-    characterProfile: { displayName: validation.name },
+    characterProfile: {
+      displayName: validation.name,
+      skinBundleId: validation.skinBundleId,
+    },
   });
 
   await persistCharacterSession(playerId, characterId).catch((error) => {

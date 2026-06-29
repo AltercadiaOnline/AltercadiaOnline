@@ -2,6 +2,7 @@ import type { AuthUser } from '../../shared/authService.js';
 import { CHARACTER_SLOT_COUNT, createEmptyCharacterHub } from '../../shared/characterHub.js';
 import type { AccountCharacter } from '../../shared/types/account.js';
 import type { AccountCharacterHub } from '../../shared/characterHub.js';
+import { normalizeAccountCharacter } from '../../shared/character/characterAppearance.js';
 import { createAuthService } from '../auth/createAuthService.js';
 import {
   fetchPublicClientConfig,
@@ -43,6 +44,7 @@ import { mountWorldMapScene, SceneManager } from './sceneManager.js';
 import {
   resetCharacterSelectPreviewManager,
 } from './characterSelectPreview.js';
+import { resetActivePlayerSkinBundleId } from '../entities/player/activePlayerSkinBundle.js';
 import {
   destroyCharacterAppearancePersistence,
   initCharacterAppearancePersistence,
@@ -300,7 +302,11 @@ export const AppScreens = {
 
       const hubResult = await this.showCharSelect();
 
-      if (hubResult.ok && !this.hubHasPlayableCharacter()) {
+      if (!hubResult.ok) {
+        return;
+      }
+
+      if (!this.hubHasPlayableCharacter()) {
         this.openCharacterCreateForFirstEmptySlot();
         if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth()) {
           clearOAuthAutoCharCreate();
@@ -361,7 +367,10 @@ export const AppScreens = {
 
     const result = await fetchAuthoritativeCharacterHub();
     if (result.ok) {
-      this.characterHub = result.hub;
+      this.characterHub = {
+        userId: result.hub.userId,
+        slots: result.hub.slots.map((slot) => (slot ? normalizeAccountCharacter(slot) : null)),
+      };
       return { ok: true };
     }
 
@@ -386,6 +395,7 @@ export const AppScreens = {
 
   signOut(): void {
     hidePlayerInitLoading();
+    resetActivePlayerSkinBundleId();
     void signOutSupabase();
     resetGameStoreState();
     clearLocalSession();
@@ -427,6 +437,7 @@ export const AppScreens = {
     slotIndex: number,
     name: string,
     classId: AccountCharacter['class'],
+    skinBundleId: AccountCharacter['skinBundleId'],
   ): Promise<{ ok: boolean; message: string }> {
     const accountKey = this.currentSession?.id;
     if (!accountKey) {
@@ -437,6 +448,7 @@ export const AppScreens = {
       slotIndex,
       name,
       class: classId,
+      skinBundleId,
     });
 
     if (!result.ok) {
@@ -458,6 +470,7 @@ export const AppScreens = {
       payload.slotIndex,
       payload.name,
       payload.class,
+      payload.skinBundleId,
     ));
   },
 

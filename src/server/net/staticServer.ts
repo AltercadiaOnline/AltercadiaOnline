@@ -14,6 +14,14 @@ import { handlePlayerSnapshotRoute } from './playerSnapshotRoute.js';
 import { handleCharacterHubRoute } from './characterHubRoute.js';
 import { handleServerListRoute } from './serverListRoute.js';
 import { tryGetServerInstanceContext } from '../instance/ServerInstanceContext.js';
+import { getActivePersistenceStorage } from '../persistence/storage/persistenceStorageRegistry.js';
+import { resolveSupabaseAdminCredentials } from '../supabase/supabaseAdmin.js';
+
+type ReadinessCheck = {
+  readonly name: string;
+  readonly ok: boolean;
+  readonly detail?: string;
+};
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -102,6 +110,102 @@ function streamFile(res: ServerResponse, filePath: string, cacheControl?: string
   createReadStream(filePath).pipe(res);
 }
 
+function writeJson(res: ServerResponse, statusCode: number, body: unknown): void {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(body));
+}
+
+async function probeSupabaseReadiness(env: ServerEnv): Promise<ReadinessCheck> {
+  const credentials = resolveSupabaseAdminCredentials(env);
+  if (!credentials) {
+    return { name: 'supabase', ok: false, detail: 'SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente/inválido' };
+  }
+
+  try {
+    const endpoint = `${credentials.url.replace(/\/+$/, '')}/rest/v1/profiles?select=id&limit=1`;
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        apikey: credentials.serviceRoleKey,
+        Authorization: `Bearer ${credentials.serviceRoleKey}`,
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (response.ok) {
+      return { name: 'supabase', ok: true };
+    }
+
+    const body = await response.text().catch(() => '');
+    return {
+      name: 'supabase',
+      ok: false,
+      detail: `HTTP ${response.status}: ${body.slice(0, 160) || response.statusText}`,
+    };
+  } catch (error) {
+    return {
+      name: 'supabase',
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function buildStaticReadinessChecks(options: StaticServerOptions): ReadinessCheck[] {
+  const instance = tryGetServerInstanceContext();
+  const storage = getActivePersistenceStorage();
+  const isProduction = options.serverEnv.nodeEnv === 'production';
+
+  return [
+    {
+      name: 'server-instance',
+      ok: Boolean(instance?.id),
+      ...(instance ? { detail: `${instance.id} (${instance.displayName})` } : { detail: 'SERVER_ID não inicializado' }),
+    },
+    {
+      name: 'persistence',
+      ok: !isProduction || storage.isDurable(),
+      detail: `${storage.mode}${storage.isDurable() ? ' durable' : ' ephemeral'}`,
+    },
+    {
+      name: 'game-ws-url',
+      ok: !isProduction || Boolean(options.serverEnv.gameWsUrl),
+      detail: options.serverEnv.gameWsUrl ?? 'GAME_WS_URL ausente',
+    },
+    {
+      name: 'game-http-url',
+      ok: !isProduction || Boolean(options.serverEnv.gameHttpUrl),
+      detail: options.serverEnv.gameHttpUrl ?? 'GAME_HTTP_URL ausente',
+    },
+    {
+      name: 'browser-auth-config',
+      ok: Boolean(options.serverEnv.supabaseUrl && options.serverEnv.supabaseAnonKey),
+      detail: options.serverEnv.supabaseAnonKey ? 'SUPABASE_URL + ANON_KEY configurados' : 'SUPABASE_ANON_KEY ausente',
+    },
+  ];
+}
+
+async function buildReadinessResponse(options: StaticServerOptions): Promise<{
+  readonly ok: boolean;
+  readonly service: string;
+  readonly serverId?: string;
+  readonly checks: readonly ReadinessCheck[];
+}> {
+  const instance = tryGetServerInstanceContext();
+  const checks = [
+    ...buildStaticReadinessChecks(options),
+    await probeSupabaseReadiness(options.serverEnv),
+  ];
+
+  return {
+    ok: checks.every((check) => check.ok),
+    service: 'altercadia-v2',
+    ...(instance ? { serverId: instance.id } : {}),
+    checks,
+  };
+}
+
 async function serveStaticFile(
   options: StaticServerOptions,
   pathname: string,
@@ -146,8 +250,7 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
 
       if (pathname === '/health') {
         const instance = tryGetServerInstanceContext();
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({
+        writeJson(res, 200, {
           ok: true,
           service: 'altercadia-v2',
           ...(instance
@@ -157,7 +260,13 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
                 maps: instance.mapIds,
               }
             : {}),
-        }));
+        });
+        return;
+      }
+
+      if (pathname === '/ready') {
+        const body = await buildReadinessResponse(options);
+        writeJson(res, body.ok ? 200 : 503, body);
         return;
       }
 

@@ -1,5 +1,6 @@
 import { isAccountCharacterHub, type AccountCharacterHub } from '../characterHub.js';
 import type { ClassType } from '../types/classes.js';
+import type { PlayerSkinBundleId } from '../character/playerSkinBundle.js';
 
 export type CharacterHubResponse = {
   readonly ok: true;
@@ -15,6 +16,7 @@ export type CreateCharacterRequest = {
   readonly slotIndex: number;
   readonly name: string;
   readonly class: ClassType;
+  readonly skinBundleId?: PlayerSkinBundleId;
 };
 
 export function isCharacterHubResponse(value: unknown): value is CharacterHubResponse {

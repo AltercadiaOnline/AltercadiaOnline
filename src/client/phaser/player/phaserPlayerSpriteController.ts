@@ -16,6 +16,7 @@ import {
 import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
 import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
 import { resolvePhaserWorldDepth } from '../layout/phaserWorldDepth.js';
+import { getActivePlayerSkinBundleId } from '../../entities/player/activePlayerSkinBundle.js';
 
 type PhaserPlayerImage = {
   setPosition: (x: number, y: number) => PhaserPlayerImage;
@@ -74,7 +75,7 @@ export class PhaserPlayerSpriteController {
     this.rotationMode = !scene.textures.exists(PHASER_PLAYER_TEXTURE_KEY);
 
     if (this.rotationMode) {
-      const catalog = await PlayerSpriteLoader.getTopDownCatalog();
+      const catalog = await PlayerSpriteLoader.getTopDownCatalog(getActivePlayerSkinBundleId());
       this.catalogFrameWidth = catalog.frameWidth;
       this.catalogFrameHeight = catalog.frameHeight;
     }

@@ -19,11 +19,38 @@ export type InitializedPersistence = {
 
 export { flushAllPersistence, shutdownPersistenceStorage };
 
+function isProductionEnv(env: NodeJS.ProcessEnv): boolean {
+  return env.NODE_ENV === 'production';
+}
+
+function isEphemeralPersistenceExplicitlyAllowed(env: NodeJS.ProcessEnv): boolean {
+  return env.ALLOW_EPHEMERAL_PERSISTENCE === '1' || env.ALLOW_EPHEMERAL_PERSISTENCE === 'true';
+}
+
+function assertPersistenceModeSafeForRuntime(
+  mode: ReturnType<typeof parsePersistenceMode>,
+  env: NodeJS.ProcessEnv,
+): void {
+  if (mode === PersistenceMode.Postgres) {
+    throw new Error(
+      '[persistence] PERSISTENCE_MODE=postgres está bloqueado: PostgresStorage ainda é stub e perderia dados. Use PERSISTENCE_MODE=file com volume durável ou implemente o CRUD SQL antes de ativar.',
+    );
+  }
+
+  if (mode === PersistenceMode.Memory && isProductionEnv(env) && !isEphemeralPersistenceExplicitlyAllowed(env)) {
+    throw new Error(
+      '[persistence] PERSISTENCE_MODE=memory é efêmero e está bloqueado em produção. Use PERSISTENCE_MODE=file com volume durável, ou defina ALLOW_EPHEMERAL_PERSISTENCE=true apenas para deploys descartáveis.',
+    );
+  }
+}
+
 /** Bootstrap de persistência — chamar uma vez em `server/index.ts`. */
 export async function initializePersistence(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<InitializedPersistence> {
   const mode = parsePersistenceMode(env.PERSISTENCE_MODE);
+  assertPersistenceModeSafeForRuntime(mode, env);
+
   const baseDataDir = path.resolve(env.DATA_DIR?.trim() || path.join(process.cwd(), 'data'));
   const instance = tryGetServerInstanceContext();
   const dataDir = instance

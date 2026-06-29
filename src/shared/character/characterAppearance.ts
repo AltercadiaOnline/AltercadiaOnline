@@ -4,6 +4,10 @@ import {
   isValidSkinSelection,
   type PlayerSkin,
 } from './playerSkin.js';
+import {
+  resolvePlayerSkinBundleId,
+  type PlayerSkinBundleId,
+} from './playerSkinBundle.js';
 
 export { isPlayerSkinRecord } from './playerSkin.js';
 
@@ -30,13 +34,21 @@ export function skinAppearanceKey(skin: PlayerSkin): string {
   return `${skin.hair}|${skin.shirt}|${skin.pants}|${skin.shoes}`;
 }
 
-type AccountCharacterLike = Omit<AccountCharacter, 'skin'> & { readonly skin?: PlayerSkin };
+type AccountCharacterLike = Omit<AccountCharacter, 'skin' | 'skinBundleId'> & {
+  readonly skin?: PlayerSkin;
+  readonly skinBundleId?: PlayerSkinBundleId;
+};
 
 /** Garante skin válida em personagens antigos (localStorage sem campo skin). */
 export function normalizeAccountCharacter(character: AccountCharacterLike): AccountCharacter {
   const skin = resolveCharacterSkin(character);
-  if (character.skin && skinAppearanceKey(character.skin) === skinAppearanceKey(skin)) {
-    return { ...character, skin };
+  const skinBundleId = resolvePlayerSkinBundleId(character);
+  if (
+    character.skin
+    && skinAppearanceKey(character.skin) === skinAppearanceKey(skin)
+    && resolvePlayerSkinBundleId(character) === skinBundleId
+  ) {
+    return { ...character, skin, skinBundleId };
   }
-  return { ...character, skin };
+  return { ...character, skin, skinBundleId };
 }

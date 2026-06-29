@@ -29,6 +29,7 @@ export type PersistedCharacterProfileSlice = {
   readonly level: number;
   readonly xpCurrent: number;
   readonly displayName?: string;
+  readonly skinBundleId?: string;
 };
 
 export type PersistedMarcosSlice = {

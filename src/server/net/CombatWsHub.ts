@@ -83,6 +83,9 @@ import { validateGlobalChatOnServer } from '../chat/globalChatModeratorServer.js
 import { WORLD_TICK_MS } from '../../shared/sync/syncProtocol.js';
 import type { StateSyncBody } from '../../shared/sync/syncProtocol.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
+import { getMonsterRegistryEntry, type MonsterRegistryEntry } from '../../shared/world/monsterRegistry.js';
+import { worldPixelToTile } from '../../shared/world/portals.js';
+import { removeActiveWorldMonster } from '../../shared/world/worldMonsterInstances.js';
 import { buildServerScopedWorldCreaturesForMap, normalizeProfileForServerInstance } from '../instance/serverWorldScope.js';
 import { assertPlayerBoundToServerInstance } from '../instance/playerInstanceBinding.js';
 import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
@@ -135,6 +138,19 @@ export type CombatWsHubOptions = {
 
 /** Limite de payload WS — protege parse/memória sob carga (100+ players). */
 const MAX_WS_INBOUND_BYTES = 65_536;
+const MAX_COMBAT_JOIN_TILE_DISTANCE = 1;
+
+type PveMonsterJoinAuthorization =
+  | { readonly ok: true; readonly monster: MonsterRegistryEntry }
+  | {
+      readonly ok: false;
+      readonly reason:
+        | 'MISSING_MONSTER_INSTANCE'
+        | 'MONSTER_NOT_ACTIVE'
+        | 'MONSTER_MAP_MISMATCH'
+        | 'PLAYER_NOT_EXPLORING'
+        | 'MONSTER_TOO_FAR';
+    };
 
 export class CombatWsHub implements CombatWsRouteHost {
   private readonly wss: WebSocketServer;
@@ -589,6 +605,9 @@ export class CombatWsHub implements CombatWsRouteHost {
         );
       }
       const victory = didPlayerWinBattle(enriched.state, playerActorId);
+      if (victory) {
+        this.markPveMonsterDefeated(session);
+      }
       const mayHaveLoot = victory && Boolean(resolveBattleCreatureId(
         enriched.state.combatants,
         session.getPlayerActorId(),
@@ -606,6 +625,18 @@ export class CombatWsHub implements CombatWsRouteHost {
     clearBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
     setPlayerInBattle(session.getPlayerActorId(), session.getCharacterId(), false);
     this.sessions.delete(connectionId);
+  }
+
+  private markPveMonsterDefeated(session: CombatSession): void {
+    const monsterInstanceId = session.getMonsterInstanceId();
+    if (!monsterInstanceId) return;
+
+    removeActiveWorldMonster(monsterInstanceId);
+    console.log('[WS] Monstro PVE derrotado no servidor', {
+      playerId: session.getPlayerActorId(),
+      characterId: session.getCharacterId(),
+      monsterInstanceId,
+    });
   }
 
   touchBattleSessionActivity(connectionId: string): void {
@@ -1492,6 +1523,44 @@ export class CombatWsHub implements CombatWsRouteHost {
     );
   }
 
+  private authorizePveMonsterJoin(
+    playerId: string,
+    characterId: number,
+    monsterInstanceId: string | undefined,
+  ): PveMonsterJoinAuthorization {
+    const monsterId = monsterInstanceId?.trim();
+    if (!monsterId) {
+      return { ok: false, reason: 'MISSING_MONSTER_INSTANCE' };
+    }
+
+    const monster = getMonsterRegistryEntry(monsterId);
+    if (!monster) {
+      return { ok: false, reason: 'MONSTER_NOT_ACTIVE' };
+    }
+
+    const profile = getWorldProfile(playerId, characterId);
+    if (profile.currentMapId !== monster.mapId) {
+      return { ok: false, reason: 'MONSTER_MAP_MISMATCH' };
+    }
+
+    const player = this.getPlayer(playerId, characterId);
+    if (!player || !player.isExploring()) {
+      return { ok: false, reason: 'PLAYER_NOT_EXPLORING' };
+    }
+
+    const playerTile = worldPixelToTile(profile.lastPosition.x, profile.lastPosition.y);
+    const tileDistance = Math.max(
+      Math.abs(playerTile.tileX - monster.tileX),
+      Math.abs(playerTile.tileY - monster.tileY),
+    );
+
+    if (tileDistance > MAX_COMBAT_JOIN_TILE_DISTANCE) {
+      return { ok: false, reason: 'MONSTER_TOO_FAR' };
+    }
+
+    return { ok: true, monster };
+  }
+
   private async bootstrapJoinBattle(
     ws: LiveSocket,
     connectionId: string,
@@ -1501,6 +1570,24 @@ export class CombatWsHub implements CombatWsRouteHost {
   ): Promise<void> {
     try {
       const playerId = worldPlayerId ?? `player_${connectionId.slice(0, 8)}`;
+      const monsterAuthorization = this.authorizePveMonsterJoin(
+        playerId,
+        characterId,
+        joinPayload?.monsterInstanceId,
+      );
+      if (!monsterAuthorization.ok) {
+        console.warn('[WS] combat-join PVE rejeitado', {
+          connectionId,
+          playerId,
+          characterId,
+          monsterInstanceId: joinPayload?.monsterInstanceId ?? null,
+          reason: monsterAuthorization.reason,
+        });
+        this.send(ws, { type: 'combat-error', payload: { reason: monsterAuthorization.reason } });
+        return;
+      }
+      const monsterInstanceId = monsterAuthorization.monster.id;
+
       seedAuthoritativePlayerEconomyIfEmpty(playerId, characterId, { dollarVolt: 500, alterCoins: 25 });
 
       await consumeChargedEquipmentBattleParticipation(playerId, characterId);
@@ -1511,12 +1598,12 @@ export class CombatWsHub implements CombatWsRouteHost {
 
       const loadout = resolveAuthoritativeCombatLoadout(playerId, characterId);
 
-      const bootstrap = createPveBattleBootstrap(loadout, joinPayload?.monsterInstanceId);
+      const bootstrap = createPveBattleBootstrap(loadout, monsterInstanceId);
       const session = new CombatSession(playerId, bootstrap.state, {
         characterId,
         ruleManifest: bootstrap.ruleManifest,
         loadout: bootstrap.loadout,
-        ...(joinPayload?.monsterInstanceId !== undefined ? { monsterInstanceId: joinPayload.monsterInstanceId } : {}),
+        monsterInstanceId,
       });
       this.sessions.set(connectionId, session);
       this.socketsByPlayerId.set(playerId, ws);
@@ -1529,7 +1616,7 @@ export class CombatWsHub implements CombatWsRouteHost {
         connectionId,
         playerId,
         battleId: payload.state.battleId,
-        monsterInstanceId: joinPayload?.monsterInstanceId ?? null,
+        monsterInstanceId,
       });
       this.send(ws, { type: 'START_COMBAT', payload: { battleId: payload.state.battleId } });
       void this.deliverCombatPayload(ws, connectionId, session, payload);

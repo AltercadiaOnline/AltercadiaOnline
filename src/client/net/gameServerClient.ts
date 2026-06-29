@@ -16,6 +16,9 @@ export type GameServerFetchOptions = {
 
 const DEFAULT_GAME_SERVER_DEADLINE_MS = 20_000;
 
+/** Teto para APIs da tela de personagem (hub, shards) — evita loading eterno. */
+export const CHAR_SELECT_API_DEADLINE_MS = 5_000;
+
 export function isGameServerFetchTimeoutError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }

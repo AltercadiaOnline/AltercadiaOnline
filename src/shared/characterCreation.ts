@@ -1,13 +1,19 @@
 import type { ClassType } from './types/classes.js';
+import type { PlayerSkinBundleId } from './character/playerSkinBundle.js';
+import {
+  DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  isValidPlayerSkinBundleId,
+} from './character/playerSkinBundle.js';
 
 export type CreateCharacterInput = {
   name: string;
   class: ClassType;
   slotIndex: number;
+  skinBundleId?: string;
 };
 
 export type CreateCharacterValidation =
-  | { ok: true; name: string; class: ClassType; slotIndex: number }
+  | { ok: true; name: string; class: ClassType; slotIndex: number; skinBundleId: PlayerSkinBundleId }
   | { ok: false; message: string };
 
 const NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}\s'_-]{1,15}$/u;
@@ -37,7 +43,15 @@ export function validateCreateCharacterInput(input: CreateCharacterInput): Creat
     return { ok: false, message: 'Selecione uma classe válida.' };
   }
 
-  return { ok: true, name, class: input.class, slotIndex };
+  const rawBundle = input.skinBundleId?.trim();
+  const skinBundleId = rawBundle && isValidPlayerSkinBundleId(rawBundle)
+    ? rawBundle
+    : DEFAULT_PLAYER_SKIN_BUNDLE_ID;
+  if (rawBundle && !isValidPlayerSkinBundleId(rawBundle)) {
+    return { ok: false, message: 'Selecione uma aparência válida.' };
+  }
+
+  return { ok: true, name, class: input.class, slotIndex, skinBundleId };
 }
 
 export function nextCharacterId(existingIds: readonly number[]): number {

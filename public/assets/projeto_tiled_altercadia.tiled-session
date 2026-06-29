@@ -1,16 +1,16 @@
 {
     "activeFile": "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
     "expandedProjectPaths": [
-        "urban",
-        "npcs",
         "maps",
-        "creatures",
-        "player",
+        "combat",
+        ".",
         "props",
         "map_mund",
+        "urban",
         "terrain",
-        "combat",
-        "."
+        "creatures",
+        "player",
+        "npcs"
     ],
     "file.lastUsedOpenFilter": "Todos os Ficheiros (*)",
     "fileStates": {
@@ -20,14 +20,14 @@
         },
         "map_mund/city_01_test.tmx": {
             "expandedObjectLayers": [
-                12,
-                11
+                11,
+                12
             ],
-            "scale": 0.75,
+            "scale": 0.33,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 680.6666666666667,
-                "y": 518.6666666666665
+                "x": 422.72727272727275,
+                "y": 436.3636363636364
             }
         },
         "map_mund/computador_antigo_Test.tsx": {
@@ -36,11 +36,11 @@
             "scaleInEditor": 1
         },
         "map_mund/sem zona_beco_dos_fundos_tilemap.tmx": {
-            "scale": 0.5,
-            "selectedLayer": 0,
+            "scale": 0.75,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": 335,
-                "y": 1336
+                "x": 527.3333333333333,
+                "y": 1797.333333333333
             }
         },
         "props/Living gazebo1.tsx": {

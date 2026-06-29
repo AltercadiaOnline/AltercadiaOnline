@@ -9,13 +9,16 @@
  */
 const baseUrl = (process.env.AUDIT_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const expectedGameWs = process.env.AUDIT_GAME_WS_URL?.trim() || null;
+const isLocalAudit = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
 
 const failures = [];
 const warnings = [];
 
-async function fetchJson(path) {
-  const url = `${baseUrl}${path}`;
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+async function fetchJsonUrl(url) {
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+  });
   let body = null;
   try {
     body = await response.json();
@@ -23,6 +26,10 @@ async function fetchJson(path) {
     body = null;
   }
   return { url, status: response.status, ok: response.ok, body };
+}
+
+async function fetchJson(path) {
+  return fetchJsonUrl(`${baseUrl}${path}`);
 }
 
 function pass(message) {
@@ -48,12 +55,14 @@ if (health.ok) {
   fail(`/health → ${health.status}`);
 }
 
+let clientConfig = null;
 const config = await fetchJson('/config/client');
 if (!config.ok) {
   fail(`/config/client → ${config.status}`);
 } else {
   pass(`/config/client → ${config.status}`);
   const c = config.body ?? {};
+  clientConfig = c;
 
   if (c.supabaseUrl && c.supabaseAnonKey) {
     pass('Supabase configurado em /config/client');
@@ -74,6 +83,14 @@ if (!config.ok) {
     fail('GAME_WS_URL ausente em /config/client');
   }
 
+  if (typeof c.gameHttpUrl === 'string' && c.gameHttpUrl.startsWith('http')) {
+    pass(`gameHttpUrl presente (${c.gameHttpUrl})`);
+  } else if (baseUrl.includes('localhost')) {
+    warn('gameHttpUrl ausente — OK para localhost dev');
+  } else {
+    fail('GAME_HTTP_URL ausente em /config/client');
+  }
+
   if (typeof c.serverId === 'string' && c.serverId.trim()) {
     pass(`serverId = ${c.serverId}`);
   } else {
@@ -86,6 +103,40 @@ if (servers.ok && servers.body?.ok === true && Array.isArray(servers.body.server
   pass(`/api/servers → ${servers.body.servers.length} shard(s)`);
 } else {
   fail('/api/servers indisponível ou resposta inválida');
+}
+
+if (clientConfig?.gameHttpUrl) {
+  const gameHttpUrl = String(clientConfig.gameHttpUrl).replace(/\/+$/, '');
+  try {
+    const ready = await fetchJsonUrl(`${gameHttpUrl}/ready`);
+    if (!ready.ok || ready.body?.ok !== true) {
+      const failedChecks = Array.isArray(ready.body?.checks)
+        ? ready.body.checks
+            .filter((check) => check && check.ok === false)
+            .map((check) => `${check.name}${check.detail ? ` (${check.detail})` : ''}`)
+        : [];
+      fail(
+        `/ready Railway falhou → ${ready.status}${failedChecks.length ? `: ${failedChecks.join(', ')}` : ''}`,
+      );
+    } else {
+      const readyServerId = ready.body?.serverId;
+      pass(`/ready Railway → ${ready.status}${readyServerId ? ` (${readyServerId})` : ''}`);
+
+      if (
+        typeof clientConfig.serverId === 'string'
+        && typeof readyServerId === 'string'
+        && clientConfig.serverId !== readyServerId
+      ) {
+        fail(`SERVER_ID divergente: Vercel=${clientConfig.serverId} Railway=${readyServerId}`);
+      }
+    }
+  } catch (error) {
+    fail(`/ready Railway indisponível: ${error instanceof Error ? error.message : String(error)}`);
+  }
+} else if (isLocalAudit) {
+  warn('/ready Railway não testado — gameHttpUrl ausente em localhost');
+} else {
+  fail('/ready Railway não testado — gameHttpUrl ausente');
 }
 
 console.log('');

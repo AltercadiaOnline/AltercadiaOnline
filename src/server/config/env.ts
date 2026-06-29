@@ -68,6 +68,10 @@ function parseCorsOrigins(raw: string | undefined, nodeEnv: NodeEnv): readonly s
   return mergeUniqueOrigins(BUILTIN_ALLOWED_ORIGINS, fromEnv);
 }
 
+function parseBooleanFlag(raw: string | undefined): boolean {
+  return raw === '1' || raw === 'true';
+}
+
 /** Lê variáveis de ambiente para HTTP + WebSocket em nuvem. */
 export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   const port = Number(env.PORT ?? 3000);
@@ -89,6 +93,13 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   const publicSiteUrl = normalizePublicSiteOrigin(
     env.PUBLIC_SITE_URL ?? env.AUTH_REDIRECT_ORIGIN ?? env.VERCEL_PROJECT_PRODUCTION_URL,
   );
+  const devAuthBypass = parseBooleanFlag(env.DEV_AUTH_BYPASS);
+
+  if (nodeEnv === 'production' && devAuthBypass) {
+    throw new Error(
+      '[env] DEV_AUTH_BYPASS não pode estar ativo em produção. Remova a variável ou defina DEV_AUTH_BYPASS=false.',
+    );
+  }
 
   return {
     nodeEnv,
@@ -102,9 +113,7 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     gameWsUrl,
     gameHttpUrl,
     publicSiteUrl,
-    devAuthBypass:
-      env.DEV_AUTH_BYPASS === '1'
-      || env.DEV_AUTH_BYPASS === 'true',
+    devAuthBypass,
     database: loadDatabaseEnv(env, serverInstance),
     serverInstance,
     opsToken: sanitizeEnvSecret(env.OPS_TOKEN),

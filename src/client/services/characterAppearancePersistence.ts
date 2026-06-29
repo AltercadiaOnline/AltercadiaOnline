@@ -1,10 +1,12 @@
 import { resolveCharacterSkin } from '../../shared/character/characterAppearance.js';
+import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 import type { PlayerSkin } from '../../shared/character/playerSkin.js';
 import type { AccountCharacter } from '../../shared/types/account.js';
 import { eventBus, HudEvent } from '../../shared/utils/EventBus.js';
 import { getCharacterSelectPreviewManager } from '../browser/characterSelectPreview.js';
 import { getPlayerSkinStore } from '../ui/character/playerSkinStore.js';
 import { AppScreens } from '../browser/appScreens.js';
+import { setActivePlayerSkinBundleId } from '../entities/player/activePlayerSkinBundle.js';
 
 let active = false;
 const unsubscribers: Array<() => void> = [];
@@ -33,6 +35,7 @@ export function destroyCharacterAppearancePersistence(): void {
 export function loadSelectedCharacterAppearance(): void {
   const character = AppScreens.getSelectedCharacter();
   if (!character) return;
+  setActivePlayerSkinBundleId(resolvePlayerSkinBundleId(character));
   getPlayerSkinStore().loadSkin(resolveCharacterSkin(character));
 }
 

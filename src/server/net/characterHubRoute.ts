@@ -2,6 +2,7 @@ import type http from 'node:http';
 import { SecurityGuard } from '../middleware/securityGuard.js';
 import type { ServerEnv } from '../config/env.js';
 import type { ClassType } from '../../shared/types/classes.js';
+import { isValidPlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 import type { CreateCharacterRequest } from '../../shared/auth/characterHubProtocol.js';
 import {
   buildAuthoritativeCharacterHub,
@@ -26,10 +27,14 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
 function isCreateCharacterRequest(value: unknown): value is CreateCharacterRequest {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
+  const skinBundleId = record.skinBundleId;
+  const hasValidBundle = skinBundleId === undefined
+    || (typeof skinBundleId === 'string' && isValidPlayerSkinBundleId(skinBundleId));
   return (
     typeof record.slotIndex === 'number'
     && typeof record.name === 'string'
     && typeof record.class === 'string'
+    && hasValidBundle
   );
 }
 
@@ -73,6 +78,7 @@ export async function handleCharacterHubRoute(
         slotIndex: body.slotIndex,
         name: body.name,
         class: body.class as ClassType,
+        ...(body.skinBundleId !== undefined ? { skinBundleId: body.skinBundleId } : {}),
       });
 
       if (!result.ok) {

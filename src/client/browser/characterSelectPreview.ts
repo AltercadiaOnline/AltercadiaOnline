@@ -4,6 +4,7 @@ import {
   resolveCharacterSkin,
   skinAppearanceKey,
 } from '../../shared/character/characterAppearance.js';
+import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 import type { PlayerSkin } from '../../shared/character/playerSkin.js';
 import { PlayerSprite } from '../entities/player/PlayerSprite.js';
 import { paintCharacterAvatarPreview } from '../ui/character/characterAvatarPreview.js';
@@ -35,7 +36,7 @@ export class CharacterSelectPreviewManager {
       const canvas = slotEl?.querySelector<HTMLCanvasElement>('[data-char-avatar-canvas]');
       if (!canvas) continue;
 
-      this.mountPreview(character.id, canvas, resolveCharacterSkin(character));
+      this.mountPreview(character.id, canvas, resolveCharacterSkin(character), resolvePlayerSkinBundleId(character));
     }
 
     for (const characterId of this.entries.keys()) {
@@ -60,8 +61,13 @@ export class CharacterSelectPreviewManager {
     this.entries.clear();
   }
 
-  private mountPreview(characterId: number, canvas: HTMLCanvasElement, skin: PlayerSkin): void {
-    const skinKey = skinAppearanceKey(skin);
+  private mountPreview(
+    characterId: number,
+    canvas: HTMLCanvasElement,
+    skin: PlayerSkin,
+    skinBundleId: ReturnType<typeof resolvePlayerSkinBundleId>,
+  ): void {
+    const skinKey = `${skinAppearanceKey(skin)}|${skinBundleId}`;
     const existing = this.entries.get(characterId);
 
     if (existing?.canvas === canvas) {
@@ -72,7 +78,7 @@ export class CharacterSelectPreviewManager {
     }
 
     const entry: PreviewEntry = {
-      player: new PlayerSprite(),
+      player: new PlayerSprite(skinBundleId),
       canvas,
       skinKey,
       paintGeneration: 0,

@@ -1,6 +1,7 @@
 import type { BattleEncounterData } from '../game/gameState.js';
 import { CITY_01_ID } from './maps/city01.js';
 import type { MapId } from './mapRegistry.js';
+import { isMonsterDefeated } from './defeatedMonsterState.js';
 import { getWorldMonsterEntry } from './worldMonsterInstances.js';
 
 export type MonsterRegistryEntry = {
@@ -26,6 +27,7 @@ export const MONSTER_REGISTRY: readonly MonsterRegistryEntry[] = [
 ] as const;
 
 export function getMonsterRegistryEntry(monsterId: string): MonsterRegistryEntry | undefined {
+  if (isMonsterDefeated(monsterId)) return undefined;
   return getWorldMonsterEntry(monsterId) ?? MONSTER_REGISTRY.find((entry) => entry.id === monsterId);
 }
 
