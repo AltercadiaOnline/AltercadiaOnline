@@ -6,6 +6,7 @@ import {
   tiledTilesetTextureKey,
 } from '../../../config/tiledMapManifest.js';
 import { getTiledAssetManager } from '../tiled/TiledAssetManager.js';
+import { isTilemapCacheReady } from '../tiled/tilemapCacheReady.js';
 import {
   PHASER_PLAYER_TEXTURE_KEY,
   resolvePrimaryPlayerSheetUrl,
@@ -23,7 +24,8 @@ type TextureCache = {
 };
 
 type TilemapCache = {
-  exists: (key: string) => boolean;
+  has?: (key: string) => boolean;
+  exists?: (key: string) => boolean;
   remove: (key: string) => void;
 };
 
@@ -88,7 +90,7 @@ export function purgeMapInstanceAssets(
     }
   }
 
-  if (tilemapKey && tilemapCache.exists(tilemapKey)) {
+  if (tilemapKey && isTilemapCacheReady(tilemapCache, tilemapKey)) {
     tilemapCache.remove(tilemapKey);
   }
 }

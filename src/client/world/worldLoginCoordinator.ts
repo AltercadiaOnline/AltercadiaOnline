@@ -8,6 +8,8 @@ let retryTimer: ReturnType<typeof setInterval> | null = null;
 export function scheduleWorldLoginRetry(request: () => void | Promise<void>): void {
   clearWorldLoginRetry();
 
+  void request();
+
   retryTimer = setInterval(() => {
     if (isWorldSessionReady()) {
       clearWorldLoginRetry();

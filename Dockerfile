@@ -20,6 +20,7 @@ COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
 
+# Railway/Vercel backend: só build:core — verify-vercel-static-routing exige vercel.json (só na Vercel).
 RUN npm run build:core
 
 # --- stage 2: runtime enxuto ---

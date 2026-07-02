@@ -37,15 +37,25 @@ for (const relative of REQUIRED_JS) {
   }
 }
 
-const vercel = JSON.parse(readFileSync(vercelConfigPath, 'utf8'));
-const spaRewrite = vercel.rewrites?.find((entry) => entry.destination === '/index.html');
-if (!spaRewrite?.source?.includes('\\.[')) {
-  console.error('[verify:vercel-static] vercel.json: rewrite SPA deve excluir paths com extensão (.js, .png, …)');
-  failed = true;
+if (existsSync(vercelConfigPath)) {
+  const vercel = JSON.parse(readFileSync(vercelConfigPath, 'utf8'));
+  const spaRewrite = vercel.rewrites?.find((entry) => entry.destination === '/index.html');
+  if (!spaRewrite?.source?.includes('\\.[')) {
+    console.error('[verify:vercel-static] vercel.json: rewrite SPA deve excluir paths com extensão (.js, .png, …)');
+    failed = true;
+  }
+} else {
+  console.warn(
+    '[verify:vercel-static] vercel.json ausente — pulando verificação de rewrite SPA '
+    + '(esperado em build Docker/Railway; Vercel usa o arquivo na raiz do repo).',
+  );
 }
 
 if (failed) {
   process.exit(1);
 }
 
-console.log(`[verify:vercel-static] OK — ${REQUIRED_JS.length} módulos em public/ + regra SPA segura`);
+console.log(
+  `[verify:vercel-static] OK — ${REQUIRED_JS.length} módulos em public/`
+  + (existsSync(vercelConfigPath) ? ' + regra SPA segura' : ' (rewrite SPA não verificado)'),
+);

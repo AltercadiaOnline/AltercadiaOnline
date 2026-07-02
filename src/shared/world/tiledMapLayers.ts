@@ -29,7 +29,22 @@ export function isTiledSpawnObjectLayer(layerName: string): boolean {
   return normalizeTiledLayerName(layerName) === 'spawns';
 }
 
-/** Structures + props — instanciados como sprites pelo MapLoader. */
+/** Object layer reservada a metadados de colisão (sem sprites). */
+export function isTiledCollisionObjectLayer(layerName: string): boolean {
+  const normalized = normalizeTiledLayerName(layerName);
+  return normalized === 'collision'
+    || normalized === 'collisionlayer'
+    || normalized === 'collisions'
+    || normalized === 'colisao'
+    || normalized === 'colisoes';
+}
+
+/**
+ * Object layers instanciadas como sprites pelo MapLoader.
+ * Aceita nomes livres do Tiled (ex.: objetos1-128x128, pulpito) — não só structures/props.
+ */
 export function isTiledRenderableObjectLayer(layerName: string): boolean {
-  return isTiledStructureObjectLayer(layerName) || isTiledPropObjectLayer(layerName);
+  if (isTiledSpawnObjectLayer(layerName)) return false;
+  if (isTiledCollisionObjectLayer(layerName)) return false;
+  return true;
 }

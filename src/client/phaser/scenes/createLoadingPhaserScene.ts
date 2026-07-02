@@ -10,6 +10,7 @@ import {
   purgeMapInstanceAssets,
   queueMapInstanceAssets,
 } from './mapInstanceAssetManifest.js';
+import { isTilemapCacheReady } from '../tiled/tilemapCacheReady.js';
 import { getMapInstanceSceneManager } from './MapInstanceSceneManager.js';
 import type { MapInstanceSceneInitData } from './createMapInstancePhaserScene.js';
 import type { PhaserWorldSceneBase } from './MainScene.js';
@@ -32,7 +33,8 @@ type PhaserLoadingScene = PhaserWorldSceneBase & {
   };
   readonly cache: {
     tilemap: {
-      exists: (key: string) => boolean;
+      has?: (key: string) => boolean;
+      exists?: (key: string) => boolean;
       remove: (key: string) => void;
     };
   };
@@ -207,7 +209,7 @@ export function createLoadingPhaserScene(
       }
       const descriptor = resolveTiledMapDescriptor(this.targetMapId);
       if (!descriptor) return true;
-      return scene.cache.tilemap.exists(descriptor.cacheKey);
+      return isTilemapCacheReady(scene.cache.tilemap, descriptor.cacheKey);
     }
 
     private mountLoadingUi(scene: PhaserLoadingScene): void {
