@@ -19,6 +19,7 @@ COPY tsconfig.json ./
 COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
+COPY scripts ./scripts
 
 RUN npm run build:core
 
