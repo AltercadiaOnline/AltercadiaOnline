@@ -33,6 +33,7 @@ const REQUIRED_STATIC_MODULES = [
   'assets/terrain/groundTileManifest.js',
   'assets/npcs/npcDefinition.js',
   'vendor/gsap/index.js',
+  'vendor/phaser/phaser.esm.js',
   'app-ui/ui-runtime.js',
 ];
 

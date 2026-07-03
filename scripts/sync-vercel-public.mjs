@@ -110,6 +110,7 @@ const gameSrc = path.join(distDir, 'game');
 const assetsSrc = path.join(distDir, 'assets');
 const assetsJsonSrc = path.join(root, 'src', 'assets');
 const gsapSrc = path.join(root, 'node_modules', 'gsap');
+const phaserEsmSrc = path.join(root, 'node_modules', 'phaser', 'dist', 'phaser.esm.js');
 
 copyDir(clientSrc, path.join(publicDir, 'client'));
 copyDir(sharedSrc, path.join(publicDir, 'shared'));
@@ -123,6 +124,15 @@ if (existsSync(gsapSrc)) {
   console.warn('[sync-vercel-public] gsap não encontrado — rode npm ci');
 }
 
+if (existsSync(phaserEsmSrc)) {
+  const phaserVendorDir = path.join(publicDir, 'vendor', 'phaser');
+  mkdirSync(phaserVendorDir, { recursive: true });
+  cpSync(phaserEsmSrc, path.join(phaserVendorDir, 'phaser.esm.js'));
+  console.log(`[sync-vercel-public] ${path.relative(root, phaserEsmSrc)} → ${path.relative(root, phaserVendorDir)}`);
+} else {
+  console.warn('[sync-vercel-public] phaser.esm.js não encontrado — rode npm ci');
+}
+
 const requiredBundles = [
   path.join(publicDir, 'client', 'browser', 'main.js'),
   path.join(publicDir, 'config', 'designConstants.js'),
@@ -133,6 +143,7 @@ const requiredBundles = [
   path.join(publicDir, 'assets', 'urban', 'urbanAssetManifest.js'),
   path.join(publicDir, 'assets', 'creatures', 'zone1', 'aranha', 'manifest.json'),
   path.join(publicDir, 'assets', 'creatures', 'zone1', 'corvo', 'manifest.json'),
+  path.join(publicDir, 'vendor', 'phaser', 'phaser.esm.js'),
   path.join(publicDir, 'app-ui', 'ui-runtime.js'),
 ];
 
