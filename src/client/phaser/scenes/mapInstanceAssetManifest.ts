@@ -10,6 +10,7 @@ import { isTilemapCacheReady } from '../tiled/tilemapCacheReady.js';
 import {
   PHASER_PLAYER_TEXTURE_KEY,
   resolvePrimaryPlayerSheetUrl,
+  resolvePlayerRotationPreloadEntries,
 } from '../player/phaserPlayerAssets.js';
 import type { PhaserTiledScene } from '../tiled/phaserTiledMapTypes.js';
 
@@ -68,6 +69,12 @@ export function queueMapInstanceAssets(scene: AssetQueueScene, mapId: MapId): vo
 
   if (!scene.textures.exists(PHASER_PLAYER_TEXTURE_KEY)) {
     scene.load.image(PHASER_PLAYER_TEXTURE_KEY, resolvePrimaryPlayerSheetUrl());
+  }
+
+  for (const entry of resolvePlayerRotationPreloadEntries()) {
+    if (!scene.textures.exists(entry.key)) {
+      scene.load.image(entry.key, entry.url);
+    }
   }
 }
 

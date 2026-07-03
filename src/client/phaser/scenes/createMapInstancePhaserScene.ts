@@ -22,6 +22,10 @@ import { TeleportZoneController } from '../world/TeleportZoneController.js';
 import { notifyPortalZonePhaserTrigger } from '../world/portalZonePhaserBridge.js';
 import { resolveMapInstanceSceneKey } from './mapInstanceSceneKeys.js';
 import type { MapTransitionPayload } from '../../../shared/world/protocol.js';
+import {
+  activatePhaserExplorationPipeline,
+  fallbackToCanvasExplorationPipeline,
+} from '../phaserExplorationPipeline.js';
 
 type PhaserNamespace = {
   Scene: new (config?: string | Record<string, unknown>) => PhaserWorldSceneBase;
@@ -85,11 +89,22 @@ export function createMapInstancePhaserScene(
 
       if (isTiledMapEnabled(this.boundMapId)) {
         const mounted = this.mapLoader.load(scene, this.boundMapId);
-        const mapWidthPx = mounted?.widthPx ?? this.resolveFallbackMapWidthPx();
-        const mapHeightPx = mounted?.heightPx ?? this.resolveFallbackMapHeightPx();
-        this.applyCameraBounds(mapWidthPx, mapHeightPx);
+        const mapMounted = Boolean(mounted && this.mapLoader.getVisualTileLayerCount() > 0);
+        if (!mapMounted) {
+          console.error(
+            '[MapInstanceScene] Mapa Tiled sem camadas visuais — fallback para canvas legado.',
+            this.boundMapId,
+          );
+          fallbackToCanvasExplorationPipeline();
+        } else {
+          const mapWidthPx = mounted!.widthPx;
+          const mapHeightPx = mounted!.heightPx;
+          this.applyCameraBounds(mapWidthPx, mapHeightPx);
+          activatePhaserExplorationPipeline();
+        }
       } else {
         this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
+        activatePhaserExplorationPipeline();
       }
 
       this.mountTeleportZones();

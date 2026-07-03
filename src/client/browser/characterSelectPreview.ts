@@ -4,21 +4,23 @@ import {
   resolveCharacterSkin,
   skinAppearanceKey,
 } from '../../shared/character/characterAppearance.js';
-import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
+import {
+  resolvePlayerSkinBundleId,
+  type PlayerSkinBundleId,
+} from '../../shared/character/playerSkinBundle.js';
 import type { PlayerSkin } from '../../shared/character/playerSkin.js';
-import { PlayerSprite } from '../entities/player/PlayerSprite.js';
-import { paintCharacterAvatarPreview } from '../ui/character/characterAvatarPreview.js';
+import { paintCharacterBundleSouthPreview } from '../ui/character/characterAvatarPreview.js';
 
 type PreviewEntry = {
-  readonly player: PlayerSprite;
   readonly canvas: HTMLCanvasElement;
   skinKey: string;
+  skinBundleId: PlayerSkinBundleId;
   paintGeneration: number;
 };
 
 /**
  * Previews top-down por slot na tela de seleção.
- * Uma instância de PlayerSprite por personagem — suporta skins distintas por slot.
+ * Usa a mesma URL de rotação sul do modal de criação — confiável em produção (Vercel).
  */
 export class CharacterSelectPreviewManager {
   private readonly entries = new Map<number, PreviewEntry>();
@@ -36,7 +38,12 @@ export class CharacterSelectPreviewManager {
       const canvas = slotEl?.querySelector<HTMLCanvasElement>('[data-char-avatar-canvas]');
       if (!canvas) continue;
 
-      this.mountPreview(character.id, canvas, resolveCharacterSkin(character), resolvePlayerSkinBundleId(character));
+      this.mountPreview(
+        character.id,
+        canvas,
+        resolveCharacterSkin(character),
+        resolvePlayerSkinBundleId(character),
+      );
     }
 
     for (const characterId of this.entries.keys()) {
@@ -46,14 +53,17 @@ export class CharacterSelectPreviewManager {
     }
   }
 
-  refreshCharacterSkin(characterId: number, skin: PlayerSkin): void {
+  refreshCharacterSkin(
+    characterId: number,
+    skin: PlayerSkin,
+    skinBundleId: PlayerSkinBundleId = resolvePlayerSkinBundleId({}),
+  ): void {
     const entry = this.entries.get(characterId);
     if (!entry) return;
 
-    const nextKey = skinAppearanceKey(skin);
-    if (entry.skinKey === nextKey) return;
-
+    const nextKey = `${skinAppearanceKey(skin)}|${skinBundleId}`;
     entry.skinKey = nextKey;
+    entry.skinBundleId = skinBundleId;
     void this.paintEntry(entry, skin);
   }
 
@@ -65,22 +75,22 @@ export class CharacterSelectPreviewManager {
     characterId: number,
     canvas: HTMLCanvasElement,
     skin: PlayerSkin,
-    skinBundleId: ReturnType<typeof resolvePlayerSkinBundleId>,
+    skinBundleId: PlayerSkinBundleId,
   ): void {
     const skinKey = `${skinAppearanceKey(skin)}|${skinBundleId}`;
     const existing = this.entries.get(characterId);
 
     if (existing?.canvas === canvas) {
-      if (existing.skinKey === skinKey) return;
       existing.skinKey = skinKey;
+      existing.skinBundleId = skinBundleId;
       void this.paintEntry(existing, skin);
       return;
     }
 
     const entry: PreviewEntry = {
-      player: new PlayerSprite(skinBundleId),
       canvas,
       skinKey,
+      skinBundleId,
       paintGeneration: 0,
     };
     this.entries.set(characterId, entry);
@@ -91,17 +101,17 @@ export class CharacterSelectPreviewManager {
     const generation = entry.paintGeneration + 1;
     entry.paintGeneration = generation;
 
-    await paintCharacterAvatarPreview(
-      entry.canvas,
-      {
+    try {
+      await paintCharacterBundleSouthPreview(entry.canvas, entry.skinBundleId, {
         skin,
         facing: 'south',
         backdropAlpha: 0.15,
         visualOccupancy: 0.85,
         showSkinAccentStrip: true,
-      },
-      entry.player,
-    );
+      });
+    } catch (error) {
+      console.warn('[CharacterSelectPreview] Falha ao pintar avatar:', entry.skinBundleId, error);
+    }
 
     if (entry.paintGeneration !== generation) return;
   }

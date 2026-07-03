@@ -2,6 +2,11 @@ import {
   getRenderLayerBridge,
   resolveRenderHostElement,
 } from '../app/bridge/renderLayerBridge.js';
+import {
+  activatePhaserExplorationPipeline,
+  fallbackToCanvasExplorationPipeline,
+  revealPhaserMountHost,
+} from './phaserExplorationPipeline.js';
 import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
   CANVAS_LEGACY_ID,
@@ -41,22 +46,15 @@ let activeGame: PhaserGameInstance | null = null;
 let bootPromise: Promise<PhaserGameInstance | null> | null = null;
 
 function setRenderHostVisibility(engine: 'canvas-legacy' | 'phaser'): void {
-  const canvas = document.getElementById(CANVAS_LEGACY_ID);
+  if (engine === 'phaser') {
+    activatePhaserExplorationPipeline();
+    return;
+  }
+  fallbackToCanvasExplorationPipeline();
   const phaserHost = document.getElementById(PHASER_MOUNT_ROOT_ID);
-  const renderHost = document.getElementById('game-render-host');
-
-  if (renderHost) {
-    renderHost.dataset.renderEngine = engine;
-  }
-
-  if (canvas) {
-    canvas.classList.toggle('hidden', engine === 'phaser');
-    canvas.toggleAttribute('aria-hidden', engine === 'phaser');
-  }
-
   if (phaserHost) {
-    phaserHost.classList.toggle('hidden', engine !== 'phaser');
-    phaserHost.toggleAttribute('aria-hidden', engine !== 'phaser');
+    phaserHost.classList.add('hidden');
+    phaserHost.toggleAttribute('aria-hidden', true);
   }
 }
 
@@ -104,13 +102,12 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     getMapInstanceSceneManager().bootDefaultMap(DEFAULT_MAP_ID);
 
     getRenderLayerBridge().markPhaserBooted(true);
+    getRenderLayerBridge().markPhaserSceneReady(false);
+    revealPhaserMountHost();
 
     const { getGameStateManager } = await import('../../shared/state/GameStateManager.js');
     const { syncPhaserSceneForGameState } = await import('./phaserSceneRouter.js');
     syncPhaserSceneForGameState(getGameStateManager().getState());
-
-    getRenderLayerBridge().markPhaserSceneReady(true);
-    setRenderHostVisibility('phaser');
 
     return activeGame;
   })().catch((error) => {

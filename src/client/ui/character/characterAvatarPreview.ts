@@ -1,11 +1,16 @@
 import type { PlayerSkin } from '../../../shared/character/playerSkin.js';
 import { getSkinOption } from '../../../shared/character/playerSkin.js';
+import {
+  resolvePlayerSkinBundleSouthPreviewUrl,
+  type PlayerSkinBundleId,
+} from '../../../shared/character/playerSkinBundle.js';
 import type { PlayerFacing } from '../../../shared/world/playerFacing.js';
 import {
   PLAYER_COLLISION_OFFSET,
   PLAYER_RENDER_FLOOR_OFFSET_Y,
   PLAYER_VISUAL_HEIGHT,
 } from '../../../shared/world/playerEntity.js';
+import { disableCanvasImageSmoothing } from '../../layout/gamePixelScale.js';
 import { PlayerSprite } from '../../entities/player/PlayerSprite.js';
 
 export type CharacterAvatarPreviewOptions = {
@@ -75,6 +80,56 @@ export async function paintCharacterAvatarPreview(
     skin: options.skin,
   });
   ctx.restore();
+}
+
+function loadPreviewImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Preview image failed: ${url}`));
+    img.src = url;
+  });
+}
+
+/**
+ * Preview estático do bundle top-down — mesma URL do modal de criação (`<img>`).
+ * Usado na seleção de personagem para espelhar a aparência escolhida na criação.
+ */
+export async function paintCharacterBundleSouthPreview(
+  canvas: HTMLCanvasElement,
+  bundleId: PlayerSkinBundleId,
+  options: CharacterAvatarPreviewOptions,
+): Promise<void> {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const alpha = options.backdropAlpha ?? 0.35;
+  const occupancy = options.visualOccupancy ?? 0.58;
+  const showAccent = options.showSkinAccentStrip ?? true;
+
+  const clearFrame = (): void => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.fillRect(0, 0, w, h);
+    if (showAccent) paintSkinAccentStrip(ctx, w, h, options.skin);
+  };
+
+  clearFrame();
+  disableCanvasImageSmoothing(ctx);
+
+  const image = await loadPreviewImage(resolvePlayerSkinBundleSouthPreviewUrl(bundleId));
+  clearFrame();
+
+  const maxDrawHeight = h * occupancy;
+  const scale = Math.min(maxDrawHeight / image.naturalHeight, w / image.naturalWidth);
+  const drawW = image.naturalWidth * scale;
+  const drawH = image.naturalHeight * scale;
+  const drawX = (w - drawW) / 2;
+  const drawY = h - (showAccent ? 10 : 6) - drawH;
+
+  ctx.drawImage(image, drawX, drawY, drawW, drawH);
 }
 
 function paintSkinAccentStrip(

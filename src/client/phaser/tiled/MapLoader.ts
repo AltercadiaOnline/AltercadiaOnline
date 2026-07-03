@@ -145,6 +145,11 @@ export class MapLoader {
     return true;
   }
 
+  /** Camadas de tile visuais montadas (ground/decor). */
+  getVisualTileLayerCount(): number {
+    return this.visualTileLayers.length;
+  }
+
   destroy(): void {
     for (const record of this.objectRecords) {
       record.sprite.destroy();

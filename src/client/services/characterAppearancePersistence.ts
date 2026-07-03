@@ -1,5 +1,7 @@
 import { resolveCharacterSkin } from '../../shared/character/characterAppearance.js';
-import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
+import {
+  resolvePlayerSkinBundleId,
+} from '../../shared/character/playerSkinBundle.js';
 import type { PlayerSkin } from '../../shared/character/playerSkin.js';
 import type { AccountCharacter } from '../../shared/types/account.js';
 import { eventBus, HudEvent } from '../../shared/utils/EventBus.js';
@@ -7,6 +9,8 @@ import { getCharacterSelectPreviewManager } from '../browser/characterSelectPrev
 import { getPlayerSkinStore } from '../ui/character/playerSkinStore.js';
 import { AppScreens } from '../browser/appScreens.js';
 import { setActivePlayerSkinBundleId } from '../entities/player/activePlayerSkinBundle.js';
+import { PlayerSpriteLoader } from '../entities/player/PlayerSpriteLoader.js';
+import { resetSharedPlayerSprite } from '../entities/player/PlayerSprite.js';
 
 let active = false;
 const unsubscribers: Array<() => void> = [];
@@ -36,6 +40,8 @@ export function loadSelectedCharacterAppearance(): void {
   const character = AppScreens.getSelectedCharacter();
   if (!character) return;
   setActivePlayerSkinBundleId(resolvePlayerSkinBundleId(character));
+  PlayerSpriteLoader.resetCache();
+  resetSharedPlayerSprite();
   getPlayerSkinStore().loadSkin(resolveCharacterSkin(character));
 }
 
@@ -70,5 +76,9 @@ function persistActiveCharacterSkin(skin: PlayerSkin): void {
   const result = updateHubCharacterSkin(character.id, skin);
   if (!result.ok) return;
 
-  getCharacterSelectPreviewManager().refreshCharacterSkin(character.id, skin);
+  getCharacterSelectPreviewManager().refreshCharacterSkin(
+    character.id,
+    skin,
+    resolvePlayerSkinBundleId(character),
+  );
 }

@@ -50,6 +50,13 @@ export async function ensurePlayerSheetTexture(
   const catalog = await PlayerSpriteLoader.getTopDownCatalog(getActivePlayerSkinBundleId());
   let loadedAny = false;
 
+  const cardinalDirections = ['south', 'east', 'north', 'west'] as const;
+  for (const direction of cardinalDirections) {
+    if (textures.exists(playerRotationTextureKey(direction))) {
+      loadedAny = true;
+    }
+  }
+
   for (const [direction, frame] of Object.entries(catalog.rotations)) {
     if (!frame?.image || frame.image.naturalWidth <= 0) continue;
     const key = playerRotationTextureKey(direction);
@@ -88,4 +95,16 @@ export function resolvePrimaryPlayerSheetUrl(): string {
     ?? resolvePlayerSkinBundleSouthPreviewUrl(bundleId)
     ?? DEFAULT_PLAYER_SOUTH_ROTATION_URL
   );
+}
+
+/** Pré-carrega rotações cardinais do bundle ativo na LoadingScene. */
+export function resolvePlayerRotationPreloadEntries(): readonly { readonly key: string; readonly url: string }[] {
+  const bundleId = getActivePlayerSkinBundleId();
+  const southUrl = resolvePlayerSkinBundleSouthPreviewUrl(bundleId);
+  const cardinals = ['south', 'east', 'north', 'west'] as const;
+
+  return cardinals.map((direction) => ({
+    key: playerRotationTextureKey(direction),
+    url: southUrl.replace(/\/south\.png$/, `/${direction}.png`),
+  }));
 }

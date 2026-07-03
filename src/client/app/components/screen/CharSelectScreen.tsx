@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CLASS_CATALOG } from '../../../../shared/types/classes.js';
 import { AppScreens } from '../../../browser/appScreens.js';
 import {
@@ -22,7 +22,7 @@ export function CharSelectScreen() {
   const slotsRef = useRef<HTMLDivElement>(null);
   const bridge = getCharSelectBridge();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     bridge.bindPreviewContainer(slotsRef.current, AppScreens.characterHub);
   }, [state.slots, state.selectedCharacterId, bridge]);
 
@@ -40,9 +40,10 @@ export function CharSelectScreen() {
       )}
 
       {state.server && (
-        <>
+        <section className="char-select-server-panel" aria-label="Servidor de jogo">
+          <p className="char-select-server-panel__title">Servidor</p>
           <label className="auth-field char-select-server-field">
-            <span>{state.server.label}</span>
+            <span className="sr-only">Escolha o shard</span>
             <select
               aria-label="Servidor"
               value={state.server.activeId}
@@ -64,7 +65,7 @@ export function CharSelectScreen() {
           >
             {state.server.hint}
           </p>
-        </>
+        </section>
       )}
 
       {state.statusMessage && (

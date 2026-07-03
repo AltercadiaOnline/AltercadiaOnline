@@ -1,16 +1,16 @@
 {
-    "activeFile": "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+    "activeFile": "map_mund/city_01_test.tmx",
     "expandedProjectPaths": [
-        "maps",
-        "combat",
-        ".",
-        "props",
         "map_mund",
         "urban",
-        "terrain",
+        "npcs",
+        "props",
+        ".",
+        "combat",
         "creatures",
-        "player",
-        "npcs"
+        "maps",
+        "terrain",
+        "player"
     ],
     "file.lastUsedOpenFilter": "Todos os Ficheiros (*)",
     "fileStates": {
@@ -23,11 +23,11 @@
                 11,
                 12
             ],
-            "scale": 0.33,
-            "selectedLayer": 6,
+            "scale": 0.5,
+            "selectedLayer": 4,
             "viewCenter": {
-                "x": 422.72727272727275,
-                "y": 436.3636363636364
+                "x": 847,
+                "y": 372
             }
         },
         "map_mund/computador_antigo_Test.tsx": {
@@ -36,11 +36,14 @@
             "scaleInEditor": 1
         },
         "map_mund/sem zona_beco_dos_fundos_tilemap.tmx": {
-            "scale": 0.75,
-            "selectedLayer": 2,
+            "expandedObjectLayers": [
+                3
+            ],
+            "scale": 1,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 527.3333333333333,
-                "y": 1797.333333333333
+                "x": 393.5,
+                "y": 1257
             }
         },
         "props/Living gazebo1.tsx": {
@@ -262,15 +265,15 @@
             "scaleInEditor": 1
         },
         "terrain/terrain_pack_2_TEst.tsx": {
-            "scaleInDock": 0.5,
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "terrain/terrain_pack_test.tsx": {
-            "scaleInDock": 1,
+            "scaleInDock": 0.5,
             "scaleInEditor": 1
         },
         "terrain/terrain_test_pack_3.tsx": {
-            "scaleInDock": 1,
+            "scaleInDock": 1.5,
             "scaleInEditor": 1
         },
         "terrain/tile_chao_test_2.tsx": {
@@ -314,7 +317,6 @@
     ],
     "project": "projeto_tiled_altercadia.tiled-project",
     "recentFiles": [
-        "map_mund/city_01_test.tmx",
         "props/casinha_4_test.tsx",
         "props/lixeira_test_props.tsx",
         "props/Living gazebo1.tsx",
@@ -324,6 +326,7 @@
         "terrain/terrain_pack_2_TEst.tsx",
         "terrain/terrain_pack_test.tsx",
         "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+        "map_mund/city_01_test.tmx",
         "terrain/chao_madeira_Test.tsx",
         "props/area_pet_2.tsx"
     ],

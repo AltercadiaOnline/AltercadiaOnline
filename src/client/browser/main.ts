@@ -809,14 +809,14 @@ function enterWorldAfterHudReady(): void {
     onLevelChanged: (level) => activeWorld.setPlayerLevel(level),
   });
 
-  void bootOnlinePhaserExploration().then((phaserReady) => {
-    if (!phaserReady || !world) {
+  void bootOnlinePhaserExploration().then((phaserBooted) => {
+    if (!phaserBooted || !world) {
       console.warn('[Altercadia] Phaser indisponível — mantendo canvas legado.');
       return;
     }
     world.prepareFrame(0);
     world.syncWorldDomOverlay(performance.now());
-    console.debug('[Altercadia] Render Phaser online ativo.');
+    console.debug('[Altercadia] Runtime Phaser iniciado — aguardando montagem do mapa.');
   });
 
   console.log('[Altercadia] Entrou no mundo', {

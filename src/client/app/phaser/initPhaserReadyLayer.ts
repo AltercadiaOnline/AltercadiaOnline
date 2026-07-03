@@ -2,7 +2,6 @@ import { getGameUiBridge } from '../bridge/gameUiBridge.js';
 import {
   getRenderLayerBridge,
   isPhaserRenderEngineActive,
-  isPhaserRenderPipelineReady,
 } from '../bridge/renderLayerBridge.js';
 import { ensurePhaserRuntimeForCurrentEngine } from '../../phaser/PhaserRuntime.js';
 
@@ -53,7 +52,7 @@ export async function bootOnlinePhaserExploration(): Promise<boolean> {
     return false;
   }
 
-  return isPhaserRenderPipelineReady();
+  return getRenderLayerBridge().snapshot().phaserBooted;
 }
 
 /** @deprecated Use enablePhaserForOnlineSession */
