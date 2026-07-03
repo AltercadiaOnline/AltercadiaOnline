@@ -8,6 +8,11 @@ import {
   resolvePlayerBundleRoot,
   resolvePlayerMetadataUrl,
 } from './playerConstants.js';
+import {
+  isValidPlayerSkinBundleId,
+  resolvePlayerSkinBundleSouthPreviewUrl,
+  type PlayerSkinBundleId,
+} from '../../../shared/character/playerSkinBundle.js';
 import type { PlayerAssetMetadata, PlayerLayerDescriptor, PlayerSpriteCatalog, SpriteFrame } from './types.js';
 import type { PlayerSkin } from '../../../shared/character/playerSkin.js';
 
@@ -136,10 +141,14 @@ export class PlayerSpriteLoader {
     return this.getCatalog(skinId);
   }
 
-  /** URLs candidatas do spritesheet top-down (grid 8 dir × N frames) ou rotação sul. */
+  /** URLs candidatas — rotação sul canônica primeiro; sheet.png legado por último. */
   static resolveTopDownSheetUrls(skinId: string = DEFAULT_PLAYER_SKIN_ID): string[] {
     const bundleRoot = resolvePlayerBundleRoot(skinId);
-    return [
+    const bundleId = skinId as PlayerSkinBundleId;
+    const canonicalSouth = isValidPlayerSkinBundleId(skinId)
+      ? resolvePlayerSkinBundleSouthPreviewUrl(bundleId)
+      : `${bundleRoot}/35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south.png`;
+    const legacy = [
       `${bundleRoot}/${skinId}/${PLAYER_SHEET_FILENAME}`,
       `${bundleRoot}/${PLAYER_SHEET_FILENAME}`,
       resolvePlayerSheetUrl(skinId),
@@ -148,6 +157,7 @@ export class PlayerSpriteLoader {
       `${bundleRoot}/2D_game_sprite_asset_teenage/rotations/south.png`,
       `${bundleRoot}/Pixel_art_character_sprite_front/rotations/south.png`,
     ];
+    return [canonicalSouth, ...legacy.filter((url) => url !== canonicalSouth)];
   }
 
   /**

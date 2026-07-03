@@ -143,6 +143,7 @@ import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
 import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { bootOnlinePhaserExploration } from '../app/phaser/initPhaserReadyLayer.js';
+import { fallbackToCanvasExplorationPipeline } from '../phaser/phaserExplorationPipeline.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
@@ -602,6 +603,9 @@ function connectSocket(): void {
  */
 const HUD_RUNTIME_BOOT_TIMEOUT_MS = 8000;
 
+/** Se o Phaser não montar o mapa a tempo, o canvas legado continua desenhando o mundo. */
+const PHASER_PIPELINE_FALLBACK_MS = 15_000;
+
 function enterWorld(): void {
   if (worldStarted) return;
 
@@ -817,6 +821,16 @@ function enterWorldAfterHudReady(): void {
     world.prepareFrame(0);
     world.syncWorldDomOverlay(performance.now());
     console.debug('[Altercadia] Runtime Phaser iniciado — aguardando montagem do mapa.');
+
+    window.setTimeout(() => {
+      if (!worldStarted || !world || isPhaserRenderPipelineReady()) return;
+      console.warn(
+        `[Altercadia] Phaser não ficou pronto em ${PHASER_PIPELINE_FALLBACK_MS}ms — fallback canvas legado.`,
+      );
+      fallbackToCanvasExplorationPipeline();
+      world.prepareFrame(0);
+      world.renderWorld(performance.now());
+    }, PHASER_PIPELINE_FALLBACK_MS);
   });
 
   console.log('[Altercadia] Entrou no mundo', {

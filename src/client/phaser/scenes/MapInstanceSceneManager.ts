@@ -10,7 +10,9 @@ import {
 } from './mapInstanceSceneKeys.js';
 import type { MapInstanceSceneInitData } from './createMapInstancePhaserScene.js';
 import type { LoadingSceneInitData } from './createLoadingPhaserScene.js';
+import { getRenderLayerBridge } from '../../app/bridge/renderLayerBridge.js';
 import { PHASER_MAP_LOADING_SCENE_KEY } from '../PhaserConfig.js';
+import { fallbackToCanvasExplorationPipeline } from '../phaserExplorationPipeline.js';
 
 type PhaserSceneManager = {
   start: (key: string, data?: MapInstanceSceneInitData | LoadingSceneInitData) => void;
@@ -84,6 +86,9 @@ export class MapInstanceSceneManager {
     if (currentSceneKey && currentSceneKey !== targetSceneKey) {
       this.game.scene.stop(currentSceneKey);
     }
+
+    getRenderLayerBridge().markPhaserSceneReady(false);
+    fallbackToCanvasExplorationPipeline();
 
     const loadingData: LoadingSceneInitData = {
       targetScene: targetSceneKey,

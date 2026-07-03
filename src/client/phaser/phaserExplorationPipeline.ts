@@ -39,6 +39,7 @@ export function activatePhaserExplorationPipeline(): void {
 /** Falha ao montar mapa Tiled — mantém canvas legado visível. */
 export function fallbackToCanvasExplorationPipeline(): void {
   const canvas = document.getElementById(CANVAS_LEGACY_ID);
+  const phaserHost = document.getElementById(PHASER_MOUNT_ROOT_ID);
   const renderHost = document.getElementById('game-render-host');
 
   if (renderHost) {
@@ -48,6 +49,11 @@ export function fallbackToCanvasExplorationPipeline(): void {
   if (canvas) {
     canvas.classList.remove('hidden');
     canvas.toggleAttribute('aria-hidden', false);
+  }
+
+  if (phaserHost) {
+    phaserHost.classList.add('hidden');
+    phaserHost.toggleAttribute('aria-hidden', true);
   }
 
   getRenderLayerBridge().markPhaserSceneReady(false);

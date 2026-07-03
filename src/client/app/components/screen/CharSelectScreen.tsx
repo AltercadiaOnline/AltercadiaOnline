@@ -1,6 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CLASS_CATALOG } from '../../../../shared/types/classes.js';
-import { AppScreens } from '../../../browser/appScreens.js';
+import {
+  resolvePlayerSkinBundleId,
+  resolvePlayerSkinBundleSouthPreviewUrl,
+} from '../../../../shared/character/playerSkinBundle.js';
 import {
   getCharSelectBridge,
   type CharSelectSnapshot,
@@ -19,12 +22,7 @@ function useCharSelectScreen(): CharSelectSnapshot {
 
 export function CharSelectScreen() {
   const state = useCharSelectScreen();
-  const slotsRef = useRef<HTMLDivElement>(null);
   const bridge = getCharSelectBridge();
-
-  useLayoutEffect(() => {
-    bridge.bindPreviewContainer(slotsRef.current, AppScreens.characterHub);
-  }, [state.slots, state.selectedCharacterId, bridge]);
 
   return (
     <div
@@ -74,10 +72,13 @@ export function CharSelectScreen() {
         </p>
       )}
 
-      <div ref={slotsRef} className="char-container">
+      <div className="char-container">
         {state.slots.map(({ slotIndex, character }) => {
           if (character) {
             const selected = character.id === state.selectedCharacterId;
+            const skinPreviewUrl = resolvePlayerSkinBundleSouthPreviewUrl(
+              resolvePlayerSkinBundleId(character),
+            );
             return (
               <div
                 key={`slot-${slotIndex}`}
@@ -95,12 +96,14 @@ export function CharSelectScreen() {
                 }}
               >
                 <div className="char-slot-preview" aria-hidden="true">
-                  <canvas
-                    className="char-slot-preview__canvas"
-                    data-char-avatar-canvas
-                    width="170"
-                    height="264"
-                    aria-hidden="true"
+                  <img
+                    className="char-slot-preview__img"
+                    src={skinPreviewUrl}
+                    alt=""
+                    width={85}
+                    height={132}
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
                 <div className="char-slot-body">

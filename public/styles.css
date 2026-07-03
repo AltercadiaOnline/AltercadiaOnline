@@ -678,7 +678,8 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   pointer-events: none;
 }
 
-.char-slot-preview__canvas {
+.char-slot-preview__canvas,
+.char-slot-preview__img {
   display: block;
   width: 100%;
   height: 100%;

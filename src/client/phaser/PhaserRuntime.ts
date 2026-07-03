@@ -5,7 +5,6 @@ import {
 import {
   activatePhaserExplorationPipeline,
   fallbackToCanvasExplorationPipeline,
-  revealPhaserMountHost,
 } from './phaserExplorationPipeline.js';
 import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
@@ -21,7 +20,6 @@ import {
 } from './scenes/MapInstanceSceneManager.js';
 import { createAllMapInstancePhaserScenes } from './scenes/ExplorationPhaserScene.js';
 import { createLoadingPhaserScene } from './scenes/createLoadingPhaserScene.js';
-import { resolveActiveMapInstanceSceneKey } from './scenes/MapInstanceSceneManager.js';
 
 type PhaserGameInstance = {
   destroy: (removeCanvas: boolean) => void;
@@ -103,11 +101,7 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
 
     getRenderLayerBridge().markPhaserBooted(true);
     getRenderLayerBridge().markPhaserSceneReady(false);
-    revealPhaserMountHost();
-
-    const { getGameStateManager } = await import('../../shared/state/GameStateManager.js');
-    const { syncPhaserSceneForGameState } = await import('./phaserSceneRouter.js');
-    syncPhaserSceneForGameState(getGameStateManager().getState());
+    getRenderLayerBridge().setActivePhaserScene('exploration');
 
     return activeGame;
   })().catch((error) => {
@@ -135,11 +129,11 @@ export function shutdownPhaserRuntime(): void {
   setRenderHostVisibility('canvas-legacy');
 }
 
-/** Troca cena ativa sem destruir o Game Phaser. */
+/** Troca cena ativa sem destruir o Game Phaser. Prontidão visual fica com cada cena. */
 export function switchPhaserScene(sceneKey: string): void {
   if (!activeGame) return;
+  getRenderLayerBridge().markPhaserSceneReady(false);
   activeGame.scene.start(sceneKey);
-  getRenderLayerBridge().markPhaserSceneReady(true);
   const activeScene =
     sceneKey === PHASER_BATTLE_SCENE_KEY
       ? 'battle'
@@ -150,9 +144,11 @@ export function switchPhaserScene(sceneKey: string): void {
   getRenderLayerBridge().setActivePhaserScene(activeScene);
 }
 
-/** Inicia a instância Phaser do mapa ativo (exploração). */
+/** Inicia a instância Phaser do mapa ativo via LoadingScene (assets antes da cena). */
 export function switchPhaserToActiveMapInstance(): void {
-  switchPhaserScene(resolveActiveMapInstanceSceneKey());
+  const manager = getMapInstanceSceneManager();
+  if (!manager.isInitialized()) return;
+  manager.transitionTo(manager.getActiveMapId());
 }
 
 export function isPhaserRuntimeActive(): boolean {
