@@ -16,6 +16,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --include=dev
 
 COPY tsconfig.json ./
+COPY vercel.json ./vercel.json
 COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
@@ -31,6 +32,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
+# Railway: não usar memory em produção — volume em /app/data (anexar no painel).
+ENV PERSISTENCE_MODE=file
+ENV DATA_DIR=/app/data
 
 RUN addgroup -S app && adduser -S app -G app
 

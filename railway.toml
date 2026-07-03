@@ -1,0 +1,20 @@
+# Railway — backend autoritativo (WebSocket + API).
+# Front estático continua na Vercel; não rodar `npm run build` completo aqui (exige vercel.json na Vercel).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+# Variáveis obrigatórias no painel Railway (Settings → Variables):
+#   PERSISTENCE_MODE=file          (ou omitir — Dockerfile já define file)
+#   DATA_DIR=/app/data             (montar volume persistente neste path)
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#   CORS_ORIGIN=https://altercadia-online.vercel.app
+#   SERVER_ID=azul                 (mesmo valor da Vercel)
+# NÃO usar PERSISTENCE_MODE=memory em produção (bloqueado no bootstrap).
