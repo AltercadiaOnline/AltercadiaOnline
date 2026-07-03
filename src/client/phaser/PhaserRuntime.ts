@@ -23,6 +23,9 @@ import { createLoadingPhaserScene } from './scenes/createLoadingPhaserScene.js';
 
 type PhaserGameInstance = {
   destroy: (removeCanvas: boolean) => void;
+  scale?: {
+    refresh: () => void;
+  };
   scene: {
     start: (key: string, data?: Record<string, unknown>) => void;
     stop: (key: string) => void;
@@ -83,6 +86,8 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     const mapInstanceScenes = createAllMapInstancePhaserScenes(PhaserNs as never, mapIds);
     const loadingScene = createLoadingPhaserScene(PhaserNs as never);
 
+    revealPhaserMountHost();
+
     const gameConfig = buildPhaserGameConfig({
       Phaser: PhaserNs,
       parent: host,
@@ -95,7 +100,7 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
 
     activeGame = new PhaserNs.Game(gameConfig);
     applyPhaserCanvasTransparency(host);
-    revealPhaserMountHost();
+    activeGame.scale?.refresh();
 
     getMapInstanceSceneManager().init(activeGame, mapIds);
     getMapInstanceSceneManager().bootDefaultMap(DEFAULT_MAP_ID);

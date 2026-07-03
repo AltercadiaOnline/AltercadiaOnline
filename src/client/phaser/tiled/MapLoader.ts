@@ -166,6 +166,10 @@ export class MapLoader {
     return this.visualTileLayers.length > 0;
   }
 
+  getBoundTilesetCount(): number {
+    return this.boundTilesetCount;
+  }
+
   destroy(): void {
     for (const record of this.objectRecords) {
       record.sprite.destroy();

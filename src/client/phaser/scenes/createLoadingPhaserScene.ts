@@ -15,6 +15,7 @@ import { getMapInstanceSceneManager } from './MapInstanceSceneManager.js';
 import type { MapInstanceSceneInitData } from './createMapInstancePhaserScene.js';
 import type { PhaserWorldSceneBase } from './MainScene.js';
 import { revealPhaserMountHost } from '../phaserExplorationPipeline.js';
+import { enablePhaserRenderMode } from '../../app/phaser/initPhaserReadyLayer.js';
 
 type PhaserLoaderFile = {
   readonly key?: string;
@@ -120,6 +121,8 @@ export function createLoadingPhaserScene(
     }
 
     init(data?: LoadingSceneInitData): void {
+      enablePhaserRenderMode();
+      revealPhaserMountHost();
       this.targetScene = data?.targetScene ?? '';
       this.targetMapId = data?.targetMapId ?? null;
       this.spawn = data?.spawn;

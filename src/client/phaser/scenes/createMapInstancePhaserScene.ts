@@ -92,6 +92,10 @@ export function createMapInstancePhaserScene(
           console.error(
             '[MapInstanceScene] Mapa Tiled incompleto — fallback para canvas legado.',
             this.boundMapId,
+            {
+              visualLayers: this.mapLoader.getVisualTileLayerCount(),
+              tilesetsBound: this.mapLoader.getBoundTilesetCount(),
+            },
           );
           fallbackToCanvasExplorationPipeline();
         } else {

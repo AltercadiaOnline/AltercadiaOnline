@@ -16,6 +16,8 @@ const REQUIRED_STATIC_MODULES = [
   'client/services/loginScreen.js',
   'client/app/runtime/mountHudRuntime.js',
   'config/designConstants.js',
+  'config/maps/city01TiledMap.json',
+  'config/maps/farmZone01TiledMap.json',
   'config/sceneConfig.js',
   'game/constants/GameConfig.js',
   'game/assets/assetNormalizer.js',

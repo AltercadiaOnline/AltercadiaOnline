@@ -115,6 +115,17 @@ const phaserEsmSrc = path.join(root, 'node_modules', 'phaser', 'dist', 'phaser.e
 copyDir(clientSrc, path.join(publicDir, 'client'));
 copyDir(sharedSrc, path.join(publicDir, 'shared'));
 copyDir(configSrc, path.join(publicDir, 'config'));
+
+const mapsJsonSrc = path.join(root, 'src', 'config', 'maps');
+const mapsJsonDst = path.join(publicDir, 'config', 'maps');
+if (existsSync(mapsJsonSrc)) {
+  mkdirSync(mapsJsonDst, { recursive: true });
+  for (const entry of readdirSync(mapsJsonSrc, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    cpSync(path.join(mapsJsonSrc, entry.name), path.join(mapsJsonDst, entry.name));
+  }
+  console.log(`[sync-vercel-public] ${path.relative(root, mapsJsonSrc)} → ${path.relative(root, mapsJsonDst)}`);
+}
 copyDir(gameSrc, path.join(publicDir, 'game'));
 mergeCompiledAssetsTree(assetsSrc, assetsJsonSrc, path.join(publicDir, 'assets'));
 
