@@ -58,9 +58,12 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
     domNametagEntries,
   } = input;
 
-  const phaserMapActive = input.phaserMapActive === true
-    && isTiledMapEnabled(input.mapId as MapId);
-  const tiledAuthoritativeWorld = isTiledMapEnabled(input.mapId as MapId);
+  const tiledMap = isTiledMapEnabled(input.mapId as MapId);
+  const phaserMapActive = input.phaserMapActive === true && tiledMap;
+  const legacyClearColor = worldMapRenderer.getBackgroundColor();
+  const clearColor = phaserMapActive
+    ? 'rgba(0,0,0,0)'
+    : (legacyClearColor === 'transparent' ? '#0a0b0f' : legacyClearColor);
 
   return {
     timestampMs,
@@ -69,19 +72,17 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
       width: BASE_VIEWPORT.WIDTH,
       height: BASE_VIEWPORT.HEIGHT,
     },
-    clearColor: (phaserMapActive || tiledAuthoritativeWorld)
-      ? 'rgba(0,0,0,0)'
-      : worldMapRenderer.getBackgroundColor(),
+    clearColor,
     camera,
 
-    drawBackground: (phaserMapActive || tiledAuthoritativeWorld)
-      ? () => { /* chão/objetos Tiled no Phaser — sem escala legada */ }
+    drawBackground: phaserMapActive
+      ? () => { /* chão/objetos Tiled no Phaser */ }
       : (ctx) => {
           worldMapRenderer.renderGroundLayer(ctx);
         },
 
     collectDynamicDrawables: (ctx) => [
-      ...((phaserMapActive || tiledAuthoritativeWorld)
+      ...(phaserMapActive
         ? []
         : worldMapRenderer.collectStructureDrawables(ctx, {
             x: playerSnapshot.x,

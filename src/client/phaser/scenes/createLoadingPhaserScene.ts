@@ -14,6 +14,7 @@ import { isTilemapCacheReady } from '../tiled/tilemapCacheReady.js';
 import { getMapInstanceSceneManager } from './MapInstanceSceneManager.js';
 import type { MapInstanceSceneInitData } from './createMapInstancePhaserScene.js';
 import type { PhaserWorldSceneBase } from './MainScene.js';
+import { revealPhaserMountHost } from '../phaserExplorationPipeline.js';
 
 type PhaserLoaderFile = {
   readonly key?: string;
@@ -133,6 +134,7 @@ export function createLoadingPhaserScene(
     preload(): void {
       const scene = this as unknown as PhaserLoadingScene;
 
+      revealPhaserMountHost();
       this.mountLoadingUi(scene);
 
       scene.load.on('fileerror', (...args: unknown[]) => {

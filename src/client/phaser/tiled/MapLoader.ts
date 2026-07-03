@@ -1,6 +1,7 @@
 import type { MapId } from '../../../shared/world/mapRegistry.js';
 import { GAME_CONFIG } from '../../../game/constants/GameConfig.js';
 import { resolveTiledMapDescriptor } from '../../../config/tiledMapManifest.js';
+import { tiledTilesetTextureKey } from '../../../config/tiledMapManifest.js';
 import type { TiledJsonObject } from '../../../config/tiledMapJson.js';
 import { readTiledObjectProperty } from '../../../config/tiledMapJson.js';
 import {
@@ -156,9 +157,13 @@ export class MapLoader {
     return this.visualTileLayers.length;
   }
 
-  /** Todos os tilesets do JSON foram vinculados com textura em cache. */
+  /** Tilesets com textura vinculada — não exige 100% (assets opcionais podem faltar). */
   allTilesetsBound(): boolean {
-    return this.expectedTilesetCount > 0 && this.boundTilesetCount === this.expectedTilesetCount;
+    return this.boundTilesetCount > 0;
+  }
+
+  hasRenderableTileLayers(): boolean {
+    return this.visualTileLayers.length > 0;
   }
 
   destroy(): void {
@@ -398,15 +403,29 @@ export class MapLoader {
     jsonUrl: string,
   ): PhaserTiledTileset[] {
     const bound: PhaserTiledTileset[] = [];
+    const descriptor = this.mountedMapId ? resolveTiledMapDescriptor(this.mountedMapId) : null;
+    const textureKeyByNormalizedName = new Map<string, string>();
+
+    for (const tileset of descriptor?.tilesets ?? []) {
+      textureKeyByNormalizedName.set(
+        tileset.name.trim().toLowerCase(),
+        tiledTilesetTextureKey(cacheKey, tileset.name),
+      );
+    }
 
     for (const tileset of map.tilesets) {
-      const textureKey = this.assets.tilesetTextureKey(cacheKey, tileset.name);
-      if (!this.scene?.textures.exists(textureKey)) {
+      const primaryKey = this.assets.tilesetTextureKey(cacheKey, tileset.name);
+      const normalizedName = tileset.name.trim().toLowerCase();
+      const fallbackKey = textureKeyByNormalizedName.get(normalizedName);
+      const textureKey = this.scene?.textures.exists(primaryKey)
+        ? primaryKey
+        : (fallbackKey && this.scene?.textures.exists(fallbackKey) ? fallbackKey : null);
+
+      if (!textureKey) {
         const imagePath = tileset.image;
         if (imagePath) {
-          console.error(
-            '[MapLoader] Textura de tileset ausente:',
-            textureKey,
+          console.warn(
+            '[MapLoader] Textura de tileset ausente — tile ignorado:',
             tileset.name,
             this.assets.resolvePublicUrl(jsonUrl, imagePath),
           );
@@ -416,6 +435,13 @@ export class MapLoader {
 
       const added = map.addTilesetImage(tileset.name, textureKey);
       if (added) bound.push(added);
+    }
+
+    if (bound.length < map.tilesets.length) {
+      console.warn(
+        `[MapLoader] ${bound.length}/${map.tilesets.length} tilesets vinculados para`,
+        this.mountedMapId,
+      );
     }
 
     return bound;

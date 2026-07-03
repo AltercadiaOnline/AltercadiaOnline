@@ -85,7 +85,7 @@ export function createMapInstancePhaserScene(
         const mounted = this.mapLoader.load(scene, this.boundMapId);
         const mapMounted = Boolean(
           mounted
-          && this.mapLoader.getVisualTileLayerCount() > 0
+          && this.mapLoader.hasRenderableTileLayers()
           && this.mapLoader.allTilesetsBound(),
         );
         if (!mapMounted) {

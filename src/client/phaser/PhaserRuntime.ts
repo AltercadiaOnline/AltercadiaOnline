@@ -4,6 +4,7 @@ import {
 import {
   activatePhaserExplorationPipeline,
   fallbackToCanvasExplorationPipeline,
+  revealPhaserMountHost,
 } from './phaserExplorationPipeline.js';
 import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
@@ -94,6 +95,7 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
 
     activeGame = new PhaserNs.Game(gameConfig);
     applyPhaserCanvasTransparency(host);
+    revealPhaserMountHost();
 
     getMapInstanceSceneManager().init(activeGame, mapIds);
     getMapInstanceSceneManager().bootDefaultMap(DEFAULT_MAP_ID);
