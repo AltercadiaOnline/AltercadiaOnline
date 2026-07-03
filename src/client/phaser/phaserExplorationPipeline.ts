@@ -13,7 +13,7 @@ export function revealPhaserMountHost(): void {
   }
 }
 
-/** Ativa pipeline Phaser (esconde canvas legado) após mapa montado com sucesso. */
+/** Ativa pipeline Phaser — mapa no host Phaser; canvas legado segue desenhando entidades por cima. */
 export function activatePhaserExplorationPipeline(): void {
   const canvas = document.getElementById(CANVAS_LEGACY_ID);
   const phaserHost = document.getElementById(PHASER_MOUNT_ROOT_ID);
@@ -24,8 +24,8 @@ export function activatePhaserExplorationPipeline(): void {
   }
 
   if (canvas) {
-    canvas.classList.add('hidden');
-    canvas.setAttribute('aria-hidden', 'true');
+    canvas.classList.remove('hidden');
+    canvas.toggleAttribute('aria-hidden', false);
   }
 
   if (phaserHost) {

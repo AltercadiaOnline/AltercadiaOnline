@@ -26,7 +26,6 @@
  <tileset firstgid="442" source="../terrain/chao_Batalha_2_Test.tsx"/>
  <tileset firstgid="443" source="../terrain/chão_asfalto_Test.tsx"/>
  <tileset firstgid="444" source="../props/alquimia_estrutura_Test1.tsx"/>
- <tileset firstgid="445" source="computador_antigo_Test.tsx"/>
  <tileset firstgid="445" source="../props/mercado_test_props.tsx"/>
  <tileset firstgid="446" source="../props/mercado_Test.tsx"/>
  <tileset firstgid="447" source="../props/poste_test_prop.tsx"/>
@@ -268,7 +267,6 @@
   <object id="216" gid="440" x="42" y="618" width="144" height="144"/>
   <object id="222" gid="446" x="941.5" y="455" width="64" height="64"/>
   <object id="223" gid="446" x="1001.5" y="507.5" width="64" height="64"/>
-  <object id="224" gid="445" x="889" y="517" width="64" height="64"/>
   <object id="226" gid="434" x="720.333" y="405.667" width="48" height="48"/>
   <object id="227" gid="2147484082" x="768.375" y="405.625" width="48" height="48"/>
   <object id="228" gid="434" x="465.312" y="232.021" width="48" height="48"/>

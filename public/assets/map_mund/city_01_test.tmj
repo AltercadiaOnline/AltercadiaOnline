@@ -1738,19 +1738,6 @@
                  "y":301.333
                 }, 
                 {
-                 "gid":445,
-                 "height":64,
-                 "id":165,
-                 "name":"",
-                 "opacity":1,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":64,
-                 "x":1140,
-                 "y":124.417
-                }, 
-                {
                  "gid":446,
                  "height":64,
                  "id":169,
@@ -1943,10 +1930,6 @@
         {
          "firstgid":444,
          "source":"..\/props\/alquimia_estrutura_Test1.tsx"
-        }, 
-        {
-         "firstgid":445,
-         "source":"computador_antigo_Test.tsx"
         }, 
         {
          "firstgid":445,

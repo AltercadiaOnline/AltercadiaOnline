@@ -58,6 +58,10 @@ export class MapLoader {
 
   private mountedMapId: MapId | null = null;
 
+  private expectedTilesetCount = 0;
+
+  private boundTilesetCount = 0;
+
   private mapCacheKey: string | null = null;
 
   private mapJsonUrl: string | null = null;
@@ -92,6 +96,8 @@ export class MapLoader {
     this.map = map;
 
     const tilesets = this.bindTilesets(map, descriptor.cacheKey, descriptor.jsonUrl);
+    this.expectedTilesetCount = map.tilesets.length;
+    this.boundTilesetCount = tilesets.length;
     if (tilesets.length === 0) {
       console.error('[MapLoader] Nenhum tileset vinculado para', mapId);
       return null;
@@ -150,6 +156,11 @@ export class MapLoader {
     return this.visualTileLayers.length;
   }
 
+  /** Todos os tilesets do JSON foram vinculados com textura em cache. */
+  allTilesetsBound(): boolean {
+    return this.expectedTilesetCount > 0 && this.boundTilesetCount === this.expectedTilesetCount;
+  }
+
   destroy(): void {
     for (const record of this.objectRecords) {
       record.sprite.destroy();
@@ -174,6 +185,8 @@ export class MapLoader {
     this.mountedMapId = null;
     this.mapCacheKey = null;
     this.mapJsonUrl = null;
+    this.expectedTilesetCount = 0;
+    this.boundTilesetCount = 0;
     this.scene = null;
   }
 
@@ -251,6 +264,9 @@ export class MapLoader {
         const sprite = createdFromGid[index]!;
         const objectData = layerObjects[index];
         if (!objectData) continue;
+        if (objectData.width > 0 && objectData.height > 0) {
+          sprite.setDisplaySize(objectData.width, objectData.height);
+        }
         this.registerMapObject(scene, sprite, objectData, layer.name, mapId);
       }
 
@@ -365,8 +381,13 @@ export class MapLoader {
     height: number,
   ): PhaserMapSprite {
     const sprite = scene.add.sprite(x, y, textureKey);
-    if (width > 0 && height > 0) {
-      sprite.setDisplaySize(width, height);
+    const frame = sprite.texture.get(textureKey);
+    const nativeW = frame?.width ?? sprite.width;
+    const nativeH = frame?.height ?? sprite.height;
+    const displayW = width > 0 ? width : nativeW;
+    const displayH = height > 0 ? height : nativeH;
+    if (displayW > 0 && displayH > 0) {
+      sprite.setDisplaySize(displayW, displayH);
     }
     return sprite;
   }

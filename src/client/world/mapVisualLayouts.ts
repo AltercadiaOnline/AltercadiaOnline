@@ -1,7 +1,9 @@
 import { CITY_01_ID } from '../../shared/world/maps/city01.js';
 import { CITY_01_MAP_TILES } from '../../shared/world/maps/city01LayoutConstants.js';
 import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
-import type { MapId } from '../../shared/world/mapRegistry.js';
+import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
+import { getMapDefinition, type MapId } from '../../shared/world/mapRegistry.js';
 import { buildCity01PlaceholderScene, type City01PlaceholderScene } from './city01PlaceholderLayout.js';
 import { buildFarmZone01VisualLayout, type FarmZone01VisualLayout } from './farmZone01VisualLayout.js';
 import type { VisualLandmark, VisualStructure } from './city01VisualLayout.js';
@@ -19,7 +21,39 @@ export type MapVisualLayout = {
   readonly background: string;
 };
 
+/**
+ * Mapas com export Tiled (`public/assets/map_mund/`) — sem placeholder nem escala legada.
+ * Posição/tamanho vêm só do JSON (MapLoader Phaser).
+ */
+function buildTiledAuthoritativeVisualLayout(mapId: MapId): MapVisualLayout {
+  const definition = getMapDefinition(mapId);
+  const tileSize = definition?.tileSize ?? DESIGN_CONFIG.TILE.SIZE;
+  const mapTilesWide = definition
+    ? Math.max(1, Math.ceil(definition.pixelWidth() / tileSize))
+    : DESIGN_CONFIG.MAP.MAX_TILES_WIDTH;
+  const mapTilesHigh = definition
+    ? Math.max(1, Math.ceil(definition.pixelHeight() / tileSize))
+    : DESIGN_CONFIG.MAP.MAX_TILES_HEIGHT;
+
+  return {
+    mapId,
+    tiles: [],
+    landmarks: [],
+    structures: [],
+    placeholderScene: null,
+    showDebugLayout: false,
+    mapTilesWide,
+    mapTilesHigh,
+    tileSize,
+    background: 'transparent',
+  };
+}
+
 export function buildMapVisualLayout(mapId: MapId): MapVisualLayout {
+  if (isTiledMapEnabled(mapId)) {
+    return buildTiledAuthoritativeVisualLayout(mapId);
+  }
+
   if (mapId === FARM_ZONE_01_ID) {
     const farm = buildFarmZone01VisualLayout();
     return {

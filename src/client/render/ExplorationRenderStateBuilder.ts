@@ -5,6 +5,8 @@ import type { WorldMapRenderer } from '../world/WorldMapRenderer.js';
 import type { NavigationDestination } from '../managers/PointClickController.js';
 import type { PetRenderSnapshot } from '../entities/pet/PetFollowEntity.js';
 import type { PlayerRenderSnapshot } from '../entities/player/PlayerSprite.js';
+import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
+import type { MapId } from '../../shared/world/mapRegistry.js';
 import { BASE_VIEWPORT, RENDER_ASSET_SCALE } from '../layout/UIConstants.js';
 import { drawAuthoritativeCreatureDebugOverlay } from '../debug/authoritativeCreatureDebugDraw.js';
 import { drawCollisionDebugOverlay } from '../debug/collisionDebugDraw.js';
@@ -27,6 +29,8 @@ export type ExplorationRenderFrameInput = {
   readonly timestampMs: number;
   readonly speechBubbleEntries: readonly SpeechBubbleDomEntry[];
   readonly domNametagEntries: readonly DomNametagEntry[];
+  /** Mapa Tiled desenhado pelo Phaser — canvas só entidades/overlays. */
+  readonly phaserMapActive?: boolean;
 };
 
 /**
@@ -54,6 +58,10 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
     domNametagEntries,
   } = input;
 
+  const phaserMapActive = input.phaserMapActive === true
+    && isTiledMapEnabled(input.mapId as MapId);
+  const tiledAuthoritativeWorld = isTiledMapEnabled(input.mapId as MapId);
+
   return {
     timestampMs,
     mapId,
@@ -61,18 +69,24 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
       width: BASE_VIEWPORT.WIDTH,
       height: BASE_VIEWPORT.HEIGHT,
     },
-    clearColor: worldMapRenderer.getBackgroundColor(),
+    clearColor: (phaserMapActive || tiledAuthoritativeWorld)
+      ? 'rgba(0,0,0,0)'
+      : worldMapRenderer.getBackgroundColor(),
     camera,
 
-    drawBackground: (ctx) => {
-      worldMapRenderer.renderGroundLayer(ctx);
-    },
+    drawBackground: (phaserMapActive || tiledAuthoritativeWorld)
+      ? () => { /* chão/objetos Tiled no Phaser — sem escala legada */ }
+      : (ctx) => {
+          worldMapRenderer.renderGroundLayer(ctx);
+        },
 
     collectDynamicDrawables: (ctx) => [
-      ...worldMapRenderer.collectStructureDrawables(ctx, {
-        x: playerSnapshot.x,
-        y: playerSnapshot.y,
-      }),
+      ...((phaserMapActive || tiledAuthoritativeWorld)
+        ? []
+        : worldMapRenderer.collectStructureDrawables(ctx, {
+            x: playerSnapshot.x,
+            y: playerSnapshot.y,
+          })),
       ...worldMap.collectMonsterDrawables(ctx),
       ...npcManager.collectWorldActorDrawables(ctx, playerSnapshot, timestampMs, petSnapshot),
     ],

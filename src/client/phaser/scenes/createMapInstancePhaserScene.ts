@@ -26,15 +26,11 @@ import {
   activatePhaserExplorationPipeline,
   fallbackToCanvasExplorationPipeline,
 } from '../phaserExplorationPipeline.js';
+import { enablePhaserRenderMode } from '../../app/phaser/initPhaserReadyLayer.js';
 
 type PhaserNamespace = {
   Scene: new (config?: string | Record<string, unknown>) => PhaserWorldSceneBase;
 };
-
-const PLAYER_WIDTH = GAME_CONFIG.PLAYER_WIDTH;
-const PLAYER_HEIGHT = GAME_CONFIG.PLAYER_HEIGHT;
-const PLAYER_PIVOT_X = GAME_CONFIG.PLAYER_FOOT_OFFSET.x;
-const PLAYER_PIVOT_Y = GAME_CONFIG.PLAYER_FOOT_OFFSET.y;
 
 export type MapInstanceSceneInitData = {
   readonly spawn?: MapTransitionPayload;
@@ -69,8 +65,6 @@ export function createMapInstancePhaserScene(
 
     private lastFrame: ExplorationRenderFrame | null = null;
 
-    private lastMinimap: MinimapSnapshot | null = null;
-
     private teardownSync: (() => void) | null = null;
 
     private sceneActive = false;
@@ -89,10 +83,14 @@ export function createMapInstancePhaserScene(
 
       if (isTiledMapEnabled(this.boundMapId)) {
         const mounted = this.mapLoader.load(scene, this.boundMapId);
-        const mapMounted = Boolean(mounted && this.mapLoader.getVisualTileLayerCount() > 0);
+        const mapMounted = Boolean(
+          mounted
+          && this.mapLoader.getVisualTileLayerCount() > 0
+          && this.mapLoader.allTilesetsBound(),
+        );
         if (!mapMounted) {
           console.error(
-            '[MapInstanceScene] Mapa Tiled sem camadas visuais — fallback para canvas legado.',
+            '[MapInstanceScene] Mapa Tiled incompleto — fallback para canvas legado.',
             this.boundMapId,
           );
           fallbackToCanvasExplorationPipeline();
@@ -100,25 +98,16 @@ export function createMapInstancePhaserScene(
           const mapWidthPx = mounted!.widthPx;
           const mapHeightPx = mounted!.heightPx;
           this.applyCameraBounds(mapWidthPx, mapHeightPx);
+          enablePhaserRenderMode();
           activatePhaserExplorationPipeline();
         }
       } else {
         this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
+        enablePhaserRenderMode();
         activatePhaserExplorationPipeline();
       }
 
       this.mountTeleportZones();
-
-      void this.playerSprite.mount(this as never, null).then(() => {
-        if (this.lastFrame) {
-          this.playerSprite.applyFrame(this.lastFrame);
-          this.syncOverlays();
-        }
-      });
-
-      this.worldActors.mount(this as never, null);
-      this.pet.mount(this as never, null);
-      this.worldOverlay.mount(this as never);
 
       this.teardownSync = bindExplorationPhaserSync({
         onFrame: (frame) => this.applyExplorationFrame(frame),
@@ -165,36 +154,15 @@ export function createMapInstancePhaserScene(
       const scroll = clampExplorationCameraScroll(frame.cameraX, frame.cameraY, mapWidthPx, mapHeightPx);
       this.cameras.main.setScroll(scroll.x, scroll.y);
 
-      this.pet.sync(frame.pet, frame.timestampMs);
-
-      if (this.playerSprite.isReady()) {
-        this.playerSprite.applyFrame(frame);
-      }
-
-      this.worldActors.sync(frame.worldActors);
-      this.syncOverlays();
-
       this.teleportZones?.update({ x: frame.playerX, y: frame.playerY });
     }
 
-    private applyMinimapOverlay(snapshot: MinimapSnapshot): void {
-      if (!this.sceneActive) return;
-      this.lastMinimap = snapshot;
-      this.syncOverlays();
+    private applyMinimapOverlay(_snapshot: MinimapSnapshot): void {
+      /* minimap e entidades ficam no canvas legado (render híbrido). */
     }
 
     private syncOverlays(): void {
-      const frame = this.lastFrame;
-      if (!frame || frame.mapId !== this.boundMapId) return;
-
-      this.worldOverlay.sync(frame, this.lastMinimap, {
-        drawPlayerPlaceholder: !this.playerSprite.isReady(),
-        playerWidth: PLAYER_WIDTH,
-        playerHeight: PLAYER_HEIGHT,
-        playerPivotX: PLAYER_PIVOT_X,
-        playerPivotY: PLAYER_PIVOT_Y,
-        skipActorMinimapMarkers: this.worldActors.isActive(),
-      });
+      /* overlays de mundo no canvas legado. */
     }
 
     private applyCameraBounds(mapWidthPx: number, mapHeightPx: number): void {
@@ -222,7 +190,6 @@ export function createMapInstancePhaserScene(
       this.pet.destroy();
       this.worldOverlay.destroy();
       this.lastFrame = null;
-      this.lastMinimap = null;
     }
   }
 

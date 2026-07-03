@@ -1024,6 +1024,7 @@ export class ExplorationScene implements Disposable {
         ...this.npcManager.buildDomNametagEntries(playerSnapshot, petSnapshot),
         ...this.worldMapRenderer.collectDomLabelEntries(),
       ],
+      phaserMapActive: isPhaserRenderPipelineReady(),
     });
   }
 

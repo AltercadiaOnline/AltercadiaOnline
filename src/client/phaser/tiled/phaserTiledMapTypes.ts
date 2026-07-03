@@ -9,7 +9,12 @@ export type PhaserStaticBody = {
 export type PhaserMapSprite = {
   readonly x: number;
   readonly y: number;
+  readonly width: number;
+  readonly height: number;
   readonly body?: PhaserStaticBody;
+  readonly texture: {
+    get: (key: string) => { readonly width: number; readonly height: number } | null;
+  };
   setDepth: (depth: number) => PhaserMapSprite;
   setOrigin: (x: number, y: number) => PhaserMapSprite;
   setDisplaySize: (width: number, height: number) => PhaserMapSprite;

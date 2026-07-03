@@ -790,11 +790,10 @@ function enterWorldAfterHudReady(): void {
         world?.prepareFrame(deltaMs);
       },
       onRender: (timestampMs) => {
+        world?.renderWorld(timestampMs);
         if (isPhaserRenderPipelineReady()) {
           world?.syncWorldDomOverlay(timestampMs);
-          return;
         }
-        world?.renderWorld(timestampMs);
       },
     });
   }

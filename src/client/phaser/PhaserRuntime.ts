@@ -1,6 +1,5 @@
 import {
   getRenderLayerBridge,
-  resolveRenderHostElement,
 } from '../app/bridge/renderLayerBridge.js';
 import {
   activatePhaserExplorationPipeline,
@@ -70,8 +69,8 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
   if (bootPromise) return bootPromise;
 
   bootPromise = (async () => {
-    const host = resolveRenderHostElement();
-    if (host.id !== PHASER_MOUNT_ROOT_ID) {
+    const host = document.getElementById(PHASER_MOUNT_ROOT_ID);
+    if (!(host instanceof HTMLElement)) {
       console.warn('[PhaserRuntime] Host Phaser ausente — abortando boot.');
       return null;
     }

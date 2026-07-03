@@ -3,7 +3,7 @@ import {
   getRenderLayerBridge,
   isPhaserRenderEngineActive,
 } from '../bridge/renderLayerBridge.js';
-import { ensurePhaserRuntimeForCurrentEngine } from '../../phaser/PhaserRuntime.js';
+import { bootPhaserRuntime, ensurePhaserRuntimeForCurrentEngine } from '../../phaser/PhaserRuntime.js';
 
 const PHASER_HYBRID_QUERY = 'phaser';
 const PHASER_HYBRID_STORAGE_KEY = 'altercadia.phaserHybrid';
@@ -37,16 +37,13 @@ export function enablePhaserForOnlineSession(): void {
 }
 
 /**
- * Boot Phaser ao entrar no mundo — canvas legado segue visível até a cena estar pronta.
- * Retorna false se o runtime falhar (fallback automático para canvas).
+ * Boot Phaser ao entrar no mundo — canvas legado segue desenhando até o mapa Tiled montar.
+ * O modo `phaser-v1` só é ativado após MapLoader confirmar tilesets (createMapInstancePhaserScene).
  */
 export async function bootOnlinePhaserExploration(): Promise<boolean> {
-  if (!isPhaserRenderEngineActive()) {
-    enablePhaserRenderMode();
-  }
-
   try {
-    await ensurePhaserRuntimeForCurrentEngine();
+    const game = await bootPhaserRuntime();
+    if (!game) return false;
   } catch (error) {
     console.error('[Phaser] Falha ao iniciar render online:', error);
     return false;
@@ -75,7 +72,9 @@ export function initPhaserReadyLayer(): void {
   });
 
   getRenderLayerBridge().subscribe((snapshot) => {
-    void ensurePhaserRuntimeForCurrentEngine();
+    if (snapshot.renderEngine === 'phaser') {
+      void ensurePhaserRuntimeForCurrentEngine();
+    }
     document.body.dataset.renderEngine = snapshot.renderEngine;
   });
 

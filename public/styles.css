@@ -230,11 +230,15 @@ body[data-react-game-hud-ui='1'] #game-render-column {
   height: 360px;
 }
 
-/* Canvas legado invisível por cima do Phaser — captura clique/WASD sem outline no canvas Phaser */
+/* Canvas legado por cima do Phaser — fundo transparente; entidades + input no canvas. */
 .game-render-host[data-render-engine='phaser'] .game-canvas {
-  opacity: 0;
+  background: transparent;
   pointer-events: auto;
   z-index: 2;
+}
+
+.game-render-host[data-render-engine='phaser'] .phaser-mount-root {
+  z-index: 1;
 }
 
 .phaser-mount-root {
