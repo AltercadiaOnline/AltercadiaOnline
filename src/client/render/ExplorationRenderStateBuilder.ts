@@ -7,6 +7,7 @@ import type { PetRenderSnapshot } from '../entities/pet/PetFollowEntity.js';
 import type { PlayerRenderSnapshot } from '../entities/player/PlayerSprite.js';
 import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
+import { isPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { BASE_VIEWPORT, RENDER_ASSET_SCALE } from '../layout/UIConstants.js';
 import { drawAuthoritativeCreatureDebugOverlay } from '../debug/authoritativeCreatureDebugDraw.js';
 import { drawCollisionDebugOverlay } from '../debug/collisionDebugDraw.js';
@@ -61,7 +62,8 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
   } = input;
 
   const tiledMap = isTiledMapEnabled(input.mapId as MapId);
-  const phaserMapActive = input.phaserMapActive === true && tiledMap;
+  const proceduralFallback = isPhaserCanvasProceduralFallback(input.mapId as MapId);
+  const phaserMapActive = input.phaserMapActive === true && tiledMap && !proceduralFallback;
   const phaserEntitiesReady = input.phaserEntitiesReady === true;
   const phaserOwnsWorldSprites = phaserMapActive && phaserEntitiesReady;
   const legacyClearColor = worldMapRenderer.getBackgroundColor();

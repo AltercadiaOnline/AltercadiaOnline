@@ -4,14 +4,16 @@
  */
 import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js';
 import {
-  hasNpcAssetBundle as sharedHasNpcAssetBundle,
-  listNpcAssetBundleIds as sharedListNpcAssetBundleIds,
+  hasNpcAssetBundle,
+  listNpcAssetBundleIds,
   NPC_ASSET_BUNDLES,
   NPC_ASSET_PUBLIC_BASE,
   type NpcAssetBundleConfig,
 } from '../../shared/npc/npcAssetBundles.js';
 
 export {
+  hasNpcAssetBundle,
+  listNpcAssetBundleIds,
   NPC_ASSET_BUNDLES,
   NPC_ASSET_PUBLIC_BASE,
   type NpcAssetBundleConfig,
@@ -71,10 +73,6 @@ export function getNpcDefinition(npcId: string): NpcDefinition | null {
   return definitionRegistry[npcId] ?? null;
 }
 
-export function hasNpcAssetBundle(npcId: string): boolean {
-  return sharedHasNpcAssetBundle(npcId);
-}
-
 /** @deprecated Bundles usam metadata — retorna null; use NpcSpriteLoader. */
 export function resolveNpcSpriteImageUrl(npcId: string): string | null {
   const bundle = NPC_ASSET_BUNDLES[npcId];
@@ -84,10 +82,6 @@ export function resolveNpcSpriteImageUrl(npcId: string): string | null {
 
 export function listNpcDefinitionIds(): readonly string[] {
   return Object.keys(NPC_DEFINITION_REGISTRY);
-}
-
-export function listNpcAssetBundleIds(): readonly string[] {
-  return sharedListNpcAssetBundleIds();
 }
 
 export function isNpcDefinitionCollidable(npcId: string): boolean {

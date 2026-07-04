@@ -77,6 +77,7 @@ import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
 import { getRenderLayerBridge, isPhaserExplorationEntitiesReady, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { isPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
 import { subscribePhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
@@ -1045,7 +1046,8 @@ export class ExplorationScene implements Disposable {
         ...this.npcManager.buildDomNametagEntries(playerSnapshot, petSnapshot),
         ...this.worldMapRenderer.collectDomLabelEntries(),
       ],
-      phaserMapActive: isPhaserRenderPipelineReady(),
+      phaserMapActive: isPhaserRenderPipelineReady()
+        && !isPhaserCanvasProceduralFallback(this.mapManager.currentMapId),
       phaserEntitiesReady: isPhaserExplorationEntitiesReady(),
     });
   }

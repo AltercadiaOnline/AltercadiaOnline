@@ -46,6 +46,24 @@ function authRedirectUrl(): string {
   return resolveAuthRedirectUrl();
 }
 
+let cachedSessionAccessToken: { token: string; expiresAtMs: number } | null = null;
+
+/** Evita getSession() repetido logo após signIn/OAuth — hub + servidores rodam em paralelo. */
+export function primeSessionAccessToken(session: Session): void {
+  const expiresAtSec = session.expires_at;
+  const expiresAtMs = expiresAtSec
+    ? expiresAtSec * 1000 - 60_000
+    : Date.now() + 3_500_000;
+  cachedSessionAccessToken = {
+    token: session.access_token,
+    expiresAtMs: Math.max(Date.now() + 60_000, expiresAtMs),
+  };
+}
+
+export function clearSessionAccessTokenCache(): void {
+  cachedSessionAccessToken = null;
+}
+
 /** Inicializa o client Supabase — `config.supabaseUrl` é endpoint de API; nunca exibir na UI. */
 export async function initSupabaseAuth(config: PublicClientConfig): Promise<boolean> {
   if (getSupabase()) {
@@ -270,6 +288,14 @@ export async function resolveSessionAccessToken(options?: {
   const client = getSupabase();
   if (!client) return null;
 
+  if (
+    !options?.validateUser
+    && cachedSessionAccessToken
+    && Date.now() < cachedSessionAccessToken.expiresAtMs
+  ) {
+    return cachedSessionAccessToken.token;
+  }
+
   let session: Session | null = null;
   try {
     const { data, error } = await withAuthDeadline(
@@ -281,6 +307,7 @@ export async function resolveSessionAccessToken(options?: {
       return null;
     }
     session = data.session;
+    primeSessionAccessToken(session);
   } catch {
     return null;
   }
@@ -299,6 +326,7 @@ export async function resolveSessionAccessToken(options?: {
 
 export async function signOutSupabase(): Promise<void> {
   const client = getSupabase();
+  clearSessionAccessTokenCache();
   if (!client) return;
   try {
     await withAuthDeadline(
@@ -314,6 +342,7 @@ export async function signOutSupabase(): Promise<void> {
 
 /** Limpa sessão local sem disparar returnToLogin (side effects suprimidos). */
 export function clearLocalSupabaseSession(): void {
+  clearSessionAccessTokenCache();
   const release = suppressAuthSessionSideEffects();
   let released = false;
   const finish = (): void => {

@@ -1,4 +1,9 @@
-import { getSupabaseClient, resolveAuthRedirectUrl, clearLocalSupabaseSession } from './auth/supabaseAuth.js';
+import {
+  getSupabaseClient,
+  resolveAuthRedirectUrl,
+  clearLocalSupabaseSession,
+  primeSessionAccessToken,
+} from './auth/supabaseAuth.js';
 import {
   requestPasswordResetEmail,
   resendSignupConfirmationEmail,
@@ -22,6 +27,8 @@ export type AuthResult = {
   ok: boolean;
   message: string;
   readonly needsEmailConfirmation?: boolean;
+  /** Id Supabase retornado no signIn — evita getUser() redundante no fluxo de login. */
+  readonly userId?: string;
 };
 
 export type AuthSignUpProfile = {
@@ -249,11 +256,15 @@ export async function signInWithEmail(email: string, password: string): Promise<
     };
   }
 
+  if (data.session) {
+    primeSessionAccessToken(data.session);
+  }
+
   logAuthApiResult('login', 'success', {
     userId: data.user?.id ?? null,
     hasSession: true,
   });
-  return { ok: true, message: 'Login realizado.' };
+  return { ok: true, message: 'Login realizado.', userId: data.user?.id ?? undefined };
 }
 
 export async function requestPasswordReset(email: string): Promise<AuthResult> {

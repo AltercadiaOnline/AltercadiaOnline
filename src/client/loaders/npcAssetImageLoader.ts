@@ -1,7 +1,7 @@
 import {
   hasNpcAssetBundle,
   listNpcAssetBundleIds,
-} from '../../assets/npcs/npcDefinition.js';
+} from '../../shared/npc/npcAssetBundles.js';
 import { NpcSpriteLoader } from './NpcSpriteLoader.js';
 
 const cache = new Map<string, HTMLImageElement | null>();

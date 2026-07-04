@@ -1,4 +1,5 @@
 import { getRenderLayerBridge } from '../app/bridge/renderLayerBridge.js';
+import { disablePhaserRenderMode } from '../app/phaser/initPhaserReadyLayer.js';
 import { CANVAS_LEGACY_ID, PHASER_MOUNT_ROOT_ID } from './PhaserConfig.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
 import {
@@ -69,4 +70,5 @@ export function fallbackToCanvasExplorationPipeline(mapId?: MapId): void {
 
   getRenderLayerBridge().markPhaserSceneReady(false);
   getRenderLayerBridge().markPhaserEntitiesReady(false);
+  disablePhaserRenderMode();
 }

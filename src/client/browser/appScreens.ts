@@ -342,15 +342,16 @@ export const AppScreens = {
     showScreen('char-select-screen');
     this.clearCharacterHubError();
 
-    const serverSync = await syncCharSelectServerSelector();
+    const [serverSync, hubResult] = await Promise.all([
+      syncCharSelectServerSelector(),
+      this.loadCharacterHub(),
+    ]);
     getCharSelectBridge().setServerState(getCharSelectServerUiState());
     if (!serverSync.ok) {
       this.renderCharacterHubError(
         serverSync.message ?? 'Erro ao carregar servidores disponíveis.',
       );
     }
-
-    const hubResult = await this.loadCharacterHub();
     this.renderAccountLabel();
     if (!hubResult.ok) {
       this.renderCharacterHubError(hubResult.message ?? 'Erro ao conectar ao servidor de dados.');

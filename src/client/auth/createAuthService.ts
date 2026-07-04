@@ -1,5 +1,5 @@
 import type { AuthService } from '../../shared/authService.js';
-import { getSupabaseClient, getUser } from './supabaseAuth.js';
+import { getSupabaseClient } from './supabaseAuth.js';
 import { signInWithEmail, signUpWithEmail } from '../auth.js';
 import { resolveAccountKey } from '../services/localSessionStore.js';
 import { logAuthApiAttempt, logAuthApiResult } from './authDebug.js';
@@ -29,8 +29,7 @@ export function createAuthService(): AuthService {
       }
 
       const trimmedEmail = email.trim();
-      const supabaseUser = await getUser();
-      const accountKey = supabaseUser?.id ?? resolveAccountKey({ email: trimmedEmail });
+      const accountKey = result.userId ?? resolveAccountKey({ email: trimmedEmail });
 
       logAuthApiResult('login', 'success', { userId: accountKey });
       return {

@@ -143,7 +143,7 @@ import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
 import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
-import { bootOnlinePhaserExploration, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
+import { bootOnlinePhaserExploration, disablePhaserRenderMode, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
 import { markPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
@@ -827,6 +827,7 @@ function enterWorldAfterHudReady(): void {
   void bootOnlinePhaserExploration().then((phaserBooted) => {
     if (!phaserBooted || !world) {
       console.warn('[Altercadia] Phaser indisponível — canvas procedural.');
+      disablePhaserRenderMode();
       if (mapManager) {
         markPhaserCanvasProceduralFallback(mapManager.currentMapId);
         activeWorld.refreshCanvasLayoutForPhaserFallback(mapManager.currentMapId);

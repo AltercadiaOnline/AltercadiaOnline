@@ -2,9 +2,9 @@
  * Manifesto SSOT — definições visuais e físicas de NPCs (sprites PNG).
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
-import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js?v=0db366e';
-import { hasNpcAssetBundle as sharedHasNpcAssetBundle, listNpcAssetBundleIds as sharedListNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, } from '../../shared/npc/npcAssetBundles.js?v=0db366e';
-export { NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, };
+import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js?v=7c4b8b9';
+import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, } from '../../shared/npc/npcAssetBundles.js?v=7c4b8b9';
+export { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, };
 export const NPC_DEFINITION_REGISTRY = {
     anciao_cael: {
         width: DESIGN_NPC_DIMENSIONS.width,
@@ -47,9 +47,6 @@ const definitionRegistry = NPC_DEFINITION_REGISTRY;
 export function getNpcDefinition(npcId) {
     return definitionRegistry[npcId] ?? null;
 }
-export function hasNpcAssetBundle(npcId) {
-    return sharedHasNpcAssetBundle(npcId);
-}
 /** @deprecated Bundles usam metadata — retorna null; use NpcSpriteLoader. */
 export function resolveNpcSpriteImageUrl(npcId) {
     const bundle = NPC_ASSET_BUNDLES[npcId];
@@ -59,9 +56,6 @@ export function resolveNpcSpriteImageUrl(npcId) {
 }
 export function listNpcDefinitionIds() {
     return Object.keys(NPC_DEFINITION_REGISTRY);
-}
-export function listNpcAssetBundleIds() {
-    return sharedListNpcAssetBundleIds();
 }
 export function isNpcDefinitionCollidable(npcId) {
     const def = getNpcDefinition(npcId);
