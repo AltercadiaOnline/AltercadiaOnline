@@ -1,11 +1,8 @@
 import {
   getRenderLayerBridge,
 } from '../app/bridge/renderLayerBridge.js';
-import {
-  activatePhaserExplorationPipeline,
-  fallbackToCanvasExplorationPipeline,
-  revealPhaserMountHost,
-} from './phaserExplorationPipeline.js';
+import { revealPhaserMountHost } from './phaserExplorationPipeline.js';
+import { failTiledMapLoad } from './tiled/mapLoadFatalError.js';
 import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
   CANVAS_LEGACY_ID,
@@ -46,12 +43,7 @@ type PhaserModule = {
 let activeGame: PhaserGameInstance | null = null;
 let bootPromise: Promise<PhaserGameInstance | null> | null = null;
 
-function setRenderHostVisibility(engine: 'canvas-legacy' | 'phaser'): void {
-  if (engine === 'phaser') {
-    activatePhaserExplorationPipeline();
-    return;
-  }
-  fallbackToCanvasExplorationPipeline();
+function hidePhaserMountHost(): void {
   const phaserHost = document.getElementById(PHASER_MOUNT_ROOT_ID);
   if (phaserHost) {
     phaserHost.classList.add('hidden');
@@ -114,7 +106,12 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     console.error('[PhaserRuntime] Falha ao iniciar Phaser:', error);
     getRenderLayerBridge().markPhaserBooted(false);
     getRenderLayerBridge().markPhaserSceneReady(false);
-    setRenderHostVisibility('canvas-legacy');
+    hidePhaserMountHost();
+    const detail = error instanceof Error ? error.message : String(error);
+    failTiledMapLoad(DEFAULT_MAP_ID, [
+      'Phaser não iniciou — motor de render indisponível.',
+      `Detalhe: ${detail}`,
+    ]);
     return null;
   }).finally(() => {
     bootPromise = null;
@@ -132,7 +129,7 @@ export function shutdownPhaserRuntime(): void {
   getRenderLayerBridge().markPhaserBooted(false);
   getRenderLayerBridge().markPhaserSceneReady(false);
   getRenderLayerBridge().setActivePhaserScene(null);
-  setRenderHostVisibility('canvas-legacy');
+  hidePhaserMountHost();
 }
 
 /** Troca cena ativa sem destruir o Game Phaser. Prontidão visual fica com cada cena. */

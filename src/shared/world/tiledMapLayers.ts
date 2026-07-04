@@ -24,9 +24,15 @@ export function isTiledPropObjectLayer(layerName: string): boolean {
   return normalizeTiledLayerName(layerName) === 'props';
 }
 
-/** Object layer — spawns (sem sprite; só metadados). */
+/** Object layer — spawns (sem sprite; só metadados). Aceita alias `spawn` do Tiled. */
 export function isTiledSpawnObjectLayer(layerName: string): boolean {
-  return normalizeTiledLayerName(layerName) === 'spawns';
+  const normalized = normalizeTiledLayerName(layerName);
+  return normalized === 'spawns' || normalized === 'spawn';
+}
+
+/** Object layer — posições de NPC (pontos; sem sprite no MapLoader). */
+export function isTiledNpcObjectLayer(layerName: string): boolean {
+  return normalizeTiledLayerName(layerName) === 'npcs';
 }
 
 /** Object layer reservada a metadados de colisão (sem sprites). */
@@ -45,6 +51,7 @@ export function isTiledCollisionObjectLayer(layerName: string): boolean {
  */
 export function isTiledRenderableObjectLayer(layerName: string): boolean {
   if (isTiledSpawnObjectLayer(layerName)) return false;
+  if (isTiledNpcObjectLayer(layerName)) return false;
   if (isTiledCollisionObjectLayer(layerName)) return false;
   return true;
 }

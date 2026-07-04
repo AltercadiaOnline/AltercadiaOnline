@@ -7,9 +7,6 @@ import { getMapDefinition, type MapId } from '../../shared/world/mapRegistry.js'
 import { buildCity01PlaceholderScene, type City01PlaceholderScene } from './city01PlaceholderLayout.js';
 import { buildFarmZone01VisualLayout, type FarmZone01VisualLayout } from './farmZone01VisualLayout.js';
 import type { VisualLandmark, VisualStructure } from './city01VisualLayout.js';
-import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
-import { isPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
-import { preloadTiledMapCanvasAssets } from './tiledMapCanvasRenderer.js';
 
 export type MapVisualLayout = {
   readonly mapId: MapId;
@@ -25,8 +22,7 @@ export type MapVisualLayout = {
 };
 
 /**
- * Mapas com export Tiled (`public/assets/map_mund/`) — sem placeholder nem escala legada.
- * Posição/tamanho vêm só do JSON (MapLoader Phaser).
+ * Mapas com export Tiled — chão/objetos só no Phaser; canvas legado fica transparente.
  */
 function buildTiledAuthoritativeVisualLayout(mapId: MapId): MapVisualLayout {
   const definition = getMapDefinition(mapId);
@@ -52,47 +48,8 @@ function buildTiledAuthoritativeVisualLayout(mapId: MapId): MapVisualLayout {
   };
 }
 
-function phaserOwnsTiledGround(mapId: MapId): boolean {
-  return (
-    isTiledMapEnabled(mapId)
-    && isPhaserRenderPipelineReady()
-    && !isPhaserCanvasProceduralFallback(mapId)
-  );
-}
-
-function buildTiledCanvasFallbackVisualLayout(mapId: MapId): MapVisualLayout {
-  const definition = getMapDefinition(mapId);
-  const tileSize = definition?.tileSize ?? DESIGN_CONFIG.TILE.SIZE;
-  const mapTilesWide = definition
-    ? Math.max(1, Math.ceil(definition.pixelWidth() / tileSize))
-    : DESIGN_CONFIG.MAP.MAX_TILES_WIDTH;
-  const mapTilesHigh = definition
-    ? Math.max(1, Math.ceil(definition.pixelHeight() / tileSize))
-    : DESIGN_CONFIG.MAP.MAX_TILES_HEIGHT;
-
-  return {
-    mapId,
-    tiles: [],
-    landmarks: [],
-    structures: [],
-    placeholderScene: null,
-    showDebugLayout: false,
-    mapTilesWide,
-    mapTilesHigh,
-    tileSize,
-    background: '#0a0b0f',
-  };
-}
-
 export function buildMapVisualLayout(mapId: MapId): MapVisualLayout {
-  if (isTiledMapEnabled(mapId) && isPhaserCanvasProceduralFallback(mapId)) {
-    preloadTiledMapCanvasAssets(mapId);
-    return buildTiledCanvasFallbackVisualLayout(mapId);
-  }
-
-  // Mapas Tiled: chão no Phaser. Se o pipeline ainda não montou, canvas usa layout procedural
-  // (evita tela preta — bug que bloqueou produção por semanas).
-  if (phaserOwnsTiledGround(mapId)) {
+  if (isTiledMapEnabled(mapId)) {
     return buildTiledAuthoritativeVisualLayout(mapId);
   }
 

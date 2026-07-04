@@ -75,7 +75,7 @@ function isRefractionBoothNpcAction(actionType: NpcActionType): boolean {
 const ACTIVE_ZONE_MARGIN_TILES = 2;
 
 export class NPCManager {
-  private readonly allNpcs: NPC[];
+  private allNpcs: NPC[] = [];
   private activeNpcs: NPC[] = [];
   private nearestInteractable: NPC | null = null;
   private currentMapId: string;
@@ -84,18 +84,30 @@ export class NPCManager {
 
   constructor(mapId: string) {
     this.currentMapId = mapId;
-    this.allNpcs = getResolvedNpcRegistry()
-      .filter((entry) => entry.mapId === mapId)
-      .map((entry) => {
-        validateSpriteDimensions(entry);
-        return new NPC(entry);
-      });
+    this.rebuildNpcInstances();
   }
 
   setMapId(mapId: string): void {
     this.currentMapId = mapId;
     this.lastCullTileX = Number.NaN;
     this.lastCullTileY = Number.NaN;
+    this.rebuildNpcInstances();
+    this.refreshActiveZone(null);
+  }
+
+  private rebuildNpcInstances(): void {
+    this.allNpcs = getResolvedNpcRegistry()
+      .filter((entry) => entry.mapId === this.currentMapId)
+      .map((entry) => {
+        validateSpriteDimensions(entry);
+        return new NPC(entry);
+      });
+    this.nearestInteractable = null;
+  }
+
+  /** Recarrega instâncias após MapLoader atualizar placements Tiled. */
+  reloadFromTiledPlacements(): void {
+    this.rebuildNpcInstances();
     this.refreshActiveZone(null);
   }
 

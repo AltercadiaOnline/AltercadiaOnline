@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="17" nextobjectid="349">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="21" nextobjectid="361">
  <editorsettings>
   <export target="city_01_test.tmj" format="json"/>
  </editorsettings>
@@ -40,7 +40,7 @@
  <tileset firstgid="3526" source="../props/casinha_4_test.tsx"/>
  <tileset firstgid="3527" source="../terrain/chao_beco_dos_fundos.tsx"/>
  <tileset firstgid="3528" source="../terrain/terrain_test_pack_3.tsx"/>
- <layer id="1" name="TERRENO BASE" width="40" height="40">
+ <layer id="1" name="ground_base" width="40" height="40">
   <data encoding="csv">
 563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,
 563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,
@@ -84,7 +84,7 @@
 1572,1572,1572,1572,1572,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563,563
 </data>
  </layer>
- <layer id="13" name="RUAS" width="40" height="40">
+ <layer id="13" name="ground_roads" width="40" height="40">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1592,1593,1594,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1592,1593,1594,0,0,1539,1540,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -128,7 +128,7 @@
 0,1635,1475,0,1635,1573,0,0,0,0,0,0,0,0,0,0,0,0,0,1592,1593,1594,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="15" name="TERRENO 2" width="40" height="40">
+ <layer id="15" name="ground_02" width="40" height="40">
   <data encoding="csv">
 1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1572,1573,0,0,0,0,0,0,1571,1572,1572,1572,1572,1573,0,0,149,0,0,0,0,0,0,
 1572,1572,1635,1572,1572,1635,1572,1635,1572,1635,1572,1635,1572,1572,1635,1572,1635,1572,1573,0,0,0,0,0,0,1571,1572,1572,1572,1572,1573,0,0,149,163,163,163,163,163,163,
@@ -172,7 +172,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="14" name="TERRENO 3" width="40" height="40">
+ <layer id="14" name="ground_03" width="40" height="40">
   <data encoding="csv">
 0,3372,0,0,3372,0,0,0,3372,0,0,0,0,3372,0,3372,0,3372,0,0,0,0,0,2895,2896,0,0,0,3517,3372,0,2895,2896,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2927,2928,0,0,3517,3372,0,0,2927,2928,0,0,0,0,0,0,0,
@@ -216,7 +216,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="9" name="terreno 4" width="40" height="40">
+ <layer id="9" name="ground_04" width="40" height="40">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -260,106 +260,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <objectgroup id="11" name="objetos1-128x128">
-  <object id="211" gid="444" x="340.333" y="510.333" width="64" height="64"/>
-  <object id="212" gid="439" x="941.333" y="845.333" width="144" height="144"/>
-  <object id="214" gid="437" x="758.667" y="976" width="144" height="144"/>
-  <object id="216" gid="440" x="42" y="618" width="144" height="144"/>
-  <object id="222" gid="446" x="941.5" y="455" width="64" height="64"/>
-  <object id="223" gid="446" x="1001.5" y="507.5" width="64" height="64"/>
-  <object id="226" gid="434" x="720.333" y="405.667" width="48" height="48"/>
-  <object id="227" gid="2147484082" x="768.375" y="405.625" width="48" height="48"/>
-  <object id="228" gid="434" x="465.312" y="232.021" width="48" height="48"/>
-  <object id="229" gid="2147484082" x="513.354" y="231.979" width="48" height="48"/>
-  <object id="230" gid="436" x="624.333" y="639" width="32" height="32"/>
-  <object id="231" gid="449" x="439.667" y="823.667" width="64" height="64"/>
-  <object id="232" gid="450" x="359.667" y="787.667" width="64" height="64"/>
-  <object id="240" gid="3523" x="449.333" y="110.667" width="96" height="96"/>
-  <object id="242" gid="3523" x="251.667" y="110" width="96" height="96"/>
-  <object id="244" gid="2147487171" x="54" y="110" width="96" height="96"/>
-  <object id="245" gid="438" x="872" y="972" width="144" height="144"/>
-  <object id="246" gid="438" x="814" y="846.667" width="144" height="144"/>
-  <object id="247" gid="440" x="1088.06" y="163.152" width="144" height="144"/>
-  <object id="248" gid="447" x="664.667" y="92.6667" width="48" height="48"/>
-  <object id="249" gid="2147484095" x="590.667" y="223.333" width="48" height="48"/>
-  <object id="250" gid="2147484095" x="952.667" y="208.667" width="48" height="48"/>
-  <object id="251" gid="447" x="1126.67" y="399.333" width="48" height="48"/>
-  <object id="252" gid="447" x="1184.67" y="794" width="48" height="48"/>
-  <object id="253" gid="447" x="1186.67" y="1063.33" width="48" height="48"/>
-  <object id="254" gid="447" x="684" y="949.333" width="48" height="48"/>
-  <object id="255" gid="447" x="684" y="1222.67" width="48" height="48"/>
-  <object id="256" gid="2147484095" x="193.333" y="1168" width="48" height="48"/>
-  <object id="257" gid="2147484095" x="197.333" y="1045.33" width="48" height="48"/>
-  <object id="258" gid="2147484095" x="188" y="836" width="48" height="48"/>
-  <object id="261" gid="2147484095" x="313" y="275" width="48" height="48"/>
-  <object id="262" gid="434" x="882.833" y="605.167" width="48" height="48"/>
-  <object id="263" gid="2147484082" x="930.697" y="605.117" width="48" height="48"/>
-  <object id="265" gid="3133" x="288" y="403.75" width="32" height="32"/>
-  <object id="266" gid="3133" x="288" y="726.667" width="32" height="32"/>
-  <object id="267" gid="3133" x="1216.5" y="571" width="32" height="32"/>
-  <object id="268" gid="3133" x="1216" y="441" width="32" height="32"/>
-  <object id="269" gid="3133" x="1022" y="117.333" width="32" height="32"/>
-  <object id="270" gid="3133" x="96.3333" y="1175.67" width="32" height="32"/>
-  <object id="271" gid="3133" x="1056" y="1206.5" width="32" height="32"/>
-  <object id="272" gid="434" x="687.979" y="835.354" width="48" height="48"/>
-  <object id="273" gid="2147484082" x="736.021" y="835.312" width="48" height="48"/>
-  <object id="274" gid="448" x="162" y="605.5" width="48" height="48"/>
-  <object id="275" gid="448" x="996" y="955" width="48" height="48"/>
-  <object id="281" gid="429" x="512.5" y="892.5" width="32" height="32"/>
-  <object id="282" gid="429" x="491.5" y="920" width="32" height="32"/>
-  <object id="286" gid="429" x="392" y="897.5" width="32" height="32"/>
-  <object id="287" gid="429" x="416.5" y="919" width="32" height="32"/>
-  <object id="288" gid="429" x="412" y="900.5" width="32" height="32"/>
-  <object id="289" gid="429" x="505.5" y="905.5" width="32" height="32"/>
-  <object id="290" gid="429" x="481.5" y="896" width="32" height="32"/>
-  <object id="291" gid="2147484095" x="200.667" y="512.667" width="48" height="48"/>
-  <object id="292" gid="3525" x="197.5" y="639" width="32" height="32"/>
-  <object id="293" gid="3525" x="1017" y="628" width="32" height="32"/>
-  <object id="294" gid="3525" x="916.5" y="252" width="32" height="32"/>
-  <object id="295" gid="3525" x="1055.5" y="1082.5" width="32" height="32"/>
-  <object id="296" gid="3525" x="671.667" y="149.667" width="32" height="32"/>
-  <object id="297" gid="3526" x="347.333" y="118" width="96" height="96"/>
-  <object id="298" gid="3526" x="149.333" y="118" width="96" height="96"/>
-  <object id="300" gid="3526" x="1134" y="302.667" width="96" height="96"/>
-  <object id="301" gid="3526" x="45" y="950" width="96" height="96"/>
-  <object id="302" gid="3526" x="47" y="1038" width="96" height="96"/>
-  <object id="303" gid="3526" x="44" y="861" width="96" height="96"/>
-  <object id="304" gid="3526" x="43" y="763" width="96" height="96"/>
-  <object id="305" gid="434" x="863.401" y="1130.36" width="48" height="48"/>
-  <object id="306" gid="2147484082" x="911.265" y="1130.31" width="48" height="48"/>
-  <object id="307" gid="446" x="801.333" y="472.667" width="64" height="64"/>
-  <object id="308" gid="433" x="618.25" y="760.75" width="48" height="48"/>
-  <object id="309" gid="433" x="793" y="537" width="48" height="48"/>
-  <object id="314" gid="4514" x="216" y="723.75" width="25" height="22.75"/>
-  <object id="315" gid="4514" x="264" y="752.625" width="25" height="22.75"/>
-  <object id="316" gid="4514" x="258" y="832.125" width="25" height="22.75"/>
-  <object id="317" gid="4514" x="222.5" y="796.125" width="25" height="22.75"/>
-  <object id="318" gid="4514" x="227" y="779.625" width="25" height="22.75"/>
-  <object id="319" gid="4514" x="259" y="849.625" width="25" height="22.75"/>
-  <object id="320" gid="4514" x="262.5" y="838.625" width="25" height="22.75"/>
-  <object id="321" gid="4514" x="223.5" y="874.125" width="25" height="22.75"/>
-  <object id="322" gid="4514" x="527.5" y="1025.96" width="25" height="22.75"/>
-  <object id="323" gid="4514" x="530.833" y="1020.63" width="25" height="22.75"/>
-  <object id="324" gid="4514" x="480.333" y="1022.79" width="25" height="22.75"/>
-  <object id="325" gid="4514" x="483.666" y="1017.46" width="25" height="22.75"/>
-  <object id="326" gid="4514" x="264.25" y="1198.79" width="25" height="22.75"/>
-  <object id="327" gid="4514" x="267.583" y="1193.46" width="25" height="22.75"/>
-  <object id="330" gid="4514" x="346.334" y="1019.04" width="25" height="22.75"/>
-  <object id="331" gid="4514" x="349.666" y="1013.71" width="25" height="22.75"/>
-  <object id="334" gid="4514" x="453.75" y="1090.33" width="25" height="22.75"/>
-  <object id="335" gid="4514" x="457.083" y="1085" width="25" height="22.75"/>
-  <object id="336" gid="4514" x="406.583" y="1087.16" width="25" height="22.75"/>
-  <object id="337" gid="4514" x="409.916" y="1081.83" width="25" height="22.75"/>
-  <object id="338" gid="4514" x="395.834" y="1087.16" width="25" height="22.75"/>
-  <object id="339" gid="4514" x="399.166" y="1081.83" width="25" height="22.75"/>
-  <object id="340" gid="4514" x="335.084" y="1083.66" width="25" height="22.75"/>
-  <object id="341" gid="4514" x="338.416" y="1078.33" width="25" height="22.75"/>
-  <object id="342" gid="4514" x="272.584" y="1083.41" width="25" height="22.75"/>
-  <object id="343" gid="4514" x="275.916" y="1078.08" width="25" height="22.75"/>
-  <object id="344" gid="4514" x="325.834" y="1082.91" width="25" height="22.75"/>
-  <object id="345" gid="4514" x="329.166" y="1077.58" width="25" height="22.75"/>
- </objectgroup>
- <layer id="16" name="TERRENO 5 TOPO ARVORE" width="40" height="40">
+ <layer id="16" name="ground_props_top" width="40" height="40">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3003,3004,3005,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3035,3036,3037,0,0,0,0,0,0,
@@ -403,5 +304,297 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <objectgroup id="12" name="pulpito"/>
+ <objectgroup id="11" name="objetos1-128x128">
+  <object id="211" gid="444" x="340.333" y="510.333" width="64" height="64"/>
+  <object id="212" gid="439" x="941.333" y="845.333" width="144" height="144">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="214" gid="437" x="758.667" y="976" width="144" height="144">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="216" gid="440" x="42" y="618" width="144" height="144">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="222" gid="446" x="941.5" y="455" width="64" height="64"/>
+  <object id="223" gid="446" x="1001.5" y="507.5" width="64" height="64"/>
+  <object id="226" gid="434" x="720.333" y="405.667" width="48" height="48"/>
+  <object id="227" gid="2147484082" x="768.375" y="405.625" width="48" height="48"/>
+  <object id="228" gid="434" x="465.312" y="232.021" width="48" height="48"/>
+  <object id="229" gid="2147484082" x="513.354" y="231.979" width="48" height="48"/>
+  <object id="230" gid="436" x="624.333" y="639" width="32" height="32"/>
+  <object id="231" gid="449" x="439.667" y="823.667" width="64" height="64"/>
+  <object id="232" gid="450" x="359.667" y="787.667" width="64" height="64"/>
+  <object id="240" gid="3523" x="449.333" y="110.667" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="242" gid="3523" x="251.667" y="110" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="244" gid="2147487171" x="54" y="110" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="245" gid="438" x="872" y="972" width="144" height="144">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="246" gid="438" x="814" y="846.667" width="144" height="144">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="247" gid="440" x="1088.06" y="163.152" width="144" height="144">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="248" gid="447" x="664.667" y="92.6667" width="48" height="48"/>
+  <object id="249" gid="2147484095" x="590.667" y="223.333" width="48" height="48"/>
+  <object id="250" gid="2147484095" x="952.667" y="208.667" width="48" height="48">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="251" gid="447" x="1126.67" y="399.333" width="48" height="48">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="252" gid="447" x="1184.67" y="794" width="48" height="48"/>
+  <object id="253" gid="447" x="1186.67" y="1063.33" width="48" height="48"/>
+  <object id="254" gid="447" x="684" y="949.333" width="48" height="48">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="255" gid="447" x="684" y="1222.67" width="48" height="48">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="256" gid="2147484095" x="193.333" y="1168" width="48" height="48"/>
+  <object id="257" gid="2147484095" x="197.333" y="1045.33" width="48" height="48">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="258" gid="2147484095" x="188" y="836" width="48" height="48">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="261" gid="2147484095" x="313" y="275" width="48" height="48"/>
+  <object id="262" gid="434" x="882.833" y="605.167" width="48" height="48"/>
+  <object id="263" gid="2147484082" x="930.697" y="605.117" width="48" height="48"/>
+  <object id="265" gid="3133" x="288" y="403.75" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="266" gid="3133" x="288" y="726.667" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="267" gid="3133" x="1216.5" y="571" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="268" gid="3133" x="1216" y="441" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="269" gid="3133" x="1022" y="117.333" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="270" gid="3133" x="96.3333" y="1175.67" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="271" gid="3133" x="1056" y="1206.5" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="272" gid="434" x="687.979" y="835.354" width="48" height="48"/>
+  <object id="273" gid="2147484082" x="736.021" y="835.312" width="48" height="48"/>
+  <object id="274" gid="448" x="162" y="605.5" width="48" height="48"/>
+  <object id="275" gid="448" x="996" y="955" width="48" height="48"/>
+  <object id="281" gid="429" x="512.5" y="892.5" width="32" height="32"/>
+  <object id="282" gid="429" x="491.5" y="920" width="32" height="32"/>
+  <object id="286" gid="429" x="392" y="897.5" width="32" height="32"/>
+  <object id="287" gid="429" x="416.5" y="919" width="32" height="32"/>
+  <object id="288" gid="429" x="412" y="900.5" width="32" height="32"/>
+  <object id="289" gid="429" x="505.5" y="905.5" width="32" height="32"/>
+  <object id="290" gid="429" x="481.5" y="896" width="32" height="32"/>
+  <object id="291" gid="2147484095" x="200.667" y="512.667" width="48" height="48">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="292" gid="3525" x="197.5" y="639" width="32" height="32"/>
+  <object id="293" gid="3525" x="1017" y="628" width="32" height="32">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="294" gid="3525" x="916.5" y="252" width="32" height="32"/>
+  <object id="295" gid="3525" x="1055.5" y="1082.5" width="32" height="32"/>
+  <object id="296" gid="3525" x="671.667" y="149.667" width="32" height="32"/>
+  <object id="297" gid="3526" x="347.333" y="118" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="298" gid="3526" x="149.333" y="118" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="300" gid="3526" x="1134" y="302.667" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="301" gid="3526" x="45" y="950" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="302" gid="3526" x="47" y="1038" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="303" gid="3526" x="44" y="861" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="304" gid="3526" x="43" y="763" width="96" height="96">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="305" gid="434" x="863.401" y="1130.36" width="48" height="48"/>
+  <object id="306" gid="2147484082" x="911.265" y="1130.31" width="48" height="48"/>
+  <object id="307" gid="446" x="801.333" y="472.667" width="64" height="64"/>
+  <object id="308" gid="433" x="618.25" y="760.75" width="48" height="48"/>
+  <object id="309" gid="433" x="793" y="537" width="48" height="48"/>
+  <object id="314" gid="4514" x="216" y="723.75" width="25" height="22.75"/>
+  <object id="315" gid="4514" x="264" y="752.625" width="25" height="22.75"/>
+  <object id="316" gid="4514" x="258" y="832.125" width="25" height="22.75"/>
+  <object id="317" gid="4514" x="222.5" y="796.125" width="25" height="22.75"/>
+  <object id="318" gid="4514" x="227" y="779.625" width="25" height="22.75"/>
+  <object id="319" gid="4514" x="259" y="849.625" width="25" height="22.75"/>
+  <object id="320" gid="4514" x="262.5" y="838.625" width="25" height="22.75"/>
+  <object id="321" gid="4514" x="223.5" y="874.125" width="25" height="22.75"/>
+  <object id="322" gid="4514" x="527.5" y="1025.96" width="25" height="22.75"/>
+  <object id="323" gid="4514" x="530.833" y="1020.63" width="25" height="22.75"/>
+  <object id="324" gid="4514" x="480.333" y="1022.79" width="25" height="22.75"/>
+  <object id="325" gid="4514" x="483.666" y="1017.46" width="25" height="22.75"/>
+  <object id="326" gid="4514" x="264.25" y="1198.79" width="25" height="22.75"/>
+  <object id="327" gid="4514" x="267.583" y="1193.46" width="25" height="22.75"/>
+  <object id="330" gid="4514" x="346.334" y="1019.04" width="25" height="22.75"/>
+  <object id="331" gid="4514" x="349.666" y="1013.71" width="25" height="22.75"/>
+  <object id="334" gid="4514" x="453.75" y="1090.33" width="25" height="22.75"/>
+  <object id="335" gid="4514" x="457.083" y="1085" width="25" height="22.75"/>
+  <object id="336" gid="4514" x="406.583" y="1087.16" width="25" height="22.75"/>
+  <object id="337" gid="4514" x="409.916" y="1081.83" width="25" height="22.75"/>
+  <object id="338" gid="4514" x="395.834" y="1087.16" width="25" height="22.75"/>
+  <object id="339" gid="4514" x="399.166" y="1081.83" width="25" height="22.75"/>
+  <object id="340" gid="4514" x="335.084" y="1083.66" width="25" height="22.75"/>
+  <object id="341" gid="4514" x="338.416" y="1078.33" width="25" height="22.75"/>
+  <object id="342" gid="4514" x="272.584" y="1083.41" width="25" height="22.75"/>
+  <object id="343" gid="4514" x="275.916" y="1078.08" width="25" height="22.75"/>
+  <object id="344" gid="4514" x="325.834" y="1082.91" width="25" height="22.75"/>
+  <object id="345" gid="4514" x="329.166" y="1077.58" width="25" height="22.75"/>
+ </objectgroup>
+ <objectgroup id="12" name="pulpito">
+  <properties>
+   <property name="collidable" type="bool" value="true"/>
+  </properties>
+ </objectgroup>
+ <objectgroup id="20" name="npcs">
+  <properties>
+   <property name="collidable" type="bool" value="true"/>
+  </properties>
+  <object id="354" name="anciao_cael" x="706" y="480.667">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="355" name="treinador_zeno" x="407" y="804.5">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="356" name="vendedor" x="830" y="1012.67">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="357" name="alquimista" x="950" y="1008">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="359" name="banqueiro" x="1104" y="183.333">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="360" name="ferreiro" x="374.667" y="1156">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+   <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="17" name="spawns">
+  <object id="349" name="player_spawn" x="632.667" y="496.667">
+   <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="18" name="computador da arena">
+  <properties>
+   <property name="collidable" type="bool" value="true"/>
+  </properties>
+  <object id="350" name="computador_arena" x="640" y="737.333">
+   <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="19" name="computador mercado">
+  <properties>
+   <property name="collidable" type="bool" value="true"/>
+  </properties>
+  <object id="351" name="terminal_mercado" x="817.333" y="521">
+   <properties>
+    <property name="collidable" type="bool" value="true"/>
+   </properties>
+   <point/>
+  </object>
+ </objectgroup>
 </map>

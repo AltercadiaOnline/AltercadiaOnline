@@ -29,6 +29,7 @@ import { CameraManager } from './CameraManager.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { resolveSceneConfigForMapId } from '../../config/sceneConfig.js';
 import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
+import { getTiledMapPlayerSpawn } from '../../shared/world/tiledMapPlacements.js';
 import { applyPhaserMapInstanceSwap } from '../phaser/MapInstanceTransitionCoordinator.js';
 
 import { Player } from '../entities/Player.js';
@@ -77,9 +78,7 @@ import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
 import { getRenderLayerBridge, isPhaserExplorationEntitiesReady, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
-import { isPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
-import { subscribePhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
 import { sortWorldActorsByDepth } from '../world/worldActorsRenderSnapshot.js';
 import {
@@ -113,6 +112,7 @@ import { isAuthoritativeWorldSocket } from '../world/authoritativeWorldSocket.js
 import { resetInteractionCardController } from '../world/interactionCardController.js';
 import { resetNpcModalController } from '../ui/npcModalController.js';
 import type { Disposable } from '../utils/Disposable.js';
+import { subscribeTiledMapPlacementsCommitted } from '../world/tiledMapPlacementsBridge.js';
 
 export class ExplorationScene implements Disposable {
   private readonly canvas: HTMLCanvasElement;
@@ -171,7 +171,7 @@ export class ExplorationScene implements Disposable {
 
   private offPortalAccessDenied: (() => void) | null = null;
 
-  private offPhaserCanvasFallback: (() => void) | null = null;
+  private offTiledPlacementsCommitted: (() => void) | null = null;
 
   private portalConfirmationCleanup: (() => void) | null = null;
 
@@ -246,15 +246,20 @@ export class ExplorationScene implements Disposable {
       scene: resolveSceneConfigForMapId(mapManager.currentMapId),
     });
 
+    const initialMapId = mapManager.currentMapId;
+    const tiledSpawn = isTiledMapEnabled(initialMapId)
+      ? getTiledMapPlayerSpawn(initialMapId)
+      : null;
+
     this.player = new Player(worldSocket, {
 
-      x: mapManager.pixelWidth / 2,
+      x: tiledSpawn?.x ?? mapManager.pixelWidth / 2,
 
-      y: mapManager.pixelHeight / 2,
+      y: tiledSpawn?.y ?? mapManager.pixelHeight / 2,
 
-      facing: 'south',
+      facing: tiledSpawn?.facing ?? 'south',
 
-      mapId: mapManager.currentMapId,
+      mapId: initialMapId,
 
     });
 
@@ -317,6 +322,12 @@ export class ExplorationScene implements Disposable {
     this.player.calculateStats();
 
     this.npcManager = new NPCManager(mapManager.currentMapId);
+
+    this.offTiledPlacementsCommitted = subscribeTiledMapPlacementsCommitted((mapId) => {
+      if (this.disposed || this.mapManager.currentMapId !== mapId) return;
+      this.npcManager.reloadFromTiledPlacements();
+      this.pointClickController.refreshInteractables();
+    });
 
     this.worldMap = new WorldMap({
       onStartBattle: (monsterId) => this.onRequestCombat?.(monsterId),
@@ -427,11 +438,6 @@ export class ExplorationScene implements Disposable {
     });
 
 
-
-    this.offPhaserCanvasFallback = subscribePhaserCanvasProceduralFallback((mapId) => {
-      if (this.disposed || this.mapManager.currentMapId !== mapId) return;
-      this.refreshCanvasLayoutForPhaserFallback(mapId);
-    });
 
     void preloadPlayerSprites();
     void import('../entities/pet/PetSpriteLoader.js').then((mod) => mod.preloadPetSprites());
@@ -891,14 +897,6 @@ export class ExplorationScene implements Disposable {
 
 
 
-  /** Canvas procedural enquanto Phaser monta ou após fallback do mapa Tiled. */
-  public refreshCanvasLayoutForPhaserFallback(mapId: MapId): void {
-    if (this.mapManager.currentMapId !== mapId) return;
-    this.worldMapRenderer.setMapId(mapId);
-    this.prepareFrame(0);
-    this.renderWorld(performance.now());
-  }
-
   public prepareFrame(deltaMs = 16.67): void {
     const drawPosition = { x: this.player.renderX, y: this.player.renderY };
 
@@ -928,16 +926,12 @@ export class ExplorationScene implements Disposable {
           ...this.worldMap.collectCreatureRenderSnapshots(),
           ...this.npcManager.collectNpcRenderSnapshots(timestampMs),
         ]),
-        terrainTiles:
-          isTiledMapEnabled(this.mapManager.currentMapId)
-          && !isPhaserCanvasProceduralFallback(this.mapManager.currentMapId)
-            ? []
-            : this.worldMapRenderer.collectGroundTileSnapshots(),
-        worldStructures:
-          isTiledMapEnabled(this.mapManager.currentMapId)
-          && !isPhaserCanvasProceduralFallback(this.mapManager.currentMapId)
-            ? []
-            : this.worldMapRenderer.collectStructureSnapshots({
+        terrainTiles: isTiledMapEnabled(this.mapManager.currentMapId)
+          ? []
+          : this.worldMapRenderer.collectGroundTileSnapshots(),
+        worldStructures: isTiledMapEnabled(this.mapManager.currentMapId)
+          ? []
+          : this.worldMapRenderer.collectStructureSnapshots({
               x: this.player.renderX,
               y: this.player.renderY,
             }),
@@ -1050,8 +1044,7 @@ export class ExplorationScene implements Disposable {
         ...this.npcManager.buildDomNametagEntries(playerSnapshot, petSnapshot),
         ...this.worldMapRenderer.collectDomLabelEntries(),
       ],
-      phaserMapActive: isPhaserRenderPipelineReady()
-        && !isPhaserCanvasProceduralFallback(this.mapManager.currentMapId),
+      phaserMapActive: isPhaserRenderPipelineReady() && isTiledMapEnabled(this.mapManager.currentMapId),
       phaserEntitiesReady: isPhaserExplorationEntitiesReady(),
     });
   }
@@ -1095,8 +1088,8 @@ export class ExplorationScene implements Disposable {
     }
     this.offPlayerUpdate = null;
     this.offPortalAccessDenied = null;
-    this.offPhaserCanvasFallback?.();
-    this.offPhaserCanvasFallback = null;
+    this.offTiledPlacementsCommitted?.();
+    this.offTiledPlacementsCommitted = null;
 
     this.zoneTransitionCleanup?.();
     this.zoneTransitionCleanup = null;

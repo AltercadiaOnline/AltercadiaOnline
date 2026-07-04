@@ -11,15 +11,15 @@ import {
 import {
   isTiledCollisionTileLayer,
   isTiledRenderableObjectLayer,
-  isTiledSpawnObjectLayer,
   isTiledVisualTileLayer,
 } from '../../../shared/world/tiledMapLayers.js';
-import {
-  resolveTiledPlayerSpawn,
-  type TiledPlayerSpawn,
-} from '../../../shared/world/tiledMapSpawn.js';
+import type { TiledPlayerSpawn } from '../../../shared/world/tiledMapSpawn.js';
+import { parseTiledMapPlacements } from '../../../shared/world/parseTiledMapPlacements.js';
+import { setTiledMapPlacements } from '../../../shared/world/tiledMapPlacements.js';
+import { NPC_REGISTRY_WITH_LORE } from '../../../shared/world/npcRegistry.js';
 import { resolvePhaserWorldDepth, PHASER_GROUND_DEPTH } from '../layout/phaserWorldDepth.js';
 import { getTiledAssetManager } from './TiledAssetManager.js';
+import { failTiledMapLoad } from './mapLoadFatalError.js';
 import type {
   MapLoaderMountResult,
   MapLoaderScene,
@@ -38,7 +38,10 @@ const TILED_LAYER_DATA_KEY = 'tiledLayer';
  * - Tile layers (ground, decor): visuais estáticos
  * - Object layers (structures, props): sprites + collidable opcional
  * - collision: física invisível (tiles com collides)
- * - spawns: player_spawn → coordenadas para o sistema de jogador
+ * - spawns: player_spawn → coordenadas do jogador
+ * - npcs: pontos com name = id do NPC_REGISTRY → posição e collidable
+ *
+ * Modo estrito: qualquer falha de montagem interrompe o jogo com diagnóstico Tiled.
  */
 export class MapLoader {
   private readonly assets = getTiledAssetManager();
@@ -85,9 +88,14 @@ export class MapLoader {
     return true;
   }
 
-  load(scene: MapLoaderScene, mapId: MapId): MapLoaderMountResult | null {
+  load(scene: MapLoaderScene, mapId: MapId): MapLoaderMountResult {
+    const issues: string[] = [];
     const descriptor = resolveTiledMapDescriptor(mapId);
-    if (!descriptor) return null;
+    if (!descriptor) {
+      failTiledMapLoad(mapId, [
+        `Export Tiled ausente para "${mapId}" — adicione o .tmj em public/assets/map_mund/ e rode npm run mirror:map-mund.`,
+      ]);
+    }
 
     this.destroy();
     this.scene = scene;
@@ -99,27 +107,43 @@ export class MapLoader {
     try {
       map = scene.make.tilemap({ key: descriptor.cacheKey });
     } catch (error) {
-      console.error('[MapLoader] Falha ao parsear tilemap Tiled:', mapId, error);
-      this.destroy();
-      return null;
+      const detail = error instanceof Error ? error.message : String(error);
+      failTiledMapLoad(mapId, [
+        `Phaser não conseguiu parsear o JSON do mapa (${descriptor.jsonUrl}).`,
+        `Detalhe: ${detail}`,
+        'Verifique tilewidth/tileheight (32×32), tilesets embutidos e camadas válidas no Tiled.',
+      ]);
     }
     this.map = map;
 
-    const tilesets = this.bindTilesets(map, descriptor.cacheKey, descriptor.jsonUrl);
+    const tilesets = this.bindTilesets(map, descriptor.cacheKey, descriptor.jsonUrl, issues);
     this.expectedTilesetCount = map.tilesets.length;
     this.boundTilesetCount = tilesets.length;
+
     if (this.boundGridTilesetCount === 0) {
-      console.error('[MapLoader] Nenhum tileset 32×32 vinculado para', mapId);
-      return null;
+      issues.push(
+        `Nenhum tileset ${map.tileWidth}×${map.tileHeight} vinculado — tile layers precisam de PNGs em /terrain/ com dimensões múltiplas de ${map.tileWidth}px.`,
+      );
     }
 
     this.worldRoot = scene.add.container(0, 0);
     this.worldRoot.setDepth(PHASER_GROUND_DEPTH);
 
-    this.buildVisualTileLayers(map, tilesets);
+    this.buildVisualTileLayers(map, tilesets, issues);
     this.buildCollisionPhysics(map, tilesets);
-    this.buildStructureAndPropLayers(map, tilesets, mapId, descriptor.cacheKey, descriptor.jsonUrl);
-    this.playerSpawn = this.resolvePlayerSpawn(descriptor.cacheKey);
+    this.buildStructureAndPropLayers(map, tilesets, mapId, descriptor.cacheKey, descriptor.jsonUrl, issues);
+    this.playerSpawn = this.applyTiledPlacementsFromCache(descriptor.cacheKey, mapId, issues);
+
+    if (this.visualTileLayers.length === 0) {
+      issues.push(
+        'Nenhuma camada visual de tiles montada — crie tile layers (ground/decor) com tilesets 32×32 e GIDs válidos.',
+      );
+    }
+
+    if (issues.length > 0) {
+      this.destroy();
+      failTiledMapLoad(mapId, issues);
+    }
 
     return {
       mapId,
@@ -161,12 +185,10 @@ export class MapLoader {
     return true;
   }
 
-  /** Camadas de tile visuais montadas (ground/decor). */
   getVisualTileLayerCount(): number {
     return this.visualTileLayers.length;
   }
 
-  /** Tilesets com textura vinculada — não exige 100% (assets opcionais podem faltar). */
   allTilesetsBound(): boolean {
     return this.boundTilesetCount > 0;
   }
@@ -213,10 +235,10 @@ export class MapLoader {
     this.scene = null;
   }
 
-  /** ground, decor — tile layers visuais (sem colisão). */
   private buildVisualTileLayers(
     map: PhaserTiledTilemap,
     tilesets: readonly PhaserTiledTileset[],
+    issues: string[],
   ): void {
     let depth = PHASER_GROUND_DEPTH;
     const gridTilesets = tilesets.filter(
@@ -229,7 +251,9 @@ export class MapLoader {
 
       const tileLayer = map.createLayer(layer.name, gridTilesets, 0, 0);
       if (!tileLayer) {
-        console.warn('[MapLoader] Camada Tiled ignorada — tilesets 32×32 ausentes:', layer.name);
+        issues.push(
+          `Camada "${layer.name}" não montou — tilesets 32×32 ausentes ou GIDs inválidos (props 48/128px devem ficar só em object layers).`,
+        );
         continue;
       }
 
@@ -239,7 +263,6 @@ export class MapLoader {
     }
   }
 
-  /** collision — invisível; blocos de física estáticos nos tiles com `collides: true`. */
   private buildCollisionPhysics(
     map: PhaserTiledTilemap,
     tilesets: readonly PhaserTiledTileset[],
@@ -272,13 +295,13 @@ export class MapLoader {
     }
   }
 
-  /** structures + props — sprites com Y-sort e collidable opcional. */
   private buildStructureAndPropLayers(
     map: PhaserTiledTilemap,
     tilesets: readonly PhaserTiledTileset[],
     mapId: MapId,
     cacheKey: string,
     jsonUrl: string,
+    issues: string[],
   ): void {
     const scene = this.scene;
     if (!scene || !this.worldRoot) return;
@@ -310,10 +333,8 @@ export class MapLoader {
 
         const textureKey = this.assets.objectTextureKey(cacheKey, imagePath);
         if (!scene.textures.exists(textureKey)) {
-          console.error(
-            '[MapLoader] Textura de objeto ausente:',
-            textureKey,
-            this.assets.resolvePublicUrl(jsonUrl, imagePath),
+          issues.push(
+            `Textura de objeto ausente na camada "${layer.name}": ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
           );
           continue;
         }
@@ -331,25 +352,70 @@ export class MapLoader {
     }
   }
 
-  /** spawns — lê player_spawn; não instancia sprite. */
-  private resolvePlayerSpawn(cacheKey: string): TiledPlayerSpawn | null {
+  private applyTiledPlacementsFromCache(
+    cacheKey: string,
+    mapId: MapId,
+    issues: string[],
+  ): TiledPlayerSpawn | null {
     const scene = this.scene;
     if (!scene) return null;
 
     const mapData = scene.cache.tilemap.get(cacheKey);
-    if (!mapData) return null;
+    if (!mapData) {
+      issues.push('Cache do tilemap indisponível após parse — recarregue a página.');
+      return null;
+    }
 
-    for (const layer of mapData.data.layers) {
-      if (!isTiledSpawnObjectLayer(layer.name)) continue;
+    const parsed = parseTiledMapPlacements(mapId, mapData.data as Parameters<typeof parseTiledMapPlacements>[1]);
+    issues.push(...parsed.issues);
 
-      for (const object of layer.objects ?? []) {
-        const spawn = resolveTiledPlayerSpawn(object);
-        if (spawn) return spawn;
+    if (!parsed.spawnLayerFound) {
+      issues.push('Camada "spawns" (ou "spawn") ausente — crie uma object layer no Tiled.');
+    } else if (!parsed.placements.playerSpawn) {
+      issues.push(
+        'Objeto de spawn ausente — use name/type player_spawn ou spawn_zona_* na camada spawns/spawn.',
+      );
+    }
+
+    const registryIds = NPC_REGISTRY_WITH_LORE
+      .filter((entry) => entry.mapId === mapId)
+      .map((entry) => entry.id);
+
+    if (registryIds.length > 0) {
+      if (!parsed.npcLayerFound) {
+        issues.push(
+          'Camada "npcs" ausente — crie uma object layer "npcs" com um ponto por NPC (name = id do NPC_REGISTRY).',
+        );
+      } else if (parsed.placements.npcs.size === 0) {
+        issues.push(
+          'Camada "npcs" vazia — adicione pontos com name igual ao id do NPC (ex.: ferreiro, anciao_cael).',
+        );
       }
     }
 
-    console.warn('[MapLoader] player_spawn não encontrado na camada spawns.');
-    return null;
+    for (const npcId of parsed.placements.npcs.keys()) {
+      if (!registryIds.includes(npcId)) {
+        issues.push(
+          `NPC desconhecido na camada npcs: "${npcId}" — use o id exato do NPC_REGISTRY (ex.: ferreiro, anciao_cael).`,
+        );
+      }
+    }
+
+    if (parsed.placements.npcs.size > 0) {
+      for (const registryId of registryIds) {
+        if (!parsed.placements.npcs.has(registryId)) {
+          console.warn(
+            `[MapLoader] NPC_REGISTRY "${registryId}" ausente na camada Tiled npcs — posição legada do registro.`,
+          );
+        }
+      }
+    }
+
+    setTiledMapPlacements(mapId, parsed.placements);
+    void import('../../world/tiledMapPlacementsBridge.js').then(({ notifyTiledMapPlacementsCommitted }) => {
+      notifyTiledMapPlacementsCommitted(mapId);
+    });
+    return parsed.placements.playerSpawn;
   }
 
   private registerMapObject(
@@ -429,6 +495,7 @@ export class MapLoader {
     map: PhaserTiledTilemap,
     cacheKey: string,
     jsonUrl: string,
+    issues: string[],
   ): PhaserTiledTileset[] {
     const bound: PhaserTiledTileset[] = [];
     this.boundGridTilesetCount = 0;
@@ -452,11 +519,15 @@ export class MapLoader {
 
       if (!textureKey) {
         const imagePath = tileset.image;
-        if (imagePath) {
-          console.warn(
-            '[MapLoader] Textura de tileset ausente — tile ignorado:',
-            tileset.name,
-            this.assets.resolvePublicUrl(jsonUrl, imagePath),
+        const isGridTileset =
+          tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight;
+        if (imagePath && isGridTileset) {
+          issues.push(
+            `Tileset 32×32 "${tileset.name}" sem textura carregada: ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
+          );
+        } else if (imagePath) {
+          issues.push(
+            `Tileset "${tileset.name}" (${tileset.tileWidth}×${tileset.tileHeight}) referenciado — props grandes devem usar object layers, não tile layers.`,
           );
         }
         continue;
@@ -472,9 +543,9 @@ export class MapLoader {
     }
 
     if (bound.length < map.tilesets.length) {
-      console.warn(
-        `[MapLoader] ${bound.length}/${map.tilesets.length} tilesets vinculados para`,
-        this.mountedMapId,
+      const missing = map.tilesets.length - bound.length;
+      issues.push(
+        `${missing}/${map.tilesets.length} tileset(s) não vinculado(s) — confira paths no Tiled e npm run mirror:map-mund.`,
       );
     }
 

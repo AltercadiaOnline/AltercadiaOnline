@@ -70,10 +70,6 @@ export class NPC {
 
     validateSpriteDimensions(entry);
 
-
-
-    const center = tileCenterToWorldPixel(entry.tileX, entry.tileY, resolveMapTileSize(entry.mapId));
-
     this.id = entry.id;
 
     this.name = entry.name;
@@ -92,9 +88,14 @@ export class NPC {
 
     this.dimensions = entry.dimensions;
 
-    this.isCollidable = isNpcDefinitionCollidable(entry.id);
+    this.isCollidable = entry.collidable ?? isNpcDefinitionCollidable(entry.id);
 
     this.animationSpeed = resolveNpcAnimationSpeed(entry.id);
+
+    const tileSize = resolveMapTileSize(entry.mapId);
+    const hasTiledFeet = entry.worldX !== undefined && entry.worldY !== undefined;
+    const worldX = hasTiledFeet ? entry.worldX! : tileCenterToWorldPixel(entry.tileX, entry.tileY, tileSize).x;
+    const worldY = hasTiledFeet ? entry.worldY! : tileCenterToWorldPixel(entry.tileX, entry.tileY, tileSize).y;
 
     this.position = {
 
@@ -102,9 +103,9 @@ export class NPC {
 
       tileY: entry.tileY,
 
-      worldX: center.x,
+      worldX,
 
-      worldY: center.y,
+      worldY,
 
     };
 

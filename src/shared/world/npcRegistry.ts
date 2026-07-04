@@ -46,6 +46,11 @@ export type NpcRegistryEntry = {
   readonly dimensions: NpcSpriteDimensions;
   /** Destaque visual (ícone ★ acima da nametag). */
   readonly featured?: boolean;
+  /** Posição exata dos pés — definida pela camada Tiled `npcs`. */
+  readonly worldX?: number;
+  readonly worldY?: number;
+  /** Colisão — prioridade sobre npcDefinition quando vem do Tiled. */
+  readonly collidable?: boolean;
 };
 
 /** Raio de interação em tiles (distância euclidiana centro-a-centro). */

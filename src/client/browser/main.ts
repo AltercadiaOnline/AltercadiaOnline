@@ -144,10 +144,8 @@ import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
 import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
-import { bootOnlinePhaserExploration, disablePhaserRenderMode, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
-import { markPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
-import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
-import { preloadTiledMapCanvasAssets } from '../world/tiledMapCanvasRenderer.js';
+import { bootOnlinePhaserExploration, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
+import { registerMapLoadFatalHandler } from '../phaser/tiled/mapLoadFatalError.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
@@ -607,8 +605,10 @@ function connectSocket(): void {
  */
 const HUD_RUNTIME_BOOT_TIMEOUT_MS = 8000;
 
-/** Canvas procedural temporário se o mapa Tiled demorar — Phaser continua carregando. */
-const PHASER_PROCEDURAL_FALLBACK_MS = 8_000;
+registerMapLoadFatalHandler(() => {
+  worldStarted = false;
+  getGameRenderLoop().stop();
+});
 
 function enterWorld(): void {
   if (worldStarted) return;
@@ -812,12 +812,6 @@ function enterWorldAfterHudReady(): void {
   activeWorld.prepareFrame(0);
   activeWorld.renderWorld(performance.now());
 
-  if (mapManager && isTiledMapEnabled(mapManager.currentMapId)) {
-    markPhaserCanvasProceduralFallback(mapManager.currentMapId);
-    activeWorld.refreshCanvasLayoutForPhaserFallback(mapManager.currentMapId);
-    preloadTiledMapCanvasAssets(mapManager.currentMapId);
-  }
-
   worldStarted = true;
   initDebugMenuIfAllowed({
     currentUserEmail: AppScreens.currentSession?.email ?? null,
@@ -829,28 +823,11 @@ function enterWorldAfterHudReady(): void {
 
   void bootOnlinePhaserExploration().then((phaserBooted) => {
     if (!phaserBooted || !world) {
-      console.warn('[Altercadia] Phaser indisponível — canvas procedural.');
-      disablePhaserRenderMode();
-      if (mapManager) {
-        markPhaserCanvasProceduralFallback(mapManager.currentMapId);
-        activeWorld.refreshCanvasLayoutForPhaserFallback(mapManager.currentMapId);
-      }
       return;
     }
     world.prepareFrame(0);
     world.syncWorldDomOverlay(performance.now());
-    console.debug('[Altercadia] Runtime Phaser iniciado — aguardando montagem do mapa.');
-
-    window.setTimeout(() => {
-      if (!worldStarted || !world || isPhaserRenderPipelineReady()) return;
-      const mapId = mapManager?.currentMapId;
-      if (!mapId) return;
-      console.warn(
-        `[Altercadia] Phaser ainda carregando após ${PHASER_PROCEDURAL_FALLBACK_MS}ms — canvas procedural temporário.`,
-      );
-      markPhaserCanvasProceduralFallback(mapId);
-      world.refreshCanvasLayoutForPhaserFallback(mapId);
-    }, PHASER_PROCEDURAL_FALLBACK_MS);
+    console.debug('[Altercadia] Runtime Phaser iniciado — montagem do mapa Tiled em andamento.');
   });
 
   console.log('[Altercadia] Entrou no mundo', {

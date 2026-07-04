@@ -12,6 +12,8 @@ import {
   type PhaserReadyTiledMap,
   type TiledMapJson,
 } from './tiledMapJson.js';
+import { parseTiledMapPlacements } from '../shared/world/parseTiledMapPlacements.js';
+import { setTiledMapPlacements } from '../shared/world/tiledMapPlacements.js';
 
 export type TiledTilesetDescriptor = {
   readonly name: string;
@@ -45,13 +47,18 @@ function buildTiledMapDescriptor(
   jsonUrl: string,
 ): TiledMapDescriptor {
   const json = TILED_MAP_JSON_BY_ID[mapId];
+  const phaserMapData = json ? buildPhaserTiledMapData(json) : null;
+  if (phaserMapData) {
+    const { placements } = parseTiledMapPlacements(mapId, phaserMapData);
+    setTiledMapPlacements(mapId, placements);
+  }
   return {
     mapId,
     cacheKey,
     jsonUrl,
     tilesets: json ? extractTilesetsFromTiledJson(json) : [],
     objectImages: json ? extractObjectImagePathsFromTiledJson(json) : [],
-    phaserMapData: json ? buildPhaserTiledMapData(json) : null,
+    phaserMapData,
   };
 }
 

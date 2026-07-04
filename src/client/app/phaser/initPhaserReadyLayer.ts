@@ -37,8 +37,7 @@ export function enablePhaserForOnlineSession(): void {
 }
 
 /**
- * Boot Phaser ao entrar no mundo — canvas legado segue desenhando até o mapa Tiled montar.
- * O modo `phaser-v1` só é ativado após MapLoader confirmar tilesets (createMapInstancePhaserScene).
+ * Boot Phaser ao entrar no mundo — único motor de render do mapa (modo estrito).
  */
 export async function bootOnlinePhaserExploration(): Promise<boolean> {
   try {

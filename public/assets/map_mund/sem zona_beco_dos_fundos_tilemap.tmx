@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="20" height="60" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="21">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="20" height="60" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="24">
+ <editorsettings>
+  <export target="sem zona_beco_dos_fundos_tilemap.tmj" format="json"/>
+ </editorsettings>
  <tileset firstgid="1" source="../terrain/chao_cidade_roxo_test.tsx"/>
  <tileset firstgid="106" source="../terrain/chao_madeira_Escuro_test.tsx"/>
  <tileset firstgid="211" source="../terrain/chao_beco_dos_fundos.tsx"/>
@@ -153,5 +156,15 @@
   <object id="17" gid="4034" x="155.811" y="194.432" width="24.5455" height="23.6364" rotation="180"/>
   <object id="18" gid="4034" x="156.477" y="642.932" width="24.5455" height="23.6364" rotation="180"/>
   <object id="19" gid="4034" x="508.311" y="1218.68" width="24.5455" height="23.6364" rotation="180"/>
+ </objectgroup>
+ <objectgroup id="6" name="spawn">
+  <object id="23" name="player_spawn" x="336.333" y="1836.67">
+   <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="5" name="computador zona 1">
+  <object id="21" name="computador_zona1" x="222.727" y="1797.09">
+   <point/>
+  </object>
  </objectgroup>
 </map>

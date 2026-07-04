@@ -31,11 +31,9 @@ import { TeleportZoneController } from '../world/TeleportZoneController.js';
 import { notifyPortalZonePhaserTrigger } from '../world/portalZonePhaserBridge.js';
 import { resolveMapInstanceSceneKey } from './mapInstanceSceneKeys.js';
 import type { MapTransitionPayload } from '../../../shared/world/protocol.js';
-import {
-  activatePhaserExplorationPipeline,
-  fallbackToCanvasExplorationPipeline,
-} from '../phaserExplorationPipeline.js';
+import { activatePhaserExplorationPipeline } from '../phaserExplorationPipeline.js';
 import { enablePhaserRenderMode } from '../../app/phaser/initPhaserReadyLayer.js';
+import { TiledMapLoadError } from '../tiled/mapLoadFatalError.js';
 
 type PhaserNamespace = {
   Scene: new (config?: string | Record<string, unknown>) => PhaserWorldSceneBase;
@@ -96,45 +94,23 @@ export function createMapInstancePhaserScene(
       this.sceneActive = true;
       const scene = this as unknown as MapLoaderScene;
 
-      if (isTiledMapEnabled(this.boundMapId)) {
-        let mounted = null;
-        try {
-          mounted = this.mapLoader.load(scene, this.boundMapId);
-        } catch (error) {
-          console.error('[MapInstanceScene] Exceção ao montar mapa Tiled — fallback canvas.', error);
-          this.mapLoader.destroy();
+      try {
+        if (isTiledMapEnabled(this.boundMapId)) {
+          const mounted = this.mapLoader.load(scene, this.boundMapId);
+          this.applyCameraBounds(mounted.widthPx, mounted.heightPx);
+        } else {
+          this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
         }
 
-        const mapMounted = Boolean(
-          mounted
-          && this.mapLoader.hasRenderableTileLayers()
-          && this.mapLoader.getBoundGridTilesetCount() > 0,
-        );
-        if (!mapMounted) {
-          console.error(
-            '[MapInstanceScene] Mapa Tiled incompleto — fallback para canvas legado.',
-            this.boundMapId,
-            {
-              visualLayers: this.mapLoader.getVisualTileLayerCount(),
-              tilesetsBound: this.mapLoader.getBoundTilesetCount(),
-              gridTilesetsBound: this.mapLoader.getBoundGridTilesetCount(),
-            },
-          );
-          fallbackToCanvasExplorationPipeline(this.boundMapId);
-          this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
-        } else {
-          const mapWidthPx = mounted!.widthPx;
-          const mapHeightPx = mounted!.heightPx;
-          this.applyCameraBounds(mapWidthPx, mapHeightPx);
-          enablePhaserRenderMode();
-          activatePhaserExplorationPipeline(this.boundMapId);
-          this.mountExplorationEntityLayer();
-        }
-      } else {
-        this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
         enablePhaserRenderMode();
-        activatePhaserExplorationPipeline(this.boundMapId);
+        activatePhaserExplorationPipeline();
         this.mountExplorationEntityLayer();
+      } catch (error) {
+        this.sceneActive = false;
+        this.mapLoader.destroy();
+        if (!(error instanceof TiledMapLoadError)) {
+          console.error('[MapInstanceScene] Falha fatal ao montar mapa Phaser.', error);
+        }
       }
 
       this.mountTeleportZones();
@@ -230,9 +206,9 @@ export function createMapInstancePhaserScene(
           this.entitiesMounted = ready;
           if (ready) {
             getRenderLayerBridge().markPhaserEntitiesReady(true);
-            console.debug('[MapInstanceScene] Entidades Phaser montadas — canvas legado só input/DOM.');
+            console.debug('[MapInstanceScene] Entidades Phaser montadas — canvas legado só input/DOM/overlays.');
           } else {
-            console.warn('[MapInstanceScene] Sprite do jogador indisponível — entidades permanecem no canvas.');
+            console.warn('[MapInstanceScene] Sprite do jogador indisponível — placeholder Phaser.');
           }
         });
     }
