@@ -3,7 +3,7 @@
  * Auditoria pós-build — garante que módulos ES críticos existem em public/
  * (evita login morto na Vercel quando um import 404 retorna index.html).
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -48,6 +48,15 @@ if (missing.length > 0) {
   for (const entry of missing) {
     console.error(`  - ${entry}`);
   }
+  process.exit(1);
+}
+
+const npcDefinitionPath = path.join(publicDir, 'assets', 'npcs', 'npcDefinition.js');
+const npcDefinitionSource = readFileSync(npcDefinitionPath, 'utf8');
+if (!npcDefinitionSource.includes('export const NPC_ASSET_BUNDLES')) {
+  console.error(
+    '[audit-static-bundle] assets/npcs/npcDefinition.js desatualizado — falta export NPC_ASSET_BUNDLES. Rode npm run build:sync.',
+  );
   process.exit(1);
 }
 
