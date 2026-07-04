@@ -93,7 +93,14 @@ export class MapLoader {
     this.mapCacheKey = descriptor.cacheKey;
     this.mapJsonUrl = descriptor.jsonUrl;
 
-    const map = scene.make.tilemap({ key: descriptor.cacheKey });
+    let map: PhaserTiledTilemap;
+    try {
+      map = scene.make.tilemap({ key: descriptor.cacheKey });
+    } catch (error) {
+      console.error('[MapLoader] Falha ao parsear tilemap Tiled:', mapId, error);
+      this.destroy();
+      return null;
+    }
     this.map = map;
 
     const tilesets = this.bindTilesets(map, descriptor.cacheKey, descriptor.jsonUrl);

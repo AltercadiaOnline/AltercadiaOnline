@@ -14,7 +14,62 @@ type TiledMapTilesetRef = {
   readonly source?: string;
   readonly tilewidth?: number;
   readonly tileheight?: number;
+  readonly margin?: number;
+  readonly spacing?: number;
+  readonly imagewidth?: number;
+  readonly imageheight?: number;
+  readonly tilecount?: number;
+  readonly columns?: number;
 };
+
+/** Lê dimensões do chunk IHDR — evita depender de sharp/pngjs no mirror. */
+export function readPngDimensions(absPath: string): { width: number; height: number } | null {
+  try {
+    const buffer = readFileSync(absPath);
+    if (buffer.length < 24 || buffer.toString('latin1', 1, 4) !== 'PNG') {
+      return null;
+    }
+
+    return {
+      width: buffer.readUInt32BE(16),
+      height: buffer.readUInt32BE(20),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function applyImageMetrics(
+  tileset: TiledMapTilesetRef,
+  imageAbsPath: string,
+): TiledMapTilesetRef {
+  const tilewidth = tileset.tilewidth ?? 32;
+  const tileheight = tileset.tileheight ?? 32;
+  const margin = tileset.margin ?? 0;
+  const spacing = tileset.spacing ?? 0;
+  const dimensions = readPngDimensions(imageAbsPath);
+
+  if (!dimensions) {
+    return tileset;
+  }
+
+  const columns = Math.max(
+    1,
+    Math.floor((dimensions.width - 2 * margin + spacing) / (tilewidth + spacing)),
+  );
+  const rows = Math.max(
+    1,
+    Math.floor((dimensions.height - 2 * margin + spacing) / (tileheight + spacing)),
+  );
+
+  return {
+    ...tileset,
+    imagewidth: dimensions.width,
+    imageheight: dimensions.height,
+    columns,
+    tilecount: Math.max(1, columns * rows),
+  };
+}
 
 /**
  * Resolve tilesets externos (.tsx) referenciados por exports em map_mund.
@@ -70,7 +125,8 @@ export function enrichTilesetsForPreload(
       const name = tileset.name ?? path.basename(tileset.image, path.extname(tileset.image));
       if (!seenNames.has(name)) {
         seenNames.add(name);
-        enriched.push({ ...tileset, name });
+        const imageAbs = path.resolve(mapDirectory, tileset.image.replace(/^\.\//, ''));
+        enriched.push(applyImageMetrics({ ...tileset, name }, imageAbs));
       }
       continue;
     }
@@ -85,13 +141,19 @@ export function enrichTilesetsForPreload(
     }
 
     seenNames.add(resolved.name);
-    enriched.push({
-      ...tileset,
-      name: resolved.name,
-      image: resolved.imagePath,
-      tilewidth: resolved.tilewidth,
-      tileheight: resolved.tileheight,
-    });
+    const imageAbs = path.resolve(mapDirectory, resolved.imagePath.replace(/^\.\//, ''));
+    enriched.push(
+      applyImageMetrics(
+        {
+          ...tileset,
+          name: resolved.name,
+          image: resolved.imagePath,
+          tilewidth: resolved.tilewidth,
+          tileheight: resolved.tileheight,
+        },
+        imageAbs,
+      ),
+    );
   }
 
   return enriched;

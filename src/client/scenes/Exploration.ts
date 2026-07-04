@@ -928,12 +928,16 @@ export class ExplorationScene implements Disposable {
           ...this.worldMap.collectCreatureRenderSnapshots(),
           ...this.npcManager.collectNpcRenderSnapshots(timestampMs),
         ]),
-        terrainTiles: isTiledMapEnabled(this.mapManager.currentMapId)
-          ? []
-          : this.worldMapRenderer.collectGroundTileSnapshots(),
-        worldStructures: isTiledMapEnabled(this.mapManager.currentMapId)
-          ? []
-          : this.worldMapRenderer.collectStructureSnapshots({
+        terrainTiles:
+          isTiledMapEnabled(this.mapManager.currentMapId)
+          && !isPhaserCanvasProceduralFallback(this.mapManager.currentMapId)
+            ? []
+            : this.worldMapRenderer.collectGroundTileSnapshots(),
+        worldStructures:
+          isTiledMapEnabled(this.mapManager.currentMapId)
+          && !isPhaserCanvasProceduralFallback(this.mapManager.currentMapId)
+            ? []
+            : this.worldMapRenderer.collectStructureSnapshots({
               x: this.player.renderX,
               y: this.player.renderY,
             }),

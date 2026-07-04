@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Anexa ?v=<commitShort> nos entrypoints ES module — evita login morto por cache
- * de módulos antigos (ex.: npcDefinition.js sem NPC_ASSET_BUNDLES).
+ * de módulos antigos (ex.: npcDefinition.js sem hasNpcAssetBundle).
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,15 +26,7 @@ for (const modulePath of ['/app-ui/ui-runtime.js', '/client/browser/main.js']) {
   html = bustModuleSrc(html, modulePath);
 }
 
-/** Cache-bust em imports críticos de NPC (NpcSpriteLoader → npcDefinition legado). */
-const stampTargets = [
-  path.join(root, 'public', 'client', 'loaders', 'NpcSpriteLoader.js'),
-  path.join(root, 'public', 'shared', 'npc', 'npcAssetBundles.js'),
-  path.join(root, 'public', 'assets', 'npcs', 'npcDefinition.js'),
-];
-
-for (const filePath of stampTargets) {
-  if (!existsSync(filePath)) continue;
+function stampJsImports(filePath) {
   const source = readFileSync(filePath, 'utf8');
   const stamped = source.replace(
     /(from\s+['"])([^'"]+\.js)(\?v=[^'"]*)?(['"])/g,
@@ -42,8 +34,49 @@ for (const filePath of stampTargets) {
   );
   if (stamped !== source) {
     writeFileSync(filePath, stamped, 'utf8');
+    return true;
+  }
+  return false;
+}
+
+function walkJsFiles(dir, out = []) {
+  if (!existsSync(dir)) return out;
+  for (const entry of readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      if (entry === 'vendor' || entry === 'node_modules') continue;
+      walkJsFiles(full, out);
+      continue;
+    }
+    if (entry.endsWith('.js')) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/** Cache-bust em todos os imports .js do bundle estático (evita npcDefinition legado no cache). */
+const stampRoots = [
+  path.join(root, 'public', 'client'),
+  path.join(root, 'public', 'shared'),
+  path.join(root, 'public', 'assets'),
+  path.join(root, 'public', 'config'),
+  path.join(root, 'public', 'game'),
+];
+
+let stampedCount = 0;
+for (const dir of stampRoots) {
+  for (const filePath of walkJsFiles(dir)) {
+    if (stampJsImports(filePath)) {
+      stampedCount += 1;
+    }
   }
 }
 
 writeFileSync(indexPath, html, 'utf8');
-console.log('[inject-build-cache-bust] OK', { version, index: path.relative(root, indexPath) });
+console.log('[inject-build-cache-bust] OK', {
+  version,
+  index: path.relative(root, indexPath),
+  stampedFiles: stampedCount,
+});

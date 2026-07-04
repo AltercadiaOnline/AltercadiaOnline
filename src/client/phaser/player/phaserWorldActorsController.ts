@@ -1,4 +1,4 @@
-import { hasNpcAssetBundle } from '../../../assets/npcs/npcDefinition.js';
+import { hasNpcAssetBundle } from '../../../shared/npc/npcAssetBundles.js';
 import { getCreatureAssets } from '../../loaders/CreatureAssetLoader.js';
 import { getCachedNpcAssetImage, preloadNpcAssetImage } from '../../loaders/npcAssetImageLoader.js';
 import {

@@ -97,7 +97,14 @@ export function createMapInstancePhaserScene(
       const scene = this as unknown as MapLoaderScene;
 
       if (isTiledMapEnabled(this.boundMapId)) {
-        const mounted = this.mapLoader.load(scene, this.boundMapId);
+        let mounted = null;
+        try {
+          mounted = this.mapLoader.load(scene, this.boundMapId);
+        } catch (error) {
+          console.error('[MapInstanceScene] Exceção ao montar mapa Tiled — fallback canvas.', error);
+          this.mapLoader.destroy();
+        }
+
         const mapMounted = Boolean(
           mounted
           && this.mapLoader.hasRenderableTileLayers()
@@ -113,6 +120,7 @@ export function createMapInstancePhaserScene(
             },
           );
           fallbackToCanvasExplorationPipeline(this.boundMapId);
+          this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
         } else {
           const mapWidthPx = mounted!.widthPx;
           const mapHeightPx = mounted!.heightPx;

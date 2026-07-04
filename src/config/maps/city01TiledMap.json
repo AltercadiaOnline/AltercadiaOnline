@@ -4970,7 +4970,11 @@
       "name": "chao_cidade_Test",
       "image": "../terrain/tiles/craftpix-net-574220-free-path-and-road-top-down-pixel-tileset/PNG_Tiled/Road1.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 240,
+      "imageheight": 416,
+      "columns": 7,
+      "tilecount": 91
     },
     {
       "firstgid": 92,
@@ -4978,7 +4982,11 @@
       "name": "chao_madeira_Test",
       "image": "../terrain/tiles/craftpix-net-574220-free-path-and-road-top-down-pixel-tileset/PNG_Tiled/Road2.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 240,
+      "imageheight": 416,
+      "columns": 7,
+      "tilecount": 91
     },
     {
       "firstgid": 183,
@@ -4986,7 +4994,11 @@
       "name": "chao_madeira_Escuro_test",
       "image": "../terrain/tiles/craftpix-net-574220-free-path-and-road-top-down-pixel-tileset/PNG_Tiled/Road4_ground.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 240,
+      "imageheight": 480,
+      "columns": 7,
+      "tilecount": 105
     },
     {
       "firstgid": 288,
@@ -4994,7 +5006,11 @@
       "name": "chao_cidade_roxo_test",
       "image": "../terrain/tiles/craftpix-net-574220-free-path-and-road-top-down-pixel-tileset/PNG_Tiled/Road3_grass.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 240,
+      "imageheight": 480,
+      "columns": 7,
+      "tilecount": 105
     },
     {
       "firstgid": 393,
@@ -5002,7 +5018,11 @@
       "name": "arvore_rosa_test",
       "image": "../props/craftpix-net-385863-free-top-down-trees-pixel-art/PNG/Assets_separately/Trees/Flower_tree2.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 64,
+      "imageheight": 64,
+      "columns": 2,
+      "tilecount": 4
     },
     {
       "firstgid": 397,
@@ -5010,7 +5030,11 @@
       "name": "arvore_verde_1",
       "image": "../props/craftpix-net-385863-free-top-down-trees-pixel-art/PNG/Assets_separately/Trees/Moss_tree1.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 128,
+      "imageheight": 128,
+      "columns": 4,
+      "tilecount": 16
     },
     {
       "firstgid": 413,
@@ -5018,7 +5042,11 @@
       "name": "abusto_outono_test",
       "image": "../props/craftpix-net-385863-free-top-down-trees-pixel-art/PNG/Assets_separately/Trees_texture_shadow/Autumn_tree1.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 128,
+      "imageheight": 128,
+      "columns": 4,
+      "tilecount": 16
     },
     {
       "firstgid": 429,
@@ -5026,7 +5054,11 @@
       "name": "arbustro_pequeno_test",
       "image": "../props/craftpix-net-141354-free-top-down-bushes-pixel-art/PNG/Assets/Bush_orange_flowers2.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 32,
+      "imageheight": 32,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 430,
@@ -5034,7 +5066,11 @@
       "name": "Living gazebo1",
       "image": "../props/craftpix-net-505052-free-forest-objects-top-down-pixel-art/PNG/Assets/Living gazebo1.png",
       "tilewidth": 128,
-      "tileheight": 128
+      "tileheight": 128,
+      "imagewidth": 128,
+      "imageheight": 128,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 431,
@@ -5042,7 +5078,11 @@
       "name": "poste_props_test",
       "image": "../props/Pixel_art_sprite_sheet_48x48/Pixel_art_sprite_sheet_48x48_per_item/rotations/unknown.png",
       "tilewidth": 48,
-      "tileheight": 48
+      "tileheight": 48,
+      "imagewidth": 48,
+      "imageheight": 48,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 432,
@@ -5050,7 +5090,11 @@
       "name": "banco_madeira_test",
       "image": "../props/Pixel_art_sprite_sheet_48x48 (1)/Pixel_art_sprite_sheet_48x48_per_item/rotations/unknown.png",
       "tilewidth": 48,
-      "tileheight": 48
+      "tileheight": 48,
+      "imagewidth": 48,
+      "imageheight": 48,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 433,
@@ -5058,7 +5102,11 @@
       "name": "computador_props_test",
       "image": "../props/Pixel_art_sprite_sheet_48x48 (2)/Pixel_art_sprite_sheet_48x48_per_item/rotations/unknown.png",
       "tilewidth": 48,
-      "tileheight": 48
+      "tileheight": 48,
+      "imagewidth": 48,
+      "imageheight": 48,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 434,
@@ -5066,7 +5114,11 @@
       "name": "banco_madeira_2_Test",
       "image": "../props/Pixel_art_sprite_sheet_48x48 (3)/Pixel_art_sprite_sheet_48x48_per_item/rotations/unknown.png",
       "tilewidth": 48,
-      "tileheight": 48
+      "tileheight": 48,
+      "imagewidth": 48,
+      "imageheight": 48,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 435,
@@ -5074,7 +5126,11 @@
       "name": "lixeira_props_test",
       "image": "../props/Pixel_art_sprite_sheet_48x48.2/Pixel_art_sprite_sheet_48x48_per_item/rotations/unknown.png",
       "tilewidth": 48,
-      "tileheight": 48
+      "tileheight": 48,
+      "imagewidth": 48,
+      "imageheight": 48,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 436,
@@ -5082,7 +5138,11 @@
       "name": "pulpito_pvp_base_test_Aseet",
       "image": "../props/pulpito.pvp.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 32,
+      "imageheight": 32,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 437,
@@ -5090,7 +5150,11 @@
       "name": "estrutura_2_Test",
       "image": "../props/view_top_down_2d_style_starde (1)/view_top_down_2d_style_stardew_valley/rotations/unknown.png",
       "tilewidth": 144,
-      "tileheight": 144
+      "tileheight": 144,
+      "imagewidth": 144,
+      "imageheight": 144,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 438,
@@ -5098,7 +5162,11 @@
       "name": "estrutura_3_test",
       "image": "../props/view_top_down_2d_style_starde (2)/view_top_down_2d_style_stardew_valley/rotations/unknown.png",
       "tilewidth": 144,
-      "tileheight": 144
+      "tileheight": 144,
+      "imagewidth": 144,
+      "imageheight": 144,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 439,
@@ -5106,7 +5174,11 @@
       "name": "estrutura_1_test",
       "image": "../props/view_top_down_2d_style_starde/view_top_down_2d_style_stardew_valley/rotations/unknown.png",
       "tilewidth": 144,
-      "tileheight": 144
+      "tileheight": 144,
+      "imagewidth": 144,
+      "imageheight": 144,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 440,
@@ -5114,7 +5186,11 @@
       "name": "estrutura_4_test",
       "image": "../props/view_top_down_2d_style_starde (3)/view_top_down_2d_style_stardew_valley/rotations/unknown.png",
       "tilewidth": 144,
-      "tileheight": 144
+      "tileheight": 144,
+      "imagewidth": 144,
+      "imageheight": 144,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 441,
@@ -5122,7 +5198,11 @@
       "name": "chao_batalha_1_test",
       "image": "../terrain/tiles/VIEW_TOP_DOWN_2D_Highly_detail (3)/VIEW_TOP_DOWN_2D_Highly_detailed_32x32_p/rotations/unknown.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 32,
+      "imageheight": 32,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 442,
@@ -5130,7 +5210,11 @@
       "name": "chao_Batalha_2_Test",
       "image": "../terrain/tiles/VIEW_TOP_DOWN_2D_Highly_detail (4)/VIEW_TOP_DOWN_2D_Highly_detailed_32x32_p/rotations/unknown.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 32,
+      "imageheight": 32,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 443,
@@ -5138,7 +5222,11 @@
       "name": "chão_asfalto_Test",
       "image": "../terrain/tiles/Asset_design_128x128_pixel_a (1)/Asset_design_128x128_pixel_art._A_perf/rotations/unknown.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 32,
+      "imageheight": 32,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 444,
@@ -5146,7 +5234,11 @@
       "name": "alquimia_estrutura_Test1",
       "image": "../props/barraquinha_2/VIEW_TOP_DOWN_2D_64x64_pixel_art_game_a/rotations/unknown.png",
       "tilewidth": 64,
-      "tileheight": 64
+      "tileheight": 64,
+      "imagewidth": 64,
+      "imageheight": 64,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 445,
@@ -5154,7 +5246,11 @@
       "name": "mercado_test_props",
       "image": "../props/barraquinha_5/VIEW_TOP_DOWN_2D_64x64_pixel_art_game_a/rotations/unknown.png",
       "tilewidth": 64,
-      "tileheight": 64
+      "tileheight": 64,
+      "imagewidth": 64,
+      "imageheight": 64,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 446,
@@ -5162,7 +5258,11 @@
       "name": "mercado_Test",
       "image": "../props/barraquinha_6/VIEW_TOP_DOWN_2D_64x64_pixel_art_game_a/rotations/unknown.png",
       "tilewidth": 64,
-      "tileheight": 64
+      "tileheight": 64,
+      "imagewidth": 64,
+      "imageheight": 64,
+      "columns": 1,
+      "tilecount": 1
     }
   ],
   "tilewidth": 32,

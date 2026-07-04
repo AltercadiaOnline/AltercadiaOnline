@@ -2546,7 +2546,11 @@
       "name": "chao_cidade_roxo_test",
       "image": "../terrain/tiles/craftpix-net-574220-free-path-and-road-top-down-pixel-tileset/PNG_Tiled/Road3_grass.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 240,
+      "imageheight": 480,
+      "columns": 7,
+      "tilecount": 105
     },
     {
       "firstgid": 106,
@@ -2554,7 +2558,11 @@
       "name": "chao_madeira_Escuro_test",
       "image": "../terrain/tiles/craftpix-net-574220-free-path-and-road-top-down-pixel-tileset/PNG_Tiled/Road4_ground.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 240,
+      "imageheight": 480,
+      "columns": 7,
+      "tilecount": 105
     },
     {
       "firstgid": 211,
@@ -2562,7 +2570,11 @@
       "name": "chao_beco_dos_fundos",
       "image": "../terrain/tiles/VIEW_TOP_DOWN_2D_Highly_detail (2)/VIEW_TOP_DOWN_2D_Highly_detailed_32x32_p/rotations/unknown.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 32,
+      "imageheight": 32,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 212,
@@ -2570,7 +2582,11 @@
       "name": "chao_2_test",
       "image": "../terrain/tiles/VIEW_TOP_DOWN_2D_Highly_detail (4)/VIEW_TOP_DOWN_2D_Highly_detailed_32x32_p/rotations/unknown.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 32,
+      "imageheight": 32,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 213,
@@ -2578,7 +2594,11 @@
       "name": "poste_2_test_props",
       "image": "../props/Pixel_art_sprite_sheet_48x48 (4)/Pixel_art_sprite_sheet_48x48_per_item/rotations/unknown.png",
       "tilewidth": 48,
-      "tileheight": 48
+      "tileheight": 48,
+      "imagewidth": 48,
+      "imageheight": 48,
+      "columns": 1,
+      "tilecount": 1
     },
     {
       "firstgid": 214,
@@ -2586,7 +2606,11 @@
       "name": "arvore_rosa_test",
       "image": "../props/craftpix-net-385863-free-top-down-trees-pixel-art/PNG/Assets_separately/Trees/Flower_tree2.png",
       "tilewidth": 32,
-      "tileheight": 32
+      "tileheight": 32,
+      "imagewidth": 64,
+      "imageheight": 64,
+      "columns": 2,
+      "tilecount": 4
     }
   ],
   "tilewidth": 32,
