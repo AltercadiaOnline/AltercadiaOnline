@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { BattleMenuMove } from '../../hud/battleMenuMoves.js';
-import type { BattleConsumableRow } from '../../hud/battleConsumables.js';
+import type { BattleMenuMove } from '../../combat/client/battleMenuMoves.js';
+import type { BattleConsumableRow } from '../../combat/client/battleConsumables.js';
 import type { GameStoreBattleState } from '../../state/GameStore.js';
 import {
   battleSessionFromGameStore,

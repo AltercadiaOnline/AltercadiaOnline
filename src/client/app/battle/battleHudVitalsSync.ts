@@ -7,7 +7,7 @@ import type { CombatState } from '../../../shared/types.js';
 import type { ClassType } from '../../../shared/types/classes.js';
 import { CLASS_CATALOG } from '../../../shared/types/classes.js';
 import { readCombatantVital } from '../../combat/combatVitalsDisplay.js';
-import { readActiveStatusesFromCombatant } from '../../hud/activeStatusAdapter.js';
+import { readActiveStatusesFromCombatant } from '../../combat/client/activeStatusAdapter.js';
 import {
   getBattleHudController,
 } from '../battle/BattleHudController.js';

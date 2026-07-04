@@ -1,10 +1,10 @@
-import type { ActiveConsumableStack } from '../../shared/types.js';
-import { getConsumableDefinition } from '../../shared/items/consumablesCatalog.js';
-import { ConsumableUsage } from '../../shared/items/itemTypes.js';
+import type { ActiveConsumableStack } from '../../../shared/types.js';
+import { getConsumableDefinition } from '../../../shared/items/consumablesCatalog.js';
+import { ConsumableUsage } from '../../../shared/items/itemTypes.js';
 import {
   resolveInventoryItemAbbrev,
   resolveInventoryItemLabel,
-} from '../ui/inventory/inventoryItemDisplay.js';
+} from '../../ui/inventory/inventoryItemDisplay.js';
 
 export type BattleConsumableRow = {
   readonly itemId: string;

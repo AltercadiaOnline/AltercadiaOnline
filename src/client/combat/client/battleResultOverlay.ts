@@ -1,9 +1,9 @@
-import type { BattleEndReason, BattleEndedPayload } from '../../shared/combat/battleEnded.js';
-import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
-import { hasLootContent } from '../../shared/loot/lootTypes.js';
-import { formatVolts } from '../../shared/economy/premiumCurrency.js';
-import { BATTLE_SURRENDER_VOLT_PENALTY } from '../../shared/combat/battleSurrenderConstants.js';
-import { buildDeathPenaltyOutcome } from '../progression/deathPenaltyClient.js';
+import type { BattleEndReason, BattleEndedPayload } from '../../../shared/combat/battleEnded.js';
+import type { BattleLootPreview } from '../../../shared/loot/lootTypes.js';
+import { hasLootContent } from '../../../shared/loot/lootTypes.js';
+import { formatVolts } from '../../../shared/economy/premiumCurrency.js';
+import { BATTLE_SURRENDER_VOLT_PENALTY } from '../../../shared/combat/battleSurrenderConstants.js';
+import { buildDeathPenaltyOutcome } from '../../progression/deathPenaltyClient.js';
 
 export type BattleResultOverlayOptions = {
   readonly victory: boolean;

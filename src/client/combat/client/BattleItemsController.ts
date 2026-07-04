@@ -1,5 +1,5 @@
-import type { ActiveConsumableStack } from '../../shared/types.js';
-import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
+import type { ActiveConsumableStack } from '../../../shared/types.js';
+import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
 import { resolveBattleConsumableRows } from './battleConsumables.js';
 
 export type BattleItemsControllerOptions = {

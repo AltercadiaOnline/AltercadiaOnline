@@ -2,26 +2,26 @@
  * BattleScreen — sync combate, fade e render-bridge (arena Phaser ou DOM legado).
  * Vitals e HUD chrome: React via battleHudStore.
  */
-import type { CombatUiHints } from '../../shared/combatWire.js';
-import { COMBAT_HIT_ANIM_MS } from '../../shared/combat/combatSequenceConstants.js';
-import type { HpBarTargets } from '../combat/BattleHealthBar.js';
+import type { CombatUiHints } from '../../../shared/combatWire.js';
+import { COMBAT_HIT_ANIM_MS } from '../../../shared/combat/combatSequenceConstants.js';
+import type { HpBarTargets } from '../BattleHealthBar.js';
 import {
   buildCombatantVitalsMap,
   type CombatantVital,
-} from '../combat/combatVitalsDisplay.js';
-import { resolveBattleOpponentActorId } from '../../shared/combat/resolveBattleOpponent.js';
-import type { CombatState } from '../../shared/types.js';
-import type { BattleEncounterData } from '../../shared/game/gameState.js';
-import { publishBattleFinished } from '../game/GameStateProvider.js';
-import { setBattlePortraitStance } from '../ui/battle/BattleScreen.js';
-import { syncBattleHudVitalsFromState } from '../app/battle/battleHudVitalsSync.js';
+} from '../combatVitalsDisplay.js';
+import { resolveBattleOpponentActorId } from '../../../shared/combat/resolveBattleOpponent.js';
+import type { CombatState } from '../../../shared/types.js';
+import type { BattleEncounterData } from '../../../shared/game/gameState.js';
+import { publishBattleFinished } from '../../game/GameStateProvider.js';
+import { setBattlePortraitStance } from '../../ui/battle/BattleScreen.js';
+import { syncBattleHudVitalsFromState } from '../../app/battle/battleHudVitalsSync.js';
 import {
   publishBattleRenderFromCombatState,
   triggerBattleRenderCue,
-} from '../app/bridge/battleRenderBridge.js';
-import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
-import { runPhaserBattleExitFade } from '../phaser/battle/battleSceneTransitionFade.js';
-import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
+} from '../../app/bridge/battleRenderBridge.js';
+import { isPhaserRenderEngineActive } from '../../app/bridge/renderLayerBridge.js';
+import { runPhaserBattleExitFade } from '../../phaser/battle/battleSceneTransitionFade.js';
+import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
 
 export type BattleScreenElements = {
   readonly playerPortrait?: HTMLElement | null;

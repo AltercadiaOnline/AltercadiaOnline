@@ -1,4 +1,4 @@
-import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
+import type { BattleLootPreview } from '../../../shared/loot/lootTypes.js';
 
 let pendingBattleLoot: BattleLootPreview | null = null;
 

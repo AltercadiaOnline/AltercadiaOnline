@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { resolveStatusVisual } from '../../../config/statusVisuals.js';
-import type { ActiveStatusChip } from '../../../hud/activeStatusAdapter.js';
+import type { ActiveStatusChip } from '../../../combat/client/activeStatusAdapter.js';
 import { uiEvents, UIEventType } from '../../../ui/uiEvents.js';
 
 type BattleStatusChipsProps = {

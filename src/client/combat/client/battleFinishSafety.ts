@@ -1,4 +1,4 @@
-import { getBattleLogPanel } from '../ui/battle/BattleScreen.js';
+import { getBattleLogPanel } from '../../ui/battle/BattleScreen.js';
 
 const BATTLE_FINISH_SAFETY_MS = 12000;
 

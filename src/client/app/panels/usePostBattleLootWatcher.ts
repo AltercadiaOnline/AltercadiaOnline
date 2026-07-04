@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BATTLE_LOOT_PACKAGE_EVENT } from '../../hud/battleLootPackageBuffer.js';
+import { BATTLE_LOOT_PACKAGE_EVENT } from '../../combat/client/battleLootPackageBuffer.js';
 import type { BattleLootPackagePayload } from '../../../shared/combat/battleLootPackage.js';
 import { getPostBattleHudBridge } from '../bridge/postBattleHudBridge.js';
 

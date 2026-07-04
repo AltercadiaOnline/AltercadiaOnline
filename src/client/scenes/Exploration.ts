@@ -76,8 +76,9 @@ import {
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
-import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { getRenderLayerBridge, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
+import { subscribePhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
 import { sortWorldActorsByDepth } from '../world/worldActorsRenderSnapshot.js';
 import {
@@ -168,6 +169,8 @@ export class ExplorationScene implements Disposable {
   private offPlayerUpdate: (() => void) | null = null;
 
   private offPortalAccessDenied: (() => void) | null = null;
+
+  private offPhaserCanvasFallback: (() => void) | null = null;
 
   private portalConfirmationCleanup: (() => void) | null = null;
 
@@ -423,6 +426,11 @@ export class ExplorationScene implements Disposable {
     });
 
 
+
+    this.offPhaserCanvasFallback = subscribePhaserCanvasProceduralFallback((mapId) => {
+      if (this.disposed || this.mapManager.currentMapId !== mapId) return;
+      this.refreshCanvasLayoutForPhaserFallback(mapId);
+    });
 
     void preloadPlayerSprites();
     void import('../entities/pet/PetSpriteLoader.js').then((mod) => mod.preloadPetSprites());
@@ -882,6 +890,14 @@ export class ExplorationScene implements Disposable {
 
 
 
+  /** Canvas procedural enquanto Phaser monta ou após fallback do mapa Tiled. */
+  public refreshCanvasLayoutForPhaserFallback(mapId: MapId): void {
+    if (this.mapManager.currentMapId !== mapId) return;
+    this.worldMapRenderer.setMapId(mapId);
+    this.prepareFrame(0);
+    this.renderWorld(performance.now());
+  }
+
   public prepareFrame(deltaMs = 16.67): void {
     const drawPosition = { x: this.player.renderX, y: this.player.renderY };
 
@@ -891,7 +907,12 @@ export class ExplorationScene implements Disposable {
 
     this.publishMinimapState();
 
-    if (isPhaserRenderPipelineReady()) {
+    const phaserSnap = getRenderLayerBridge().snapshot();
+    const shouldSyncPhaser =
+      phaserSnap.renderEngine === 'phaser'
+      && (phaserSnap.phaserBooted || isPhaserRenderPipelineReady());
+
+    if (shouldSyncPhaser) {
       const timestampMs = performance.now();
       publishExplorationRenderFrame({
         mapId: this.mapManager.currentMapId,
@@ -1067,6 +1088,8 @@ export class ExplorationScene implements Disposable {
     }
     this.offPlayerUpdate = null;
     this.offPortalAccessDenied = null;
+    this.offPhaserCanvasFallback?.();
+    this.offPhaserCanvasFallback = null;
 
     this.zoneTransitionCleanup?.();
     this.zoneTransitionCleanup = null;

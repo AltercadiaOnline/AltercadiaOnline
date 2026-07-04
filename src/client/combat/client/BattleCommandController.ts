@@ -1,9 +1,9 @@
-import type { Skill } from '../../shared/types.js';
+import type { Skill } from '../../../shared/types.js';
 
 import { skillsToMenuMoves } from './battleMenuMoves.js';
-import { canExecuteMove } from '../../shared/combat/skillRuntime.js';
-import { getTurnStateGuard } from '../combat/turnStateGuard.js';
-import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
+import { canExecuteMove } from '../../../shared/combat/skillRuntime.js';
+import { getTurnStateGuard } from '../turnStateGuard.js';
+import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
 
 export type BattleUiPhase = 'COMMAND_MENU' | 'EXECUTING' | 'LOCKED';
 

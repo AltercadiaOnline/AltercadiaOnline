@@ -77,8 +77,8 @@ import { addItemToInventoryStacks } from '../../shared/character/inventoryStackO
 import { stageBattleLoot as gatewayStageBattleLoot } from '../../Economy/economyGateway.js';
 import { consumePendingLoot, discardPendingLoot, peekPendingLoot } from '../../Economy/pendingLootStore.js';
 import { applyServerItemBundle } from '../game/PlayerItemSession.js';
-import { captureBattleLootPreview } from '../hud/battleLootBuffer.js';
-import { captureBattleLootPackage } from '../hud/battleLootPackageBuffer.js';
+import { captureBattleLootPreview } from '../combat/client/battleLootBuffer.js';
+import { captureBattleLootPackage } from '../combat/client/battleLootPackageBuffer.js';
 import { buildBankStorageView, depositCurrencySwap, depositItemSwap, withdrawCurrencySwap, withdrawItemSwap } from '../../shared/bank/bankService.js';
 import { validateBankItemTransfer } from '../../shared/bank/bankItemRules.js';
 import { validateBankCurrencyRequest } from '../../shared/bank/bankCurrencyRules.js';

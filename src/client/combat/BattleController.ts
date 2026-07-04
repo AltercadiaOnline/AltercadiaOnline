@@ -30,7 +30,7 @@ import {
 
 } from '../../shared/combat/combatSequenceConstants.js';
 
-import type { BattleScreen } from '../hud/battleScreen.js';
+import type { BattleScreen } from './client/battleScreen.js';
 
 import { CombatAnimator } from './CombatAnimator.js';
 

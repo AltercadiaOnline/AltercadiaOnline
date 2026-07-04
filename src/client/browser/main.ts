@@ -1,15 +1,15 @@
 import type { CombatState } from '../../shared/types.js';
-import { createCombatSocketHandler } from '../hud/combatSocketHandler.js';
+import { createCombatSocketHandler } from '../combat/client/combatSocketHandler.js';
 import { InputHandler } from '../inputHandler.js';
-import { applyEconomyEventToHud, isEconomyEvent } from '../hud/economyHud.js';
+import { applyEconomyEventToHud, isEconomyEvent } from '../ui/economyHud.js';
 import {
   registerCombatDevTransportResolver,
   refreshCombatDevBindings,
 } from '../dev/combatDevBindings.js';
 import { initDebugMenuIfAllowed } from '../dev/debugTools.js';
 import { notifyMirrorPlayerDispatch } from '../combat/MirrorPlayerController.js';
-import { configureCombatClient, GameClient, initBattleHud, registerActiveBattleId } from '../hud/index.js';
-import { getBattleStore } from '../hud/battleStore.js';
+import { configureCombatClient, GameClient, initBattleHud, registerActiveBattleId } from '../combat/index.js';
+import { getBattleStore } from '../combat/client/battleStore.js';
 import { configureBattleLootClient } from '../game/battleLootClient.js';
 import { resolveClientCombatEquipmentSnapshot } from '../combat/resolveClientCombatEquipment.js';
 import { initCombatEquipmentBridge } from '../combat/combatEquipmentBridge.js';
@@ -19,7 +19,7 @@ import { setOpponentHonorCount } from '../ui/battle/postBattleHonorContext.js';
 import { isPlayerHonorResultPayload } from '../../shared/combat/playerHonorTypes.js';
 import { isBattleEndedPayload } from '../../shared/combat/battleEnded.js';
 import { isBattleLootPackagePayload } from '../../shared/combat/battleLootPackage.js';
-import { captureBattleLootPackage } from '../hud/battleLootPackageBuffer.js';
+import { captureBattleLootPackage } from '../combat/client/battleLootPackageBuffer.js';
 import { getPlayerPetStore, initPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { canPetEnterBattle } from '../../shared/pet/petModel.js';
 import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
@@ -142,8 +142,9 @@ import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
 import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
-import { bootOnlinePhaserExploration } from '../app/phaser/initPhaserReadyLayer.js';
-import { fallbackToCanvasExplorationPipeline } from '../phaser/phaserExplorationPipeline.js';
+import { bootOnlinePhaserExploration, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
+import { markPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
+import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
@@ -603,8 +604,8 @@ function connectSocket(): void {
  */
 const HUD_RUNTIME_BOOT_TIMEOUT_MS = 8000;
 
-/** Se o Phaser não montar o mapa a tempo, o canvas legado continua desenhando o mundo. */
-const PHASER_PIPELINE_FALLBACK_MS = 15_000;
+/** Canvas procedural temporário se o mapa Tiled demorar — Phaser continua carregando. */
+const PHASER_PROCEDURAL_FALLBACK_MS = 8_000;
 
 function enterWorld(): void {
   if (worldStarted) return;
@@ -805,6 +806,11 @@ function enterWorldAfterHudReady(): void {
   activeWorld.prepareFrame(0);
   activeWorld.renderWorld(performance.now());
 
+  if (mapManager && isTiledMapEnabled(mapManager.currentMapId)) {
+    markPhaserCanvasProceduralFallback(mapManager.currentMapId);
+    activeWorld.refreshCanvasLayoutForPhaserFallback(mapManager.currentMapId);
+  }
+
   worldStarted = true;
   initDebugMenuIfAllowed({
     currentUserEmail: AppScreens.currentSession?.email ?? null,
@@ -812,9 +818,15 @@ function enterWorldAfterHudReady(): void {
     onLevelChanged: (level) => activeWorld.setPlayerLevel(level),
   });
 
+  enablePhaserForOnlineSession();
+
   void bootOnlinePhaserExploration().then((phaserBooted) => {
     if (!phaserBooted || !world) {
-      console.warn('[Altercadia] Phaser indisponível — mantendo canvas legado.');
+      console.warn('[Altercadia] Phaser indisponível — canvas procedural.');
+      if (mapManager) {
+        markPhaserCanvasProceduralFallback(mapManager.currentMapId);
+        activeWorld.refreshCanvasLayoutForPhaserFallback(mapManager.currentMapId);
+      }
       return;
     }
     world.prepareFrame(0);
@@ -823,13 +835,14 @@ function enterWorldAfterHudReady(): void {
 
     window.setTimeout(() => {
       if (!worldStarted || !world || isPhaserRenderPipelineReady()) return;
+      const mapId = mapManager?.currentMapId;
+      if (!mapId) return;
       console.warn(
-        `[Altercadia] Phaser não ficou pronto em ${PHASER_PIPELINE_FALLBACK_MS}ms — fallback canvas legado.`,
+        `[Altercadia] Phaser ainda carregando após ${PHASER_PROCEDURAL_FALLBACK_MS}ms — canvas procedural temporário.`,
       );
-      fallbackToCanvasExplorationPipeline();
-      world.prepareFrame(0);
-      world.renderWorld(performance.now());
-    }, PHASER_PIPELINE_FALLBACK_MS);
+      markPhaserCanvasProceduralFallback(mapId);
+      world.refreshCanvasLayoutForPhaserFallback(mapId);
+    }, PHASER_PROCEDURAL_FALLBACK_MS);
   });
 
   console.log('[Altercadia] Entrou no mundo', {

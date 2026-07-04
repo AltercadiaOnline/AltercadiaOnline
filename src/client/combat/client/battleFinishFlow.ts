@@ -1,18 +1,18 @@
-import type { BattleEndedPayload } from '../../shared/combat/battleEnded.js';
-import type { CombatFinishedPayload } from '../../shared/combat/combatFinished.js';
-import type { CombatDispatchPayload } from '../../shared/combatWire.js';
-import { CombatEventType } from '../../shared/events.js';
-import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
-import { didPlayerWinBattle } from '../../shared/combat/battleResolution.js';
-import { getCombatRole, resolveCombatantHp } from '../../shared/pet/petCombatRules.js';
+import type { BattleEndedPayload } from '../../../shared/combat/battleEnded.js';
+import type { CombatFinishedPayload } from '../../../shared/combat/combatFinished.js';
+import type { CombatDispatchPayload } from '../../../shared/combatWire.js';
+import { CombatEventType } from '../../../shared/events.js';
+import type { BattleLootPreview } from '../../../shared/loot/lootTypes.js';
+import { didPlayerWinBattle } from '../../../shared/combat/battleResolution.js';
+import { getCombatRole, resolveCombatantHp } from '../../../shared/pet/petCombatRules.js';
 import {
   BattleType,
   type BattleRankingResult,
-} from '../../shared/combat/battleType.js';
+} from '../../../shared/combat/battleType.js';
 import {
   buildEmptyLootRevealSlots,
   type LootRevealSlot,
-} from '../../shared/loot/lootRevealSlots.js';
+} from '../../../shared/loot/lootRevealSlots.js';
 
 function pickAuthoritativeLootReveal(
   victory: boolean,

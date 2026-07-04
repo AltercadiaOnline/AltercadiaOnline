@@ -2,12 +2,12 @@ import { dismissBattleLootOnServer, requestBattleLootCollection } from '../../ga
 import {
   loadBattleLootPackageOnDemand,
   type BattleLootLoadContext,
-} from '../../hud/battleLootOnDemand.js';
+} from '../../combat/client/battleLootOnDemand.js';
 import {
   consumeBattleLootPackage,
   peekBattleLootPackage,
-} from '../../hud/battleLootPackageBuffer.js';
-import { consumePendingBattleLoot } from '../../hud/battleLootBuffer.js';
+} from '../../combat/client/battleLootPackageBuffer.js';
+import { consumePendingBattleLoot } from '../../combat/client/battleLootBuffer.js';
 import {
   clearLootCasinoSessionHandlers,
   registerLootCasinoSessionHandlers,

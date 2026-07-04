@@ -1,6 +1,6 @@
-import type { BattleMenuMove } from '../../hud/battleMenuMoves.js';
-import type { BattleConsumableRow } from '../../hud/battleConsumables.js';
-import type { ActiveStatusChip } from '../../hud/activeStatusAdapter.js';
+import type { BattleMenuMove } from '../../combat/client/battleMenuMoves.js';
+import type { BattleConsumableRow } from '../../combat/client/battleConsumables.js';
+import type { ActiveStatusChip } from '../../combat/client/activeStatusAdapter.js';
 import type { GameStoreBattleState, GameStoreBattleStatus } from '../../state/GameStore.js';
 import type { BattleLogEmitter } from '../../ui/battle/battleLogColors.js';
 import type { BattleLogLineKind, BattleLogTone } from '../../ui/battle/BattleNarrator.js';

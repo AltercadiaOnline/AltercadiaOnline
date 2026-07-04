@@ -1,4 +1,4 @@
-import type { BattleLootPackagePayload } from '../../shared/combat/battleLootPackage.js';
+import type { BattleLootPackagePayload } from '../../../shared/combat/battleLootPackage.js';
 
 import {
   peekBattleLootPackage,
@@ -8,7 +8,7 @@ import {
   ensureBattleLootPackageStaged,
   isOnlineCombatClient,
   type BattleLootSourceContext,
-} from '../game/battleLootStageClient.js';
+} from '../../game/battleLootStageClient.js';
 
 const LOOT_FETCH_TIMEOUT_MS = 3_000;
 

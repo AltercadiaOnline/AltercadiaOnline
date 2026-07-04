@@ -1,6 +1,6 @@
 import type { PlayerWorldVitals } from '../../shared/character/equipmentState.js';
 import { resolveCombatantHp } from '../../shared/items/combatCreatureRegistry.js';
-import { getLastDispatch } from '../hud/index.js';
+import { getLastDispatch } from '../combat/index.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 

@@ -7,6 +7,8 @@ import { getMapDefinition, type MapId } from '../../shared/world/mapRegistry.js'
 import { buildCity01PlaceholderScene, type City01PlaceholderScene } from './city01PlaceholderLayout.js';
 import { buildFarmZone01VisualLayout, type FarmZone01VisualLayout } from './farmZone01VisualLayout.js';
 import type { VisualLandmark, VisualStructure } from './city01VisualLayout.js';
+import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { isPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 
 export type MapVisualLayout = {
   readonly mapId: MapId;
@@ -49,8 +51,18 @@ function buildTiledAuthoritativeVisualLayout(mapId: MapId): MapVisualLayout {
   };
 }
 
+function phaserOwnsTiledGround(mapId: MapId): boolean {
+  return (
+    isTiledMapEnabled(mapId)
+    && isPhaserRenderPipelineReady()
+    && !isPhaserCanvasProceduralFallback(mapId)
+  );
+}
+
 export function buildMapVisualLayout(mapId: MapId): MapVisualLayout {
-  if (isTiledMapEnabled(mapId)) {
+  // Mapas Tiled: chão no Phaser. Se o pipeline ainda não montou, canvas usa layout procedural
+  // (evita tela preta — bug que bloqueou produção por semanas).
+  if (phaserOwnsTiledGround(mapId)) {
     return buildTiledAuthoritativeVisualLayout(mapId);
   }
 

@@ -7,7 +7,7 @@ import { resolveBattleCreatureId } from '../../shared/items/combatCreatureRegist
 import { resolveCreatureIdFromActorId } from '../../shared/combat/MonsterCatalog.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getMockEconomyService } from '../economy/economyLayer.js';
-import { peekBattleLootPackage } from '../hud/battleLootPackageBuffer.js';
+import { peekBattleLootPackage } from '../combat/client/battleLootPackageBuffer.js';
 
 const stagedBattleIds = new Set<string>();
 

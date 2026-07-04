@@ -27,7 +27,7 @@ import { getWorldMovementAuthority } from '../world/worldMovementAuthority.js';
 
 import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
 
-import { applyEconomyEventToHud, isEconomyEvent } from '../hud/economyHud.js';
+import { applyEconomyEventToHud, isEconomyEvent } from '../ui/economyHud.js';
 
 import { getSyncEnvelopeGuard } from './SyncEnvelopeGuard.js';
 import {

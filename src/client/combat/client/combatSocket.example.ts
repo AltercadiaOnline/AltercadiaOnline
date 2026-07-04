@@ -9,4 +9,4 @@
  * initCombatSocket(socket);
  */
 
-export { initCombatSocket } from '../combat-socket.js';
+export { initCombatSocket } from '../../combat-socket.js';

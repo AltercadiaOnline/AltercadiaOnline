@@ -23,7 +23,7 @@ import {
   clearBattleSessionUi,
   lockBattleHudInput,
   prepareNextBattle,
-} from '../hud/index.js';
+} from '../combat/index.js';
 import {
   registerBattleReturnBridge,
   unregisterBattleReturnBridge,

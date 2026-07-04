@@ -86,7 +86,7 @@ export function createMapInstancePhaserScene(
         const mapMounted = Boolean(
           mounted
           && this.mapLoader.hasRenderableTileLayers()
-          && this.mapLoader.allTilesetsBound(),
+          && this.mapLoader.getBoundTilesetCount() > 0,
         );
         if (!mapMounted) {
           console.error(
@@ -97,18 +97,18 @@ export function createMapInstancePhaserScene(
               tilesetsBound: this.mapLoader.getBoundTilesetCount(),
             },
           );
-          fallbackToCanvasExplorationPipeline();
+          fallbackToCanvasExplorationPipeline(this.boundMapId);
         } else {
           const mapWidthPx = mounted!.widthPx;
           const mapHeightPx = mounted!.heightPx;
           this.applyCameraBounds(mapWidthPx, mapHeightPx);
           enablePhaserRenderMode();
-          activatePhaserExplorationPipeline();
+          activatePhaserExplorationPipeline(this.boundMapId);
         }
       } else {
         this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
         enablePhaserRenderMode();
-        activatePhaserExplorationPipeline();
+        activatePhaserExplorationPipeline(this.boundMapId);
       }
 
       this.mountTeleportZones();

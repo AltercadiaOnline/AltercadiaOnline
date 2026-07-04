@@ -1,4 +1,4 @@
-import type { Combatant } from '../../shared/types.js';
+import type { Combatant } from '../../../shared/types.js';
 import {
   readActiveStatuses,
   resetActiveStatusSnapshotTurn,

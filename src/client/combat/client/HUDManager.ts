@@ -1,24 +1,24 @@
-import type { CombatUiHints } from '../../shared/combatWire.js';
+import type { CombatUiHints } from '../../../shared/combatWire.js';
 
-import type { CombatEvent, SkillCatalogEvent, TurnUpdate } from '../../shared/events.js';
+import type { CombatEvent, SkillCatalogEvent, TurnUpdate } from '../../../shared/events.js';
 
-import { CombatEventType } from '../../shared/events.js';
+import { CombatEventType } from '../../../shared/events.js';
 
-import type { CombatState, Skill, SkillData } from '../../shared/types.js';
+import type { CombatState, Skill, SkillData } from '../../../shared/types.js';
 
-import { mergeLoadoutSkillsWithRuntime } from '../../shared/combat/mergeLoadoutSkillsWithRuntime.js';
-import { canPlayerIssueCombatChoice } from '../../shared/combat/playerTurnChoice.js';
+import { mergeLoadoutSkillsWithRuntime } from '../../../shared/combat/mergeLoadoutSkillsWithRuntime.js';
+import { canPlayerIssueCombatChoice } from '../../../shared/combat/playerTurnChoice.js';
 
 import { getBattleStore } from './battleStore.js';
 import { setCombatSnapshot } from './useActiveStatuses.js';
 
-import { getBattleLogPanel, getBattleChatPanel } from '../ui/battle/BattleScreen.js';
+import { getBattleLogPanel, getBattleChatPanel } from '../../ui/battle/BattleScreen.js';
 
 import type { BattleCommandController } from './BattleCommandController.js';
-import { isCombatActionPlaybackActive } from '../combat/combatPlaybackState.js';
+import { isCombatActionPlaybackActive } from '../combatPlaybackState.js';
 import type { BattleItemsController } from './BattleItemsController.js';
 
-import { getBattleHudBridge } from '../app/bridge/battleHudBridge.js';
+import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
 
 import type { BattleScreen } from './battleScreen.js';
 
@@ -32,10 +32,10 @@ import {
   createBattleNarratorContext,
   narrateCombatEventLines,
   type BattleNarrativeLine,
-} from '../ui/battle/BattleNarrator.js';
-import { getMarcoCombatTelemetry } from '../progression/marcoCombatTelemetry.js';
-import { syncBattleHudVitalsFromState } from '../app/battle/battleHudVitalsSync.js';
-import { readCombatantVital } from '../combat/combatVitalsDisplay.js';
+} from '../../ui/battle/BattleNarrator.js';
+import { getMarcoCombatTelemetry } from '../../progression/marcoCombatTelemetry.js';
+import { syncBattleHudVitalsFromState } from '../../app/battle/battleHudVitalsSync.js';
+import { readCombatantVital } from '../combatVitalsDisplay.js';
 
 type HudElements = {
   readonly root?: HTMLElement | null;
@@ -95,7 +95,7 @@ export class HUDManager {
   private lastUi: CombatUiHints | null = null;
 
   /** Clone incremental de combatants — faixa de status durante animação do turno. */
-  private playbackCombatants: Record<string, import('../../shared/types.js').Combatant> | null = null;
+  private playbackCombatants: Record<string, import('../../../shared/types.js').Combatant> | null = null;
 
   private playbackPlayerActorId: string | null = null;
 

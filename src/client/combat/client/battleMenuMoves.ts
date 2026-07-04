@@ -1,11 +1,11 @@
-import type { Skill } from '../../shared/types.js';
+import type { Skill } from '../../../shared/types.js';
 import {
   canExecuteMove,
   resolveSkillCooldownTurns,
   resolveSkillPpCurrent,
   resolveSkillPpMax,
   skillUsesPpBudget,
-} from '../../shared/combat/skillRuntime.js';
+} from '../../../shared/combat/skillRuntime.js';
 
 export type BattleMenuMove = {
   readonly id: string;

@@ -1,9 +1,9 @@
-import { GameClient, configureCombatClient } from './hud/index.js';
+import { GameClient, configureCombatClient } from './combat/index.js';
 import {
   createCombatSocketHandler,
   gameClientCombatBridge,
   type CombatSocket,
-} from './hud/combatSocketHandler.js';
+} from './combat/client/combatSocketHandler.js';
 
 export type { CombatDispatchPayload } from '../shared/combatWire.js';
 export {
@@ -12,7 +12,7 @@ export {
   GameClient,
   getBattleHud,
   getLastCombatState,
-} from './hud/index.js';
+} from './combat/index.js';
 
 /** Socket.io e wrappers compatíveis (removeAllListeners opcional). */
 export type CombatSocketClient = CombatSocket & {

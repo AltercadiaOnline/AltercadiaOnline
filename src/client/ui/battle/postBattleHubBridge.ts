@@ -3,7 +3,7 @@ import {
   battleUiEvents,
   type BattleVictoryUiReadyPayload,
 } from '../../combat/battleUiEvents.js';
-import { traceBattleFinish } from '../../hud/battleFinishProbe.js';
+import { traceBattleFinish } from '../../combat/client/battleFinishProbe.js';
 import { getPostBattleHudBridge } from '../../app/bridge/postBattleHudBridge.js';
 import type { PostBattleRewardsLootStatus } from '../../../shared/types/postBattleHub.js';
 import {

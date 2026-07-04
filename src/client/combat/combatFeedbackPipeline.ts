@@ -3,7 +3,7 @@ import type { CombatActionIntentFeedback } from '../../shared/combat/combatInten
 import type { CombatFeedbackPipelineStep } from '../../shared/combat/combatVisualFeedback.js';
 import type { DamageDealtEvent } from '../../shared/events.js';
 import type { BattleController } from './BattleController.js';
-import type { BattleScreen } from '../hud/battleScreen.js';
+import type { BattleScreen } from './client/battleScreen.js';
 import { playCombatImpactSound } from './combatFeedbackSound.js';
 import { logCriticalBattleError } from './combatSafeExecution.js';
 import { isPhaserBattleArenaActive } from '../phaser/battle/phaserBattleArenaMode.js';

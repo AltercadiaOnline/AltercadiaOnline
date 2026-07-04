@@ -1,10 +1,10 @@
-import type { Combatant } from '../../shared/types.js';
-import type { RuntimeStatus } from '../../shared/types/combat.js';
+import type { Combatant } from '../../../shared/types.js';
+import type { RuntimeStatus } from '../../../shared/types/combat.js';
 import {
   computeRuntimeTurnsRemaining,
   isRuntimeEffectActive,
   resolveRuntimeAppliedAtTurn,
-} from '../../shared/combat/runtimeActorTiming.js';
+} from '../../../shared/combat/runtimeActorTiming.js';
 
 /** Contrato simples para a HUD — motor → adaptador → BattleStatusChips (React). */
 export type ActiveStatusChip = {

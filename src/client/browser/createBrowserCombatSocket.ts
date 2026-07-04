@@ -3,12 +3,12 @@ import type { MarcoDominanceInput } from '../../shared/progression/estiloPersona
 import type { CombatClassId } from '../../shared/types.js';
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
 import type { ActionRequest } from '../../shared/events.js';
-import type { CombatSocket } from '../hud/combatSocketHandler.js';
+import type { CombatSocket } from '../combat/client/combatSocketHandler.js';
 import {
   abortCombatFeedbackOnDisconnect,
   releaseCombatActionLock,
   releaseForfeitInFlight,
-} from '../hud/index.js';
+} from '../combat/index.js';
 import { USER_WS_CONNECT_FAILED } from '../../shared/brand.js';
 import { getGameStore } from '../state/GameStore.js';
 import {

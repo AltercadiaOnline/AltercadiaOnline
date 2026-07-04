@@ -4,7 +4,7 @@ import type { PetColorId } from '../../../shared/pet/petColorPalette.js';
 import type { PetKindId } from '../../../shared/pet/petCatalog.js';
 import type { CombatState } from '../../../shared/types.js';
 import { readCombatantVital } from '../../combat/combatVitalsDisplay.js';
-import { readActiveStatusesFromCombatant } from '../../hud/activeStatusAdapter.js';
+import { readActiveStatusesFromCombatant } from '../../combat/client/activeStatusAdapter.js';
 import {
   battleSpriteSrcCandidates,
   resolveBattleSpriteFromMonsterId,

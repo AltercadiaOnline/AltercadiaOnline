@@ -1,5 +1,5 @@
 import { type MouseEvent } from 'react';
-import type { BattleConsumableRow } from '../../../hud/battleConsumables.js';
+import type { BattleConsumableRow } from '../../../combat/client/battleConsumables.js';
 import { emitItemTooltip } from '../../../ui/tooltip/emitItemTooltip.js';
 import { uiEvents, UIEventType } from '../../../ui/uiEvents.js';
 

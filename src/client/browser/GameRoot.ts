@@ -6,7 +6,7 @@ import {
   mountBattleScreen,
   unmountBattleScreen,
   type BattleFinishedResult,
-} from '../hud/index.js';
+} from '../combat/index.js';
 import { applyGameStateToScenes } from './sceneManager.js';
 
 /**

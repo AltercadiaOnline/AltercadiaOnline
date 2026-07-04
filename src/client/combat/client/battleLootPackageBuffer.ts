@@ -1,4 +1,4 @@
-import type { BattleLootPackagePayload } from '../../shared/combat/battleLootPackage.js';
+import type { BattleLootPackagePayload } from '../../../shared/combat/battleLootPackage.js';
 import { captureBattleLootPreview } from './battleLootBuffer.js';
 
 const packagesByBattleId = new Map<string, BattleLootPackagePayload>();

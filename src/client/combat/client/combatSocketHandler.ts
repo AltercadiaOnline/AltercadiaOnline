@@ -1,5 +1,5 @@
-import type { CombatDispatchPayload } from '../../shared/combatWire.js';
-import { isCombatDispatchPayload } from '../../shared/combatWire.js';
+import type { CombatDispatchPayload } from '../../../shared/combatWire.js';
+import { isCombatDispatchPayload } from '../../../shared/combatWire.js';
 
 /** Contrato mínimo do socket (Socket.io, WebSocket wrapper, etc.). */
 export type CombatSocket = {

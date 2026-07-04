@@ -1,12 +1,12 @@
 import {
   moveIdsToSkillData,
   resolvePlayerEquippedSkillIds,
-} from '../../shared/combat/movesetLoadout.js';
-import type { SkillData } from '../../shared/types.js';
-import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
-import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
-import { getPlayerProgressionStore } from '../progression/playerProgressionStore.js';
-import { uiEvents, UIEventType } from '../ui/uiEvents.js';
+} from '../../../shared/combat/movesetLoadout.js';
+import type { SkillData } from '../../../shared/types.js';
+import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
+import { getGlobalPlayerStore } from '../../ui/moveset/globalPlayerStore.js';
+import { getPlayerProgressionStore } from '../../progression/playerProgressionStore.js';
+import { uiEvents, UIEventType } from '../../ui/uiEvents.js';
 
 /**
  * Espelha o loadout confirmado para a camada de combate.

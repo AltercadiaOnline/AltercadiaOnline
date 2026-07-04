@@ -1,4 +1,4 @@
-import type { Combatant, RuntimeStatus } from '../../shared/types.js';
+import type { Combatant, RuntimeStatus } from '../../../shared/types.js';
 
 function cloneStatuses(statuses: readonly RuntimeStatus[] | undefined): RuntimeStatus[] {
   return (statuses ?? []).map((row) => ({ ...row, ...(row.metadata ? { metadata: { ...row.metadata } } : {}) }));
