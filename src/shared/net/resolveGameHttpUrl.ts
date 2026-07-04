@@ -1,6 +1,10 @@
 import type { PublicClientConfig } from '../publicClientConfig.js';
 import { isLocalMonolithDevHost, resolveLocalMonolithGameHttpUrl } from './localMonolithDev.js';
 
+export type GameHttpUrlConfig = Pick<PublicClientConfig, 'gameHttpUrl' | 'gameWsUrl'> & {
+  readonly publicSiteUrl?: PublicClientConfig['publicSiteUrl'];
+};
+
 /** Deriva base HTTP a partir de wss://host/ws → https://host */
 export function deriveGameHttpUrlFromWsUrl(gameWsUrl: string): string | null {
   const trimmed = gameWsUrl.trim();
@@ -15,28 +19,59 @@ export function deriveGameHttpUrlFromWsUrl(gameWsUrl: string): string | null {
   }
 }
 
+function normalizeOrigin(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+/** Host Railway / monólito — health, WS, deploy sync. */
+export function resolveAuthoritativeGameHttpUrl(
+  config?: GameHttpUrlConfig | null,
+): string | null {
+  const explicit = config?.gameHttpUrl?.trim();
+  if (explicit) {
+    return normalizeOrigin(explicit);
+  }
+
+  const wsUrl = config?.gameWsUrl?.trim();
+  if (wsUrl) {
+    return deriveGameHttpUrlFromWsUrl(wsUrl);
+  }
+
+  return null;
+}
+
+function isVercelSplitFrontend(
+  location: Pick<Location, 'origin' | 'hostname'>,
+  config?: GameHttpUrlConfig | null,
+): boolean {
+  const current = normalizeOrigin(location.origin);
+  const publicSite = config?.publicSiteUrl?.trim();
+  if (publicSite && normalizeOrigin(publicSite) === current) {
+    return true;
+  }
+  return location.hostname === 'altercadia-online.vercel.app';
+}
+
 /**
- * Base HTTP do servidor de jogo (Railway).
- * Prioridade: gameHttpUrl → derivado de gameWsUrl → mesma origem (monólito local).
+ * Base HTTP para APIs do jogo (/api/character-hub, /api/player-snapshot, …).
+ * Na Vercel oficial usa same-origin (/api/* serverless); Railway fica só para WS.
  */
 export function resolveGameHttpUrl(
   location: Pick<Location, 'origin' | 'hostname'>,
-  config?: Pick<PublicClientConfig, 'gameHttpUrl' | 'gameWsUrl'> | null,
+  config?: GameHttpUrlConfig | null,
 ): string {
   if (isLocalMonolithDevHost(location.hostname)) {
     return resolveLocalMonolithGameHttpUrl(location);
   }
 
-  const explicit = config?.gameHttpUrl?.trim();
-  if (explicit) {
-    return explicit.replace(/\/+$/, '');
+  if (isVercelSplitFrontend(location, config)) {
+    return normalizeOrigin(location.origin);
   }
 
-  const wsUrl = config?.gameWsUrl?.trim();
-  if (wsUrl) {
-    const derived = deriveGameHttpUrlFromWsUrl(wsUrl);
-    if (derived) return derived;
+  const authoritative = resolveAuthoritativeGameHttpUrl(config);
+  if (authoritative) {
+    return authoritative;
   }
 
-  return location.origin.replace(/\/+$/, '');
+  return normalizeOrigin(location.origin);
 }

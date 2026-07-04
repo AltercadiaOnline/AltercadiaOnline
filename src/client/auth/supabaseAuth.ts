@@ -46,22 +46,32 @@ function authRedirectUrl(): string {
   return resolveAuthRedirectUrl();
 }
 
-let cachedSessionAccessToken: { token: string; expiresAtMs: number } | null = null;
+type GlobalWithSessionTokenCache = typeof globalThis & {
+  __ALTERCADIA_SESSION_TOKEN_CACHE__?: { token: string; expiresAtMs: number } | null;
+};
 
-/** Evita getSession() repetido logo após signIn/OAuth — hub + servidores rodam em paralelo. */
+function readSessionTokenCache(): { token: string; expiresAtMs: number } | null {
+  return (globalThis as GlobalWithSessionTokenCache).__ALTERCADIA_SESSION_TOKEN_CACHE__ ?? null;
+}
+
+function writeSessionTokenCache(cache: { token: string; expiresAtMs: number } | null): void {
+  (globalThis as GlobalWithSessionTokenCache).__ALTERCADIA_SESSION_TOKEN_CACHE__ = cache;
+}
+
+/** Evita getSession() repetido — cache compartilhado entre main.js e ui-runtime.js. */
 export function primeSessionAccessToken(session: Session): void {
   const expiresAtSec = session.expires_at;
   const expiresAtMs = expiresAtSec
     ? expiresAtSec * 1000 - 60_000
     : Date.now() + 3_500_000;
-  cachedSessionAccessToken = {
+  writeSessionTokenCache({
     token: session.access_token,
     expiresAtMs: Math.max(Date.now() + 60_000, expiresAtMs),
-  };
+  });
 }
 
 export function clearSessionAccessTokenCache(): void {
-  cachedSessionAccessToken = null;
+  writeSessionTokenCache(null);
 }
 
 /** Inicializa o client Supabase — `config.supabaseUrl` é endpoint de API; nunca exibir na UI. */
@@ -301,12 +311,11 @@ export async function resolveSessionAccessToken(options?: {
   const client = getSupabase();
   if (!client) return null;
 
-  if (
-    !options?.validateUser
-    && cachedSessionAccessToken
-    && Date.now() < cachedSessionAccessToken.expiresAtMs
-  ) {
-    return cachedSessionAccessToken.token;
+  if (!options?.validateUser) {
+    const cached = readSessionTokenCache();
+    if (cached && Date.now() < cached.expiresAtMs) {
+      return cached.token;
+    }
   }
 
   let session: Session | null = null;
