@@ -63,6 +63,8 @@ export class MapLoader {
 
   private boundTilesetCount = 0;
 
+  private boundGridTilesetCount = 0;
+
   private mapCacheKey: string | null = null;
 
   private mapJsonUrl: string | null = null;
@@ -106,8 +108,8 @@ export class MapLoader {
     const tilesets = this.bindTilesets(map, descriptor.cacheKey, descriptor.jsonUrl);
     this.expectedTilesetCount = map.tilesets.length;
     this.boundTilesetCount = tilesets.length;
-    if (tilesets.length === 0) {
-      console.error('[MapLoader] Nenhum tileset vinculado para', mapId);
+    if (this.boundGridTilesetCount === 0) {
+      console.error('[MapLoader] Nenhum tileset 32×32 vinculado para', mapId);
       return null;
     }
 
@@ -177,6 +179,10 @@ export class MapLoader {
     return this.boundTilesetCount;
   }
 
+  getBoundGridTilesetCount(): number {
+    return this.boundGridTilesetCount;
+  }
+
   destroy(): void {
     for (const record of this.objectRecords) {
       record.sprite.destroy();
@@ -203,6 +209,7 @@ export class MapLoader {
     this.mapJsonUrl = null;
     this.expectedTilesetCount = 0;
     this.boundTilesetCount = 0;
+    this.boundGridTilesetCount = 0;
     this.scene = null;
   }
 
@@ -212,13 +219,19 @@ export class MapLoader {
     tilesets: readonly PhaserTiledTileset[],
   ): void {
     let depth = PHASER_GROUND_DEPTH;
+    const gridTilesets = tilesets.filter(
+      (tileset) => tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight,
+    );
 
     for (const layer of map.layers) {
       if (layer.type !== 'tilelayer') continue;
       if (!isTiledVisualTileLayer(layer.name)) continue;
 
-      const tileLayer = map.createLayer(layer.name, tilesets, 0, 0);
-      if (!tileLayer) continue;
+      const tileLayer = map.createLayer(layer.name, gridTilesets, 0, 0);
+      if (!tileLayer) {
+        console.warn('[MapLoader] Camada Tiled ignorada — tilesets 32×32 ausentes:', layer.name);
+        continue;
+      }
 
       tileLayer.setDepth(depth);
       depth += 1;
@@ -234,11 +247,15 @@ export class MapLoader {
     const scene = this.scene;
     if (!scene) return;
 
+    const gridTilesets = tilesets.filter(
+      (tileset) => tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight,
+    );
+
     for (const layer of map.layers) {
       if (layer.type !== 'tilelayer') continue;
       if (!isTiledCollisionTileLayer(layer.name)) continue;
 
-      const collision = map.createLayer(layer.name, tilesets, 0, 0);
+      const collision = map.createLayer(layer.name, gridTilesets, 0, 0);
       if (!collision) continue;
 
       collision.setVisible(false);
@@ -414,6 +431,7 @@ export class MapLoader {
     jsonUrl: string,
   ): PhaserTiledTileset[] {
     const bound: PhaserTiledTileset[] = [];
+    this.boundGridTilesetCount = 0;
     const descriptor = this.mountedMapId ? resolveTiledMapDescriptor(this.mountedMapId) : null;
     const textureKeyByNormalizedName = new Map<string, string>();
 
@@ -445,7 +463,12 @@ export class MapLoader {
       }
 
       const added = map.addTilesetImage(tileset.name, textureKey);
-      if (added) bound.push(added);
+      if (added) {
+        bound.push(added);
+        if (added.tileWidth === map.tileWidth && added.tileHeight === map.tileHeight) {
+          this.boundGridTilesetCount += 1;
+        }
+      }
     }
 
     if (bound.length < map.tilesets.length) {

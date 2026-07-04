@@ -11,11 +11,16 @@ export function isPhaserCanvasProceduralFallback(mapId: MapId): boolean {
   return proceduralFallbackMapIds.has(mapId);
 }
 
-export function markPhaserCanvasProceduralFallback(mapId: MapId): void {
-  if (proceduralFallbackMapIds.has(mapId)) return;
+export function markPhaserCanvasProceduralFallback(
+  mapId: MapId,
+  options?: { readonly force?: boolean },
+): void {
+  const alreadyMarked = proceduralFallbackMapIds.has(mapId);
   proceduralFallbackMapIds.add(mapId);
-  for (const listener of listeners) {
-    listener(mapId);
+  if (!alreadyMarked || options?.force) {
+    for (const listener of listeners) {
+      listener(mapId);
+    }
   }
 }
 

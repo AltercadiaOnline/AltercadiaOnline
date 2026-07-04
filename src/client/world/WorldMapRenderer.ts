@@ -7,7 +7,13 @@ import { DESIGN_SPRITE_DIMENSIONS } from '../../config/spriteDimensions.js';
 import type { Camera } from '../scenes/Camera.js';
 import { screenToTile as pickScreenTile, screenToWorldPixel } from './screenCoords.js';
 import { buildMapVisualLayout, type MapVisualLayout } from './mapVisualLayouts.js';
+import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
+import { isPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
+import {
+  preloadTiledMapCanvasAssets,
+  renderTiledMapGroundFromExport,
+} from './tiledMapCanvasRenderer.js';
 import { tileToWorldPixel, VisualTileKind, type VisualLandmark } from './city01VisualLayout.js';
 import { FARM_ZONE_PALETTE } from './farmZone01VisualLayout.js';
 import { collectFarmZone01DecorDrawables } from './farmZone01DecorRenderer.js';
@@ -94,6 +100,9 @@ export class WorldMapRenderer implements Disposable {
   public setMapId(mapId: string, cachedLayout?: MapVisualLayout): void {
     this.layout = cachedLayout ?? buildMapVisualLayout(mapId as MapId);
     this.hover = null;
+    if (isTiledMapEnabled(mapId as MapId) && isPhaserCanvasProceduralFallback(mapId as MapId)) {
+      preloadTiledMapCanvasAssets(mapId as MapId);
+    }
   }
 
   public getBackgroundColor(): string {
@@ -194,6 +203,16 @@ export class WorldMapRenderer implements Disposable {
   public renderGroundLayer(ctx: CanvasRenderingContext2D): void {
     disableCanvasImageSmoothing(ctx);
     this.clipToCameraViewport(ctx);
+
+    const mapId = this.layout.mapId as MapId;
+    if (isTiledMapEnabled(mapId) && isPhaserCanvasProceduralFallback(mapId)) {
+      const drewTiled = renderTiledMapGroundFromExport(ctx, mapId, this.camera);
+      if (!drewTiled && this.layout.placeholderScene) {
+        renderCity01PlaceholderGround(ctx, this.layout.placeholderScene, this.camera);
+      }
+      ctx.restore();
+      return;
+    }
 
     if (this.layout.placeholderScene) {
       renderCity01PlaceholderGround(ctx, this.layout.placeholderScene, this.camera);

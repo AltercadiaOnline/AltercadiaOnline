@@ -48,7 +48,7 @@ export function activatePhaserExplorationPipeline(mapId?: MapId): void {
 /** Falha ao montar mapa Tiled — canvas procedural + Phaser oculto. */
 export function fallbackToCanvasExplorationPipeline(mapId?: MapId): void {
   if (mapId) {
-    markPhaserCanvasProceduralFallback(mapId);
+    markPhaserCanvasProceduralFallback(mapId, { force: true });
   }
   const canvas = document.getElementById(CANVAS_LEGACY_ID);
   const phaserHost = document.getElementById(PHASER_MOUNT_ROOT_ID);

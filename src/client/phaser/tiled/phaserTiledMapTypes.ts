@@ -28,6 +28,8 @@ export type PhaserTiledSprite = PhaserMapSprite;
 export type PhaserTiledTileset = {
   readonly name: string;
   readonly firstgid: number;
+  readonly tileWidth: number;
+  readonly tileHeight: number;
   readonly image?: string;
 };
 

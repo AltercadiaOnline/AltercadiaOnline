@@ -147,6 +147,7 @@ import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js'
 import { bootOnlinePhaserExploration, disablePhaserRenderMode, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
 import { markPhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
+import { preloadTiledMapCanvasAssets } from '../world/tiledMapCanvasRenderer.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 
 /** Bump manual ao mudar equip/inventário — confira no F12 após Ctrl+F5. */
@@ -814,6 +815,7 @@ function enterWorldAfterHudReady(): void {
   if (mapManager && isTiledMapEnabled(mapManager.currentMapId)) {
     markPhaserCanvasProceduralFallback(mapManager.currentMapId);
     activeWorld.refreshCanvasLayoutForPhaserFallback(mapManager.currentMapId);
+    preloadTiledMapCanvasAssets(mapManager.currentMapId);
   }
 
   worldStarted = true;

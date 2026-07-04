@@ -108,7 +108,7 @@ export function createMapInstancePhaserScene(
         const mapMounted = Boolean(
           mounted
           && this.mapLoader.hasRenderableTileLayers()
-          && this.mapLoader.getBoundTilesetCount() > 0,
+          && this.mapLoader.getBoundGridTilesetCount() > 0,
         );
         if (!mapMounted) {
           console.error(
@@ -117,6 +117,7 @@ export function createMapInstancePhaserScene(
             {
               visualLayers: this.mapLoader.getVisualTileLayerCount(),
               tilesetsBound: this.mapLoader.getBoundTilesetCount(),
+              gridTilesetsBound: this.mapLoader.getBoundGridTilesetCount(),
             },
           );
           fallbackToCanvasExplorationPipeline(this.boundMapId);
