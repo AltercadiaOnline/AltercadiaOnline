@@ -2,38 +2,9 @@
  * Manifesto SSOT — definições visuais e físicas de NPCs (sprites PNG).
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
-import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js';
-export const NPC_ASSET_PUBLIC_BASE = '/assets/npcs';
-/**
- * NPCs com bundle top-down em public/assets/npcs/{pasta}/metadata.json.
- * Chave = id do NPC no npcRegistry.
- */
-export const NPC_ASSET_BUNDLES = {
-    anciao_cael: {
-        bundleFolder: 'anciao_npc',
-        metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/anciao_npc/metadata.json`,
-    },
-    mestre_trilhas: {
-        bundleFolder: 'anciao_npc',
-        metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/anciao_npc/metadata.json`,
-    },
-    ferreiro: {
-        bundleFolder: 'ferreiro_npc',
-        metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/ferreiro_npc/metadata.json`,
-    },
-    vendedor: {
-        bundleFolder: 'comerciamente_npc',
-        metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/comerciamente_npc/metadata.json`,
-    },
-    alquimista: {
-        bundleFolder: 'alquimista_npc',
-        metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/alquimista_npc/metadata.json`,
-    },
-    banqueiro: {
-        bundleFolder: 'banqueiro_npc',
-        metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/banqueiro_npc/metadata.json`,
-    },
-};
+import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js?v=0db366e';
+import { hasNpcAssetBundle as sharedHasNpcAssetBundle, listNpcAssetBundleIds as sharedListNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, } from '../../shared/npc/npcAssetBundles.js?v=0db366e';
+export { NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, };
 export const NPC_DEFINITION_REGISTRY = {
     anciao_cael: {
         width: DESIGN_NPC_DIMENSIONS.width,
@@ -77,7 +48,7 @@ export function getNpcDefinition(npcId) {
     return definitionRegistry[npcId] ?? null;
 }
 export function hasNpcAssetBundle(npcId) {
-    return npcId in NPC_ASSET_BUNDLES;
+    return sharedHasNpcAssetBundle(npcId);
 }
 /** @deprecated Bundles usam metadata — retorna null; use NpcSpriteLoader. */
 export function resolveNpcSpriteImageUrl(npcId) {
@@ -90,7 +61,7 @@ export function listNpcDefinitionIds() {
     return Object.keys(NPC_DEFINITION_REGISTRY);
 }
 export function listNpcAssetBundleIds() {
-    return Object.keys(NPC_ASSET_BUNDLES);
+    return sharedListNpcAssetBundleIds();
 }
 export function isNpcDefinitionCollidable(npcId) {
     const def = getNpcDefinition(npcId);

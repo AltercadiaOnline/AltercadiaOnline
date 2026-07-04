@@ -1,7 +1,7 @@
 import {
   NPC_ASSET_BUNDLES,
   type NpcAssetBundleConfig,
-} from '../../assets/npcs/npcDefinition.js';
+} from '../../shared/npc/npcAssetBundles.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { SpriteFrame } from '../entities/player/types.js';
 

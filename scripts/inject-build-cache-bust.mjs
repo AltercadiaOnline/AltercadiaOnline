@@ -3,7 +3,7 @@
  * Anexa ?v=<commitShort> nos entrypoints ES module — evita login morto por cache
  * de módulos antigos (ex.: npcDefinition.js sem NPC_ASSET_BUNDLES).
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +24,25 @@ function bustModuleSrc(htmlContent, modulePath) {
 
 for (const modulePath of ['/app-ui/ui-runtime.js', '/client/browser/main.js']) {
   html = bustModuleSrc(html, modulePath);
+}
+
+/** Cache-bust em imports críticos de NPC (NpcSpriteLoader → npcDefinition legado). */
+const stampTargets = [
+  path.join(root, 'public', 'client', 'loaders', 'NpcSpriteLoader.js'),
+  path.join(root, 'public', 'shared', 'npc', 'npcAssetBundles.js'),
+  path.join(root, 'public', 'assets', 'npcs', 'npcDefinition.js'),
+];
+
+for (const filePath of stampTargets) {
+  if (!existsSync(filePath)) continue;
+  const source = readFileSync(filePath, 'utf8');
+  const stamped = source.replace(
+    /(from\s+['"])([^'"]+\.js)(\?v=[^'"]*)?(['"])/g,
+    `$1$2?v=${version}$4`,
+  );
+  if (stamped !== source) {
+    writeFileSync(filePath, stamped, 'utf8');
+  }
 }
 
 writeFileSync(indexPath, html, 'utf8');

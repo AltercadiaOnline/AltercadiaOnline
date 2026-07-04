@@ -25,6 +25,7 @@ const REQUIRED_STATIC_MODULES = [
   'game/generated/city01TestPackWiring.js',
   'game/AssetRegistry.js',
   'shared/world/npcRegistry.js',
+  'shared/npc/npcAssetBundles.js',
   'assets/urban/urbanAssetManifest.js',
   'shared/world/zone1CreatureRegistry.js',
   'assets/creatures/zone1/aranha/manifest.json',
@@ -52,8 +53,16 @@ if (missing.length > 0) {
 }
 
 const npcDefinitionPath = path.join(publicDir, 'assets', 'npcs', 'npcDefinition.js');
+const npcAssetBundlesPath = path.join(publicDir, 'shared', 'npc', 'npcAssetBundles.js');
 const npcDefinitionSource = readFileSync(npcDefinitionPath, 'utf8');
-if (!npcDefinitionSource.includes('export const NPC_ASSET_BUNDLES')) {
+const npcAssetBundlesSource = readFileSync(npcAssetBundlesPath, 'utf8');
+if (!npcAssetBundlesSource.includes('export const NPC_ASSET_BUNDLES')) {
+  console.error(
+    '[audit-static-bundle] shared/npc/npcAssetBundles.js desatualizado — falta export NPC_ASSET_BUNDLES. Rode npm run build:sync.',
+  );
+  process.exit(1);
+}
+if (!npcDefinitionSource.includes('NPC_ASSET_BUNDLES')) {
   console.error(
     '[audit-static-bundle] assets/npcs/npcDefinition.js desatualizado — falta export NPC_ASSET_BUNDLES. Rode npm run build:sync.',
   );

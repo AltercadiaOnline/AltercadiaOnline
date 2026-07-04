@@ -3,8 +3,19 @@
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
 import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js';
+import {
+  hasNpcAssetBundle as sharedHasNpcAssetBundle,
+  listNpcAssetBundleIds as sharedListNpcAssetBundleIds,
+  NPC_ASSET_BUNDLES,
+  NPC_ASSET_PUBLIC_BASE,
+  type NpcAssetBundleConfig,
+} from '../../shared/npc/npcAssetBundles.js';
 
-export const NPC_ASSET_PUBLIC_BASE = '/assets/npcs';
+export {
+  NPC_ASSET_BUNDLES,
+  NPC_ASSET_PUBLIC_BASE,
+  type NpcAssetBundleConfig,
+};
 
 export type NpcDefinition = {
   readonly width: number;
@@ -12,42 +23,6 @@ export type NpcDefinition = {
   readonly isCollidable: boolean;
   readonly animationSpeed: number;
 };
-
-export type NpcAssetBundleConfig = {
-  readonly bundleFolder: string;
-  readonly metadataUrl: string;
-};
-
-/**
- * NPCs com bundle top-down em public/assets/npcs/{pasta}/metadata.json.
- * Chave = id do NPC no npcRegistry.
- */
-export const NPC_ASSET_BUNDLES: Readonly<Record<string, NpcAssetBundleConfig>> = {
-  anciao_cael: {
-    bundleFolder: 'anciao_npc',
-    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/anciao_npc/metadata.json`,
-  },
-  mestre_trilhas: {
-    bundleFolder: 'anciao_npc',
-    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/anciao_npc/metadata.json`,
-  },
-  ferreiro: {
-    bundleFolder: 'ferreiro_npc',
-    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/ferreiro_npc/metadata.json`,
-  },
-  vendedor: {
-    bundleFolder: 'comerciamente_npc',
-    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/comerciamente_npc/metadata.json`,
-  },
-  alquimista: {
-    bundleFolder: 'alquimista_npc',
-    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/alquimista_npc/metadata.json`,
-  },
-  banqueiro: {
-    bundleFolder: 'banqueiro_npc',
-    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/banqueiro_npc/metadata.json`,
-  },
-} as const;
 
 export const NPC_DEFINITION_REGISTRY: Readonly<Record<string, NpcDefinition>> = {
   anciao_cael: {
@@ -97,7 +72,7 @@ export function getNpcDefinition(npcId: string): NpcDefinition | null {
 }
 
 export function hasNpcAssetBundle(npcId: string): boolean {
-  return npcId in NPC_ASSET_BUNDLES;
+  return sharedHasNpcAssetBundle(npcId);
 }
 
 /** @deprecated Bundles usam metadata — retorna null; use NpcSpriteLoader. */
@@ -112,7 +87,7 @@ export function listNpcDefinitionIds(): readonly string[] {
 }
 
 export function listNpcAssetBundleIds(): readonly string[] {
-  return Object.keys(NPC_ASSET_BUNDLES);
+  return sharedListNpcAssetBundleIds();
 }
 
 export function isNpcDefinitionCollidable(npcId: string): boolean {
