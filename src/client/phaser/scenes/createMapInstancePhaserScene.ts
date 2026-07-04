@@ -1,9 +1,12 @@
 import { GAME_CONFIG } from '../../../game/constants/GameConfig.js';
+import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
 import { resolveSceneConfigForMapId } from '../../../config/sceneConfig.js';
 import { isTiledMapEnabled } from '../../../config/tiledMapManifest.js';
 import { getMapDefinition, type MapId } from '../../../shared/world/mapRegistry.js';
 import type { MinimapSnapshot } from '../../world/minimap/minimapTypes.js';
+import { getMinimapSnapshot } from '../../world/minimap/minimapState.js';
 import type { ExplorationRenderFrame } from '../../app/bridge/explorationRenderBridge.js';
+import { getRenderLayerBridge } from '../../app/bridge/renderLayerBridge.js';
 import { bindExplorationPhaserSync } from '../explorationPhaserSync.js';
 import { createMainSceneClass, type PhaserWorldSceneBase } from './MainScene.js';
 import { PhaserPlayerSpriteController } from '../player/phaserPlayerSpriteController.js';
@@ -12,6 +15,12 @@ import { MapLoader } from '../tiled/MapLoader.js';
 import type { MapLoaderScene } from '../tiled/phaserTiledMapTypes.js';
 import { PhaserPetController } from '../pet/phaserPetController.js';
 import { PhaserWorldOverlayController } from '../overlay/phaserWorldOverlayController.js';
+import {
+  destroyPhaserLayoutRoots,
+  mountPhaserLayoutRoots,
+  type PhaserLayoutRoots,
+  type PhaserLayoutScene,
+} from '../layout/phaserLayoutScene.js';
 import {
   clampExplorationCameraScroll,
   configureExplorationPhaserCamera,
@@ -61,6 +70,12 @@ export function createMapInstancePhaserScene(
 
     private readonly worldOverlay = new PhaserWorldOverlayController();
 
+    private layoutRoots: PhaserLayoutRoots | null = null;
+
+    private lastMinimap: MinimapSnapshot | null = null;
+
+    private entitiesMounted = false;
+
     private teleportZones: TeleportZoneController | null = null;
 
     private lastFrame: ExplorationRenderFrame | null = null;
@@ -104,11 +119,13 @@ export function createMapInstancePhaserScene(
           this.applyCameraBounds(mapWidthPx, mapHeightPx);
           enablePhaserRenderMode();
           activatePhaserExplorationPipeline(this.boundMapId);
+          this.mountExplorationEntityLayer();
         }
       } else {
         this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
         enablePhaserRenderMode();
         activatePhaserExplorationPipeline(this.boundMapId);
+        this.mountExplorationEntityLayer();
       }
 
       this.mountTeleportZones();
@@ -158,15 +175,57 @@ export function createMapInstancePhaserScene(
       const scroll = clampExplorationCameraScroll(frame.cameraX, frame.cameraY, mapWidthPx, mapHeightPx);
       this.cameras.main.setScroll(scroll.x, scroll.y);
 
+      if (this.entitiesMounted) {
+        this.playerSprite.applyFrame(frame);
+        this.worldActors.sync(frame.worldActors);
+        this.pet.sync(frame.pet, frame.timestampMs);
+        this.worldOverlay.sync(frame, this.lastMinimap ?? getMinimapSnapshot(), {
+          drawPlayerPlaceholder: !this.playerSprite.isReady(),
+          playerWidth: GAME_ASSET_TARGETS.player.width,
+          playerHeight: GAME_ASSET_TARGETS.player.height,
+          playerPivotX: GAME_CONFIG.PLAYER_FOOT_OFFSET.x,
+          playerPivotY: GAME_CONFIG.PLAYER_FOOT_OFFSET.y,
+          skipActorMinimapMarkers: this.worldActors.isActive(),
+        });
+      }
+
       this.teleportZones?.update({ x: frame.playerX, y: frame.playerY });
     }
 
-    private applyMinimapOverlay(_snapshot: MinimapSnapshot): void {
-      /* minimap e entidades ficam no canvas legado (render híbrido). */
+    private applyMinimapOverlay(snapshot: MinimapSnapshot): void {
+      this.lastMinimap = snapshot;
     }
 
-    private syncOverlays(): void {
-      /* overlays de mundo no canvas legado. */
+    private mountExplorationEntityLayer(): void {
+      if (this.entitiesMounted) return;
+
+      const layoutScene = this as unknown as PhaserLayoutScene;
+      this.layoutRoots = mountPhaserLayoutRoots(layoutScene);
+      this.worldOverlay.mount(this as unknown as Parameters<PhaserWorldOverlayController['mount']>[0]);
+      this.worldActors.mount(
+        this as unknown as Parameters<PhaserWorldActorsController['mount']>[0],
+        this.layoutRoots.ySortContainer,
+      );
+      this.pet.mount(
+        this as unknown as Parameters<PhaserPetController['mount']>[0],
+        this.layoutRoots.ySortContainer,
+      );
+
+      void this.playerSprite
+        .mount(
+          this as unknown as Parameters<PhaserPlayerSpriteController['mount']>[0],
+          this.layoutRoots.ySortContainer,
+        )
+        .then((ready) => {
+          if (!this.sceneActive) return;
+          this.entitiesMounted = ready;
+          if (ready) {
+            getRenderLayerBridge().markPhaserEntitiesReady(true);
+            console.debug('[MapInstanceScene] Entidades Phaser montadas — canvas legado só input/DOM.');
+          } else {
+            console.warn('[MapInstanceScene] Sprite do jogador indisponível — entidades permanecem no canvas.');
+          }
+        });
     }
 
     private applyCameraBounds(mapWidthPx: number, mapHeightPx: number): void {
@@ -184,16 +243,21 @@ export function createMapInstancePhaserScene(
 
     private teardownInstance(): void {
       this.sceneActive = false;
+      getRenderLayerBridge().markPhaserEntitiesReady(false);
+      this.entitiesMounted = false;
       this.teardownSync?.();
       this.teardownSync = null;
       this.teleportZones?.destroy();
       this.teleportZones = null;
+      destroyPhaserLayoutRoots(this.layoutRoots);
+      this.layoutRoots = null;
       this.playerSprite.destroy();
       this.worldActors.destroy();
       this.mapLoader.destroy();
       this.pet.destroy();
       this.worldOverlay.destroy();
       this.lastFrame = null;
+      this.lastMinimap = null;
     }
   }
 

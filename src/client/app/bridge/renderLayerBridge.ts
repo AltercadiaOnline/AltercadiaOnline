@@ -8,6 +8,8 @@ export type RenderLayerSnapshot = {
   readonly renderEngine: RenderEngine;
   readonly phaserBooted: boolean;
   readonly phaserSceneReady: boolean;
+  /** Sprites de exploração (player/NPC/pet) montados no Phaser — canvas deixa de desenhar entidades. */
+  readonly phaserEntitiesReady: boolean;
   readonly activePhaserScene: ActivePhaserScene;
   readonly uiRuntimeMode: UiRuntimeMode;
 };
@@ -20,6 +22,8 @@ class RenderLayerBridge {
   private phaserBooted = false;
 
   private phaserSceneReady = false;
+
+  private phaserEntitiesReady = false;
 
   private activePhaserScene: ActivePhaserScene = null;
 
@@ -38,6 +42,7 @@ class RenderLayerBridge {
       renderEngine: this.renderEngine,
       phaserBooted: this.phaserBooted,
       phaserSceneReady: this.phaserSceneReady,
+      phaserEntitiesReady: this.phaserEntitiesReady,
       activePhaserScene: this.activePhaserScene,
       uiRuntimeMode: this.uiRuntimeMode,
     };
@@ -65,6 +70,15 @@ class RenderLayerBridge {
   markPhaserSceneReady(ready: boolean): void {
     if (this.phaserSceneReady === ready) return;
     this.phaserSceneReady = ready;
+    if (!ready) {
+      this.phaserEntitiesReady = false;
+    }
+    this.emit();
+  }
+
+  markPhaserEntitiesReady(ready: boolean): void {
+    if (this.phaserEntitiesReady === ready) return;
+    this.phaserEntitiesReady = ready;
     this.emit();
   }
 
@@ -105,6 +119,12 @@ export function isPhaserRenderEngineActive(): boolean {
 export function isPhaserRenderPipelineReady(): boolean {
   const snap = getRenderLayerBridge().snapshot();
   return snap.renderEngine === 'phaser' && snap.phaserSceneReady;
+}
+
+/** Player/NPC/pet montados no Phaser — canvas legado não redesenha sprites de mundo. */
+export function isPhaserExplorationEntitiesReady(): boolean {
+  const snap = getRenderLayerBridge().snapshot();
+  return snap.renderEngine === 'phaser' && snap.phaserEntitiesReady;
 }
 
 export function resolveRenderHostElement(): HTMLElement {

@@ -7,6 +7,8 @@ import { AppScreens } from '../browser/appScreens.js';
 import { gameServerFetch, isGameServerFetchTimeoutError } from '../net/gameServerClient.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { resolveActiveServerId } from './resolveLoginServerId.js';
+import { updatePlayerInitLoadingMessage } from './playerInitLoading.js';
+import { CHAR_SELECT_API_DEADLINE_MS } from '../net/gameServerClient.js';
 
 export function resolveDefaultCharacterIdForProfile(): number {
   const hub = AppScreens.characterHub;
@@ -19,8 +21,10 @@ export function resolveDefaultCharacterIdForProfile(): number {
   return 1;
 }
 
-const SNAPSHOT_MAX_ATTEMPTS = 15;
-const SNAPSHOT_RETRY_DELAY_MS = 400;
+const SNAPSHOT_MAX_ATTEMPTS = 10;
+const SNAPSHOT_RETRY_DELAY_MS = 500;
+const SNAPSHOT_TOTAL_DEADLINE_MS = 30_000;
+const SNAPSHOT_REQUEST_DEADLINE_MS = Math.max(CHAR_SELECT_API_DEADLINE_MS, 8_000);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -42,6 +46,7 @@ async function fetchAuthoritativePlayerSnapshotOnce(
         characterId: String(characterId),
         serverId: resolveActiveServerId(),
       },
+      deadlineMs: SNAPSHOT_REQUEST_DEADLINE_MS,
     });
   } catch (error) {
     if (isGameServerFetchTimeoutError(error)) {
@@ -87,8 +92,22 @@ export async function initializeAuthoritativePlayerSnapshot(
   characterId?: number,
 ): Promise<{ ok: boolean; ready?: boolean; message?: string }> {
   const resolvedCharacterId = characterId ?? resolveDefaultCharacterIdForProfile();
+  const startedAt = Date.now();
 
   for (let attempt = 0; attempt < SNAPSHOT_MAX_ATTEMPTS; attempt += 1) {
+    if (Date.now() - startedAt > SNAPSHOT_TOTAL_DEADLINE_MS) {
+      return {
+        ok: false,
+        message: 'Servidor demorou demais ao preparar o personagem. Tente novamente.',
+      };
+    }
+
+    if (attempt > 0) {
+      updatePlayerInitLoadingMessage(
+        `Sincronizando perfil no servidor… (${attempt + 1}/${SNAPSHOT_MAX_ATTEMPTS})`,
+      );
+    }
+
     const result = await fetchAuthoritativePlayerSnapshotOnce(resolvedCharacterId);
     if (result.ok) {
       return { ok: true, ready: true };

@@ -31,6 +31,8 @@ export type ExplorationRenderFrameInput = {
   readonly domNametagEntries: readonly DomNametagEntry[];
   /** Mapa Tiled desenhado pelo Phaser — canvas só entidades/overlays. */
   readonly phaserMapActive?: boolean;
+  /** Sprites de mundo no Phaser — canvas não redesenha player/NPC/monstro/pet. */
+  readonly phaserEntitiesReady?: boolean;
 };
 
 /**
@@ -60,6 +62,8 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
 
   const tiledMap = isTiledMapEnabled(input.mapId as MapId);
   const phaserMapActive = input.phaserMapActive === true && tiledMap;
+  const phaserEntitiesReady = input.phaserEntitiesReady === true;
+  const phaserOwnsWorldSprites = phaserMapActive && phaserEntitiesReady;
   const legacyClearColor = worldMapRenderer.getBackgroundColor();
   const clearColor = phaserMapActive
     ? 'rgba(0,0,0,0)'
@@ -88,17 +92,24 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
             x: playerSnapshot.x,
             y: playerSnapshot.y,
           })),
-      ...worldMap.collectMonsterDrawables(ctx),
-      ...npcManager.collectWorldActorDrawables(ctx, playerSnapshot, timestampMs, petSnapshot),
+      ...(phaserOwnsWorldSprites
+        ? []
+        : [
+            ...worldMap.collectMonsterDrawables(ctx),
+            ...npcManager.collectWorldActorDrawables(ctx, playerSnapshot, timestampMs, petSnapshot),
+          ]),
     ],
 
     drawWorldOverlays: (ctx) => {
-      if (navigationDestination) {
+      if (!phaserOwnsWorldSprites && navigationDestination) {
         drawNavigationDestinationMarker(
           ctx,
           navigationDestination.worldX,
           navigationDestination.worldY,
         );
+      }
+      if (phaserOwnsWorldSprites) {
+        return;
       }
       drawAuthoritativeCreatureDebugOverlay(
         ctx,

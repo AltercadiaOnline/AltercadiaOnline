@@ -68,4 +68,5 @@ export function fallbackToCanvasExplorationPipeline(mapId?: MapId): void {
   }
 
   getRenderLayerBridge().markPhaserSceneReady(false);
+  getRenderLayerBridge().markPhaserEntitiesReady(false);
 }

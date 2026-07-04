@@ -62,17 +62,14 @@ import {
   USER_GAME_HOST_MISSING,
   USER_SERVER_OFFLINE,
 } from '../../shared/brand.js';
-import {
-  hidePlayerInitLoading,
-  showPlayerInitLoading,
-} from '../auth/playerInitLoading.js';
+import { hidePlayerInitLoading, showPlayerInitLoading } from '../auth/playerInitLoading.js';
+import { AuthOperationTimeoutError, withAuthDeadline } from '../auth/authDeadline.js';
 import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
 import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
 import { getAppScreenBridge } from '../app/bridge/appScreenBridge.js';
 import { authLoginFormHasUserInput, getAuthScreenController } from '../app/screen/authScreenController.js';
 import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
 import { isEmailCredentialAuthInFlight } from '../services/auth/oauthPending.js';
-import { withAuthDeadline } from '../auth/authDeadline.js';
 import {
   markAuthBootstrapFailed,
   markAuthBootstrapPending,
@@ -282,38 +279,53 @@ export const AppScreens = {
     const oauthFlow = options?.oauthFlow === true;
 
     try {
-      if (oauthFlow) {
-        showPlayerInitLoading('Preparando sua conta…');
-      } else {
-        showPlayerInitLoading('Carregando personagens…');
-      }
-
-      if (user) {
-        const accountKey = resolveAccountKey(user);
-        if (!this.currentSession || this.currentSession.id !== accountKey) {
-          await this.setAuthenticatedUser(user);
-        }
-      }
-
-      const profileReady = await this.ensureProfileMetadataComplete({ oauthFlow });
-      if (!profileReady) {
+      await withAuthDeadline(
+        this.runProceedAfterAuthentication(user, oauthFlow),
+        'Carregamento de personagens demorou demais. Verifique a conexão e tente novamente.',
+        25_000,
+      );
+    } catch (error) {
+      if (error instanceof AuthOperationTimeoutError) {
+        this.showLogin();
+        getAuthScreenController().setStatus(error.message, true);
         return;
       }
-
-      const hubResult = await this.showCharSelect();
-
-      if (!hubResult.ok) {
-        return;
-      }
-
-      if (!this.hubHasPlayableCharacter()) {
-        this.openCharacterCreateForFirstEmptySlot();
-        if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth()) {
-          clearOAuthAutoCharCreate();
-        }
-      }
+      throw error;
     } finally {
       hidePlayerInitLoading();
+    }
+  },
+
+  async runProceedAfterAuthentication(user: AuthUser | undefined, oauthFlow: boolean): Promise<void> {
+    if (oauthFlow) {
+      showPlayerInitLoading('Preparando sua conta…');
+    } else {
+      showPlayerInitLoading('Carregando personagens…');
+    }
+
+    if (user) {
+      const accountKey = resolveAccountKey(user);
+      if (!this.currentSession || this.currentSession.id !== accountKey) {
+        await this.setAuthenticatedUser(user);
+      }
+    }
+
+    const profileReady = await this.ensureProfileMetadataComplete({ oauthFlow });
+    if (!profileReady) {
+      return;
+    }
+
+    const hubResult = await this.showCharSelect();
+
+    if (!hubResult.ok) {
+      return;
+    }
+
+    if (!this.hubHasPlayableCharacter()) {
+      this.openCharacterCreateForFirstEmptySlot();
+      if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth()) {
+        clearOAuthAutoCharCreate();
+      }
     }
   },
 

@@ -76,7 +76,7 @@ import {
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
-import { getRenderLayerBridge, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { getRenderLayerBridge, isPhaserExplorationEntitiesReady, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
 import { subscribePhaserCanvasProceduralFallback } from '../phaser/phaserCanvasFallback.js';
 import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
@@ -1046,6 +1046,7 @@ export class ExplorationScene implements Disposable {
         ...this.worldMapRenderer.collectDomLabelEntries(),
       ],
       phaserMapActive: isPhaserRenderPipelineReady(),
+      phaserEntitiesReady: isPhaserExplorationEntitiesReady(),
     });
   }
 

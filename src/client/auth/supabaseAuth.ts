@@ -264,17 +264,35 @@ export async function getUser(options?: GetUserOptions): Promise<User | null> {
 }
 
 /** JWT de acesso para Railway (HTTP + WebSocket) — nunca logar este valor. */
-export async function resolveSessionAccessToken(): Promise<string | null> {
+export async function resolveSessionAccessToken(options?: {
+  readonly validateUser?: boolean;
+}): Promise<string | null> {
   const client = getSupabase();
   if (!client) return null;
 
-  const { data: { session }, error } = await client.auth.getSession();
-  if (error || !session?.access_token) {
+  let session: Session | null = null;
+  try {
+    const { data, error } = await withAuthDeadline(
+      client.auth.getSession(),
+      'Leitura de sessão demorou demais.',
+      6_000,
+    );
+    if (error || !data.session?.access_token) {
+      return null;
+    }
+    session = data.session;
+  } catch {
     return null;
   }
 
-  const user = await getUser({ silent: true, clearInvalidSession: true });
-  if (!user) return null;
+  if (options?.validateUser === true) {
+    const user = await withAuthDeadline(
+      getUser({ silent: true, clearInvalidSession: true }),
+      'Validação de sessão demorou demais.',
+      6_000,
+    ).catch(() => null);
+    if (!user) return null;
+  }
 
   return session.access_token;
 }

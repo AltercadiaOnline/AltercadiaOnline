@@ -64,34 +64,34 @@ export async function gameServerFetch(
   options: GameServerFetchOptions = {},
 ): Promise<Response> {
   const url = buildGameServerUrl(path, options.searchParams);
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    ...(options.headers ?? {}),
-  };
-
-  if (options.auth !== false) {
-    const token = await resolveSessionAccessToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-  }
-
   const deadlineMs = options.deadlineMs ?? DEFAULT_GAME_SERVER_DEADLINE_MS;
   const deadlineController = new AbortController();
   const deadlineTimer = setTimeout(() => deadlineController.abort(), deadlineMs);
   const signal = mergeAbortSignals(deadlineController.signal, options.signal);
 
-  const init: RequestInit = {
-    method: options.method ?? 'GET',
-    headers,
-    credentials: 'omit',
-    signal,
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...(options.headers ?? {}),
   };
-  if (options.body !== undefined) {
-    init.body = options.body;
-  }
 
   try {
+    if (options.auth !== false) {
+      const token = await resolveSessionAccessToken();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+
+    const init: RequestInit = {
+      method: options.method ?? 'GET',
+      headers,
+      credentials: 'omit',
+      signal,
+    };
+    if (options.body !== undefined) {
+      init.body = options.body;
+    }
+
     return await fetch(url.toString(), init);
   } finally {
     clearTimeout(deadlineTimer);

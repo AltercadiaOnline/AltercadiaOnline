@@ -443,6 +443,7 @@ class AuthScreenController {
       this.setStatus('Erro inesperado ao fazer login.', true);
     } finally {
       clearEmailCredentialAuthInFlight();
+      hidePlayerInitLoading();
       this.setBusy(false);
     }
   }
