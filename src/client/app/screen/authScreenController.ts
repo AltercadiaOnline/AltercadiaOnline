@@ -432,7 +432,7 @@ class AuthScreenController {
 
       logAuthApiResult('login', 'success', { userId: result.user.id ?? null });
       clearAllOAuthFlags();
-      this.setStatus(result.message ?? 'Login autorizado!', false);
+      this.setStatus('Carregando personagens…', false);
       showPlayerInitLoading('Carregando personagens…');
       await this.options?.onAuthenticated(result.user);
     } catch (error) {

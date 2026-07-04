@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 
 import { readBirthDateFromUserMetadata } from '../../shared/auth/accountAgePolicy.js';
 import { USER_AUTH_UNAVAILABLE } from '../../shared/brand.js';
+import { withAuthDeadline } from './authDeadline.js';
 import { getSupabaseClient, getUser } from './supabaseAuth.js';
 
 export function userNeedsProfileMetadata(user: User | null | undefined): boolean {
@@ -11,7 +12,11 @@ export function userNeedsProfileMetadata(user: User | null | undefined): boolean
 }
 
 export async function currentUserNeedsProfileMetadata(): Promise<boolean> {
-  const user = await getUser();
+  const user = await withAuthDeadline(
+    getUser(),
+    'Validação de perfil demorou demais.',
+    8_000,
+  ).catch(() => null);
   return userNeedsProfileMetadata(user);
 }
 

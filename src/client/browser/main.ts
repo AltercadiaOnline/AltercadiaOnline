@@ -115,6 +115,7 @@ import type { AuthUser } from '../../shared/authService.js';
 import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
 import {
   hidePlayerInitLoading,
+  isPlayerInitLoadingVisible,
   showPlayerInitLoading,
 } from '../auth/playerInitLoading.js';
 import {
@@ -610,6 +611,9 @@ const PHASER_PROCEDURAL_FALLBACK_MS = 8_000;
 function enterWorld(): void {
   if (worldStarted) return;
 
+  // Remove `hidden` de #game-container antes do chunk do HUD — evita tela presa no char select.
+  showScreen('game-container');
+
   // Monta o HUD em paralelo; ele aparece assim que a promise resolver. A transição
   // para o mundo acontece quando o HUD ficar pronto OU quando o timeout estourar.
   const hudReady = initReactGameHud().catch((error) => {
@@ -1077,7 +1081,9 @@ async function bootstrap(): Promise<void> {
     ensureLoginHudBound();
     showBootstrapFatalError(resolveBootstrapFatalMessage(error));
   } finally {
-    hidePlayerInitLoading();
+    if (!isPlayerInitLoadingVisible()) {
+      hidePlayerInitLoading();
+    }
     if (!loginUiBound) {
       ensureLoginHudBound();
     }

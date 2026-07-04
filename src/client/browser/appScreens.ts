@@ -189,6 +189,12 @@ function isPastLoginGate(currentSession: LocalSession | null): boolean {
   return activeScreen === 'char-select-screen' || activeScreen === 'game-container';
 }
 
+/** Bootstrap só deve forçar login se a UI ainda estiver na tela de auth. */
+function shouldForceLoginScreenOnBootstrap(currentSession: LocalSession | null): boolean {
+  if (isPastLoginGate(currentSession)) return false;
+  return getAppScreenBridge().snapshot().activeScreen === 'login-screen';
+}
+
 function bindAppShellListeners(onEnterWorld: () => void): void {
   if (appShellListenersBound) return;
   appShellListenersBound = true;
@@ -297,6 +303,9 @@ export const AppScreens = {
   },
 
   async runProceedAfterAuthentication(user: AuthUser | undefined, oauthFlow: boolean): Promise<void> {
+    // Sai do login React imediatamente — hub/snapshot podem demorar (Railway).
+    showScreen('char-select-screen');
+
     if (oauthFlow) {
       showPlayerInitLoading('Preparando sua conta…');
     } else {
@@ -628,7 +637,7 @@ export const AppScreens = {
           if (!isPasswordRecoverySession() && !authLoginFormHasUserInput() && !pastLoginGate) {
             this.resetLoginScreenForFreshVisit();
           }
-          if (!pastLoginGate) {
+          if (shouldForceLoginScreenOnBootstrap(this.currentSession)) {
             this.showLogin();
             this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
           }
@@ -638,7 +647,7 @@ export const AppScreens = {
         if (!isPasswordRecoverySession() && !authLoginFormHasUserInput() && !pastLoginGate) {
           this.resetLoginScreenForFreshVisit();
         }
-        if (!pastLoginGate) {
+        if (shouldForceLoginScreenOnBootstrap(this.currentSession)) {
           this.showLogin();
           this.showLoginEnvironmentHint({ supabase: supabaseConfigured, serverOk, gameWsUrl: hasGameWsUrl });
         }
