@@ -432,8 +432,7 @@ class AuthScreenController {
 
       logAuthApiResult('login', 'success', { userId: result.user.id ?? null });
       clearAllOAuthFlags();
-      this.setStatus('Carregando personagens…', false);
-      showPlayerInitLoading('Carregando personagens…');
+      this.setStatus('Conectando ao servidor…', false);
       await this.options?.onAuthenticated(result.user);
     } catch (error) {
       logAuthApiResult('login', 'error', {
@@ -443,7 +442,6 @@ class AuthScreenController {
       this.setStatus('Erro inesperado ao fazer login.', true);
     } finally {
       clearEmailCredentialAuthInFlight();
-      hidePlayerInitLoading();
       this.setBusy(false);
     }
   }

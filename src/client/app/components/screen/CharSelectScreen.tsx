@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CHARACTER_SLOT_COUNT } from '../../../../shared/characterHub.js';
 import { CLASS_CATALOG } from '../../../../shared/types/classes.js';
 import {
   resolvePlayerSkinBundleId,
@@ -72,8 +73,35 @@ export function CharSelectScreen() {
         </p>
       )}
 
+      {state.statusIsError && (
+        <button
+          type="button"
+          className="char-select-retry"
+          disabled={state.hubLoading}
+          aria-busy={state.hubLoading}
+          onClick={() => {
+            void bridge.retryHubLoad();
+          }}
+        >
+          {state.hubLoading ? 'RECONECTANDO…' : 'TENTAR NOVAMENTE'}
+        </button>
+      )}
+
       <div className="char-container">
-        {state.slots.map(({ slotIndex, character }) => {
+        {state.hubLoading && state.slots.length === 0
+          ? Array.from({ length: CHARACTER_SLOT_COUNT }, (_, slotIndex) => (
+              <div
+                key={`loading-${slotIndex}`}
+                className="char-slot vortex-panel empty char-slot--loading"
+                aria-hidden="true"
+              >
+                <div className="char-slot-body">
+                  <span className="char-empty-label">{`Slot ${slotIndex + 1}`}</span>
+                  <span className="char-empty-action">Carregando…</span>
+                </div>
+              </div>
+            ))
+          : state.slots.map(({ slotIndex, character }) => {
           if (character) {
             const selected = character.id === state.selectedCharacterId;
             const skinPreviewUrl = resolvePlayerSkinBundleSouthPreviewUrl(

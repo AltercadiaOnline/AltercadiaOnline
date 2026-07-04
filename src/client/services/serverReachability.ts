@@ -1,7 +1,7 @@
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { resolveGameHttpUrl } from '../../shared/net/resolveGameHttpUrl.js';
 
-const HEALTH_TIMEOUT_MS = 4000;
+const HEALTH_TIMEOUT_MS = 12_000;
 
 function isLocalDevHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1';

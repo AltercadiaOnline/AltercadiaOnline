@@ -16,8 +16,8 @@ export type GameServerFetchOptions = {
 
 const DEFAULT_GAME_SERVER_DEADLINE_MS = 20_000;
 
-/** Teto para APIs da tela de personagem (hub, shards) — evita loading eterno. */
-export const CHAR_SELECT_API_DEADLINE_MS = 5_000;
+/** Teto para APIs da tela de personagem (hub, shards) — Railway cold start pode levar >5s. */
+export const CHAR_SELECT_API_DEADLINE_MS = 15_000;
 
 export function isGameServerFetchTimeoutError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
@@ -65,23 +65,24 @@ export async function gameServerFetch(
 ): Promise<Response> {
   const url = buildGameServerUrl(path, options.searchParams);
   const deadlineMs = options.deadlineMs ?? DEFAULT_GAME_SERVER_DEADLINE_MS;
-  const deadlineController = new AbortController();
-  const deadlineTimer = setTimeout(() => deadlineController.abort(), deadlineMs);
-  const signal = mergeAbortSignals(deadlineController.signal, options.signal);
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...(options.headers ?? {}),
   };
 
-  try {
-    if (options.auth !== false) {
-      const token = await resolveSessionAccessToken();
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
+  if (options.auth !== false) {
+    const token = await resolveSessionAccessToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
+  }
 
+  const deadlineController = new AbortController();
+  const deadlineTimer = setTimeout(() => deadlineController.abort(), deadlineMs);
+  const signal = mergeAbortSignals(deadlineController.signal, options.signal);
+
+  try {
     const init: RequestInit = {
       method: options.method ?? 'GET',
       headers,

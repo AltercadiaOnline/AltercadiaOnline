@@ -230,6 +230,9 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
       return null;
     }
     markOAuthCodeExchanged();
+    if (data.session) {
+      primeSessionAccessToken(data.session);
+    }
     return data.session;
   }
 
@@ -245,6 +248,9 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
       console.error('[Auth] verifyOtp falhou:', error.message);
       return null;
     }
+    if (data.session) {
+      primeSessionAccessToken(data.session);
+    }
     return data.session;
   }
 
@@ -254,12 +260,19 @@ export async function exchangeOAuthCallbackIfPresent(): Promise<Session | null> 
     console.warn('[Auth] getSession falhou ao ler hash de auth.');
     return null;
   }
+  if (session) {
+    primeSessionAccessToken(session);
+  }
   return session;
 }
 
 /** Restaura sessão persistida (localStorage) após reload ou retorno OAuth. */
 export async function restorePersistedSession(): Promise<Session | null> {
-  return exchangeOAuthCallbackIfPresent();
+  const session = await exchangeOAuthCallbackIfPresent();
+  if (session) {
+    primeSessionAccessToken(session);
+  }
+  return session;
 }
 
 /** Valida sessão com o Supabase (getUser) — fonte de verdade antes de entrar no jogo. */

@@ -282,45 +282,39 @@ export const AppScreens = {
     user?: AuthUser,
     options?: { readonly oauthFlow?: boolean },
   ): Promise<void> {
-    const oauthFlow = options?.oauthFlow === true;
-
     try {
       await withAuthDeadline(
-        this.runProceedAfterAuthentication(user, oauthFlow),
-        'Carregamento de personagens demorou demais. Verifique a conexão e tente novamente.',
-        25_000,
+        this.runProceedAfterAuthentication(user, options?.oauthFlow === true),
+        'Carregamento de personagens demorou demais. Toque em "Tentar novamente" na tela de personagens.',
+        45_000,
       );
     } catch (error) {
       if (error instanceof AuthOperationTimeoutError) {
-        this.showLogin();
-        getAuthScreenController().setStatus(error.message, true);
+        showScreen('char-select-screen');
+        getCharSelectBridge().setHubLoading(false);
+        getCharSelectBridge().setHubStatus(error.message, true);
         return;
       }
       throw error;
-    } finally {
-      hidePlayerInitLoading();
     }
   },
 
   async runProceedAfterAuthentication(user: AuthUser | undefined, oauthFlow: boolean): Promise<void> {
-    // Sai do login React imediatamente — hub/snapshot podem demorar (Railway).
     showScreen('char-select-screen');
-
-    if (oauthFlow) {
-      showPlayerInitLoading('Preparando sua conta…');
-    } else {
-      showPlayerInitLoading('Carregando personagens…');
-    }
+    getCharSelectBridge().setHubLoading(true);
+    getCharSelectBridge().clearHubStatus();
 
     if (user) {
       const accountKey = resolveAccountKey(user);
       if (!this.currentSession || this.currentSession.id !== accountKey) {
         await this.setAuthenticatedUser(user);
       }
+      getCharSelectBridge().syncFromAppScreens();
     }
 
     const profileReady = await this.ensureProfileMetadataComplete({ oauthFlow });
     if (!profileReady) {
+      getCharSelectBridge().setHubLoading(false);
       return;
     }
 
@@ -341,6 +335,7 @@ export const AppScreens = {
   async showCharSelect(): Promise<{ ok: boolean; message?: string }> {
     showScreen('char-select-screen');
     this.clearCharacterHubError();
+    getCharSelectBridge().setHubLoading(true);
 
     const [serverSync, hubResult] = await Promise.all([
       syncCharSelectServerSelector(),
@@ -355,10 +350,12 @@ export const AppScreens = {
     this.renderAccountLabel();
     if (!hubResult.ok) {
       this.renderCharacterHubError(hubResult.message ?? 'Erro ao conectar ao servidor de dados.');
+      getCharSelectBridge().setHubLoading(false);
       return hubResult;
     }
     this.renderCharacterSlots();
     this.syncCharacterSelectionUi();
+    getCharSelectBridge().setHubLoading(false);
     return { ok: true };
   },
 

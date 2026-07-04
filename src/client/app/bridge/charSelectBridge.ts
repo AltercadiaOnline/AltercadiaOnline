@@ -18,6 +18,7 @@ export type CharSelectSnapshot = {
   readonly accountEmail: string;
   readonly statusMessage: string;
   readonly statusIsError: boolean;
+  readonly hubLoading: boolean;
   readonly selectedCharacterId: number | null;
   readonly slots: CharSelectSlotView[];
   readonly server: CharSelectServerUiState | null;
@@ -51,6 +52,8 @@ class CharSelectBridge {
   private statusMessage = '';
 
   private statusIsError = false;
+
+  private hubLoading = false;
 
   subscribe(listener: CharSelectListener): () => void {
     this.listeners.add(listener);
@@ -86,6 +89,21 @@ class CharSelectBridge {
     this.statusMessage = '';
     this.statusIsError = false;
     this.emit();
+  }
+
+  setHubLoading(loading: boolean): void {
+    this.hubLoading = loading;
+    this.emit();
+  }
+
+  async retryHubLoad(): Promise<void> {
+    this.setHubLoading(true);
+    this.clearHubStatus();
+    const result = await AppScreens.showCharSelect();
+    this.setHubLoading(false);
+    if (!result.ok) {
+      this.setHubStatus(result.message ?? 'Erro ao conectar ao servidor de dados.', true);
+    }
   }
 
   setServerState(state: CharSelectServerUiState | null): void {
@@ -181,6 +199,7 @@ class CharSelectBridge {
       accountEmail: email ? `Conta: ${email}` : '',
       statusMessage: this.statusMessage,
       statusIsError: this.statusIsError,
+      hubLoading: this.hubLoading,
       selectedCharacterId: AppScreens.selectedCharacterId,
       slots,
       server: this.serverState ?? getCharSelectServerUiState(),

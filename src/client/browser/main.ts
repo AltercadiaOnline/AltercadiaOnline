@@ -51,6 +51,7 @@ import { ExplorationScene } from '../scenes/Exploration.js';
 import { setupLoginScreen } from '../services/loginScreen.js';
 import { setAuthStatusMessage } from '../services/authFlow.js';
 import { getAuthBridge } from '../app/bridge/authBridge.js';
+import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
 import { getHudBridge } from '../app/bridge/hudBridge.js';
 import { logAuthEnvironment } from '../auth/authDebug.js';
 import {
@@ -895,10 +896,9 @@ async function onLoginSuccess(user: AuthUser, options?: AuthPostLoginOptions): P
     const message = error instanceof Error
       ? error.message
       : 'Erro ao conectar ao servidor de dados.';
-    AppScreens.showLogin();
-    setAuthStatusMessage(message, { isError: true });
-  } finally {
-    hidePlayerInitLoading();
+    showScreen('char-select-screen');
+    getCharSelectBridge().setHubLoading(false);
+    getCharSelectBridge().setHubStatus(message, true);
   }
 }
 
