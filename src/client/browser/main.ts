@@ -103,7 +103,7 @@ import {
   clearWorldLoginRetry,
   scheduleWorldLoginRetry,
 } from '../world/worldLoginCoordinator.js';
-import { GAME_CANVAS_ID } from '../layout/gameLayout.js';
+import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
 import {
   beginWorldChroniclesSession,
   bindWorldLoreWsTransport,
@@ -143,7 +143,6 @@ import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
-import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
 import { bootOnlinePhaserExploration, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
 import { registerMapLoadFatalHandler } from '../phaser/tiled/mapLoadFatalError.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
@@ -312,11 +311,11 @@ function syncExplorationOnlineFromSocket(): void {
 }
 
 function focusGameRenderSurfaceForInput(): void {
-  const canvas = document.getElementById(GAME_CANVAS_ID);
-  if (!(canvas instanceof HTMLCanvasElement)) return;
-  canvas.tabIndex = -1;
-  if (!canvas.hasAttribute('role')) {
-    canvas.setAttribute('role', 'application');
+  const surface = document.getElementById(PHASER_MOUNT_ROOT_ID);
+  if (!(surface instanceof HTMLElement)) return;
+  surface.tabIndex = -1;
+  if (!surface.hasAttribute('role')) {
+    surface.setAttribute('role', 'application');
   }
 }
 
@@ -797,11 +796,7 @@ function enterWorldAfterHudReady(): void {
         world?.prepareFrame(deltaMs);
       },
       onRender: (timestampMs) => {
-        if (isPhaserRenderEngineActive()) {
-          world?.syncWorldDomOverlay(timestampMs);
-          return;
-        }
-        world?.renderWorld(timestampMs);
+        world?.syncWorldDomOverlay(timestampMs);
       },
     });
   }
@@ -810,8 +805,10 @@ function enterWorldAfterHudReady(): void {
   wirePortalTransitionBridge();
   focusGameRenderSurfaceForInput();
 
+  enablePhaserForOnlineSession();
+
   activeWorld.prepareFrame(0);
-  activeWorld.renderWorld(performance.now());
+  activeWorld.syncWorldDomOverlay(performance.now());
 
   worldStarted = true;
   initDebugMenuIfAllowed({
@@ -819,8 +816,6 @@ function enterWorldAfterHudReady(): void {
     allowedEmails: DEV_DEBUG_ALLOWED_EMAILS,
     onLevelChanged: (level) => activeWorld.setPlayerLevel(level),
   });
-
-  enablePhaserForOnlineSession();
 
   void bootOnlinePhaserExploration().then((phaserBooted) => {
     if (!phaserBooted || !world) {

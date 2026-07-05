@@ -23,6 +23,7 @@ import { getSharedPlayerSprite } from '../entities/player/index.js';
 
 import { WorldMapRenderer } from '../world/WorldMapRenderer.js';
 import { invalidateDomNametagLayoutCache } from '../world/domNametagLayer.js';
+import { syncWorldDomOverlay } from '../world/worldDomOverlay.js';
 
 import { Camera } from './Camera.js';
 import { CameraManager } from './CameraManager.js';
@@ -67,18 +68,16 @@ import {
   initGameStageScale,
   updateScale,
   enforceFixedGameStagePixels,
-  GAME_CANVAS_ID,
   resolveGameUiLayer,
 } from '../layout/gameLayout.js';
-import {
-  createGameCanvas2DContext,
-  disableCanvasImageSmoothing,
-} from '../layout/gamePixelScale.js';
+import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
+import { setPhaserWorldInputBlocked } from '../phaser/phaserExplorationPipeline.js';
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
-import { getRenderLayerBridge, isPhaserExplorationEntitiesReady, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { getRenderLayerBridge, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
+import { getGameRenderLoop } from '../render/GameRenderLoop.js';
 import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
 import { sortWorldActorsByDepth } from '../world/worldActorsRenderSnapshot.js';
 import {
@@ -96,9 +95,6 @@ import { bindNpcModalController } from '../ui/npcModalController.js';
 import { setWorldCreatureSyncListener } from '../world/worldCreatureSyncBridge.js';
 import { ensureWorldMonsterInstances } from '../../shared/world/worldMonsterInstances.js';
 import { initVisualDebugModeHotkey } from '../debug/visualDebugMode.js';
-import { GameRenderer } from '../render/GameRenderer.js';
-import { buildExplorationRenderState } from '../render/ExplorationRenderStateBuilder.js';
-import { getGameRenderLoop } from '../render/GameRenderLoop.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
 import { cancelScheduledFrame, scheduleNextFrame } from '../sync/frameScheduler.js';
 import { refreshCharacterLevelProgressHud } from '../progression/characterLevelHud.js';
@@ -115,10 +111,6 @@ import type { Disposable } from '../utils/Disposable.js';
 import { subscribeTiledMapPlacementsCommitted } from '../world/tiledMapPlacementsBridge.js';
 
 export class ExplorationScene implements Disposable {
-  private readonly canvas: HTMLCanvasElement;
-
-  public readonly ctx: CanvasRenderingContext2D;
-
   public readonly camera: Camera;
 
   private readonly cameraManager: CameraManager;
@@ -179,14 +171,12 @@ export class ExplorationScene implements Disposable {
 
   private readonly zonePreloader = new ZoneMapPreloader();
 
-
   private paused = false;
 
   private worldPlayerId: string | null = null;
 
   private worldCharacterId: number | null = null;
   private disconnectViewportObserver: (() => void) | null = null;
-  private readonly gameRenderer: GameRenderer;
   private lastMinimapPublishKey = '';
   private lastSpeechBubbleTileKey = '';
   private teardownVisualDebugHotkey: (() => void) | null = null;
@@ -195,19 +185,10 @@ export class ExplorationScene implements Disposable {
 
   constructor(mapManager: MapManager, worldSocket: WorldSocket) {
 
-    const canvas = document.getElementById(GAME_CANVAS_ID);
-
-    if (!(canvas instanceof HTMLCanvasElement)) {
-
-      throw new Error('[ExplorationScene] Elemento #game-canvas não encontrado.');
-
+    const inputSurface = document.getElementById(PHASER_MOUNT_ROOT_ID);
+    if (!(inputSurface instanceof HTMLElement)) {
+      throw new Error('[ExplorationScene] Elemento #phaser-mount-root não encontrado.');
     }
-
-
-
-    const ctx = createGameCanvas2DContext(canvas);
-
-
 
     const stage = document.getElementById('game-stage');
 
@@ -222,17 +203,7 @@ export class ExplorationScene implements Disposable {
       ?? resolveGameUiLayer()
       ?? stage;
 
-
-
-    this.canvas = canvas;
-
-    this.ctx = ctx;
-
-    this.gameRenderer = new GameRenderer(canvas);
-    disableCanvasImageSmoothing(this.ctx);
-
     this.mapManager = mapManager;
-
     this.worldSocket = worldSocket;
 
     this.camera = new Camera(
@@ -399,15 +370,11 @@ export class ExplorationScene implements Disposable {
 
 
     this.worldMapRenderer = new WorldMapRenderer({
-
-      canvas: this.canvas,
-
+      inputSurface,
       camera: this.camera,
-
-      onCanvasClick: (screenX, screenY, options) => {
-        this.pointClickController.handleCanvasClick(screenX, screenY, options);
+      onWorldClick: (screenX, screenY, options) => {
+        this.pointClickController.handleWorldClick(screenX, screenY, options);
       },
-
     });
 
 
@@ -512,7 +479,6 @@ export class ExplorationScene implements Disposable {
 
 
     InputHandler.init({
-      canvas: this.canvas,
       onMovementInputStart: (direction) => {
         if (!direction || !isAuthoritativeMovementOnline()) return;
         const facing = moveDirectionToFacing(direction);
@@ -685,10 +651,9 @@ export class ExplorationScene implements Disposable {
     this.applyFixedViewport();
   }
 
-  /** Canvas não rouba cliques enquanto HUD de NPC (ex.: Cael) está aberta. */
+  /** Phaser recebe input — bloqueia cliques no mundo quando HUD modal está aberta. */
   private syncWorldPointerGate(): void {
-    const hudLocked = isWorldHudInteractionLocked();
-    this.canvas.classList.toggle('game-canvas--input-blocked', hudLocked);
+    setPhaserWorldInputBlocked(isWorldHudInteractionLocked());
   }
 
   public update(deltaMs = 16.67): void {
@@ -926,15 +891,6 @@ export class ExplorationScene implements Disposable {
           ...this.worldMap.collectCreatureRenderSnapshots(),
           ...this.npcManager.collectNpcRenderSnapshots(timestampMs),
         ]),
-        terrainTiles: isTiledMapEnabled(this.mapManager.currentMapId)
-          ? []
-          : this.worldMapRenderer.collectGroundTileSnapshots(),
-        worldStructures: isTiledMapEnabled(this.mapManager.currentMapId)
-          ? []
-          : this.worldMapRenderer.collectStructureSnapshots({
-              x: this.player.renderX,
-              y: this.player.renderY,
-            }),
         pet: this.petFollow.toRenderSnapshot(),
         navigationDestination: this.navigationDestination,
         debugOverlay: buildExplorationDebugOverlaySnapshot({
@@ -1012,44 +968,18 @@ export class ExplorationScene implements Disposable {
 
 
 
-  /** Sincroniza nametags/balões DOM quando Phaser substitui o render canvas. */
+  /** Sincroniza nametags/balões DOM acima do Phaser. */
   public syncWorldDomOverlay(timestampMs = performance.now()): void {
-    const state = this.buildRenderState(timestampMs);
-    state.syncDomOverlay?.();
-  }
-
-  /** Único ponto de renderização canvas — delega ao GameRenderer (desligado no motor Phaser). */
-  public renderWorld(timestampMs = performance.now()): void {
-    if (getRenderLayerBridge().snapshot().renderEngine === 'phaser') {
-      this.syncWorldDomOverlay(timestampMs);
-      return;
-    }
-    this.gameRenderer.render(this.ctx, this.buildRenderState(timestampMs));
-  }
-
-  private buildRenderState(timestampMs: number) {
     const playerSnapshot = this.player.toRenderSnapshot();
     const petSnapshot = this.petFollow.toRenderSnapshot();
-
-    return buildExplorationRenderState({
-      mapId: this.mapManager.currentMapId,
-      mapData: this.mapManager.mapDataSnapshot,
-      portals: this.mapManager.portals,
-      camera: this.camera,
-      worldMapRenderer: this.worldMapRenderer,
-      worldMap: this.worldMap,
-      npcManager: this.npcManager,
-      playerSnapshot,
-      petSnapshot,
-      navigationDestination: this.navigationDestination,
-      timestampMs,
-      speechBubbleEntries: getSpeechBubbleManager().getActiveBubbleEntries(timestampMs),
-      domNametagEntries: [
+    syncWorldDomOverlay({
+      textEntries: [
         ...this.npcManager.buildDomNametagEntries(playerSnapshot, petSnapshot),
         ...this.worldMapRenderer.collectDomLabelEntries(),
       ],
-      phaserMapActive: isPhaserRenderPipelineReady() && isTiledMapEnabled(this.mapManager.currentMapId),
-      phaserEntitiesReady: isPhaserExplorationEntitiesReady(),
+      speechBubbles: getSpeechBubbleManager().getActiveBubbleEntries(timestampMs),
+      camera: this.camera,
+      timestampMs,
     });
   }
 

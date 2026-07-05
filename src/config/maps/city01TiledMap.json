@@ -11313,6 +11313,146 @@
           "width": 0,
           "x": 374.666666666667,
           "y": 1156
+        },
+        {
+          "height": 0,
+          "id": 361,
+          "name": "mercenario",
+          "opacity": 1,
+          "point": true,
+          "properties": [
+            {
+              "name": "collidable",
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "width": 0,
+          "x": 322,
+          "y": 544.666666666667
+        },
+        {
+          "height": 0,
+          "id": 362,
+          "name": "terminal_mercado",
+          "opacity": 1,
+          "point": true,
+          "properties": [
+            {
+              "name": "collidable",
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "width": 0,
+          "x": 994,
+          "y": 512.666666666667
+        },
+        {
+          "height": 0,
+          "id": 363,
+          "name": "instrutor_refraction",
+          "opacity": 1,
+          "point": true,
+          "properties": [
+            {
+              "name": "collidable",
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "width": 0,
+          "x": 1058,
+          "y": 224.666666666667
+        },
+        {
+          "height": 0,
+          "id": 364,
+          "name": "mestre_trilhas",
+          "opacity": 1,
+          "point": true,
+          "properties": [
+            {
+              "name": "collidable",
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "width": 0,
+          "x": 706,
+          "y": 512.666666666667
+        },
+        {
+          "height": 0,
+          "id": 365,
+          "name": "arena_pulpit_west",
+          "opacity": 1,
+          "point": true,
+          "properties": [
+            {
+              "name": "collidable",
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "width": 0,
+          "x": 578,
+          "y": 640.666666666667
+        },
+        {
+          "height": 0,
+          "id": 366,
+          "name": "arena_pulpit_center",
+          "opacity": 1,
+          "point": true,
+          "properties": [
+            {
+              "name": "collidable",
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "width": 0,
+          "x": 610,
+          "y": 640.666666666667
+        },
+        {
+          "height": 0,
+          "id": 367,
+          "name": "arena_pulpit_east",
+          "opacity": 1,
+          "point": true,
+          "properties": [
+            {
+              "name": "collidable",
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "rotation": 0,
+          "type": "",
+          "visible": true,
+          "width": 0,
+          "x": 610,
+          "y": 640.666666666667
         }
       ],
       "opacity": 1,

@@ -212,7 +212,6 @@ body[data-react-game-hud-ui='1'] #game-render-column {
 
 #game-render-column .game-stage-frame,
 #game-render-column .game-render-host,
-#game-render-column .game-canvas,
 #game-render-column .phaser-mount-root,
 #game-render-column .game-ui-overlay {
   pointer-events: auto;
@@ -230,37 +229,19 @@ body[data-react-game-hud-ui='1'] #game-render-column {
   height: 360px;
 }
 
-/* Motor Phaser — canvas legado anulado (sem paint, sem input). */
-body[data-render-engine='phaser'] #game-canvas.game-canvas--phaser-passive,
-.game-render-host[data-render-engine='phaser'] #game-canvas.game-canvas--phaser-passive {
-  visibility: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-body[data-render-engine='phaser'] #game-render-host .phaser-mount-root,
-.game-render-host[data-render-engine='phaser'] .phaser-mount-root {
-  z-index: 1;
-  pointer-events: auto;
-}
-
-/* Fallback se o passive ainda não aplicou — não pintar por cima do Phaser */
-body[data-render-engine='phaser'] #game-render-host .game-canvas,
-.game-render-host[data-render-engine='phaser'] .game-canvas {
-  background: transparent;
-  pointer-events: none;
-  z-index: 0;
-}
-
 .phaser-mount-root {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  z-index: 0;
-  background: transparent;
+  z-index: 1;
+  background: #050a0d;
   pointer-events: auto;
+}
+
+.phaser-mount-root--input-blocked {
+  pointer-events: none !important;
 }
 
 .phaser-mount-root canvas {
@@ -1826,10 +1807,9 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 #game-stage-frame,
 #game-stage-scale,
 #game-stage,
-#game-canvas,
 .game-stage-frame,
 .game-stage-scale,
-.game-canvas {
+.phaser-mount-root {
   image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-crisp-edges;
   image-rendering: pixelated;
@@ -2031,19 +2011,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   overflow: hidden;
 }
 
-/* Buffer nativo 640×360 — sem %, flex-grow ou transform no canvas. */
-#game-canvas,
-.game-canvas {
-  display: block;
-  width: 640px;
-  height: 360px;
-  background: #1a1410;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  -ms-interpolation-mode: nearest-neighbor;
-  z-index: 1;
-  pointer-events: auto;
-}
+/* Viewport nativo 640×360 — input via #phaser-mount-root (sem canvas legado). */
 
 .ambient-overlay,
 .global-light-overlay {
@@ -2057,10 +2025,6 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   transition:
     opacity 60s linear,
     background-color 60s linear;
-}
-
-#game-canvas.game-canvas--input-blocked {
-  pointer-events: none;
 }
 
 .interaction-prompt {
@@ -2380,8 +2344,6 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   display: none;
 }
 
-#game-canvas:focus,
-#game-canvas:focus-visible,
 .phaser-mount-root canvas:focus,
 .phaser-mount-root canvas:focus-visible,
 #game-stage-scale:focus,

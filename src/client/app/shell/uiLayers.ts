@@ -1,6 +1,6 @@
 /**
  * Contrato de camadas do cliente online.
- * Render (canvas/Phaser) fica no DOM legado; React monta screen/hud/overlay acima.
+ * Render (Phaser) fica no DOM; React monta screen/hud/overlay acima.
  */
 export const CLIENT_ARCHITECTURE_VERSION = 'online-react-v1';
 
@@ -9,7 +9,6 @@ export const CLIENT_ROOT_IDS = {
   hudRoot: 'game-react-hud-root',
   overlayRoot: 'screen-overlay-root',
   renderHost: 'game-render-host',
-  canvas: 'game-canvas',
   phaserMount: 'phaser-mount-root',
 } as const;
 

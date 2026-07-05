@@ -30,6 +30,7 @@ export const PHASER_CANVAS_STYLE =
 
 export const PHASER_MOUNT_ROOT_ID = 'phaser-mount-root';
 
-export const CANVAS_LEGACY_ID = 'game-canvas';
+/** Superfície de input do mundo — host Phaser (sem canvas legado). */
+export const GAME_WORLD_INPUT_SURFACE_ID = PHASER_MOUNT_ROOT_ID;
 
 export const GAME_RENDER_HOST_ID = 'game-render-host';

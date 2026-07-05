@@ -57,7 +57,7 @@ export const useGameStore = create<GameUiStore>((set) => ({
   viewMode: 'world',
   inGame: false,
   worldHudActive: false,
-  renderEngine: 'canvas-legacy',
+  renderEngine: 'phaser',
   playerData: INITIAL_PLAYER,
 
   setViewMode: (viewMode) => set({ viewMode }),
@@ -76,7 +76,7 @@ export const useGameStore = create<GameUiStore>((set) => ({
     viewMode: 'world',
     inGame: false,
     worldHudActive: false,
-    renderEngine: 'canvas-legacy',
+    renderEngine: 'phaser',
     playerData: INITIAL_PLAYER,
   }),
 }));

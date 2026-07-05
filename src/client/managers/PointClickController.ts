@@ -131,9 +131,9 @@ export class PointClickController implements Disposable {
     this.dismissPrompt();
   }
 
-  handleCanvasClick(screenX: number, screenY: number, options?: { readonly doubleClick?: boolean }): void {
+  handleWorldClick(screenX: number, screenY: number, options?: { readonly doubleClick?: boolean }): void {
     if (options?.doubleClick) {
-      this.handleCanvasDoubleClick(screenX, screenY);
+      this.handleWorldDoubleClick(screenX, screenY);
       return;
     }
 
@@ -242,7 +242,7 @@ export class PointClickController implements Disposable {
     return false;
   }
 
-  private handleCanvasDoubleClick(screenX: number, screenY: number): void {
+  private handleWorldDoubleClick(screenX: number, screenY: number): void {
     this.dismissPrompt();
 
     const pick = screenToTile(

@@ -14,7 +14,10 @@ export const GAME_STAGE_SCALE_ID = 'game-stage-scale';
 export const GAME_DISPLAY_CONTAINER_ID = GAME_STAGE_SCALE_ID;
 export const GAME_UI_OVERLAY_ID = 'game-ui-overlay';
 export const GAME_STAGE_ID = 'game-stage';
-export const GAME_CANVAS_ID = 'game-canvas';
+export const GAME_RENDER_HOST_ID = 'game-render-host';
+
+/** @deprecated Canvas legado removido — input/render no host Phaser. */
+export const GAME_CANVAS_ID = 'phaser-mount-root';
 export const NPC_NAMES_LAYER_ID = 'npc-names-layer';
 export const SPEECH_BUBBLES_LAYER_ID = 'speech-bubbles-layer';
 
@@ -115,22 +118,8 @@ export function resolveGameUiLayer(root: ParentNode = document): HTMLElement | n
   return layer;
 }
 
-/** Garante buffer/CSS 640×360 no canvas — sem escala, % ou flex no #game-canvas. */
+/** Garante layout fixo 640×360 — escala só via updateScale() no container. */
 export function enforceFixedGameStagePixels(): void {
-  const canvas = document.getElementById(GAME_CANVAS_ID);
-  if (canvas instanceof HTMLCanvasElement) {
-    canvas.width = GAME_RENDER_WIDTH;
-    canvas.height = GAME_RENDER_HEIGHT;
-    canvas.style.width = `${GAME_RENDER_WIDTH}px`;
-    canvas.style.height = `${GAME_RENDER_HEIGHT}px`;
-    canvas.style.transform = '';
-    canvas.style.transformOrigin = '';
-    canvas.style.maxWidth = 'none';
-    canvas.style.maxHeight = 'none';
-    canvas.style.flexGrow = '';
-    canvas.style.flex = '';
-  }
-
   const stage = document.getElementById(GAME_STAGE_ID);
   if (stage) {
     stage.style.transform = '';
@@ -167,11 +156,11 @@ export function initGameStageScale(onAfterScale?: () => void): () => void {
 
 /** Mapeia clique (tela) → buffer 640×360. */
 export function mapPointerToRenderBuffer(
-  canvas: HTMLCanvasElement,
+  surface: HTMLElement,
   clientX: number,
   clientY: number,
 ): { x: number; y: number } {
-  const rect = canvas.getBoundingClientRect();
+  const rect = surface.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) {
     return { x: 0, y: 0 };
   }

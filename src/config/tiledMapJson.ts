@@ -160,18 +160,15 @@ function enrichTilesetForPhaser(
     enriched.columns = columns;
   }
 
-  if (typeof enriched.imagewidth !== 'number' || enriched.imagewidth <= 0) {
-    enriched.imagewidth = columns * tileWidth
-      + 2 * margin
-      + (columns - 1) * spacing;
-  }
-
-  if (typeof enriched.imageheight !== 'number' || enriched.imageheight <= 0) {
-    const rows = Math.max(1, Math.ceil(Number(enriched.tilecount) / columns));
-    enriched.imageheight = rows * tileHeight
-      + 2 * margin
-      + (rows - 1) * spacing;
-  }
+  const rows = Math.max(1, Math.ceil(Number(enriched.tilecount) / columns));
+  // Phaser rejeita tilesets quando imagewidth/imageheight não batem com columns×tilesize
+  // (exports Tiled frequentemente trazem 240px em folha 7×32=224).
+  enriched.imagewidth = columns * tileWidth
+    + 2 * margin
+    + Math.max(0, columns - 1) * spacing;
+  enriched.imageheight = rows * tileHeight
+    + 2 * margin
+    + Math.max(0, rows - 1) * spacing;
 
   return enriched;
 }

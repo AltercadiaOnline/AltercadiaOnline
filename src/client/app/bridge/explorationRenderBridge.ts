@@ -3,8 +3,6 @@ import type { PlayerFacing } from '../../../shared/world/playerFacing.js';
 import type { SpriteDirectionKey } from '../../../shared/world/playerFacing.js';
 import type { AnimationState } from '../../entities/player/types.js';
 import type { WorldActorRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
-import type { WorldTerrainTileSnapshot } from '../../world/worldTerrainRenderSnapshot.js';
-import type { WorldStructureRenderSnapshot } from '../../world/worldStructureRenderSnapshot.js';
 import type { PetRenderSnapshot } from '../../entities/pet/PetFollowEntity.js';
 import type { NavigationDestination } from '../../managers/PointClickController.js';
 import type { ExplorationDebugOverlaySnapshot } from '../../phaser/overlay/explorationDebugOverlay.js';
@@ -15,7 +13,7 @@ export type ExplorationPlayerSpriteFrame = {
   readonly direction: SpriteDirectionKey;
 };
 
-/** Frame de exploração publicado pelo loop legado — espelhado pela camada Phaser. */
+/** Frame de exploração publicado pelo loop — espelhado pela camada Phaser. */
 export type ExplorationRenderFrame = {
   readonly mapId: MapId;
   readonly playerX: number;
@@ -26,8 +24,6 @@ export type ExplorationRenderFrame = {
   readonly timestampMs: number;
   readonly playerSprite: ExplorationPlayerSpriteFrame;
   readonly worldActors: readonly WorldActorRenderSnapshot[];
-  readonly terrainTiles: readonly WorldTerrainTileSnapshot[];
-  readonly worldStructures: readonly WorldStructureRenderSnapshot[];
   readonly pet: PetRenderSnapshot | null;
   readonly navigationDestination: NavigationDestination | null;
   readonly debugOverlay: ExplorationDebugOverlaySnapshot | null;

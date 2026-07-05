@@ -6,7 +6,7 @@
  * - combatPlaybackState (flags de fim / ação ativa)
  * - PlayerDataStore → Player (posição visual; não arena DOM)
  *
- * A arena de combate é DOM (#scene-combat); o GameRenderer/Exploration canvas
+ * A arena de combate é DOM (#scene-combat); exploração usa Phaser + overlays DOM.
  * para quando GameState !== EXPLORATION (main.ts shouldRun).
  */
 

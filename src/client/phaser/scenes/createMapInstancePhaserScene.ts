@@ -111,6 +111,8 @@ export function createMapInstancePhaserScene(
         if (!(error instanceof TiledMapLoadError)) {
           console.error('[MapInstanceScene] Falha fatal ao montar mapa Phaser.', error);
         }
+        this.events.on('shutdown', () => this.teardownInstance());
+        return;
       }
 
       this.mountTeleportZones();
@@ -206,7 +208,7 @@ export function createMapInstancePhaserScene(
           this.entitiesMounted = ready;
           if (ready) {
             getRenderLayerBridge().markPhaserEntitiesReady(true);
-            console.debug('[MapInstanceScene] Entidades Phaser montadas — canvas legado só input/DOM/overlays.');
+            console.debug('[MapInstanceScene] Entidades Phaser montadas.');
           } else {
             console.warn('[MapInstanceScene] Sprite do jogador indisponível — placeholder Phaser.');
           }

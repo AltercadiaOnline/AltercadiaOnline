@@ -1,48 +1,26 @@
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { mapPointerToRenderBuffer } from '../layout/gameLayout.js';
-import { disableCanvasImageSmoothing } from '../layout/gamePixelScale.js';
-import { drawSubdividedGroundCell } from './subTileGroundDraw.js';
 import { getEntityVisualBounds } from '../../config/playerDesignAnchoring.js';
 import { DESIGN_SPRITE_DIMENSIONS } from '../../config/spriteDimensions.js';
 import type { Camera } from '../scenes/Camera.js';
 import { screenToTile as pickScreenTile, screenToWorldPixel } from './screenCoords.js';
 import { buildMapVisualLayout, type MapVisualLayout } from './mapVisualLayouts.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
-import { tileToWorldPixel, VisualTileKind, type VisualLandmark } from './city01VisualLayout.js';
-import { FARM_ZONE_PALETTE } from './farmZone01VisualLayout.js';
-import { collectFarmZone01DecorDrawables } from './farmZone01DecorRenderer.js';
-import { collectPortalDrawables } from './portalRenderer.js';
-import { drawGroundTileImage, preloadGroundTile, resolveGroundTileId } from './groundTileImageLoader.js';
+import { tileToWorldPixel, type VisualLandmark } from './city01VisualLayout.js';
 import { PlaceholderType, resolveRankingMonitorDecalAnchors } from './placeholderRenderer.js';
-import { CITY01_VISUAL_PALETTE } from './city01VisualLayout.js';
-import { renderCity01PlaceholderGround, collectCity01PlaceholderStructureDrawables } from './city01PlaceholderRenderer.js';
 import { sceneTileToWorld } from './city01PlaceholderLayout.js';
 import type { DomNametagEntry } from './worldDomOverlay.js';
-import { shouldUseLocalizedHeightStacking } from '../../shared/world/localizedHeight.js';
-import type { WorldPoint } from '../../shared/world/playerEntity.js';
-import { entityAtTile } from './city01PlaceholderLayout.js';
-import {
-  tileFootprintDepthY,
-  type WorldDepthDrawable,
-} from '../../shared/world/worldDepthSort.js';
 import type { Disposable } from '../utils/Disposable.js';
-import {
-  collectMapGroundTileSnapshots,
-  type WorldTerrainTileSnapshot,
-} from './worldTerrainRenderSnapshot.js';
-import {
-  collectMapStructureSnapshots,
-  type WorldStructureRenderSnapshot,
-} from './worldStructureRenderSnapshot.js';
+import { entityAtTile } from './city01PlaceholderLayout.js';
 
 export type WorldMapClickOptions = {
   readonly doubleClick?: boolean;
 };
 
 export type WorldMapRendererOptions = {
-  readonly canvas: HTMLCanvasElement;
+  readonly inputSurface: HTMLElement;
   readonly camera: Camera;
-  readonly onCanvasClick?: (screenX: number, screenY: number, options?: WorldMapClickOptions) => void;
+  readonly onWorldClick?: (screenX: number, screenY: number, options?: WorldMapClickOptions) => void;
 };
 
 const CLICK_DRAG_THRESHOLD_PX = 5;
@@ -56,17 +34,13 @@ export type WorldMapHoverState = {
 };
 
 /**
- * Renderizador visual da Cidade 01 — puramente cliente.
+ * Input + overlays DOM do mundo — render visual exclusivo do Phaser (Tiled).
  * Colisão/rede permanecem no mapa autoritativo (MapManager / servidor).
- *
- * Offset do mundo: camera.x / camera.y (canto superior-esquerdo do recorte 640×360).
- * NPCs humanóides: 35×54 (box) — mesmo contrato do jogador.
- * Profundidade Y-sort usa pés na base do tile — mesmo contrato do jogador.
  */
 export class WorldMapRenderer implements Disposable {
-  private readonly canvas: HTMLCanvasElement;
+  private readonly inputSurface: HTMLElement;
   private readonly camera: Camera;
-  private readonly onCanvasClick: ((screenX: number, screenY: number, options?: WorldMapClickOptions) => void) | undefined;
+  private readonly onWorldClick: ((screenX: number, screenY: number, options?: WorldMapClickOptions) => void) | undefined;
   private layout: MapVisualLayout;
 
   private pointerDown = false;
@@ -80,9 +54,9 @@ export class WorldMapRenderer implements Disposable {
   private bound = false;
 
   constructor(options: WorldMapRendererOptions) {
-    this.canvas = options.canvas;
+    this.inputSurface = options.inputSurface;
     this.camera = options.camera;
-    this.onCanvasClick = options.onCanvasClick;
+    this.onWorldClick = options.onWorldClick;
     this.layout = buildMapVisualLayout('city_01');
     this.bindInput();
   }
@@ -98,23 +72,6 @@ export class WorldMapRenderer implements Disposable {
 
   public getBackgroundColor(): string {
     return this.layout.background;
-  }
-
-  /** Tiles de chão visíveis — espelha renderGroundLayer para a camada Phaser. */
-  public collectGroundTileSnapshots(): readonly WorldTerrainTileSnapshot[] {
-    return collectMapGroundTileSnapshots(this.layout, {
-      x: this.camera.x,
-      y: this.camera.y,
-      visibleWorldWidth: this.camera.visibleWorldWidth,
-      visibleWorldHeight: this.camera.visibleWorldHeight,
-    });
-  }
-
-  /** Estruturas/props visíveis — espelha collectStructureDrawables para Phaser. */
-  public collectStructureSnapshots(
-    playerWorld?: WorldPoint,
-  ): readonly WorldStructureRenderSnapshot[] {
-    return collectMapStructureSnapshots(this.layout, playerWorld);
   }
 
   public getHoverState(): WorldMapHoverState | null {
@@ -133,7 +90,6 @@ export class WorldMapRenderer implements Disposable {
     return pick ? { tileX: pick.tileX, tileY: pick.tileY } : null;
   }
 
-  /** Coordenadas do ponteiro no buffer fixo 640×360 — ignora escala CSS do navegador. */
   private clampToViewport(screenX: number, screenY: number): { x: number; y: number } {
     const w = DESIGN_CONFIG.VIEWPORT.WIDTH;
     const h = DESIGN_CONFIG.VIEWPORT.HEIGHT;
@@ -143,34 +99,6 @@ export class WorldMapRenderer implements Disposable {
     };
   }
 
-  /** Retângulo de tiles visíveis — derivado da grade oficial 32px (+1 margem de desenho). */
-  private getVisibleTileBounds(): {
-    readonly startX: number;
-    readonly startY: number;
-    readonly endX: number;
-    readonly endY: number;
-  } {
-    const tileSize = this.layout.tileSize;
-    if (tileSize !== DESIGN_CONFIG.TILE.SIZE) {
-      console.warn(
-        `[WorldMapRenderer] tileSize ${tileSize} ≠ design ${DESIGN_CONFIG.TILE.SIZE} — câmera pode mostrar contagem errada de tiles.`,
-      );
-    }
-    const pad = 2;
-    const startX = Math.max(0, Math.floor(this.camera.x / tileSize) - pad);
-    const startY = Math.max(0, Math.floor(this.camera.y / tileSize) - pad);
-    const endX = Math.min(
-      this.layout.mapTilesWide,
-      startX + DESIGN_CONFIG.VISIBLE_TILES.WIDTH + pad * 2,
-    );
-    const endY = Math.min(
-      this.layout.mapTilesHigh,
-      startY + DESIGN_CONFIG.VISIBLE_TILES.HEIGHT + pad * 2,
-    );
-    return { startX, startY, endX, endY };
-  }
-
-  /** Ancoragem oficial — DESIGN_CONFIG.PLAYER (35×54), pés na base do tile do mapa. */
   public resolvePlayerDrawBounds(worldX: number, worldY: number): ReturnType<typeof getEntityVisualBounds> {
     return getEntityVisualBounds(
       { x: worldX, y: worldY },
@@ -179,185 +107,7 @@ export class WorldMapRenderer implements Disposable {
     );
   }
 
-  /** Recorta ao buffer fixo 640×360. */
-  private clipToCameraViewport(ctx: CanvasRenderingContext2D): void {
-    const prior = ctx.getTransform();
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.beginPath();
-    ctx.rect(0, 0, DESIGN_CONFIG.VIEWPORT.WIDTH, DESIGN_CONFIG.VIEWPORT.HEIGHT);
-    ctx.clip();
-    ctx.setTransform(prior);
-  }
-
-  /** Camada 0 — chão (grama, ruas, praça). Mapas Tiled: só Phaser desenha o chão. */
-  public renderGroundLayer(ctx: CanvasRenderingContext2D): void {
-    disableCanvasImageSmoothing(ctx);
-    this.clipToCameraViewport(ctx);
-
-    if (this.layout.placeholderScene) {
-      renderCity01PlaceholderGround(ctx, this.layout.placeholderScene, this.camera);
-      ctx.restore();
-      return;
-    }
-
-    const { tiles, tileSize } = this.layout;
-    const palette = this.resolvePalette();
-    const { startX, startY, endX, endY } = this.getVisibleTileBounds();
-
-    for (let y = startY; y < endY; y++) {
-      const row = tiles[y];
-      if (!row) continue;
-
-      for (let x = startX; x < endX; x++) {
-        const cell = row[x];
-        if (!cell) continue;
-
-        const { x: px, y: py } = tileToWorldPixel(x, y, tileSize);
-        const kind = cell.kind;
-        drawSubdividedGroundCell(ctx, px, py, tileSize, (drawCtx, subX, subY, subSize) => {
-          const useFarmTiles = this.layout.mapId === 'farm_zone_01';
-          const groundType =
-            kind === VisualTileKind.Road
-              ? PlaceholderType.ROAD_TILE
-              : kind === VisualTileKind.Plaza
-                ? PlaceholderType.PLAZA
-                : null;
-
-          if (useFarmTiles && groundType) {
-            const tileId = resolveGroundTileId(groundType);
-            if (tileId) void preloadGroundTile(tileId);
-            if (drawGroundTileImage(drawCtx, groundType, subX, subY, subSize)) {
-              return;
-            }
-          }
-
-          drawCtx.fillStyle = this.groundColor(kind, palette);
-          drawCtx.fillRect(subX, subY, subSize, subSize);
-
-          if (kind === VisualTileKind.Road || kind === VisualTileKind.Plaza) {
-            drawCtx.strokeStyle = palette.gridLine;
-            drawCtx.lineWidth = 1;
-            drawCtx.strokeRect(subX + 0.5, subY + 0.5, subSize - 1, subSize - 1);
-          }
-        });
-      }
-    }
-
-    ctx.restore();
-  }
-
-  /** Objetos do mapa como drawables ordenáveis por profundidade (Y). */
-  public collectStructureDrawables(
-    ctx: CanvasRenderingContext2D,
-    playerWorld?: WorldPoint,
-  ): WorldDepthDrawable[] {
-    if (this.layout.placeholderScene) {
-      const useLocalizedHeightStacking =
-        playerWorld !== undefined &&
-        shouldUseLocalizedHeightStacking(playerWorld.x, playerWorld.y);
-      return collectCity01PlaceholderStructureDrawables(ctx, this.layout.placeholderScene, {
-        useLocalizedHeightStacking,
-      });
-    }
-
-    const drawables = this.collectLegacyObjectDrawables(ctx);
-    drawables.push(...collectPortalDrawables(ctx, this.layout, performance.now()));
-    if (this.layout.mapId === 'farm_zone_01') {
-      drawables.push(...collectFarmZone01DecorDrawables(ctx, this.layout.tileSize));
-    }
-    return drawables;
-  }
-
-  private collectLegacyObjectDrawables(ctx: CanvasRenderingContext2D): WorldDepthDrawable[] {
-    const { tiles, tileSize } = this.layout;
-    const palette = this.resolvePalette();
-    const pad = tileSize * 0.08;
-    const drawables: WorldDepthDrawable[] = [];
-    const { startX, startY, endX, endY } = this.getVisibleTileBounds();
-
-    for (let y = startY; y < endY; y++) {
-      const row = tiles[y];
-      if (!row) continue;
-
-      for (let x = startX; x < endX; x++) {
-        const cell = row[x];
-        if (!cell) continue;
-
-        const { x: px, y: py } = tileToWorldPixel(x, y, tileSize);
-        const depthY = tileFootprintDepthY(y, 1, tileSize);
-
-        switch (cell.kind) {
-          case VisualTileKind.Building:
-            drawables.push({
-              depthY,
-              draw: () => {
-                ctx.fillStyle = palette.building;
-                ctx.fillRect(px + pad, py + pad, tileSize - pad * 2, tileSize - pad * 2);
-                ctx.strokeStyle = palette.buildingEdge;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(px + pad + 0.5, py + pad + 0.5, tileSize - pad * 2 - 1, tileSize - pad * 2 - 1);
-              },
-            });
-            break;
-
-          case VisualTileKind.Arena:
-            drawables.push({
-              depthY,
-              draw: () => {
-                const isFarmAlley = this.layout.mapId === 'farm_zone_01';
-                const padX = pad * 0.5;
-                const signH = tileSize * 0.22;
-                ctx.fillStyle = isFarmAlley ? FARM_ZONE_PALETTE.wallAccent : palette.arena;
-                ctx.fillRect(px + padX, py + pad, tileSize - padX * 2, tileSize - pad * 2);
-                if (isFarmAlley) {
-                  const neonColor = (x + y) % 2 === 0 ? FARM_ZONE_PALETTE.neonTeal : FARM_ZONE_PALETTE.neonMagenta;
-                  ctx.fillStyle = neonColor;
-                  ctx.globalAlpha = 0.85;
-                  ctx.fillRect(px + padX + 4, py + pad + 6, tileSize - padX * 2 - 8, signH);
-                  ctx.globalAlpha = 1;
-                } else {
-                  const size = tileSize * 0.5;
-                  const offset = (tileSize - size) / 2;
-                  ctx.strokeStyle = palette.arenaGlow;
-                  ctx.lineWidth = 2;
-                  ctx.strokeRect(px + offset + 0.5, py + offset + 0.5, size - 1, size - 1);
-                }
-              },
-            });
-            break;
-
-          case VisualTileKind.Cabana: {
-            const roofH = tileSize * 0.28;
-            drawables.push({
-              depthY,
-              draw: () => {
-                ctx.fillStyle = palette.cabana;
-                ctx.fillRect(px + pad, py + pad + roofH * 0.4, tileSize - pad * 2, tileSize - pad * 2 - roofH * 0.4);
-                ctx.fillStyle = palette.cabanaRoof;
-                ctx.beginPath();
-                ctx.moveTo(px + pad, py + pad + roofH);
-                ctx.lineTo(px + tileSize / 2, py + pad);
-                ctx.lineTo(px + tileSize - pad, py + pad + roofH);
-                ctx.closePath();
-                ctx.fill();
-              },
-            });
-            break;
-          }
-
-          default:
-            break;
-        }
-      }
-    }
-
-    return drawables;
-  }
-
-  /**
-   * Labels de estruturas e portais em DOM — texto nítido fora do canvas escalado.
-   */
+  /** Labels de estruturas e portais em DOM — texto nítido acima do Phaser. */
   public collectDomLabelEntries(): DomNametagEntry[] {
     const tileSize = this.layout.tileSize;
     const entries: DomNametagEntry[] = [];
@@ -457,55 +207,23 @@ export class WorldMapRenderer implements Disposable {
     return result;
   }
 
-  private groundColor(
-    kind: string,
-    palette: ReturnType<WorldMapRenderer['resolvePalette']>,
-  ): string {
-    switch (kind) {
-      case VisualTileKind.Road:
-        return palette.road;
-      case VisualTileKind.Plaza:
-        return palette.plaza;
-      case VisualTileKind.Grass:
-      default:
-        return palette.grass;
-    }
-  }
-
-  private resolvePalette() {
-    if (this.layout.mapId === 'farm_zone_01') {
-      return {
-        grass: FARM_ZONE_PALETTE.alleyWet,
-        road: FARM_ZONE_PALETTE.alley,
-        plaza: FARM_ZONE_PALETTE.sidewalk,
-        building: FARM_ZONE_PALETTE.wall,
-        buildingEdge: FARM_ZONE_PALETTE.wallAccent,
-        arena: FARM_ZONE_PALETTE.wallAccent,
-        arenaGlow: FARM_ZONE_PALETTE.neonTeal,
-        cabana: FARM_ZONE_PALETTE.wall,
-        cabanaRoof: FARM_ZONE_PALETTE.wall,
-        gridLine: FARM_ZONE_PALETTE.gridLine,
-      };
-    }
-    return CITY01_VISUAL_PALETTE;
-  }
   private bindInput(): void {
     if (this.bound) return;
     this.bound = true;
 
-    this.canvas.addEventListener('mousedown', this.onPointerDown);
-    this.canvas.addEventListener('mousemove', this.onPointerMove);
+    this.inputSurface.addEventListener('mousedown', this.onPointerDown);
+    this.inputSurface.addEventListener('mousemove', this.onPointerMove);
     window.addEventListener('mouseup', this.onPointerUp);
-    this.canvas.addEventListener('mouseleave', this.onPointerLeave);
+    this.inputSurface.addEventListener('mouseleave', this.onPointerLeave);
   }
 
   public dispose(): void {
     if (!this.bound) return;
     this.bound = false;
-    this.canvas.removeEventListener('mousedown', this.onPointerDown);
-    this.canvas.removeEventListener('mousemove', this.onPointerMove);
+    this.inputSurface.removeEventListener('mousedown', this.onPointerDown);
+    this.inputSurface.removeEventListener('mousemove', this.onPointerMove);
     window.removeEventListener('mouseup', this.onPointerUp);
-    this.canvas.removeEventListener('mouseleave', this.onPointerLeave);
+    this.inputSurface.removeEventListener('mouseleave', this.onPointerLeave);
   }
 
   private readonly onPointerDown = (event: MouseEvent): void => {
@@ -526,7 +244,7 @@ export class WorldMapRenderer implements Disposable {
       return;
     }
 
-    const buffer = mapPointerToRenderBuffer(this.canvas, event.clientX, event.clientY);
+    const buffer = mapPointerToRenderBuffer(this.inputSurface, event.clientX, event.clientY);
     this.hover = this.pickHover(buffer.x, buffer.y);
   };
 
@@ -535,13 +253,13 @@ export class WorldMapRenderer implements Disposable {
 
     if (this.pointerDown && !this.pointerDragged) {
       const now = performance.now();
-      const buffer = mapPointerToRenderBuffer(this.canvas, event.clientX, event.clientY);
+      const buffer = mapPointerToRenderBuffer(this.inputSurface, event.clientX, event.clientY);
       const isDoubleClick =
         now - this.lastClickAtMs <= DOUBLE_CLICK_WINDOW_MS
         && Math.hypot(buffer.x - this.lastClickX, buffer.y - this.lastClickY)
           <= DOUBLE_CLICK_DISTANCE_PX;
       const viewport = this.clampToViewport(buffer.x, buffer.y);
-      this.onCanvasClick?.(viewport.x, viewport.y, { doubleClick: isDoubleClick });
+      this.onWorldClick?.(viewport.x, viewport.y, { doubleClick: isDoubleClick });
       this.lastClickAtMs = now;
       this.lastClickX = viewport.x;
       this.lastClickY = viewport.y;

@@ -86,11 +86,6 @@ export function listTiledMapIds(): readonly MapId[] {
   return Object.keys(TILED_MAP_DESCRIPTORS) as MapId[];
 }
 
-/** Mapas sem export Tiled em map_mund — renderer procedural legado. */
-export function usesLegacyWorldRenderer(mapId: MapId): boolean {
-  return !isTiledMapEnabled(mapId);
-}
-
 export function tiledTilesetTextureKey(mapCacheKey: string, tilesetName: string): string {
   return `${mapCacheKey}:ts:${tilesetName}`;
 }

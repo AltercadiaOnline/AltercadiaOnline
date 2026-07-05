@@ -1,6 +1,6 @@
 /**
  * Integer snap — evita subpixels que geram blur em pixel art.
- * Usado exclusivamente pelo GameRenderer e drawImage 1:1.
+ * Integer snap para drawImage 1:1 (minimapa, painéis React, texturas Phaser offscreen).
  */
 export function snapToPixel(value: number): number {
   return Math.floor(value);
@@ -58,9 +58,7 @@ function snapDrawImageArgs(args: DrawImageArgs): DrawImageArgs {
   ];
 }
 
-/**
- * Contexto com snap em drawImage/fillRect/strokeRect — passado a todos os drawables do GameRenderer.
- */
+/** Contexto com snap em drawImage/fillRect/strokeRect — legado offscreen canvas. */
 export function wrapPixelSnappedContext(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
   return new Proxy(ctx, {
     get(target, prop, receiver) {

@@ -14,7 +14,7 @@ import { isTilemapCacheReady } from '../tiled/tilemapCacheReady.js';
 import { getMapInstanceSceneManager } from './MapInstanceSceneManager.js';
 import type { MapInstanceSceneInitData } from './createMapInstancePhaserScene.js';
 import type { PhaserWorldSceneBase } from './MainScene.js';
-import { revealPhaserMountHost, activatePhaserExplorationPipeline } from '../phaserExplorationPipeline.js';
+import { revealPhaserMountHost } from '../phaserExplorationPipeline.js';
 import { enablePhaserRenderMode } from '../../app/phaser/initPhaserReadyLayer.js';
 
 type PhaserLoaderFile = {
@@ -164,7 +164,6 @@ export function createLoadingPhaserScene(
       });
 
       enablePhaserRenderMode();
-      activatePhaserExplorationPipeline();
 
       if (!this.targetMapId) {
         console.error('[LoadingScene] targetMapId ausente — transição abortada.');

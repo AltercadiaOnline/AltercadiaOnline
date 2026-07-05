@@ -5,7 +5,6 @@ import { deactivatePhaserExplorationPipeline, revealPhaserMountHost } from './ph
 import { failTiledMapLoad } from './tiled/mapLoadFatalError.js';
 import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
-  CANVAS_LEGACY_ID,
   PHASER_BATTLE_SCENE_KEY,
   PHASER_MAP_LOADING_SCENE_KEY,
   PHASER_MOUNT_ROOT_ID,

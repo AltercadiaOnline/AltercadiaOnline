@@ -18,7 +18,7 @@ export const BASE_VIEWPORT = {
 /** Escala interna do backing store do canvas — sempre 1 (sem upscale no buffer). */
 export const CANVAS_PIXEL_SCALE = 1 as const;
 
-/** Drawables do GameRenderer usam dimensões naturais do asset (sw/sh) — sem escala adicional. */
+/** Sprites de mundo usam dimensões naturais do asset (sw/sh) — sem escala adicional. */
 export const RENDER_ASSET_SCALE = 1 as const;
 
 /** Sprite humanóide oficial (colisão / layout). */
