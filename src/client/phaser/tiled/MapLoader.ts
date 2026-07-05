@@ -315,7 +315,11 @@ export class MapLoader {
 
       const layerObjects = layer.objects ?? [];
 
-      const createdFromGid = map.createFromObjects(layer.name, tilesets, 0, 0, true);
+      const createdFromGid = map.createFromObjects(
+        layer.name,
+        { scene },
+        true,
+      );
       for (let index = 0; index < createdFromGid.length; index += 1) {
         const sprite = createdFromGid[index]!;
         const objectData = layerObjects[index];
@@ -333,8 +337,8 @@ export class MapLoader {
 
         const textureKey = this.assets.objectTextureKey(cacheKey, imagePath);
         if (!scene.textures.exists(textureKey)) {
-          issues.push(
-            `Textura de objeto ausente na camada "${layer.name}": ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
+          console.warn(
+            `[MapLoader] Textura de objeto ausente na camada "${layer.name}": ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
           );
           continue;
         }

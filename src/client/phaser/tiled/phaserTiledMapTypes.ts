@@ -83,10 +83,8 @@ export type PhaserTiledTilemap = {
   ) => PhaserTiledTilemapLayer | null;
   createFromObjects: (
     layerName: string,
-    tilesets: readonly PhaserTiledTileset[],
-    x?: number,
-    y?: number,
-    recursive?: boolean,
+    config?: Record<string, unknown> | readonly Record<string, unknown>[],
+    useTileset?: boolean,
   ) => readonly PhaserMapSprite[];
   setCollisionByProperty: (properties: Record<string, unknown>, options?: Record<string, unknown>) => void;
   destroy: () => void;
