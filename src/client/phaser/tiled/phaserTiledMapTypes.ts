@@ -1,3 +1,4 @@
+import type { TiledJsonObject } from '../../../config/tiledMapJson.js';
 import type { TiledPlayerSpawn } from '../../../shared/world/tiledMapSpawn.js';
 import type { MapId } from '../../../shared/world/mapRegistry.js';
 
@@ -48,6 +49,12 @@ export type PhaserTiledTilemapLayer = {
   destroy: () => void;
 };
 
+export type PhaserTiledObjectLayer = {
+  readonly name: string;
+  readonly type?: string;
+  readonly objects?: readonly TiledJsonObject[];
+};
+
 export type PhaserTiledTilemap = {
   readonly width: number;
   readonly height: number;
@@ -56,7 +63,10 @@ export type PhaserTiledTilemap = {
   readonly widthInPixels: number;
   readonly heightInPixels: number;
   readonly tilesets: readonly PhaserTiledTileset[];
+  /** Somente tile layers — no Phaser não têm campo `type` (diferente do JSON Tiled cru). */
   readonly layers: readonly PhaserTiledLayer[];
+  /** Object layers parseadas pelo Phaser (`objectgroup`). */
+  readonly objects?: readonly PhaserTiledObjectLayer[];
   addTilesetImage: (
     tilesetName: string,
     textureKey: string,

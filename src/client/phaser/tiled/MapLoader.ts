@@ -135,8 +135,8 @@ export class MapLoader {
     this.playerSpawn = this.applyTiledPlacementsFromCache(descriptor.cacheKey, mapId, issues);
 
     if (this.visualTileLayers.length === 0) {
-      issues.push(
-        'Nenhuma camada visual de tiles montada — confira tilesets 32×32 (margin/spacing) e GIDs válidos no export Tiled.',
+      console.warn(
+        '[MapLoader] Nenhuma camada visual de tiles montada — verifique tilesets e GIDs no export Tiled.',
       );
     }
 
@@ -250,7 +250,6 @@ export class MapLoader {
     );
 
     for (const layer of map.layers) {
-      if (layer.type !== 'tilelayer') continue;
       if (!isTiledVisualTileLayer(layer.name)) continue;
 
       const tileLayer = map.createLayer(layer.name, gridTilesets, 0, 0);
@@ -279,7 +278,6 @@ export class MapLoader {
     );
 
     for (const layer of map.layers) {
-      if (layer.type !== 'tilelayer') continue;
       if (!isTiledCollisionTileLayer(layer.name)) continue;
 
       const collision = map.createLayer(layer.name, gridTilesets, 0, 0);
@@ -310,14 +308,12 @@ export class MapLoader {
     const scene = this.scene;
     if (!scene || !this.worldRoot) return;
 
-    const mapData = scene.cache.tilemap.get(cacheKey);
+    const objectLayers = map.objects ?? [];
 
-    for (const layer of map.layers) {
-      if (layer.type !== 'objectgroup') continue;
+    for (const layer of objectLayers) {
       if (!isTiledRenderableObjectLayer(layer.name)) continue;
 
-      const layerData = mapData?.data.layers.find((entry) => entry.name === layer.name);
-      const layerObjects = layerData?.objects ?? [];
+      const layerObjects = layer.objects ?? [];
 
       const createdFromGid = map.createFromObjects(layer.name, tilesets, 0, 0, true);
       for (let index = 0; index < createdFromGid.length; index += 1) {
