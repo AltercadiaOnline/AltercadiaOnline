@@ -90,12 +90,21 @@ class RenderLayerBridge {
 
   private emit(): void {
     const snapshot = this.snapshot();
+    this.syncRenderHostDataset(snapshot.renderEngine);
     for (const listener of this.listeners) {
       listener(snapshot);
     }
     void import('../../phaser/phaserBattleArenaDom.js').then(({ syncPhaserBattleArenaDomVisibility }) => {
       syncPhaserBattleArenaDomVisibility();
     });
+  }
+
+  private syncRenderHostDataset(renderEngine: RenderEngine): void {
+    if (typeof document === 'undefined') return;
+    const renderHost = document.getElementById('game-render-host');
+    if (renderHost) {
+      renderHost.dataset.renderEngine = renderEngine;
+    }
   }
 }
 

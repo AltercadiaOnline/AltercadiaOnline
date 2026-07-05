@@ -1,7 +1,7 @@
 import {
   getRenderLayerBridge,
 } from '../app/bridge/renderLayerBridge.js';
-import { revealPhaserMountHost } from './phaserExplorationPipeline.js';
+import { deactivatePhaserExplorationPipeline, revealPhaserMountHost } from './phaserExplorationPipeline.js';
 import { failTiledMapLoad } from './tiled/mapLoadFatalError.js';
 import { buildPhaserGameConfig } from './buildPhaserGameConfig.js';
 import {
@@ -126,10 +126,10 @@ export function shutdownPhaserRuntime(): void {
     activeGame = null;
   }
   resetMapInstanceSceneManager();
+  deactivatePhaserExplorationPipeline();
   getRenderLayerBridge().markPhaserBooted(false);
-  getRenderLayerBridge().markPhaserSceneReady(false);
+  getRenderLayerBridge().markPhaserEntitiesReady(false);
   getRenderLayerBridge().setActivePhaserScene(null);
-  hidePhaserMountHost();
 }
 
 /** Troca cena ativa sem destruir o Game Phaser. Prontidão visual fica com cada cena. */

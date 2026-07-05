@@ -143,7 +143,7 @@ import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
 import { initReactHudHost } from '../app/hud/reactHudHost.js';
 import { initReactGameHud } from '../app/hud/initReactGameHud.js';
-import { isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
 import { bootOnlinePhaserExploration, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
 import { registerMapLoadFatalHandler } from '../phaser/tiled/mapLoadFatalError.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
@@ -797,10 +797,11 @@ function enterWorldAfterHudReady(): void {
         world?.prepareFrame(deltaMs);
       },
       onRender: (timestampMs) => {
-        world?.renderWorld(timestampMs);
-        if (isPhaserRenderPipelineReady()) {
+        if (isPhaserRenderEngineActive()) {
           world?.syncWorldDomOverlay(timestampMs);
+          return;
         }
+        world?.renderWorld(timestampMs);
       },
     });
   }

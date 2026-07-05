@@ -14,6 +14,7 @@ import { drawNavigationDestinationMarker } from '../world/navigationDestinationM
 import type { SpeechBubbleDomEntry } from '../world/speech/speechBubbleDomLayer.js';
 import { syncWorldDomOverlay, type DomNametagEntry } from '../world/worldDomOverlay.js';
 import type { GameRenderState } from './GameRenderState.js';
+import { getRenderLayerBridge } from '../app/bridge/renderLayerBridge.js';
 
 export type ExplorationRenderFrameInput = {
   readonly mapId: string;
@@ -61,11 +62,13 @@ export function buildExplorationRenderState(input: ExplorationRenderFrameInput):
   } = input;
 
   const tiledMap = isTiledMapEnabled(input.mapId as MapId);
+  const phaserEngineActive = getRenderLayerBridge().snapshot().renderEngine === 'phaser';
   const phaserMapActive = input.phaserMapActive === true && tiledMap;
   const phaserEntitiesReady = input.phaserEntitiesReady === true;
   const phaserOwnsWorldSprites = phaserMapActive && phaserEntitiesReady;
   const legacyClearColor = worldMapRenderer.getBackgroundColor();
-  const clearColor = phaserMapActive
+  // Com motor Phaser ativo o canvas fica transparente — senão o fill opaco (#0a0b0f) cobre o tilemap.
+  const clearColor = phaserEngineActive || phaserMapActive
     ? 'rgba(0,0,0,0)'
     : (legacyClearColor === 'transparent' ? '#0a0b0f' : legacyClearColor);
 

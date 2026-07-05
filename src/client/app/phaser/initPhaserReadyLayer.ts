@@ -4,6 +4,7 @@ import {
   isPhaserRenderEngineActive,
 } from '../bridge/renderLayerBridge.js';
 import { bootPhaserRuntime, ensurePhaserRuntimeForCurrentEngine } from '../../phaser/PhaserRuntime.js';
+import { setLegacyCanvasPhaserPassive } from '../../phaser/phaserExplorationPipeline.js';
 
 const PHASER_HYBRID_QUERY = 'phaser';
 const PHASER_HYBRID_STORAGE_KEY = 'altercadia.phaserHybrid';
@@ -89,6 +90,7 @@ export function teardownPhaserReadyLayer(): void {
 
 /** Ativa modo phaser-v1 — render Phaser oficial. */
 export function enablePhaserRenderMode(): void {
+  setLegacyCanvasPhaserPassive(true);
   getGameUiBridge().setMode('phaser-v1');
 }
 
@@ -98,6 +100,7 @@ export const enablePhaserHybridMode = enablePhaserRenderMode;
 /** Volta ao render canvas legado (somente dev). */
 export function disablePhaserRenderMode(): void {
   getGameUiBridge().setMode('online-react-v1');
+  setLegacyCanvasPhaserPassive(false);
 }
 
 /** @deprecated Use disablePhaserRenderMode */

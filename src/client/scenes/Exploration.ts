@@ -1018,8 +1018,12 @@ export class ExplorationScene implements Disposable {
     state.syncDomOverlay?.();
   }
 
-  /** Único ponto de renderização canvas — delega ao GameRenderer. */
+  /** Único ponto de renderização canvas — delega ao GameRenderer (desligado no motor Phaser). */
   public renderWorld(timestampMs = performance.now()): void {
+    if (getRenderLayerBridge().snapshot().renderEngine === 'phaser') {
+      this.syncWorldDomOverlay(timestampMs);
+      return;
+    }
     this.gameRenderer.render(this.ctx, this.buildRenderState(timestampMs));
   }
 

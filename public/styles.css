@@ -230,15 +230,26 @@ body[data-react-game-hud-ui='1'] #game-render-column {
   height: 360px;
 }
 
-/* Canvas legado por cima do Phaser — fundo transparente; entidades + input no canvas. */
-.game-render-host[data-render-engine='phaser'] .game-canvas {
-  background: transparent;
-  pointer-events: auto;
-  z-index: 2;
+/* Motor Phaser — canvas legado anulado (sem paint, sem input). */
+body[data-render-engine='phaser'] #game-canvas.game-canvas--phaser-passive,
+.game-render-host[data-render-engine='phaser'] #game-canvas.game-canvas--phaser-passive {
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
 }
 
+body[data-render-engine='phaser'] #game-render-host .phaser-mount-root,
 .game-render-host[data-render-engine='phaser'] .phaser-mount-root {
   z-index: 1;
+  pointer-events: auto;
+}
+
+/* Fallback se o passive ainda não aplicou — não pintar por cima do Phaser */
+body[data-render-engine='phaser'] #game-render-host .game-canvas,
+.game-render-host[data-render-engine='phaser'] .game-canvas {
+  background: transparent;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .phaser-mount-root {

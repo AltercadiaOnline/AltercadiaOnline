@@ -145,6 +145,10 @@ export class MapLoader {
       failTiledMapLoad(mapId, issues);
     }
 
+    console.info(
+      `[MapLoader] Mapa "${mapId}" montado — ${this.visualTileLayers.length} tile layer(s), ${this.boundGridTilesetCount} tileset(s) 32×32, ${this.objectRecords.length} objeto(s).`,
+    );
+
     return {
       mapId,
       widthPx: map.widthInPixels,
@@ -526,26 +530,38 @@ export class MapLoader {
             `Tileset 32×32 "${tileset.name}" sem textura carregada: ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
           );
         } else if (imagePath) {
-          issues.push(
-            `Tileset "${tileset.name}" (${tileset.tileWidth}×${tileset.tileHeight}) referenciado — props grandes devem usar object layers, não tile layers.`,
+          console.warn(
+            `[MapLoader] Textura ausente para tileset de prop "${tileset.name}" — objetos com gid podem faltar.`,
           );
         }
         continue;
       }
 
+      const isGridTileset =
+        tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight;
       const added = map.addTilesetImage(tileset.name, textureKey);
       if (added) {
         bound.push(added);
         if (added.tileWidth === map.tileWidth && added.tileHeight === map.tileHeight) {
           this.boundGridTilesetCount += 1;
         }
+      } else if (isGridTileset) {
+        issues.push(
+          `Tileset 32×32 "${tileset.name}" não vinculou no Phaser — confira columns/tilecount e dimensões do PNG.`,
+        );
+      } else {
+        console.warn(
+          `[MapLoader] Tileset de prop "${tileset.name}" não vinculou — sprites gid dessa folha podem faltar.`,
+        );
       }
     }
 
-    if (bound.length < map.tilesets.length) {
-      const missing = map.tilesets.length - bound.length;
+    const expectedGridTilesets = map.tilesets.filter(
+      (entry) => entry.tileWidth === map.tileWidth && entry.tileHeight === map.tileHeight,
+    ).length;
+    if (this.boundGridTilesetCount < expectedGridTilesets) {
       issues.push(
-        `${missing}/${map.tilesets.length} tileset(s) não vinculado(s) — confira paths no Tiled e npm run mirror:map-mund.`,
+        `${expectedGridTilesets - this.boundGridTilesetCount}/${expectedGridTilesets} tileset(s) 32×32 não vinculado(s) — confira paths no Tiled e npm run mirror:map-mund.`,
       );
     }
 
