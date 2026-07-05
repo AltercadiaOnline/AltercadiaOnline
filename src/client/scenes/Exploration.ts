@@ -73,6 +73,7 @@ import {
 import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
 import { setPhaserWorldInputBlocked } from '../phaser/phaserExplorationPipeline.js';
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
+import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
 import { getRenderLayerBridge, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
@@ -647,6 +648,7 @@ export class ExplorationScene implements Disposable {
     this.cameraManager.applyScene(resolveSceneConfigForMapId(mapId));
     this.camera.setMapDimensions(this.mapManager.pixelWidth, this.mapManager.pixelHeight);
     setActiveMapTileSize(mapId);
+    setActiveWorldCollisionMapId(mapId as MapId);
     this.lastMinimapPublishKey = '';
     this.applyFixedViewport();
   }

@@ -15,7 +15,9 @@ import {
 } from '../../../shared/world/tiledMapLayers.js';
 import type { TiledPlayerSpawn } from '../../../shared/world/tiledMapSpawn.js';
 import { parseTiledMapPlacements } from '../../../shared/world/parseTiledMapPlacements.js';
+import { parseTiledWorldCollision } from '../../../shared/world/parseTiledWorldCollision.js';
 import { setTiledMapPlacements } from '../../../shared/world/tiledMapPlacements.js';
+import { setWorldCollisionObstacles } from '../../../shared/world/worldCollisionRegistry.js';
 import { NPC_REGISTRY_WITH_LORE } from '../../../shared/world/npcRegistry.js';
 import { resolvePhaserWorldDepth, PHASER_GROUND_DEPTH } from '../layout/phaserWorldDepth.js';
 import { getTiledAssetManager } from './TiledAssetManager.js';
@@ -105,7 +107,15 @@ export class MapLoader {
 
     let map: PhaserTiledTilemap;
     try {
+      this.assets.ensureEnrichedTilemapInCache(scene, descriptor);
       map = scene.make.tilemap({ key: descriptor.cacheKey });
+      if (map.tilesets.length === 0) {
+        failTiledMapLoad(mapId, [
+          'Phaser parseou o mapa com 0 tilesets — artefato *PhaserMap.json inválido ou cache corrompido.',
+          'Rode: npm run mirror:map-mund && npm run build',
+          'O .tmj cru em /assets/map_mund/ NÃO é usado pelo Phaser (tilesets .tsx externos são ignorados).',
+        ]);
+      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       failTiledMapLoad(mapId, [
@@ -138,6 +148,12 @@ export class MapLoader {
       console.warn(
         '[MapLoader] Nenhuma camada visual de tiles montada — verifique tilesets e GIDs no export Tiled.',
       );
+      if (this.boundGridTilesetCount === 0) {
+        issues.push(
+          'Nenhum tileset 32×32 do mapa foi vinculado — o chão não pode renderizar.',
+          'Recarregue com Ctrl+Shift+R (cache de JS antigo). Confira 404 em /assets/terrain e /assets/props no console.',
+        );
+      }
     }
 
     if (issues.length > 0) {
@@ -371,6 +387,11 @@ export class MapLoader {
     }
 
     const parsed = parseTiledMapPlacements(mapId, mapData.data as Parameters<typeof parseTiledMapPlacements>[1]);
+    const obstacles = parseTiledWorldCollision(
+      mapId,
+      mapData.data as Parameters<typeof parseTiledWorldCollision>[1],
+    );
+    setWorldCollisionObstacles(mapId, obstacles);
     for (const issue of parsed.issues) {
       console.warn(`[MapLoader] ${issue}`);
     }

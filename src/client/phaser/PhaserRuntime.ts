@@ -93,6 +93,9 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     applyPhaserCanvasTransparency(host);
     activeGame.scale?.refresh();
 
+    const phaserVersion = (PhaserNs as { VERSION?: string }).VERSION ?? 'unknown';
+    console.info(`[PhaserRuntime] Phaser ${phaserVersion} — boot OK.`);
+
     getMapInstanceSceneManager().init(activeGame, mapIds);
     getMapInstanceSceneManager().bootDefaultMap(DEFAULT_MAP_ID);
 

@@ -1,0 +1,122 @@
+#!/usr/bin/env node
+/**
+ * Valida artefatos Phaser-ready em src/config/maps/*PhaserMap.json
+ * e confirma que cada PNG de tileset existe em public/assets/.
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const mapsDir = path.join(root, 'src', 'config', 'maps');
+const publicDir = path.join(root, 'public');
+
+const MAP_ENTRIES = [
+  {
+    mapId: 'city_01',
+    exportFileName: 'city_01_test.tmj',
+    phaserBasename: 'city01PhaserMap.json',
+    mirrorBasename: 'city01TiledMap.json',
+  },
+  {
+    mapId: 'farm_zone_01',
+    exportFileName: 'zona_beco_dos_fundos_tilemap.tmj',
+    phaserBasename: 'farmZone01PhaserMap.json',
+    mirrorBasename: 'farmZone01TiledMap.json',
+  },
+];
+
+function resolveTiledPublicAssetUrl(mapJsonUrl, tiledImagePath) {
+  const normalized = tiledImagePath.replace(/\\/g, '/');
+  if (normalized.startsWith('/assets/')) {
+    return normalized;
+  }
+
+  const mapBase = mapJsonUrl.replace(/\/[^/]+$/, '');
+  const combined = `${mapBase}/${normalized}`;
+  const segments = combined.split('/').filter((segment) => segment.length > 0);
+  const resolved = [];
+
+  for (const segment of segments) {
+    if (segment === '.') continue;
+    if (segment === '..') {
+      resolved.pop();
+      continue;
+    }
+    resolved.push(segment);
+  }
+
+  return `/${resolved.join('/')}`;
+}
+
+let failed = false;
+
+for (const entry of MAP_ENTRIES) {
+  const phaserPath = path.join(mapsDir, entry.phaserBasename);
+  const mirrorPath = path.join(mapsDir, entry.mirrorBasename);
+  const exportPath = path.join(publicDir, 'assets', 'map_mund', entry.exportFileName);
+
+  if (!existsSync(exportPath)) {
+    console.error(`[audit:map-mund] Export designer ausente: ${entry.exportFileName}`);
+    failed = true;
+    continue;
+  }
+
+  if (!existsSync(mirrorPath)) {
+    console.error(`[audit:map-mund] Espelho ausente: ${entry.mirrorBasename} — rode npm run mirror:map-mund`);
+    failed = true;
+    continue;
+  }
+
+  if (!existsSync(phaserPath)) {
+    console.error(`[audit:map-mund] Artefato Phaser ausente: ${entry.phaserBasename} — rode npm run mirror:map-mund`);
+    failed = true;
+    continue;
+  }
+
+  const phaserMap = JSON.parse(readFileSync(phaserPath, 'utf8'));
+  const tilesets = Array.isArray(phaserMap.tilesets) ? phaserMap.tilesets : [];
+  const mapJsonUrl = `/assets/map_mund/${entry.exportFileName}`;
+
+  if (tilesets.length === 0) {
+    console.error(`[audit:map-mund] ${entry.mapId}: 0 tilesets no artefato Phaser`);
+    failed = true;
+    continue;
+  }
+
+  for (const tileset of tilesets) {
+    if (tileset?.source) {
+      console.error(`[audit:map-mund] ${entry.mapId}: tileset "${tileset.name}" ainda tem "source"`);
+      failed = true;
+    }
+
+    if (typeof tileset?.image !== 'string' || tileset.image.length === 0) {
+      console.error(`[audit:map-mund] ${entry.mapId}: tileset "${tileset?.name}" sem image`);
+      failed = true;
+      continue;
+    }
+
+    const publicUrl = resolveTiledPublicAssetUrl(mapJsonUrl, tileset.image);
+    const diskPath = path.join(publicDir, publicUrl.replace(/^\//, '').replace(/\//g, path.sep));
+    if (!existsSync(diskPath)) {
+      console.error(`[audit:map-mund] ${entry.mapId}: PNG ausente para "${tileset.name}" → ${publicUrl}`);
+      failed = true;
+    }
+  }
+
+  const tileLayers = (phaserMap.layers ?? []).filter((layer) => layer?.type === 'tilelayer');
+  const gridTilesets = tilesets.filter(
+    (ts) => Number(ts.tilewidth) === 32 && Number(ts.tileheight) === 32,
+  );
+
+  console.log(
+    `[audit:map-mund] ${entry.mapId}: OK — ${tilesets.length} tileset(s), ${gridTilesets.length} grid 32×32, ${tileLayers.length} tile layer(s)`,
+  );
+}
+
+if (failed) {
+  console.error('[audit:map-mund] FALHOU — corrija exports Tiled ou rode npm run mirror:map-mund');
+  process.exit(1);
+}
+
+console.log('[audit:map-mund] OK — artefatos Phaser prontos para runtime.');

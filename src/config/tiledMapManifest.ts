@@ -1,17 +1,18 @@
-import city01TiledJson from './maps/city01TiledMap.json' with { type: 'json' };
-import farmZone01TiledJson from './maps/farmZone01TiledMap.json' with { type: 'json' };
+import city01MirrorJson from './maps/city01TiledMap.json' with { type: 'json' };
+import city01PhaserJson from './maps/city01PhaserMap.json' with { type: 'json' };
+import farmZone01MirrorJson from './maps/farmZone01TiledMap.json' with { type: 'json' };
+import farmZone01PhaserJson from './maps/farmZone01PhaserMap.json' with { type: 'json' };
 import type { MapId } from '../shared/world/mapRegistry.js';
 import {
   MAP_MUND_EXPORT_REGISTRY,
   resolveMapMundPublicUrl,
 } from './mapMundManifest.js';
 import {
-  buildPhaserTiledMapData,
   extractObjectImagePathsFromTiledJson,
   extractTilesetsFromTiledJson,
   type PhaserReadyTiledMap,
   type TiledMapJson,
-} from './tiledMapJson.js';
+} from './tiledMapJson.js';import './bootstrapWorldCollision.js';
 import { parseTiledMapPlacements } from '../shared/world/parseTiledMapPlacements.js';
 import { setTiledMapPlacements } from '../shared/world/tiledMapPlacements.js';
 
@@ -29,16 +30,26 @@ export type TiledMapDescriptor = {
   /** Sprites soltos (object layer com propriedade image). */
   readonly objectImages: readonly string[];
   /**
-   * JSON do mapa pronto para o parser do Phaser (tilesets embutidos, sem `source`).
-   * Injetado direto no cache de tilemap — o `.tmj` cru usa tilesets externos `.tsx`
-   * que o Phaser não consegue carregar. `null` quando não há espelho disponível.
+   * JSON Phaser-ready gerado em `npm run mirror:map-mund` (*PhaserMap.json).
+   * Tilesets embutidos, sem `source` — única fonte injetada no cache do Phaser.
    */
   readonly phaserMapData: PhaserReadyTiledMap | null;
 };
 
-const TILED_MAP_JSON_BY_ID: Partial<Record<MapId, TiledMapJson>> = {
-  city_01: city01TiledJson as TiledMapJson,
-  farm_zone_01: farmZone01TiledJson as TiledMapJson,
+type TiledMapMirrorBundle = {
+  readonly mirror: TiledMapJson;
+  readonly phaser: PhaserReadyTiledMap;
+};
+
+const TILED_MAP_BUNDLES_BY_ID: Partial<Record<MapId, TiledMapMirrorBundle>> = {
+  city_01: {
+    mirror: city01MirrorJson as TiledMapJson,
+    phaser: city01PhaserJson as PhaserReadyTiledMap,
+  },
+  farm_zone_01: {
+    mirror: farmZone01MirrorJson as TiledMapJson,
+    phaser: farmZone01PhaserJson as PhaserReadyTiledMap,
+  },
 };
 
 function buildTiledMapDescriptor(
@@ -46,22 +57,30 @@ function buildTiledMapDescriptor(
   cacheKey: string,
   jsonUrl: string,
 ): TiledMapDescriptor {
-  const json = TILED_MAP_JSON_BY_ID[mapId];
-  const phaserMapData = json ? buildPhaserTiledMapData(json) : null;
-  if (phaserMapData) {
-    const { placements } = parseTiledMapPlacements(mapId, phaserMapData);
-    setTiledMapPlacements(mapId, placements);
+  const bundle = TILED_MAP_BUNDLES_BY_ID[mapId];
+  if (!bundle) {
+    return {
+      mapId,
+      cacheKey,
+      jsonUrl,
+      tilesets: [],
+      objectImages: [],
+      phaserMapData: null,
+    };
   }
+
+  const { placements } = parseTiledMapPlacements(mapId, bundle.phaser);
+  setTiledMapPlacements(mapId, placements);
+
   return {
     mapId,
     cacheKey,
     jsonUrl,
-    tilesets: json ? extractTilesetsFromTiledJson(json) : [],
-    objectImages: json ? extractObjectImagePathsFromTiledJson(json) : [],
-    phaserMapData,
+    tilesets: extractTilesetsFromTiledJson(bundle.mirror),
+    objectImages: extractObjectImagePathsFromTiledJson(bundle.mirror),
+    phaserMapData: bundle.phaser,
   };
 }
-
 /** Mapas renderizados via export Tiled em public/assets/map_mund/ (Phaser). */
 export const TILED_MAP_DESCRIPTORS: Partial<Record<MapId, TiledMapDescriptor>> = Object.fromEntries(
   MAP_MUND_EXPORT_REGISTRY.map((entry) => [

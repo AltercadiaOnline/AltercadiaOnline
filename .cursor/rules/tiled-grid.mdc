@@ -9,6 +9,7 @@ alwaysApply: true
 - The base map size is **40×40 tiles**, exactly **1280×1280 pixels**.
 - Camera bounds, collision, entity positions, spawns, portals, and Tiled object placement must derive from `DESIGN_CONFIG.TILE.SIZE` / `GAME_CONFIG.TILE_SIZE`, never hardcoded 40/64 values.
 - Tiled exports in `public/assets/map_mund/*.tmj` (or `.json`) should use `tilewidth: 32` and `tileheight: 32`.
-- Runtime Phaser loads from `/assets/map_mund/` — mirror via `npm run mirror:map-mund` → `src/config/maps/`.
+- **Pipeline Phaser (obrigatório):** designer exporta `.tmj` → `npm run build` roda `mirror:map-mund` → gera `src/config/maps/*PhaserMap.json` (sem `source`) → Phaser injeta só esse artefato. O `.tmj` cru **nunca** é parseado (tilesets `.tsx` externos são ignorados pelo Phaser 4).
+- Espelho preload: `src/config/maps/*TiledMap.json`. Validação: `npm run audit:map-mund`.
 - `/terrain/` contains 32px grid tilesets for tile layers. `/structures/` and `/props/` contain loose PNG sprites for object layers.
 - Do not guess or rescale at runtime. If an old export uses a different tile size, normalize it in the Tiled export/mirror tooling before runtime.

@@ -9,6 +9,8 @@ import { moveDirectionToFacing, moveVectorToFacing } from '../../shared/world/pl
 import { tryGridStep, type GridStep } from '../../shared/world/gridMovement.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
 import { getMapDefinition } from '../../shared/world/mapRegistry.js';
+import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
+import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
 import { tileCenterToWorldPixel, worldPixelToTile } from '../../shared/world/portals.js';
 import type { MovePlayerIntentPayload, RotatePlayerIntentPayload } from '../../shared/world/movementIntent.js';
 import {
@@ -206,6 +208,8 @@ export class PositionGateway {
     }
 
     const mapData = mapDef.generateData();
+    setActiveMapTileSize(profile.currentMapId);
+    setActiveWorldCollisionMapId(profile.currentMapId as MapId);
     const currentTile = worldPixelToTile(profile.lastPosition.x, profile.lastPosition.y);
     const targetTileX = Math.floor(intent.targetX);
     const targetTileY = Math.floor(intent.targetY);

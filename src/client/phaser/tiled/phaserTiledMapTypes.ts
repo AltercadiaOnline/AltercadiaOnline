@@ -125,7 +125,9 @@ export type MapLoaderScene = {
   };
   readonly cache: {
     tilemap: {
-      has: (key: string) => boolean;
+      has?: (key: string) => boolean;
+      exists?: (key: string) => boolean;
+      remove: (key: string) => void;
       add: (key: string, entry: { format: number; data: unknown }) => void;
       /** O cache de tilemap do Phaser guarda `{ format, data }` (ver ParseToTilemap.js). */
       get: (key: string) => {

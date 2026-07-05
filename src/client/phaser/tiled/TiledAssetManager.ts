@@ -47,18 +47,26 @@ export class TiledAssetManager {
    * (tilesets embutidos, sem `source`) — o `.tmj` cru referencia tilesets externos `.tsx`
    * que o parser do Phaser ignora, deixando o mapa sem nenhum tileset vinculado.
    */
-  private registerTilemapData(scene: PhaserTiledScene, descriptor: TiledMapDescriptor): void {
-    if (descriptor.phaserMapData) {
-      if (!scene.cache.tilemap.has(descriptor.cacheKey)) {
-        scene.cache.tilemap.add(descriptor.cacheKey, {
-          format: PHASER_TILED_JSON_FORMAT,
-          data: descriptor.phaserMapData,
-        });
-      }
-      return;
+  ensureEnrichedTilemapInCache(scene: PhaserTiledScene, descriptor: TiledMapDescriptor): void {
+    if (!descriptor.phaserMapData) {
+      throw new Error(
+        `[TiledAssetManager] Artefato Phaser ausente para "${descriptor.mapId}" — rode npm run mirror:map-mund e npm run build.`,
+      );
     }
 
-    scene.load.tilemapTiledJSON(descriptor.cacheKey, descriptor.jsonUrl);
+    const cache = scene.cache.tilemap;
+    if (cache.has?.(descriptor.cacheKey) || cache.exists?.(descriptor.cacheKey)) {
+      cache.remove(descriptor.cacheKey);
+    }
+
+    cache.add(descriptor.cacheKey, {
+      format: PHASER_TILED_JSON_FORMAT,
+      data: descriptor.phaserMapData,
+    });
+  }
+
+  private registerTilemapData(scene: PhaserTiledScene, descriptor: TiledMapDescriptor): void {
+    this.ensureEnrichedTilemapInCache(scene, descriptor);
   }
 
   tilesetTextureKey(mapCacheKey: string, tilesetName: string): string {

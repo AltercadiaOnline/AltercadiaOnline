@@ -3,6 +3,10 @@ import { TILE_SIZE } from './mapConstants.js';
 import type { MoveVector } from './movementInput.js';
 import type { MoveDirection } from './protocol.js';
 import { isNpcOccupiedTile } from './npcTileOccupancy.js';
+import {
+  isPlayerBlockedByObstacles,
+  resolvePlayerWalkabilitySamplePoints,
+} from './playerCollision.js';
 import { tileToWorldPixel, worldPixelToTile } from './portals.js';
 import { canWalkAt } from './worldMap.js';
 
@@ -64,17 +68,23 @@ export function resolvePlayerWalkabilitySample(
   };
 }
 
-/** Colisão do jogador — amostra no tile lógico + tiles ocupados por NPC. */
+/** Colisão do jogador — tiles bloqueantes, NPCs e props Tiled colidíveis. */
 export function canPlayerWalkAt(
   mapData: number[][],
   position: WorldPosition,
 ): boolean {
   const tileSize = getActiveMapTileSize();
-  const sample = resolvePlayerWalkabilitySample(position, tileSize);
-  if (!canWalkAt(mapData, sample.x, sample.y)) return false;
+  const samples = resolvePlayerWalkabilitySamplePoints(position, tileSize);
+  for (const sample of samples) {
+    if (!canWalkAt(mapData, sample.x, sample.y)) return false;
+  }
 
   const tile = worldPixelToTile(position.x, position.y, tileSize);
-  return !isNpcOccupiedTile(tile.tileX, tile.tileY);
+  if (isNpcOccupiedTile(tile.tileX, tile.tileY)) return false;
+
+  if (isPlayerBlockedByObstacles(position)) return false;
+
+  return true;
 }
 
 /**

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { loadProjectEnv, logProjectEnvLoadReport } from './config/loadEnv.js';
 import { loadServerEnv } from './config/env.js';
+import '../config/bootstrapWorldCollision.js';
 import { createPublicClientConfig } from '../shared/publicClientConfig.js';
 import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
 import { CombatWsHub } from './network/CombatWsHub.js';

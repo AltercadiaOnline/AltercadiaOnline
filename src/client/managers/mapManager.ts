@@ -1,5 +1,6 @@
 import { canPlayerWalkAt as checkPlayerWalkAt } from '../../shared/world/movement.js';
 import { setActiveNpcOccupancyMapId } from '../../shared/world/npcTileOccupancy.js';
+import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
 import { TILE_SIZE } from '../../shared/world/mapConstants.js';
 import {
   DEFAULT_MAP_ID,
@@ -57,6 +58,7 @@ export class MapManager {
     this.currentMap = definition;
     this.mapData = definition.generateData();
     setActiveNpcOccupancyMapId(mapId);
+    setActiveWorldCollisionMapId(mapId);
     setActiveMapTileSize(mapId);
   }
 
@@ -107,6 +109,7 @@ export class MapManager {
     this.currentMap = next;
     this.mapData = spawn?.cachedMapData ?? next.generateData();
     setActiveNpcOccupancyMapId(mapId);
+    setActiveWorldCollisionMapId(mapId);
     setActiveMapTileSize(mapId);
     this.applySceneForCurrentMap(mapId, spawn);
   }
