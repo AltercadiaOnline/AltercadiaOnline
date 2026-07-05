@@ -3,7 +3,10 @@ import {
   DEFAULT_PLAYER_SOUTH_ROTATION_URL,
 } from '../../entities/player/playerConstants.js';
 import { getActivePlayerSkinBundleId } from '../../entities/player/activePlayerSkinBundle.js';
-import { resolvePlayerSkinBundleSouthPreviewUrl } from '../../../shared/character/playerSkinBundle.js';
+import {
+  resolvePlayerCardinalRotationUrls,
+  resolvePlayerSkinBundleSouthPreviewUrl,
+} from '../../../shared/character/playerSkinBundle.js';
 
 export const PHASER_PLAYER_TEXTURE_KEY = 'altercadia-player-sheet';
 
@@ -100,11 +103,8 @@ export function resolvePrimaryPlayerSheetUrl(): string {
 /** Pré-carrega rotações cardinais do bundle ativo na LoadingScene. */
 export function resolvePlayerRotationPreloadEntries(): readonly { readonly key: string; readonly url: string }[] {
   const bundleId = getActivePlayerSkinBundleId();
-  const southUrl = resolvePlayerSkinBundleSouthPreviewUrl(bundleId);
-  const cardinals = ['south', 'east', 'north', 'west'] as const;
-
-  return cardinals.map((direction) => ({
+  return resolvePlayerCardinalRotationUrls(bundleId).map(({ direction, url }) => ({
     key: playerRotationTextureKey(direction),
-    url: southUrl.replace(/\/south\.png$/, `/${direction}.png`),
+    url,
   }));
 }

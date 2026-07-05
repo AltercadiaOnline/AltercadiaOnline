@@ -52,5 +52,24 @@ export function resolvePlayerSkinBundleId(
 export function resolvePlayerSkinBundleSouthPreviewUrl(
   bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
 ): string {
-  return `${PLAYER_ASSET_PUBLIC_BASE}/${bundleId}/${BUNDLE_ROTATIONS_BASE[bundleId]}/south.png`;
+  return resolvePlayerSkinBundleRotationUrl(bundleId, 'south');
+}
+
+export type PlayerCardinalDirection = 'south' | 'east' | 'north' | 'west';
+
+export function resolvePlayerSkinBundleRotationUrl(
+  bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  direction: PlayerCardinalDirection,
+): string {
+  return `${PLAYER_ASSET_PUBLIC_BASE}/${bundleId}/${BUNDLE_ROTATIONS_BASE[bundleId]}/${direction}.png`;
+}
+
+export function resolvePlayerCardinalRotationUrls(
+  bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+): readonly { readonly direction: PlayerCardinalDirection; readonly url: string }[] {
+  const cardinals: readonly PlayerCardinalDirection[] = ['south', 'east', 'north', 'west'];
+  return cardinals.map((direction) => ({
+    direction,
+    url: resolvePlayerSkinBundleRotationUrl(bundleId, direction),
+  }));
 }

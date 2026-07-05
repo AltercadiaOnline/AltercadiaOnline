@@ -121,8 +121,8 @@ export class MapLoader {
     this.boundTilesetCount = tilesets.length;
 
     if (this.boundGridTilesetCount === 0) {
-      issues.push(
-        `Nenhum tileset ${map.tileWidth}×${map.tileHeight} vinculado — tile layers precisam de PNGs em /terrain/ com dimensões múltiplas de ${map.tileWidth}px.`,
+      console.warn(
+        `[MapLoader] Nenhum tileset ${map.tileWidth}×${map.tileHeight} vinculado — tile layers podem ficar vazias.`,
       );
     }
 
@@ -136,7 +136,7 @@ export class MapLoader {
 
     if (this.visualTileLayers.length === 0) {
       issues.push(
-        'Nenhuma camada visual de tiles montada — crie tile layers (ground/decor) com tilesets 32×32 e GIDs válidos.',
+        'Nenhuma camada visual de tiles montada — confira tilesets 32×32 (margin/spacing) e GIDs válidos no export Tiled.',
       );
     }
 
@@ -255,8 +255,8 @@ export class MapLoader {
 
       const tileLayer = map.createLayer(layer.name, gridTilesets, 0, 0);
       if (!tileLayer) {
-        issues.push(
-          `Camada "${layer.name}" não montou — tilesets 32×32 ausentes ou GIDs inválidos (props 48/128px devem ficar só em object layers).`,
+        console.warn(
+          `[MapLoader] Camada "${layer.name}" não montou — tilesets 32×32 ausentes, margin incorreto ou GIDs inválidos.`,
         );
         continue;
       }
@@ -371,7 +371,9 @@ export class MapLoader {
     }
 
     const parsed = parseTiledMapPlacements(mapId, mapData.data as Parameters<typeof parseTiledMapPlacements>[1]);
-    issues.push(...parsed.issues);
+    for (const issue of parsed.issues) {
+      console.warn(`[MapLoader] ${issue}`);
+    }
 
     if (!parsed.spawnLayerFound) {
       issues.push('Camada "spawns" (ou "spawn") ausente — crie uma object layer no Tiled.');
@@ -387,20 +389,20 @@ export class MapLoader {
 
     if (registryIds.length > 0) {
       if (!parsed.npcLayerFound) {
-        issues.push(
-          'Camada "npcs" ausente — crie uma object layer "npcs" com um ponto por NPC (name = id do NPC_REGISTRY).',
+        console.warn(
+          '[MapLoader] Camada "npcs" ausente — NPCs do registro usam posição legada (sem ponto Tiled).',
         );
       } else if (parsed.placements.npcs.size === 0) {
-        issues.push(
-          'Camada "npcs" vazia — adicione pontos com name igual ao id do NPC (ex.: ferreiro, anciao_cael).',
+        console.warn(
+          '[MapLoader] Camada "npcs" vazia — NPCs do registro usam posição legada (sem ponto Tiled).',
         );
       }
     }
 
     for (const npcId of parsed.placements.npcs.keys()) {
       if (!registryIds.includes(npcId)) {
-        issues.push(
-          `NPC desconhecido na camada npcs: "${npcId}" — use o id exato do NPC_REGISTRY (ex.: ferreiro, anciao_cael).`,
+        console.warn(
+          `[MapLoader] NPC desconhecido na camada npcs: "${npcId}" — ignorado (use id do NPC_REGISTRY).`,
         );
       }
     }
@@ -526,8 +528,8 @@ export class MapLoader {
         const isGridTileset =
           tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight;
         if (imagePath && isGridTileset) {
-          issues.push(
-            `Tileset 32×32 "${tileset.name}" sem textura carregada: ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
+          console.warn(
+            `[MapLoader] Tileset 32×32 "${tileset.name}" sem textura carregada: ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
           );
         } else if (imagePath) {
           console.warn(
@@ -537,17 +539,27 @@ export class MapLoader {
         continue;
       }
 
+      const layout = this.resolveTilesetLayout(cacheKey, tileset.name);
       const isGridTileset =
         tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight;
-      const added = map.addTilesetImage(tileset.name, textureKey);
+      const margin = layout.margin;
+      const spacing = layout.spacing;
+      const added = map.addTilesetImage(
+        tileset.name,
+        textureKey,
+        tileset.tileWidth,
+        tileset.tileHeight,
+        margin,
+        spacing,
+      );
       if (added) {
         bound.push(added);
         if (added.tileWidth === map.tileWidth && added.tileHeight === map.tileHeight) {
           this.boundGridTilesetCount += 1;
         }
       } else if (isGridTileset) {
-        issues.push(
-          `Tileset 32×32 "${tileset.name}" não vinculou no Phaser — confira columns/tilecount e dimensões do PNG.`,
+        console.warn(
+          `[MapLoader] Tileset 32×32 "${tileset.name}" não vinculou — confira columns/tilecount, margin e dimensões do PNG.`,
         );
       } else {
         console.warn(
@@ -560,12 +572,29 @@ export class MapLoader {
       (entry) => entry.tileWidth === map.tileWidth && entry.tileHeight === map.tileHeight,
     ).length;
     if (this.boundGridTilesetCount < expectedGridTilesets) {
-      issues.push(
-        `${expectedGridTilesets - this.boundGridTilesetCount}/${expectedGridTilesets} tileset(s) 32×32 não vinculado(s) — confira paths no Tiled e npm run mirror:map-mund.`,
+      console.warn(
+        `[MapLoader] ${expectedGridTilesets - this.boundGridTilesetCount}/${expectedGridTilesets} tileset(s) 32×32 não vinculado(s) — mapa parcial ou PNG/margin inválido.`,
       );
     }
 
     return bound;
+  }
+
+  private resolveTilesetLayout(
+    cacheKey: string,
+    tilesetName: string,
+  ): { margin: number; spacing: number } {
+    const mapData = this.scene?.cache.tilemap.get(cacheKey);
+    const rawTilesets = (mapData?.data as { readonly tilesets?: readonly {
+      readonly name?: string;
+      readonly margin?: number;
+      readonly spacing?: number;
+    }[] } | undefined)?.tilesets;
+    const entry = rawTilesets?.find((candidate) => candidate.name === tilesetName);
+    return {
+      margin: Number(entry?.margin ?? 0),
+      spacing: Number(entry?.spacing ?? 0),
+    };
   }
 
   private resolveObjectImagePath(object: TiledJsonObject): string | null {

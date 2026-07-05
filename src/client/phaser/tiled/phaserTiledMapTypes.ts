@@ -30,6 +30,8 @@ export type PhaserTiledTileset = {
   readonly firstgid: number;
   readonly tileWidth: number;
   readonly tileHeight: number;
+  readonly margin?: number;
+  readonly spacing?: number;
   readonly image?: string;
 };
 
