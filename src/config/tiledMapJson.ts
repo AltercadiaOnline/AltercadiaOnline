@@ -144,15 +144,17 @@ function enrichTilesetForPhaser(
     : inferredTileCount;
   enriched.tilecount = Math.max(1, tilecount);
 
-  const margin = Number(enriched.margin ?? 0);
+  let margin = Number(enriched.margin ?? 0);
   const spacing = Number(enriched.spacing ?? 0);
+  const originalImageWidth = Number(enriched.imagewidth ?? 0);
+  const originalImageHeight = Number(enriched.imageheight ?? 0);
 
   let columns = typeof enriched.columns === 'number' ? enriched.columns : 0;
   if (columns <= 0) {
-    if (typeof enriched.imagewidth === 'number' && enriched.imagewidth > 0) {
+    if (originalImageWidth > 0) {
       columns = Math.max(
         1,
-        Math.floor((enriched.imagewidth - 2 * margin + spacing) / (tileWidth + spacing)),
+        Math.floor((originalImageWidth - 2 * margin + spacing) / (tileWidth + spacing)),
       );
     } else {
       columns = 1;
@@ -161,14 +163,32 @@ function enrichTilesetForPhaser(
   }
 
   const rows = Math.max(1, Math.ceil(Number(enriched.tilecount) / columns));
-  // Phaser rejeita tilesets quando imagewidth/imageheight não batem com columns×tilesize
-  // (exports Tiled frequentemente trazem 240px em folha 7×32=224).
-  enriched.imagewidth = columns * tileWidth
-    + 2 * margin
-    + Math.max(0, columns - 1) * spacing;
-  enriched.imageheight = rows * tileHeight
-    + 2 * margin
-    + Math.max(0, rows - 1) * spacing;
+
+  // Folhas CraftPix etc. declaram imagewidth=240 com 7 colunas×32px (=224) — o PNG real
+  // mantém 240px. Phaser valida a textura carregada: precisamos de margin, não recortar JSON.
+  const contentWidth = columns * tileWidth + Math.max(0, columns - 1) * spacing;
+  const widthSlack = originalImageWidth > 0 ? originalImageWidth - contentWidth - 2 * margin : 0;
+  if (widthSlack > 0 && widthSlack % 2 === 0) {
+    margin += widthSlack / 2;
+  }
+
+  const contentHeight = rows * tileHeight + Math.max(0, rows - 1) * spacing;
+  const heightSlack = originalImageHeight > 0 ? originalImageHeight - contentHeight - 2 * margin : 0;
+  if (heightSlack > 0 && heightSlack % 2 === 0) {
+    margin += heightSlack / 2;
+  }
+
+  enriched.margin = margin;
+  if (originalImageWidth > 0) {
+    enriched.imagewidth = originalImageWidth;
+  } else {
+    enriched.imagewidth = contentWidth + 2 * margin + Math.max(0, columns - 1) * spacing;
+  }
+  if (originalImageHeight > 0) {
+    enriched.imageheight = originalImageHeight;
+  } else {
+    enriched.imageheight = contentHeight + 2 * margin + Math.max(0, rows - 1) * spacing;
+  }
 
   return enriched;
 }

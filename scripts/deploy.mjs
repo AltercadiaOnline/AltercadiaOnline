@@ -59,6 +59,14 @@ try {
   process.exit(1);
 }
 
+// Manifest + cache-bust devem refletir o commit publicado (deploy:check roda antes do commit).
+run('node scripts/write-deploy-manifest.mjs');
+run('node scripts/inject-build-cache-bust.mjs');
+if (statusPorcelain()) {
+  run('git add .');
+  run('git commit --amend --no-edit');
+}
+
 const pushedCommit = headCommit();
 run('git push origin main');
 
