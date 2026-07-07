@@ -1,6 +1,7 @@
 node_modules/
 dist/
 data/
+test-results/
 *.log
 
 # Artefatos gerados pelo build Vercel (espelho de dist/ em public/)

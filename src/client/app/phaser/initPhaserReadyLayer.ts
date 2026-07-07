@@ -3,6 +3,7 @@ import {
   getRenderLayerBridge,
 } from '../bridge/renderLayerBridge.js';
 import { bootPhaserRuntime, switchPhaserToActiveMapInstance } from '../../phaser/PhaserRuntime.js';
+import { getMapInstanceSceneManager } from '../../phaser/scenes/MapInstanceSceneManager.js';
 
 const PHASER_HYBRID_QUERY = 'phaser';
 const PHASER_HYBRID_STORAGE_KEY = 'altercadia.phaserHybrid';
@@ -49,7 +50,13 @@ export async function bootOnlinePhaserExploration(): Promise<boolean> {
     try {
       const game = await bootPhaserRuntime();
       if (!game) return false;
-      switchPhaserToActiveMapInstance();
+
+      const manager = getMapInstanceSceneManager();
+      if (!manager.isActiveMapLoadingOrRunning()) {
+        switchPhaserToActiveMapInstance();
+      } else {
+        console.debug('[Phaser] Instância de mapa já carregando/ativa — boot sem novo transitionTo.');
+      }
     } catch (error) {
       console.error('[Phaser] Falha ao iniciar render online:', error);
       return false;

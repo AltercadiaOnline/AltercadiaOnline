@@ -86,12 +86,27 @@ export class MapInstanceSceneManager {
       (entry) => entry.scene.key === PHASER_MAP_LOADING_SCENE_KEY,
     );
 
-    if (
-      !options?.spawn
-      && targetMapId === this.activeMapId
-      && (targetSceneRunning || loadingSceneRunning)
-    ) {
-      return true;
+    if (!options?.spawn) {
+      if (loadingSceneRunning && targetMapId === this.activeMapId) {
+        console.debug(
+          '[MapInstanceSceneManager] Carregamento do mapa já em andamento — ignorando transitionTo duplicado.',
+        );
+        return true;
+      }
+
+      if (targetSceneRunning && targetMapId === this.activeMapId) {
+        console.debug(
+          '[MapInstanceSceneManager] Instância do mapa já ativa — ignorando transitionTo duplicado.',
+        );
+        return true;
+      }
+
+      if (
+        targetSceneRunning
+        && this.activeSceneKey === targetSceneKey
+      ) {
+        return true;
+      }
     }
 
     const currentSceneKey = this.resolveRunningSceneKey();

@@ -74,6 +74,8 @@ export function createMapInstancePhaserScene(
 
     private entitiesMounted = false;
 
+    private entityLayerStarted = false;
+
     private teleportZones: TeleportZoneController | null = null;
 
     private lastFrame: ExplorationRenderFrame | null = null;
@@ -189,7 +191,8 @@ export function createMapInstancePhaserScene(
     }
 
     private mountExplorationEntityLayer(): void {
-      if (this.entitiesMounted) return;
+      if (this.entityLayerStarted) return;
+      this.entityLayerStarted = true;
 
       const layoutScene = this as unknown as PhaserLayoutScene;
       this.layoutRoots = mountPhaserLayoutRoots(layoutScene);
@@ -203,6 +206,10 @@ export function createMapInstancePhaserScene(
         this.layoutRoots.ySortContainer,
       );
 
+      // Câmera + atores não dependem do sheet do jogador — evita mundo “vazio” enquanto PNG carrega.
+      this.entitiesMounted = true;
+      getRenderLayerBridge().markPhaserEntitiesReady(true);
+
       void this.playerSprite
         .mount(
           this as unknown as Parameters<PhaserPlayerSpriteController['mount']>[0],
@@ -210,12 +217,10 @@ export function createMapInstancePhaserScene(
         )
         .then((ready) => {
           if (!this.sceneActive) return;
-          this.entitiesMounted = ready;
           if (ready) {
-            getRenderLayerBridge().markPhaserEntitiesReady(true);
-            console.debug('[MapInstanceScene] Entidades Phaser montadas.');
+            console.debug('[MapInstanceScene] Sprite do jogador Phaser montado.');
           } else {
-            console.warn('[MapInstanceScene] Sprite do jogador indisponível — placeholder Phaser.');
+            console.warn('[MapInstanceScene] Sprite do jogador indisponível — silhueta/placeholder.');
           }
         });
     }
@@ -237,6 +242,7 @@ export function createMapInstancePhaserScene(
       this.sceneActive = false;
       getRenderLayerBridge().markPhaserEntitiesReady(false);
       this.entitiesMounted = false;
+      this.entityLayerStarted = false;
       this.teardownSync?.();
       this.teardownSync = null;
       this.teleportZones?.destroy();

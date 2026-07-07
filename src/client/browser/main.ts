@@ -615,17 +615,26 @@ function enterWorld(): void {
   // Remove `hidden` de #game-container antes do chunk do HUD — evita tela presa no char select.
   showScreen('game-container');
 
+  let hudResolved = false;
+
   // Monta o HUD em paralelo; ele aparece assim que a promise resolver. A transição
   // para o mundo acontece quando o HUD ficar pronto OU quando o timeout estourar.
-  const hudReady = initReactGameHud().catch((error) => {
-    console.error('[Altercadia] Falha ao montar HUD React in-game:', error);
-  });
+  const hudReady = initReactGameHud()
+    .then(() => {
+      hudResolved = true;
+    })
+    .catch((error) => {
+      hudResolved = true;
+      console.error('[Altercadia] Falha ao montar HUD React in-game:', error);
+    });
 
   const hudTimeout = new Promise<void>((resolve) => {
     window.setTimeout(() => {
-      console.warn(
-        `[Altercadia] HUD React não montou em ${HUD_RUNTIME_BOOT_TIMEOUT_MS}ms — entrando no mundo mesmo assim.`,
-      );
+      if (!hudResolved) {
+        console.warn(
+          `[Altercadia] HUD React não montou em ${HUD_RUNTIME_BOOT_TIMEOUT_MS}ms — entrando no mundo mesmo assim.`,
+        );
+      }
       resolve();
     }, HUD_RUNTIME_BOOT_TIMEOUT_MS);
   });
