@@ -31,7 +31,8 @@ type TilemapCache = {
 
 type AssetQueueScene = {
   readonly load: PhaserTiledScene['load'] & {
-    atlas?: (key: string, atlasUrl: string, textureUrl: string) => void;
+    /** Phaser: `load.atlas(key, textureURL, atlasURL)` — PNG antes do JSON. */
+    atlas?: (key: string, textureUrl: string, atlasUrl: string) => void;
   };
   readonly textures: TextureCache;
 };
@@ -77,8 +78,8 @@ export function queueMapInstanceAssets(scene: AssetQueueScene, mapId: MapId): vo
       loadAtlas.call(
         scene.load,
         ZONE1_TOPDOWN_CREATURES_ATLAS_KEY,
-        zone1Atlas.atlasUrl,
         zone1Atlas.imageUrl,
+        zone1Atlas.atlasUrl,
       );
     }
   }

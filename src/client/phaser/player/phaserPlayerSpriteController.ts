@@ -15,6 +15,7 @@ import {
 } from '../../../game/constants/GameConfig.js';
 import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
 import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
+import { ensureTextureOrPlaceholder } from '../assets/phaserPlaceholderTexture.js';
 import { resolvePhaserWorldDepth } from '../layout/phaserWorldDepth.js';
 import { getActivePlayerSkinBundleId } from '../../entities/player/activePlayerSkinBundle.js';
 
@@ -34,6 +35,8 @@ type PhaserPlayerImage = {
 type PhaserPlayerScene = {
   textures: Parameters<typeof ensurePlayerSheetTexture>[0] & {
     exists: (key: string) => boolean;
+    addCanvas: (key: string, canvas: HTMLCanvasElement) => unknown;
+    get: (key: string) => { setFilter: (mode: number) => void };
   };
   load: {
     image: (key: string, url: string) => void;
@@ -59,6 +62,8 @@ export class PhaserPlayerSpriteController {
 
   private catalogFrameHeight = 104;
 
+  private placeholderMode = false;
+
   queuePreload(scene: PhaserPlayerScene): void {
     scene.load.image(PHASER_PLAYER_TEXTURE_KEY, resolvePrimaryPlayerSheetUrl());
   }
@@ -67,9 +72,29 @@ export class PhaserPlayerSpriteController {
     scene: PhaserPlayerScene,
     ySortContainer?: PhaserLayoutContainer | null,
   ): Promise<boolean> {
+    this.placeholderMode = false;
     this.sheetReady = await ensurePlayerSheetTexture(scene.textures);
     if (!this.sheetReady) {
-      return false;
+      const fallbackKey = ensureTextureOrPlaceholder(
+        scene.textures,
+        PHASER_PLAYER_TEXTURE_KEY,
+        getActivePlayerSkinBundleId(),
+        'player',
+      );
+      if (!fallbackKey) {
+        return false;
+      }
+      this.sheetReady = true;
+      this.placeholderMode = true;
+      this.rotationMode = false;
+      this.sprite?.destroy();
+      this.sprite = scene.add.image(0, 0, fallbackKey);
+      this.sprite.setOrigin(0.5, 1);
+      this.sprite.setDepth(PLAYER_SPRITE_DEPTH);
+      if (ySortContainer) {
+        ySortContainer.add(this.sprite);
+      }
+      return true;
     }
 
     this.rotationMode = !scene.textures.exists(PHASER_PLAYER_TEXTURE_KEY);
@@ -98,12 +123,25 @@ export class PhaserPlayerSpriteController {
     return this.sheetReady && this.sprite !== null;
   }
 
+  usesPlaceholder(): boolean {
+    return this.placeholderMode;
+  }
+
   applyFrame(frame: ExplorationRenderFrame): void {
     if (!this.sprite) return;
 
     const { playerSprite } = frame;
 
-    if (this.rotationMode) {
+    if (this.placeholderMode) {
+      normalizePhaserAsset(
+        this.sprite,
+        GAME_ASSET_TARGETS.player.width,
+        GAME_ASSET_TARGETS.player.height,
+        GAME_ASSET_TARGETS.player.width,
+        GAME_ASSET_TARGETS.player.height,
+        PHASER_PLAYER_TEXTURE_KEY,
+      );
+    } else if (this.rotationMode) {
       const textureKey = resolvePlayerPhaserTextureKey(playerSprite.direction);
       this.sprite.setTexture?.(textureKey);
 
@@ -159,5 +197,6 @@ export class PhaserPlayerSpriteController {
     this.sprite = null;
     this.sheetReady = false;
     this.rotationMode = false;
+    this.placeholderMode = false;
   }
 }

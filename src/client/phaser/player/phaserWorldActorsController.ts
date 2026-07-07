@@ -27,6 +27,10 @@ import type { PhaserLayoutContainer } from '../layout/phaserLayoutScene.js';
 import { resolvePhaserWorldDepth } from '../layout/phaserWorldDepth.js';
 import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
 import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
+import {
+  ensureTextureOrPlaceholder,
+  type PhaserPlaceholderTextures,
+} from '../assets/phaserPlaceholderTexture.js';
 
 const CREATURE_TRIM: AssetTrimRatios = {
   top: 0.04,
@@ -50,8 +54,7 @@ type PhaserActorImage = {
 };
 
 type PhaserActorScene = {
-  textures: {
-    exists: (key: string) => boolean;
+  textures: PhaserPlaceholderTextures & {
     addImage: (key: string, source: HTMLImageElement) => unknown;
     get: (key: string) => {
       setFilter: (mode: number) => void;
@@ -88,7 +91,7 @@ function creatureAtlasFrameReady(
   const frameId = creatureAtlasFrame(creatureId);
   if (!frameId) return false;
   try {
-    return textures.get(ZONE1_TOPDOWN_CREATURES_ATLAS_KEY).has?.(frameId) ?? true;
+    return textures.get(ZONE1_TOPDOWN_CREATURES_ATLAS_KEY).has?.(frameId) === true;
   } catch {
     return false;
   }
@@ -109,38 +112,38 @@ function actorInstanceKey(actor: WorldActorRenderSnapshot): string {
 async function ensureCreatureTexture(
   textures: PhaserActorScene['textures'],
   creatureId: string,
-): Promise<boolean> {
+): Promise<string | null> {
   if (creatureAtlasFrameReady(textures, creatureId)) {
-    return true;
+    return ZONE1_TOPDOWN_CREATURES_ATLAS_KEY;
   }
 
   const key = creatureTextureKey(creatureId);
   if (textures.exists(key)) {
-    return true;
+    return key;
   }
 
   const image = await preloadCreatureWorldSprite(creatureId);
   const cached = image ?? getCachedCreatureWorldSprite(creatureId);
-  if (!cached || cached.naturalWidth <= 0) {
-    return false;
+  if (cached && cached.naturalWidth > 0) {
+    textures.addImage(key, cached);
+    try {
+      textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
+    } catch {
+      /* noop */
+    }
+    return key;
   }
 
-  textures.addImage(key, cached);
-  try {
-    textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
-  } catch {
-    /* noop */
-  }
-  return true;
+  return ensureTextureOrPlaceholder(textures, key, creatureId, 'creature');
 }
 
 async function ensureNpcTexture(
   textures: PhaserActorScene['textures'],
   npcId: string,
-): Promise<boolean> {
+): Promise<string | null> {
   const key = npcTextureKey(npcId);
   if (textures.exists(key)) {
-    return true;
+    return key;
   }
 
   const cached = getCachedNpcAssetImage(npcId);
@@ -151,25 +154,23 @@ async function ensureNpcTexture(
     } catch {
       /* noop */
     }
-    return true;
+    return key;
   }
 
-  if (!hasNpcAssetBundle(npcId)) {
-    return false;
+  if (hasNpcAssetBundle(npcId)) {
+    const image = await preloadNpcAssetImage(npcId);
+    if (image && image.naturalWidth > 0) {
+      textures.addImage(key, image);
+      try {
+        textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
+      } catch {
+        /* noop */
+      }
+      return key;
+    }
   }
 
-  const image = await preloadNpcAssetImage(npcId);
-  if (!image || image.naturalWidth <= 0) {
-    return false;
-  }
-
-  textures.addImage(key, image);
-  try {
-    textures.get(key).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
-  } catch {
-    /* noop */
-  }
-  return true;
+  return ensureTextureOrPlaceholder(textures, key, npcId, 'npc');
 }
 
 /**
@@ -229,50 +230,54 @@ export class PhaserWorldActorsController {
     actor: WorldActorRenderSnapshot,
     instanceKey: string,
   ): Promise<void> {
-    const ready = actor.kind === 'creature'
+    const textureKey = actor.kind === 'creature'
       ? await ensureCreatureTexture(scene.textures, actor.creatureId)
       : await ensureNpcTexture(scene.textures, actor.npcId);
 
-    if (!ready) {
+    if (!textureKey) {
       this.sprites.get(instanceKey)?.setVisible(false);
       return;
     }
 
-    const textureKey = actor.kind === 'creature'
-      ? (creatureAtlasFrameReady(scene.textures, actor.creatureId)
-        ? ZONE1_TOPDOWN_CREATURES_ATLAS_KEY
-        : creatureTextureKey(actor.creatureId))
-      : npcTextureKey(actor.npcId);
+    const resolvedTextureKey = actor.kind === 'creature'
+      && textureKey === ZONE1_TOPDOWN_CREATURES_ATLAS_KEY
+      ? ZONE1_TOPDOWN_CREATURES_ATLAS_KEY
+      : textureKey;
 
-    const creatureFrame = actor.kind === 'creature' && textureKey === ZONE1_TOPDOWN_CREATURES_ATLAS_KEY
+    const creatureFrame = actor.kind === 'creature' && resolvedTextureKey === ZONE1_TOPDOWN_CREATURES_ATLAS_KEY
       ? creatureAtlasFrame(actor.creatureId) ?? undefined
       : undefined;
 
     let sprite = this.sprites.get(instanceKey);
     if (!sprite) {
       sprite = creatureFrame != null
-        ? scene.add.image(0, 0, textureKey, creatureFrame)
-        : scene.add.image(0, 0, textureKey);
+        ? scene.add.image(0, 0, resolvedTextureKey, creatureFrame)
+        : scene.add.image(0, 0, resolvedTextureKey);
       sprite.setOrigin(0.5, 1);
       this.ySortContainer?.add(sprite);
       this.sprites.set(instanceKey, sprite);
     } else if (creatureFrame != null && sprite.setTexture) {
-      sprite.setTexture(textureKey, creatureFrame);
+      sprite.setTexture(resolvedTextureKey, creatureFrame);
     }
 
     if (actor.kind === 'creature') {
-      this.applyCreature(sprite, actor);
+      this.applyCreature(sprite, actor, resolvedTextureKey);
       return;
     }
 
     this.applyNpc(sprite, actor);
   }
 
-  private applyCreature(sprite: PhaserActorImage, actor: WorldCreatureRenderSnapshot): void {
+  private applyCreature(
+    sprite: PhaserActorImage,
+    actor: WorldCreatureRenderSnapshot,
+    textureKey: string,
+  ): void {
     const frameId = creatureAtlasFrame(actor.creatureId);
     const frameSize = resolveZone1TopDownFrameSize(actor.creatureId);
+    const usesAtlas = textureKey === ZONE1_TOPDOWN_CREATURES_ATLAS_KEY;
 
-    if (frameId && frameSize) {
+    if (usesAtlas && frameId && frameSize) {
       sprite.setCrop(0, 0, frameSize, frameSize);
       sprite.setPosition(Math.floor(actor.feetX), Math.floor(actor.feetY));
       normalizePhaserAsset(
@@ -297,7 +302,22 @@ export class PhaserWorldActorsController {
     }
 
     const image = getCachedCreatureWorldSprite(actor.creatureId);
-    if (!image) return;
+    if (!image) {
+      sprite.setCrop(0, 0, GAME_ASSET_TARGETS.npc.width, GAME_ASSET_TARGETS.npc.height);
+      sprite.setPosition(Math.floor(actor.feetX), Math.floor(actor.feetY));
+      normalizePhaserAsset(
+        sprite,
+        GAME_ASSET_TARGETS.npc.width,
+        GAME_ASSET_TARGETS.npc.height,
+        GAME_ASSET_TARGETS.npc.width,
+        GAME_ASSET_TARGETS.npc.height,
+        `${actor.creatureId}.png`,
+      );
+      sprite.setDepth(resolvePhaserWorldDepth(actor.feetY));
+      sprite.setAlpha(actor.adjacent ? 0.82 + Math.sin(actor.alertPulse) * 0.12 : 1);
+      sprite.setVisible(true);
+      return;
+    }
 
     const trimmed = resolveTrimmedAssetSourceRect(
       image.naturalWidth,

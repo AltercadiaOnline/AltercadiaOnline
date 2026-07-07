@@ -32,6 +32,11 @@ import {
   type CachedTilesetEntry,
 } from './tilesetBindDiagnostics.js';
 import { ensureTiledTilesetTextureFrames } from './ensureTiledTilesetTextureFrames.js';
+import {
+  ensureTextureOrPlaceholder,
+  type PhaserPlaceholderTextures,
+  type PlaceholderKind,
+} from '../assets/phaserPlaceholderTexture.js';
 import type {
   MapLoaderMountResult,
   MapLoaderScene,
@@ -434,8 +439,19 @@ export class MapLoader {
         const textureKey = this.assets.objectTextureKey(cacheKey, imagePath);
         if (!scene.textures.exists(textureKey)) {
           console.warn(
-            `[MapLoader] Textura de objeto ausente na camada "${layer.name}": ${this.assets.resolvePublicUrl(jsonUrl, imagePath)}`,
+            `[MapLoader] Textura de objeto ausente na camada "${layer.name}": ${this.assets.resolvePublicUrl(jsonUrl, imagePath)} — placeholder procedural.`,
           );
+          ensureTextureOrPlaceholder(
+            scene.textures as unknown as PhaserPlaceholderTextures,
+            textureKey,
+            imagePath,
+            'prop',
+            Math.max(32, objectData.width || 32),
+            Math.max(32, objectData.height || 32),
+          );
+        }
+
+        if (!scene.textures.exists(textureKey)) {
           continue;
         }
 
@@ -659,6 +675,23 @@ export class MapLoader {
       const layout = this.resolveTilesetLayout(cacheKey, tileset.name);
       const isGridTileset =
         tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight;
+
+      if (this.scene && !this.scene.textures.exists(textureKey)) {
+        const placeholderWidth = Number(layout.cached?.imagewidth ?? tileset.tileWidth ?? GAME_CONFIG.TILE_SIZE);
+        const placeholderHeight = Number(layout.cached?.imageheight ?? tileset.tileHeight ?? GAME_CONFIG.TILE_SIZE);
+        const placeholderKind: PlaceholderKind = isGridTileset ? 'tile' : 'prop';
+        console.warn(
+          `[MapLoader] Placeholder procedural para tileset "${tileset.name}" (${placeholderWidth}×${placeholderHeight}).`,
+        );
+        ensureTextureOrPlaceholder(
+          this.scene.textures as unknown as PhaserPlaceholderTextures,
+          textureKey,
+          tileset.name,
+          placeholderKind,
+          placeholderWidth,
+          placeholderHeight,
+        );
+      }
       const margin = layout.margin;
       const spacing = layout.spacing;
       const jsonColumns = Number(layout.cached?.columns ?? 0);

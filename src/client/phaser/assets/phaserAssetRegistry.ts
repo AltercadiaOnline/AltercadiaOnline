@@ -16,9 +16,14 @@ import {
   preloadRegistryFileAsset,
 } from '../../../game/registryFileImageLoader.js';
 import { listTestPackWiredAssetIds } from '../../../game/generated/city01TestPackWiring.js';
+import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
 import { PHASER_TEXTURE_FILTER_NEAREST } from '../player/phaserPlayerAssets.js';
 import type { PhaserLayoutImage, PhaserLayoutScene } from '../layout/phaserLayoutScene.js';
 import { normalizePhaserAsset } from './phaserAssetNormalizer.js';
+import {
+  ensureTextureOrPlaceholder,
+  type PhaserPlaceholderTextures,
+} from './phaserPlaceholderTexture.js';
 
 export { PHASER_TILESET_ATLAS_TEXTURE_KEY };
 
@@ -220,7 +225,19 @@ export function tryCreateRegistrySprite(
 
   if (asset.source === 'file') {
     if (!ensureRegistryFileTexture(scene.textures, assetKey)) {
-      return null;
+      const textureKey = registryFileTextureKey(asset.id);
+      ensureTextureOrPlaceholder(
+        scene.textures as unknown as PhaserPlaceholderTextures,
+        textureKey,
+        assetKey,
+        'prop',
+        asset.width,
+        asset.height,
+        asset.fileName,
+      );
+      if (!scene.textures.exists(textureKey)) {
+        return null;
+      }
     }
 
     const textureKey = registryFileTextureKey(asset.id);
@@ -230,7 +247,17 @@ export function tryCreateRegistrySprite(
   }
 
   if (!ensureTilesetAtlasTexture(scene.textures)) {
-    return null;
+    ensureTextureOrPlaceholder(
+      scene.textures as unknown as PhaserPlaceholderTextures,
+      PHASER_TILESET_ATLAS_TEXTURE_KEY,
+      'tileset-atlas',
+      'tile',
+      GAME_ASSET_TARGETS.tile.width,
+      GAME_ASSET_TARGETS.tile.height,
+    );
+    if (!ensureTilesetAtlasTexture(scene.textures)) {
+      return null;
+    }
   }
 
   const frame = get(assetKey);

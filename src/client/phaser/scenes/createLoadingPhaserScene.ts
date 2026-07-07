@@ -16,6 +16,10 @@ import type { MapInstanceSceneInitData } from './createMapInstancePhaserScene.js
 import type { PhaserWorldSceneBase } from './MainScene.js';
 import { revealPhaserMountHost } from '../phaserExplorationPipeline.js';
 import { enablePhaserRenderMode } from '../../app/phaser/initPhaserReadyLayer.js';
+import {
+  ensurePlaceholdersForFailedKeys,
+  type PhaserPlaceholderTextures,
+} from '../assets/phaserPlaceholderTexture.js';
 
 type PhaserLoaderFile = {
   readonly key?: string;
@@ -29,7 +33,7 @@ type PhaserSceneLoader = {
 
 type PhaserLoadingScene = PhaserWorldSceneBase & {
   readonly load: PhaserWorldSceneBase['load'] & PhaserSceneLoader;
-  readonly textures: {
+  readonly textures: PhaserPlaceholderTextures & {
     exists: (key: string) => boolean;
     remove: (key: string) => void;
   };
@@ -112,6 +116,8 @@ export function createLoadingPhaserScene(
     /** Algum asset (imagem) falhou — não bloqueia: motor usa placeholder. */
     private assetErrors = 0;
 
+    private readonly failedAssetKeys = new Set<string>();
+
     private statusText: ReturnType<PhaserLoadingScene['add']['text']> | null = null;
 
     private progressFill: ReturnType<PhaserLoadingScene['add']['rectangle']> | null = null;
@@ -127,6 +133,7 @@ export function createLoadingPhaserScene(
       this.targetMapId = data?.targetMapId ?? null;
       this.spawn = data?.spawn;
       this.assetErrors = 0;
+      this.failedAssetKeys.clear();
       this.statusText = null;
       this.progressFill = null;
 
@@ -144,6 +151,9 @@ export function createLoadingPhaserScene(
         // Imagem ausente NÃO trava o mundo — motor renderiza placeholder no lugar.
         this.assetErrors += 1;
         const file = resolveLoaderFile(args);
+        if (file.key) {
+          this.failedAssetKeys.add(file.key);
+        }
         console.warn(
           '[LoadingScene] Asset ausente (404) — seguindo com placeholder:',
           file.key,
@@ -196,8 +206,9 @@ export function createLoadingPhaserScene(
       }
 
       if (this.assetErrors > 0) {
+        const placeholders = ensurePlaceholdersForFailedKeys(scene.textures, this.failedAssetKeys);
         console.warn(
-          `[LoadingScene] Entrando no mundo com ${this.assetErrors} asset(s) em placeholder.`,
+          `[LoadingScene] Entrando no mundo com ${this.assetErrors} asset(s) em placeholder (${placeholders} textura(s) gerada(s)).`,
         );
       }
 
