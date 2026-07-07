@@ -1,25 +1,21 @@
 /**
  * Resolve caminhos de imagem exportados pelo Tiled para URLs públicas em /assets/.
+ * Tilesets processados (npm run generate-assets) redirecionam para /assets/processed/.
  */
+import { resolveProcessedTilesetAsset } from '../../../config/processedAssetManifest.js';
+import { resolveTiledImagePublicUrl } from '../../../config/resolveTiledImagePublicUrl.js';
+
 export function resolveTiledPublicAssetUrl(mapJsonUrl: string, tiledImagePath: string): string {
-  const normalized = tiledImagePath.replace(/\\/g, '/');
-  if (normalized.startsWith('/assets/')) {
-    return normalized;
-  }
+  const publicUrl = resolveTiledImagePublicUrl(mapJsonUrl, tiledImagePath);
+  return resolveProcessedTilesetAsset(publicUrl)?.imageUrl ?? publicUrl;
+}
 
-  const mapBase = mapJsonUrl.replace(/\/[^/]+$/, '');
-  const combined = `${mapBase}/${normalized}`;
-  const segments = combined.split('/').filter((segment) => segment.length > 0);
-  const resolved: string[] = [];
+/** Atlas JSONArray (Phaser) para tileset processado, se existir no manifest de build. */
+export function resolveProcessedTilesetAtlasUrl(sourcePublicUrl: string): string | null {
+  return resolveProcessedTilesetAsset(sourcePublicUrl)?.atlasUrl ?? null;
+}
 
-  for (const segment of segments) {
-    if (segment === '.') continue;
-    if (segment === '..') {
-      resolved.pop();
-      continue;
-    }
-    resolved.push(segment);
-  }
-
-  return `/${resolved.join('/')}`;
+/** URL de origem (sem redirect) — útil para lookup no manifest processado. */
+export function resolveTiledSourcePublicUrl(mapJsonUrl: string, tiledImagePath: string): string {
+  return resolveTiledImagePublicUrl(mapJsonUrl, tiledImagePath);
 }

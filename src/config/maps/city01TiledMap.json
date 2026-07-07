@@ -11832,7 +11832,7 @@
       "firstgid": 3331,
       "source": "../terrain/terrain_test_pack_3.tsx",
       "name": "terrain_test_pack_3",
-      "image": "../terrain/tiles/Atlas/terrain_atlas.png",
+      "image": "../terrain/tiles/Atlas/base_out_atlas.png",
       "tilewidth": 32,
       "tileheight": 32,
       "imagewidth": 1024,

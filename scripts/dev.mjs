@@ -16,6 +16,13 @@ if (!existsSync(clientBundle)) {
   process.exit(1);
 }
 
+console.log('');
+console.log('[dev] Altercadia — modo desenvolvimento');
+console.log('[dev] JS compilado: dist/client (tsc --watch) tem prioridade sobre public/client.');
+console.log('[dev] No console do browser procure: [Altercadia] DEV bundle ativo: dev-...');
+console.log('[dev] Após mudanças no código: aguarde "Found 0 errors" do tsc e Ctrl+Shift+R.');
+console.log('');
+
 const tsc = spawn('npx', ['tsc', '--watch', '--preserveWatchOutput'], {
   stdio: 'inherit',
   shell,

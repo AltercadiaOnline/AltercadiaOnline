@@ -6,6 +6,14 @@ import {
   getCachedCreatureWorldSprite,
 } from '../../world/creatureWorldImageLoader.js';
 import {
+  resolveZone1TopDownAtlasFrameId,
+  resolveZone1TopDownFrameSize,
+} from '../../../shared/assets/zone1TopDownCreatureAssets.js';
+import {
+  resolveZone1ProcessedCreatureAtlas,
+  ZONE1_TOPDOWN_CREATURES_ATLAS_KEY,
+} from '../../../config/zone1ProcessedCreatureAtlas.js';
+import {
   resolveTrimmedAssetSourceRect,
   type AssetTrimRatios,
 } from '../../entities/player/playerSpriteSourceTrim.js';
@@ -34,6 +42,7 @@ type PhaserActorImage = {
   setDepth: (depth: number) => PhaserActorImage;
   setAlpha: (alpha: number) => PhaserActorImage;
   setDisplaySize: (width: number, height: number) => PhaserActorImage;
+  setTexture?: (key: string, frame?: string | number) => PhaserActorImage;
   setTint?: (color: number) => PhaserActorImage;
   clearTint?: () => PhaserActorImage;
   setVisible: (visible: boolean) => PhaserActorImage;
@@ -44,15 +53,46 @@ type PhaserActorScene = {
   textures: {
     exists: (key: string) => boolean;
     addImage: (key: string, source: HTMLImageElement) => unknown;
-    get: (key: string) => { setFilter: (mode: number) => void };
+    get: (key: string) => {
+      setFilter: (mode: number) => void;
+      has?: (frame: string) => boolean;
+    };
   };
   load: {
     image: (key: string, url: string) => void;
+    atlas?: (key: string, atlasUrl: string, imageUrl: string) => void;
   };
   add: {
-    image: (x: number, y: number, textureKey: string) => PhaserActorImage;
+    image: (
+      x: number,
+      y: number,
+      textureKey: string,
+      frame?: string | number,
+    ) => PhaserActorImage;
   };
 };
+
+function creatureUsesProcessedAtlas(textures: PhaserActorScene['textures']): boolean {
+  return textures.exists(ZONE1_TOPDOWN_CREATURES_ATLAS_KEY);
+}
+
+function creatureAtlasFrame(creatureId: string): string | null {
+  return resolveZone1TopDownAtlasFrameId(creatureId, 'south');
+}
+
+function creatureAtlasFrameReady(
+  textures: PhaserActorScene['textures'],
+  creatureId: string,
+): boolean {
+  if (!creatureUsesProcessedAtlas(textures)) return false;
+  const frameId = creatureAtlasFrame(creatureId);
+  if (!frameId) return false;
+  try {
+    return textures.get(ZONE1_TOPDOWN_CREATURES_ATLAS_KEY).has?.(frameId) ?? true;
+  } catch {
+    return false;
+  }
+}
 
 function creatureTextureKey(creatureId: string): string {
   return `altercadia-creature-${creatureId}`;
@@ -70,6 +110,10 @@ async function ensureCreatureTexture(
   textures: PhaserActorScene['textures'],
   creatureId: string,
 ): Promise<boolean> {
+  if (creatureAtlasFrameReady(textures, creatureId)) {
+    return true;
+  }
+
   const key = creatureTextureKey(creatureId);
   if (textures.exists(key)) {
     return true;
@@ -195,15 +239,25 @@ export class PhaserWorldActorsController {
     }
 
     const textureKey = actor.kind === 'creature'
-      ? creatureTextureKey(actor.creatureId)
+      ? (creatureAtlasFrameReady(scene.textures, actor.creatureId)
+        ? ZONE1_TOPDOWN_CREATURES_ATLAS_KEY
+        : creatureTextureKey(actor.creatureId))
       : npcTextureKey(actor.npcId);
+
+    const creatureFrame = actor.kind === 'creature' && textureKey === ZONE1_TOPDOWN_CREATURES_ATLAS_KEY
+      ? creatureAtlasFrame(actor.creatureId) ?? undefined
+      : undefined;
 
     let sprite = this.sprites.get(instanceKey);
     if (!sprite) {
-      sprite = scene.add.image(0, 0, textureKey);
+      sprite = creatureFrame != null
+        ? scene.add.image(0, 0, textureKey, creatureFrame)
+        : scene.add.image(0, 0, textureKey);
       sprite.setOrigin(0.5, 1);
       this.ySortContainer?.add(sprite);
       this.sprites.set(instanceKey, sprite);
+    } else if (creatureFrame != null && sprite.setTexture) {
+      sprite.setTexture(textureKey, creatureFrame);
     }
 
     if (actor.kind === 'creature') {
@@ -215,6 +269,33 @@ export class PhaserWorldActorsController {
   }
 
   private applyCreature(sprite: PhaserActorImage, actor: WorldCreatureRenderSnapshot): void {
+    const frameId = creatureAtlasFrame(actor.creatureId);
+    const frameSize = resolveZone1TopDownFrameSize(actor.creatureId);
+
+    if (frameId && frameSize) {
+      sprite.setCrop(0, 0, frameSize, frameSize);
+      sprite.setPosition(Math.floor(actor.feetX), Math.floor(actor.feetY));
+      normalizePhaserAsset(
+        sprite,
+        frameSize,
+        frameSize,
+        GAME_ASSET_TARGETS.npc.width,
+        GAME_ASSET_TARGETS.npc.height,
+        `${actor.creatureId}.png`,
+      );
+      sprite.setDepth(resolvePhaserWorldDepth(actor.feetY));
+
+      if (actor.adjacent) {
+        const pulse = 0.82 + Math.sin(actor.alertPulse) * 0.12;
+        sprite.setAlpha(pulse);
+      } else {
+        sprite.setAlpha(1);
+      }
+
+      sprite.setVisible(true);
+      return;
+    }
+
     const image = getCachedCreatureWorldSprite(actor.creatureId);
     if (!image) return;
 
@@ -265,11 +346,15 @@ export class PhaserWorldActorsController {
   }
 }
 
-/** Preload Phaser loader queue — criaturas top-down idle. */
+/** Preload Phaser loader queue — criaturas top-down idle (atlas processado ou PNG solto). */
 export function queueCreaturePreloads(
   load: PhaserActorScene['load'],
   creatureIds: readonly string[],
 ): void {
+  if (resolveZone1ProcessedCreatureAtlas()) {
+    return;
+  }
+
   for (const creatureId of creatureIds) {
     const url = getCreatureAssets(creatureId).sprites.idle;
     load.image(creatureTextureKey(creatureId), url);

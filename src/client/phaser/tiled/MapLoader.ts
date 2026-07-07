@@ -22,6 +22,16 @@ import { NPC_REGISTRY_WITH_LORE } from '../../../shared/world/npcRegistry.js';
 import { resolvePhaserWorldDepth, PHASER_GROUND_DEPTH } from '../layout/phaserWorldDepth.js';
 import { getTiledAssetManager } from './TiledAssetManager.js';
 import { failTiledMapLoad } from './mapLoadFatalError.js';
+import {
+  buildTilesetBindDiagnostic,
+  computeTilesetFrameCapacity,
+  findTilesetForGid,
+  formatTilesetBindDiagnostic,
+  resolveCachedTilesetEntry,
+  stripTiledGidFlags,
+  type CachedTilesetEntry,
+} from './tilesetBindDiagnostics.js';
+import { ensureTiledTilesetTextureFrames } from './ensureTiledTilesetTextureFrames.js';
 import type {
   MapLoaderMountResult,
   MapLoaderScene,
@@ -74,6 +84,9 @@ export class MapLoader {
 
   private mapJsonUrl: string | null = null;
 
+  /** Texturas já fatiadas em frames 0…N para createFromObjects. */
+  private slicedTilesetTextureKeys = new Set<string>();
+
   private worldRoot: {
     add: (child: unknown) => unknown;
     setDepth: (depth: number) => unknown;
@@ -97,6 +110,19 @@ export class MapLoader {
       failTiledMapLoad(mapId, [
         `Export Tiled ausente para "${mapId}" — adicione o .tmj em public/assets/map_mund/ e rode npm run mirror:map-mund.`,
       ]);
+    }
+
+    if (this.isMountedOnScene(mapId, scene)) {
+      const size = this.getMapPixelSize();
+      console.debug(`[MapLoader] Mapa "${mapId}" já montado nesta cena — ignorando load duplicado.`);
+      return {
+        mapId,
+        widthPx: size?.widthPx ?? 0,
+        heightPx: size?.heightPx ?? 0,
+        objects: [...this.objectRecords],
+        objectByUid: new Map(this.objectByUid),
+        playerSpawn: this.playerSpawn,
+      };
     }
 
     this.destroy();
@@ -142,7 +168,7 @@ export class MapLoader {
     this.buildVisualTileLayers(map, tilesets, issues);
     this.buildCollisionPhysics(map, tilesets);
     this.buildStructureAndPropLayers(map, tilesets, mapId, descriptor.cacheKey, descriptor.jsonUrl, issues);
-    this.playerSpawn = this.applyTiledPlacementsFromCache(descriptor.cacheKey, mapId, issues);
+    this.playerSpawn = this.applyTiledPlacementsFromCache(descriptor.cacheKey, mapId, map, issues);
 
     if (this.visualTileLayers.length === 0) {
       console.warn(
@@ -157,8 +183,16 @@ export class MapLoader {
     }
 
     if (issues.length > 0) {
-      this.destroy();
-      failTiledMapLoad(mapId, issues);
+      const hardFailure = this.visualTileLayers.length === 0 && this.boundGridTilesetCount === 0;
+      if (hardFailure) {
+        this.destroy();
+        failTiledMapLoad(mapId, issues);
+      } else {
+        console.warn(
+          `[MapLoader] Mapa "${mapId}" montado com ${issues.length} aviso(s) — exploração continua.`,
+          issues,
+        );
+      }
     }
 
     console.info(
@@ -225,6 +259,10 @@ export class MapLoader {
     return this.boundGridTilesetCount;
   }
 
+  isMountedOnScene(mapId: MapId, scene: MapLoaderScene): boolean {
+    return this.mountedMapId === mapId && this.scene === scene && this.map !== null;
+  }
+
   destroy(): void {
     for (const record of this.objectRecords) {
       record.sprite.destroy();
@@ -252,6 +290,7 @@ export class MapLoader {
     this.expectedTilesetCount = 0;
     this.boundTilesetCount = 0;
     this.boundGridTilesetCount = 0;
+    this.slicedTilesetTextureKeys.clear();
     this.scene = null;
   }
 
@@ -309,8 +348,33 @@ export class MapLoader {
       }
 
       this.collisionLayer = collision;
+      console.info(
+        `[MapLoader] Camada de colisão tile "${layer.name}" montada — ${gridTilesets.length} tileset(s) 32×32.`,
+      );
       return;
     }
+
+    console.info(
+      '[MapLoader] Nenhuma camada tile "collision" no mapa — walkability usa grid legado (city01.ts) + objetos collidable:true.',
+    );
+  }
+
+  /** Preferir chave compartilhada por URL (preload deduplicado) antes do alias legado por nome. */
+  private resolveBoundTilesetTextureKey(
+    cacheKey: string,
+    tilesetName: string,
+    descriptorKey: string | undefined,
+  ): string | null {
+    const candidates = [
+      this.assets.resolveTilesetTextureKey(cacheKey, tilesetName),
+      descriptorKey,
+      this.assets.tilesetTextureKey(cacheKey, tilesetName),
+    ].filter((key): key is string => Boolean(key));
+
+    for (const key of candidates) {
+      if (this.scene?.textures.exists(key)) return key;
+    }
+    return null;
   }
 
   private buildStructureAndPropLayers(
@@ -324,18 +388,34 @@ export class MapLoader {
     const scene = this.scene;
     if (!scene || !this.worldRoot) return;
 
+    const cachedTilesets = this.listCachedTilesets(cacheKey);
     const objectLayers = map.objects ?? [];
 
     for (const layer of objectLayers) {
       if (!isTiledRenderableObjectLayer(layer.name)) continue;
 
       const layerObjects = layer.objects ?? [];
+      this.logObjectLayerGidDiagnostics(layer.name, layerObjects, cachedTilesets);
 
-      const createdFromGid = map.createFromObjects(
-        layer.name,
-        { scene },
-        true,
-      );
+      let createdFromGid: PhaserMapSprite[] = [];
+      try {
+        createdFromGid = map.createFromObjects(
+          layer.name,
+          { scene },
+          true,
+        ) as PhaserMapSprite[];
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        console.error(
+          `[MapLoader] createFromObjects falhou na camada "${layer.name}": ${detail}`,
+          'Confira logs [MapLoader:tileset] — margin/spacing/tilecount devem bater com o Tiled.',
+        );
+        issues.push(
+          `Camada de objetos "${layer.name}" falhou ao instanciar tiles (gid) — ${detail}`,
+        );
+        continue;
+      }
+
       for (let index = 0; index < createdFromGid.length; index += 1) {
         const sprite = createdFromGid[index]!;
         const objectData = layerObjects[index];
@@ -375,6 +455,7 @@ export class MapLoader {
   private applyTiledPlacementsFromCache(
     cacheKey: string,
     mapId: MapId,
+    map: PhaserTiledTilemap,
     issues: string[],
   ): TiledPlayerSpawn | null {
     const scene = this.scene;
@@ -396,11 +477,15 @@ export class MapLoader {
       console.warn(`[MapLoader] ${issue}`);
     }
 
+    const playerSpawn = parsed.placements.playerSpawn ?? this.resolveDefaultPlayerSpawn(map);
+
     if (!parsed.spawnLayerFound) {
-      issues.push('Camada "spawns" (ou "spawn") ausente — crie uma object layer no Tiled.');
+      console.warn(
+        '[MapLoader] Camada "spawns" (ou "spawn") ausente — usando spawn padrão no centro do mapa.',
+      );
     } else if (!parsed.placements.playerSpawn) {
-      issues.push(
-        'Objeto de spawn ausente — use name/type player_spawn ou spawn_zona_* na camada spawns/spawn.',
+      console.warn(
+        '[MapLoader] Objeto de spawn ausente — usando spawn padrão no centro do mapa.',
       );
     }
 
@@ -438,11 +523,22 @@ export class MapLoader {
       }
     }
 
-    setTiledMapPlacements(mapId, parsed.placements);
+    setTiledMapPlacements(mapId, {
+      ...parsed.placements,
+      playerSpawn,
+    });
     void import('../../world/tiledMapPlacementsBridge.js').then(({ notifyTiledMapPlacementsCommitted }) => {
       notifyTiledMapPlacementsCommitted(mapId);
     });
-    return parsed.placements.playerSpawn;
+    return playerSpawn;
+  }
+
+  private resolveDefaultPlayerSpawn(map: PhaserTiledTilemap): TiledPlayerSpawn {
+    return {
+      x: map.widthInPixels / 2,
+      y: map.heightInPixels / 2,
+      facing: 'south',
+    };
   }
 
   private registerMapObject(
@@ -530,19 +626,19 @@ export class MapLoader {
     const textureKeyByNormalizedName = new Map<string, string>();
 
     for (const tileset of descriptor?.tilesets ?? []) {
-      textureKeyByNormalizedName.set(
-        tileset.name.trim().toLowerCase(),
-        tiledTilesetTextureKey(cacheKey, tileset.name),
-      );
+      const resolvedKey =
+        this.assets.resolveTilesetTextureKey(cacheKey, tileset.name)
+        ?? tiledTilesetTextureKey(cacheKey, tileset.name);
+      textureKeyByNormalizedName.set(tileset.name.trim().toLowerCase(), resolvedKey);
     }
 
     for (const tileset of map.tilesets) {
-      const primaryKey = this.assets.tilesetTextureKey(cacheKey, tileset.name);
       const normalizedName = tileset.name.trim().toLowerCase();
-      const fallbackKey = textureKeyByNormalizedName.get(normalizedName);
-      const textureKey = this.scene?.textures.exists(primaryKey)
-        ? primaryKey
-        : (fallbackKey && this.scene?.textures.exists(fallbackKey) ? fallbackKey : null);
+      const textureKey = this.resolveBoundTilesetTextureKey(
+        cacheKey,
+        tileset.name,
+        textureKeyByNormalizedName.get(normalizedName),
+      );
 
       if (!textureKey) {
         const imagePath = tileset.image;
@@ -565,6 +661,13 @@ export class MapLoader {
         tileset.tileWidth === map.tileWidth && tileset.tileHeight === map.tileHeight;
       const margin = layout.margin;
       const spacing = layout.spacing;
+      const jsonColumns = Number(layout.cached?.columns ?? 0);
+      const jsonTilecount = Number(layout.cached?.tilecount ?? 1);
+      const imageUrl = tileset.image
+        ? this.assets.resolvePublicUrl(jsonUrl, tileset.image)
+        : '(sem image)';
+
+      const textureSource = this.readTextureSourceMetrics(textureKey);
       const added = map.addTilesetImage(
         tileset.name,
         textureKey,
@@ -573,6 +676,61 @@ export class MapLoader {
         margin,
         spacing,
       );
+
+      // Folha inteira (load.image) + frames 0…N — tile layers usam texCoordinates da folha;
+      // createFromObjects usa o índice local como nome do frame.
+      if (added && jsonTilecount > 1 && this.scene?.textures.exists(textureKey)) {
+        const textureManager = this.scene.textures as unknown as {
+          get: (key: string) => Parameters<typeof ensureTiledTilesetTextureFrames>[0];
+        };
+        const rawTexture = textureManager.get(textureKey);
+        const framesAdded = ensureTiledTilesetTextureFrames(rawTexture, {
+          tileWidth: tileset.tileWidth,
+          tileHeight: tileset.tileHeight,
+          margin,
+          spacing,
+          columns: jsonColumns,
+          tilecount: jsonTilecount,
+        });
+        this.slicedTilesetTextureKeys.add(textureKey);
+        if (framesAdded > 0) {
+          console.info(
+            `[MapLoader:tileset] "${tileset.name}" — ${framesAdded} frame(s) gerado(s) em "${textureKey}" para GIDs de props.`,
+          );
+        }
+      }
+
+      const diagnostic = buildTilesetBindDiagnostic({
+        tilesetName: tileset.name,
+        textureKey,
+        imageUrl,
+        tileWidth: tileset.tileWidth,
+        tileHeight: tileset.tileHeight,
+        margin,
+        spacing,
+        cached: layout.cached,
+        texturePixelWidth: textureSource.width,
+        texturePixelHeight: textureSource.height,
+        textureFrameCount: textureSource.frameCount,
+        bindOk: Boolean(added),
+      });
+      console.info(formatTilesetBindDiagnostic(diagnostic));
+
+      if (!diagnostic.capacityFromTexture.widthGridAligned || !diagnostic.capacityFromTexture.heightGridAligned) {
+        console.warn(
+          `[MapLoader:tileset] "${tileset.name}" — área útil da textura (${textureSource.width}×${textureSource.height}, margin=${margin}) não é múltiplo de ${tileset.tileWidth}×${tileset.tileHeight}. Phaser emite "Image tile area not tile size multiple".`,
+        );
+      }
+
+      if (
+        diagnostic.capacityFromTexture.maxFrames > 0
+        && diagnostic.jsonTilecount > diagnostic.capacityFromTexture.maxFrames
+      ) {
+        console.warn(
+          `[MapLoader:tileset] "${tileset.name}" — tilecount JSON (${diagnostic.jsonTilecount}) > frames possíveis na textura (${diagnostic.capacityFromTexture.maxFrames}). GIDs acima disso geram "has no frame".`,
+        );
+      }
+
       if (added) {
         bound.push(added);
         if (added.tileWidth === map.tileWidth && added.tileHeight === map.tileHeight) {
@@ -604,18 +762,105 @@ export class MapLoader {
   private resolveTilesetLayout(
     cacheKey: string,
     tilesetName: string,
-  ): { margin: number; spacing: number } {
-    const mapData = this.scene?.cache.tilemap.get(cacheKey);
-    const rawTilesets = (mapData?.data as { readonly tilesets?: readonly {
-      readonly name?: string;
-      readonly margin?: number;
-      readonly spacing?: number;
-    }[] } | undefined)?.tilesets;
-    const entry = rawTilesets?.find((candidate) => candidate.name === tilesetName);
+  ): { margin: number; spacing: number; cached: CachedTilesetEntry | null } {
+    const rawTilesets = this.listCachedTilesets(cacheKey);
+    const entry = resolveCachedTilesetEntry(rawTilesets, tilesetName);
     return {
       margin: Number(entry?.margin ?? 0),
       spacing: Number(entry?.spacing ?? 0),
+      cached: entry,
     };
+  }
+
+  private listCachedTilesets(cacheKey: string): CachedTilesetEntry[] {
+    const mapData = this.scene?.cache.tilemap.get(cacheKey);
+    const rawTilesets = (mapData?.data as { readonly tilesets?: readonly CachedTilesetEntry[] } | undefined)?.tilesets;
+    if (!Array.isArray(rawTilesets)) return [];
+    return [...rawTilesets].sort(
+      (left, right) => Number(left.firstgid ?? 0) - Number(right.firstgid ?? 0),
+    );
+  }
+
+  private readTextureSourceMetrics(textureKey: string): {
+    readonly width: number;
+    readonly height: number;
+    readonly frameCount: number;
+  } {
+    const textures = this.scene?.textures;
+    if (!textures?.exists(textureKey)) {
+      return { width: 0, height: 0, frameCount: 0 };
+    }
+
+    try {
+      const textureManager = textures as unknown as {
+        get: (key: string) => {
+          getSourceImage?: () => { width?: number; height?: number };
+          frameTotal?: number;
+          source?: Array<{ width?: number; height?: number }>;
+        };
+      };
+      const texture = textureManager.get(textureKey);
+      const sourceImage = texture.getSourceImage?.();
+      const width = Number(sourceImage?.width ?? texture.source?.[0]?.width ?? 0);
+      const height = Number(sourceImage?.height ?? texture.source?.[0]?.height ?? 0);
+      const frameCount = Number(texture.frameTotal ?? 0);
+      return { width, height, frameCount };
+    } catch {
+      return { width: 0, height: 0, frameCount: 0 };
+    }
+  }
+
+  private logObjectLayerGidDiagnostics(
+    layerName: string,
+    layerObjects: readonly TiledJsonObject[],
+    cachedTilesets: readonly CachedTilesetEntry[],
+  ): void {
+    const invalid: string[] = [];
+
+    for (const objectData of layerObjects) {
+      const rawGid = objectData.gid;
+      if (!rawGid) continue;
+
+      const gid = stripTiledGidFlags(rawGid);
+      const resolved = findTilesetForGid(cachedTilesets, gid);
+      if (!resolved) {
+        invalid.push(`gid=${gid} (tileset não encontrado)`);
+        continue;
+      }
+
+      const { entry, localIndex } = resolved;
+      const margin = Number(entry.margin ?? 0);
+      const spacing = Number(entry.spacing ?? 0);
+      const tileWidth = Number(entry.tilewidth ?? 32);
+      const tileHeight = Number(entry.tileheight ?? 32);
+      const imageWidth = Number(entry.imagewidth ?? 0);
+      const imageHeight = Number(entry.imageheight ?? 0);
+      const columns = Number(entry.columns ?? 0);
+      const tilecount = Number(entry.tilecount ?? 0);
+      const capacity = computeTilesetFrameCapacity(
+        tileWidth,
+        tileHeight,
+        margin,
+        spacing,
+        imageWidth,
+        imageHeight,
+        columns,
+      );
+
+      if (localIndex < 0 || localIndex >= tilecount || localIndex >= capacity.maxFrames) {
+        invalid.push(
+          `gid=${gid} → ${entry.name} local=${localIndex} (tilecount=${tilecount}, maxFrames=${capacity.maxFrames})`,
+        );
+      }
+    }
+
+    if (invalid.length > 0) {
+      console.warn(
+        `[MapLoader:gid] Camada "${layerName}" — ${invalid.length} objeto(s) com GID fora do tileset:`,
+        invalid.slice(0, 8),
+        invalid.length > 8 ? `… +${invalid.length - 8} mais` : '',
+      );
+    }
   }
 
   private resolveObjectImagePath(object: TiledJsonObject): string | null {

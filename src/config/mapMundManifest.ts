@@ -8,9 +8,9 @@ import type { MapId } from '../shared/world/mapRegistry.js';
  * Designer: exportar .tmj ou .json direto para `public/assets/map_mund/`.
  *
  * Pipeline de build (automático em `npm run build`):
- * 1. `mirror:map-mund` — resolve .tsx → espelho + artefato Phaser-ready em `src/config/maps/*PhaserMap.json`
- * 2. `audit:map-mund` — valida tilesets, imagens e ausência de `source`
- * 3. `build:sync` — copia espelhos para `public/config/maps/`
+ * 1. `generate-assets` — processa só tilesets 32×32 desalinhados referenciados nos .tmj
+ * 2. `mirror:map-mund` — resolve .tsx → espelho + artefato Phaser-ready em `src/config/maps/*PhaserMap.json`
+ * 3. `audit:map-mund` — valida tilesets, imagens e ausência de `source`
  *
  * O Phaser **nunca** parseia o `.tmj` cru (tilesets externos `.tsx` são ignorados pelo parser).
  */

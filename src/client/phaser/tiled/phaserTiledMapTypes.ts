@@ -119,6 +119,16 @@ export type MapLoaderScene = {
   readonly load: {
     tilemapTiledJSON: (key: string, url: string) => void;
     image: (key: string, url: string) => void;
+    spritesheet: (
+      key: string,
+      url: string,
+      frameConfig: {
+        readonly frameWidth: number;
+        readonly frameHeight: number;
+        readonly margin?: number;
+        readonly spacing?: number;
+      },
+    ) => void;
   };
   readonly make: {
     tilemap: (config: { key: string }) => PhaserTiledTilemap;

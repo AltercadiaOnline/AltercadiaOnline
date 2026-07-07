@@ -97,7 +97,6 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     console.info(`[PhaserRuntime] Phaser ${phaserVersion} — boot OK.`);
 
     getMapInstanceSceneManager().init(activeGame, mapIds);
-    getMapInstanceSceneManager().bootDefaultMap(DEFAULT_MAP_ID);
 
     getRenderLayerBridge().markPhaserBooted(true);
     getRenderLayerBridge().markPhaserSceneReady(false);

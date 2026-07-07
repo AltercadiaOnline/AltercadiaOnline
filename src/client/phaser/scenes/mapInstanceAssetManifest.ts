@@ -5,13 +5,12 @@ import {
   tiledObjectTextureKey,
   tiledTilesetTextureKey,
 } from '../../../config/tiledMapManifest.js';
+import {
+  resolveZone1ProcessedCreatureAtlas,
+  ZONE1_TOPDOWN_CREATURES_ATLAS_KEY,
+} from '../../../config/zone1ProcessedCreatureAtlas.js';
 import { getTiledAssetManager } from '../tiled/TiledAssetManager.js';
 import { isTilemapCacheReady } from '../tiled/tilemapCacheReady.js';
-import {
-  PHASER_PLAYER_TEXTURE_KEY,
-  resolvePrimaryPlayerSheetUrl,
-  resolvePlayerRotationPreloadEntries,
-} from '../player/phaserPlayerAssets.js';
 import type { PhaserTiledScene } from '../tiled/phaserTiledMapTypes.js';
 
 export type MapInstanceAssetKeys = {
@@ -31,7 +30,9 @@ type TilemapCache = {
 };
 
 type AssetQueueScene = {
-  readonly load: PhaserTiledScene['load'];
+  readonly load: PhaserTiledScene['load'] & {
+    atlas?: (key: string, atlasUrl: string, textureUrl: string) => void;
+  };
   readonly textures: TextureCache;
 };
 
@@ -58,7 +59,7 @@ export function collectMapInstanceAssetKeys(mapId: MapId): MapInstanceAssetKeys 
   return { tilemapKey, textureKeys };
 }
 
-/** Enfileira JSON Tiled, tilesets, props e spritesheet do jogador para a instância alvo. */
+/** Enfileira JSON Tiled, tilesets e props para a instância alvo. */
 export function queueMapInstanceAssets(scene: AssetQueueScene, mapId: MapId): void {
   if (isTiledMapEnabled(mapId)) {
     const descriptor = resolveTiledMapDescriptor(mapId);
@@ -67,15 +68,23 @@ export function queueMapInstanceAssets(scene: AssetQueueScene, mapId: MapId): vo
     }
   }
 
-  if (!scene.textures.exists(PHASER_PLAYER_TEXTURE_KEY)) {
-    scene.load.image(PHASER_PLAYER_TEXTURE_KEY, resolvePrimaryPlayerSheetUrl());
-  }
-
-  for (const entry of resolvePlayerRotationPreloadEntries()) {
-    if (!scene.textures.exists(entry.key)) {
-      scene.load.image(entry.key, entry.url);
+  const zone1Atlas = resolveZone1ProcessedCreatureAtlas();
+  if (zone1Atlas && !scene.textures.exists(ZONE1_TOPDOWN_CREATURES_ATLAS_KEY)) {
+    const loadAtlas = scene.load.atlas;
+    if (typeof loadAtlas !== 'function') {
+      console.error('[mapInstanceAssetManifest] Phaser load.atlas indisponível — criaturas zone1 podem falhar.');
+    } else {
+      loadAtlas.call(
+        scene.load,
+        ZONE1_TOPDOWN_CREATURES_ATLAS_KEY,
+        zone1Atlas.atlasUrl,
+        zone1Atlas.imageUrl,
+      );
     }
   }
+
+  // Sprite do jogador: ensurePlayerSheetTexture() na montagem (PlayerSpriteLoader + metadata).
+  // Preload Phaser com chaves "altercadia-player-sheet:rot:*" gerava 404 (south.png relativo) no P4.
 }
 
 /**

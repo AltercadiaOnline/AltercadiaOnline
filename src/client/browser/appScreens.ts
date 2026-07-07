@@ -103,6 +103,12 @@ async function runClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
     );
     setClientRuntimeConfig(config);
 
+    if (config.clientDevStamp) {
+      console.info(
+        `[Altercadia] DEV bundle ativo: ${config.clientDevStamp} — JS servido de dist/ (tsc --watch). Recarregue com Ctrl+Shift+R após editar código.`,
+      );
+    }
+
     if (normalizeAuthCallbackLocationIfNeeded(config)) {
       throw new Error('Redirecionando confirmação de email…');
     }

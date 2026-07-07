@@ -22,23 +22,27 @@ export type NpcSpriteCatalog = {
   readonly rotations: Readonly<Partial<Record<PlayerFacing, SpriteFrame>>>;
 };
 
+function sanitizeNpcMetadataAssetPath(relativePath: string): string {
+  return relativePath
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/([^/]+)\.(?=\/)/g, '$1');
+}
+
 function npcAssetUrlCandidates(bundleFolder: string, relativePath: string): string[] {
   const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  const sanitized = sanitizeNpcMetadataAssetPath(normalized);
   const root = `/assets/npcs/${bundleFolder}`;
   const out: string[] = [];
 
+  if (sanitized !== normalized) {
+    out.push(`${root}/${sanitized}`);
+  }
   out.push(`${root}/${normalized}`);
 
-  // metadata às vezes tem pasta com "." extra vs disco (ex.: banqueiro)
   const trimmedFolder = normalized.replace(/\.\//g, '/').replace(/\/\./g, '/');
   if (trimmedFolder !== normalized) {
     const alt = `${root}/${trimmedFolder}`;
-    if (!out.includes(alt)) out.push(alt);
-  }
-
-  const withoutTrailingDot = normalized.replace(/(\/[^/]+)\.(?=\/)/g, '$1');
-  if (withoutTrailingDot !== normalized) {
-    const alt = `${root}/${withoutTrailingDot}`;
     if (!out.includes(alt)) out.push(alt);
   }
 

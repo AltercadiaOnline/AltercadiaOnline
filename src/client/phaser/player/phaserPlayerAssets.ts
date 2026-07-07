@@ -25,7 +25,7 @@ type PhaserTextureManager = {
 export const PHASER_TEXTURE_FILTER_NEAREST = 1;
 
 function playerRotationTextureKey(direction: string): string {
-  return `${PHASER_PLAYER_TEXTURE_KEY}:rot:${direction}`;
+  return `${PHASER_PLAYER_TEXTURE_KEY}-rot-${direction}`;
 }
 
 /**
@@ -87,7 +87,7 @@ export function resolvePlayerPhaserTextureKey(direction: string): string {
 }
 
 export function isPlayerRotationTextureKey(key: string): boolean {
-  return key.startsWith(`${PHASER_PLAYER_TEXTURE_KEY}:rot:`);
+  return key.startsWith(`${PHASER_PLAYER_TEXTURE_KEY}-rot-`);
 }
 
 /** URLs candidatas — útil para preload via Phaser.Loader. */

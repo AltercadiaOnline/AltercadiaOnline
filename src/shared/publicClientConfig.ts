@@ -16,6 +16,8 @@ export type PublicClientConfig = {
   readonly serverName: string;
   /** URL pública do jogo (email/OAuth redirect) — ex.: https://altercadia-online.vercel.app */
   readonly publicSiteUrl: string | null;
+  /** Só em dev local — mtime de dist/client/browser/main.js para confirmar bundle fresco no console. */
+  readonly clientDevStamp?: string | null;
 };
 
 export function createPublicClientConfig(env: {
@@ -26,6 +28,7 @@ export function createPublicClientConfig(env: {
   readonly serverId?: string;
   readonly serverName?: string;
   readonly publicSiteUrl?: string;
+  readonly clientDevStamp?: string;
 }): PublicClientConfig {
   const supabaseUrl = env.supabaseUrl?.trim() || null;
   const supabaseAnonKey = env.supabaseAnonKey?.trim() || null;
@@ -34,7 +37,17 @@ export function createPublicClientConfig(env: {
   const serverId = env.serverId?.trim().toLowerCase() || 'default';
   const serverName = env.serverName?.trim() || serverId;
   const publicSiteUrl = normalizePublicSiteOrigin(env.publicSiteUrl) ?? DEFAULT_PUBLIC_SITE_ORIGIN;
-  return { supabaseUrl, supabaseAnonKey, gameWsUrl, gameHttpUrl, serverId, serverName, publicSiteUrl };
+  const clientDevStamp = env.clientDevStamp?.trim() || null;
+  return {
+    supabaseUrl,
+    supabaseAnonKey,
+    gameWsUrl,
+    gameHttpUrl,
+    serverId,
+    serverName,
+    publicSiteUrl,
+    ...(clientDevStamp ? { clientDevStamp } : {}),
+  };
 }
 
 export function isSupabaseConfigured(config: PublicClientConfig): boolean {

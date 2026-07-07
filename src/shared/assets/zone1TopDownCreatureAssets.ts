@@ -65,6 +65,16 @@ export function resolveZone1TopDownRotationUrl(
   return `${ZONE1_TOPDOWN_BASE}/${entry.rotationsBase}/${facing}.png`;
 }
 
+/** Nome do frame no atlas JSONArray (`npm run generate-assets`). */
+export function resolveZone1TopDownAtlasFrameId(
+  creatureId: string,
+  facing: TopDownCreatureFacing = 'south',
+): string | null {
+  const entry = getEntry(creatureId);
+  if (!entry) return null;
+  return `${entry.rotationsBase.replace(/\//g, '__')}__${facing}`;
+}
+
 export function resolveZone1TopDownFrameSize(creatureId: string): number | null {
   return getEntry(creatureId)?.frameSize ?? null;
 }

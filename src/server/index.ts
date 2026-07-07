@@ -3,7 +3,7 @@ import path from 'node:path';
 import { loadProjectEnv, logProjectEnvLoadReport } from './config/loadEnv.js';
 import { loadServerEnv } from './config/env.js';
 import '../config/bootstrapWorldCollision.js';
-import { createPublicClientConfig } from '../shared/publicClientConfig.js';
+import { createServerPublicClientConfig } from './config/clientPublicConfig.js';
 import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
 import { CombatWsHub } from './network/CombatWsHub.js';
 import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
@@ -52,15 +52,7 @@ async function main(): Promise<void> {
     ...dirs,
     corsOrigins: env.corsOrigins,
     serverEnv: env,
-    clientPublicConfig: createPublicClientConfig({
-      ...(env.supabaseUrl ? { supabaseUrl: env.supabaseUrl } : {}),
-      ...(env.supabaseAnonKey ? { supabaseAnonKey: env.supabaseAnonKey } : {}),
-      ...(env.gameWsUrl ? { gameWsUrl: env.gameWsUrl } : {}),
-      ...(env.gameHttpUrl ? { gameHttpUrl: env.gameHttpUrl } : {}),
-      ...(env.publicSiteUrl ? { publicSiteUrl: env.publicSiteUrl } : {}),
-      serverId: env.serverInstance.id,
-      serverName: env.serverInstance.displayName,
-    }),
+    clientPublicConfig: createServerPublicClientConfig(env, dirs.distDir),
   });
 
   bootstrapIntentHandlers();

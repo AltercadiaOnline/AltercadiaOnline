@@ -1,0 +1,815 @@
+{
+  "frames": {
+    "corvo__corvo_topdown_test__rotations__east": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__north-east": {
+      "frame": {
+        "x": 64,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__north-west": {
+      "frame": {
+        "x": 126,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__north": {
+      "frame": {
+        "x": 188,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__south-east": {
+      "frame": {
+        "x": 250,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__south-west": {
+      "frame": {
+        "x": 312,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__south": {
+      "frame": {
+        "x": 374,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__west": {
+      "frame": {
+        "x": 436,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__east": {
+      "frame": {
+        "x": 498,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__north-east": {
+      "frame": {
+        "x": 560,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__north-west": {
+      "frame": {
+        "x": 622,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__north": {
+      "frame": {
+        "x": 684,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__south-east": {
+      "frame": {
+        "x": 746,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__south-west": {
+      "frame": {
+        "x": 808,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__south": {
+      "frame": {
+        "x": 870,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "morcego__morcego_topdown_test__rotations__west": {
+      "frame": {
+        "x": 932,
+        "y": 2,
+        "w": 60,
+        "h": 60
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 60,
+        "h": 60
+      },
+      "sourceSize": {
+        "w": 60,
+        "h": 60
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__east": {
+      "frame": {
+        "x": 994,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__north-east": {
+      "frame": {
+        "x": 1052,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__north-west": {
+      "frame": {
+        "x": 1110,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__north": {
+      "frame": {
+        "x": 1168,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__south-east": {
+      "frame": {
+        "x": 1226,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__south-west": {
+      "frame": {
+        "x": 1284,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__south": {
+      "frame": {
+        "x": 1342,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__west": {
+      "frame": {
+        "x": 1400,
+        "y": 2,
+        "w": 56,
+        "h": 56
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 56,
+        "h": 56
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__east": {
+      "frame": {
+        "x": 1458,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__north-east": {
+      "frame": {
+        "x": 1508,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__north-west": {
+      "frame": {
+        "x": 1558,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__north": {
+      "frame": {
+        "x": 1608,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__south-east": {
+      "frame": {
+        "x": 1658,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__south-west": {
+      "frame": {
+        "x": 1708,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__south": {
+      "frame": {
+        "x": 1758,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "cao_selvagem__cachorro_topdown_test__rotations__west": {
+      "frame": {
+        "x": 1808,
+        "y": 2,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      }
+    },
+    "rato__rato_topdown__rotations__east": {
+      "frame": {
+        "x": 1858,
+        "y": 2,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    },
+    "rato__rato_topdown__rotations__north-east": {
+      "frame": {
+        "x": 1896,
+        "y": 2,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    },
+    "rato__rato_topdown__rotations__north-west": {
+      "frame": {
+        "x": 1934,
+        "y": 2,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    },
+    "rato__rato_topdown__rotations__north": {
+      "frame": {
+        "x": 1972,
+        "y": 2,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    },
+    "rato__rato_topdown__rotations__south-east": {
+      "frame": {
+        "x": 2,
+        "y": 64,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    },
+    "rato__rato_topdown__rotations__south-west": {
+      "frame": {
+        "x": 40,
+        "y": 64,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    },
+    "rato__rato_topdown__rotations__south": {
+      "frame": {
+        "x": 78,
+        "y": 64,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    },
+    "rato__rato_topdown__rotations__west": {
+      "frame": {
+        "x": 116,
+        "y": 64,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 36
+      }
+    }
+  },
+  "meta": {
+    "app": "altercadia-generateAtlas",
+    "version": "1.0",
+    "image": "zone1_top_down_creatures.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 2012,
+      "h": 104
+    },
+    "scale": "1"
+  }
+}

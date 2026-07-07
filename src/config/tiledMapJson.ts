@@ -3,6 +3,9 @@ import {
   readTiledObjectProperty as readSharedTiledObjectProperty,
   type TiledObjectPropertySource,
 } from '../shared/world/tiledMapObject.js';
+import { MAP_MUND_PUBLIC_BASE } from './mapMundManifest.js';
+import { resolveProcessedTilesetAsset } from './processedAssetManifest.js';
+import { resolveTiledImagePublicUrl } from './resolveTiledImagePublicUrl.js';
 
 export type TiledJsonTileset = {
   readonly name: string;
@@ -87,6 +90,60 @@ function listNonGridTilesetGidRanges(
   return ranges;
 }
 
+function isTilesetGridAligned(
+  tileWidth: number,
+  tileHeight: number,
+  margin: number,
+  spacing: number,
+  imageWidth: number,
+  imageHeight: number,
+): boolean {
+  if (imageWidth <= 0 || imageHeight <= 0) {
+    return true;
+  }
+
+  const usableWidth = imageWidth - 2 * margin;
+  const usableHeight = imageHeight - 2 * margin;
+  if (usableWidth <= 0 || usableHeight <= 0) {
+    return false;
+  }
+
+  const widthMod = spacing > 0
+    ? (usableWidth + spacing) % (tileWidth + spacing)
+    : usableWidth % tileWidth;
+  const heightMod = spacing > 0
+    ? (usableHeight + spacing) % (tileHeight + spacing)
+    : usableHeight % tileHeight;
+
+  return widthMod === 0 && heightMod === 0;
+}
+
+function resolveMaxTileFramesInImage(
+  tileWidth: number,
+  tileHeight: number,
+  margin: number,
+  spacing: number,
+  imageWidth: number,
+  imageHeight: number,
+  columns: number,
+): number {
+  if (imageWidth <= 0 || imageHeight <= 0) {
+    return 0;
+  }
+
+  const usableWidth = imageWidth - 2 * margin;
+  const usableHeight = imageHeight - 2 * margin;
+  if (usableWidth <= 0 || usableHeight <= 0) {
+    return 0;
+  }
+
+  const cols = columns > 0
+    ? columns
+    : Math.max(1, Math.floor((usableWidth + spacing) / (tileWidth + spacing)));
+  const rows = Math.max(0, Math.floor((usableHeight + spacing) / (tileHeight + spacing)));
+  return cols * rows;
+}
+
 function stripNonGridGidsFromTileLayers(
   layers: unknown,
   ranges: readonly { minGid: number; maxGid: number }[],
@@ -117,6 +174,64 @@ function stripNonGridGidsFromTileLayers(
       }
 
       return Number(raw) & TILED_FLIP_MASK;
+    });
+
+    return entry;
+  });
+}
+
+function stripOutOfRangeGidsFromTileLayers(
+  layers: unknown,
+  tilesets: readonly Record<string, unknown>[],
+): unknown {
+  if (!Array.isArray(layers)) {
+    return layers;
+  }
+
+  const sortedTilesets = [...tilesets]
+    .filter((tileset) => typeof tileset.firstgid === 'number')
+    .sort((left, right) => Number(left.firstgid) - Number(right.firstgid));
+
+  const gidRanges = sortedTilesets.map((tileset, index) => {
+    const firstgid = Number(tileset.firstgid);
+    const nextFirstGid = sortedTilesets[index + 1]?.firstgid as number | undefined;
+    const declaredTileCount = Number(tileset.tilecount ?? 1);
+    const maxGid = nextFirstGid != null && nextFirstGid > firstgid
+      ? Math.min(firstgid + declaredTileCount - 1, nextFirstGid - 1)
+      : firstgid + declaredTileCount - 1;
+    return { firstgid, maxGid };
+  });
+
+  return layers.map((layer) => {
+    if (!layer || typeof layer !== 'object') {
+      return layer;
+    }
+
+    const entry = { ...(layer as Record<string, unknown>) };
+    if (entry.type !== 'tilelayer' || !Array.isArray(entry.data)) {
+      return entry;
+    }
+
+    entry.data = (entry.data as number[]).map((raw) => {
+      const gid = Number(raw) & TILED_GID_MASK;
+      if (gid <= 0) {
+        return raw;
+      }
+
+      const tilesetIndex = gidRanges.findIndex(
+        (range, index) => gid >= range.firstgid
+          && (index === gidRanges.length - 1 || gid < (gidRanges[index + 1]?.firstgid ?? Number.POSITIVE_INFINITY)),
+      );
+      if (tilesetIndex < 0) {
+        return Number(raw) & TILED_FLIP_MASK;
+      }
+
+      const range = gidRanges[tilesetIndex]!;
+      if (gid > range.maxGid) {
+        return Number(raw) & TILED_FLIP_MASK;
+      }
+
+      return raw;
     });
 
     return entry;
@@ -164,21 +279,55 @@ function enrichTilesetForPhaser(
 
   const rows = Math.max(1, Math.ceil(Number(enriched.tilecount) / columns));
 
-  // Folhas CraftPix etc. declaram imagewidth=240 com 7 colunas×32px (=224) — o PNG real
-  // mantém 240px. Phaser valida a textura carregada: precisamos de margin, não recortar JSON.
+  // Folhas CraftPix (240px = 7×32 + 16px horizontal) costumam ter slack só na largura.
+  // Margin uniforme quebra a altura (ex.: 416px − 16 = 400, não múltiplo de 32) — pior que
+  // manter margin 0 e aceitar o aviso de largura; Phaser ainda extrai 7×13 tiles.
   const contentWidth = columns * tileWidth + Math.max(0, columns - 1) * spacing;
   const widthSlack = originalImageWidth > 0 ? originalImageWidth - contentWidth - 2 * margin : 0;
   if (widthSlack > 0 && widthSlack % 2 === 0) {
-    margin += widthSlack / 2;
+    const candidateMargin = margin + widthSlack / 2;
+    if (isTilesetGridAligned(
+      tileWidth,
+      tileHeight,
+      candidateMargin,
+      spacing,
+      originalImageWidth,
+      originalImageHeight,
+    )) {
+      margin = candidateMargin;
+    }
   }
 
   const contentHeight = rows * tileHeight + Math.max(0, rows - 1) * spacing;
   const heightSlack = originalImageHeight > 0 ? originalImageHeight - contentHeight - 2 * margin : 0;
   if (heightSlack > 0 && heightSlack % 2 === 0) {
-    margin += heightSlack / 2;
+    const candidateMargin = margin + heightSlack / 2;
+    if (isTilesetGridAligned(
+      tileWidth,
+      tileHeight,
+      candidateMargin,
+      spacing,
+      originalImageWidth,
+      originalImageHeight,
+    )) {
+      margin = candidateMargin;
+    }
   }
 
   enriched.margin = margin;
+
+  const maxFrames = resolveMaxTileFramesInImage(
+    tileWidth,
+    tileHeight,
+    margin,
+    spacing,
+    originalImageWidth,
+    originalImageHeight,
+    columns,
+  );
+  if (maxFrames > 0 && Number(enriched.tilecount) > maxFrames) {
+    enriched.tilecount = maxFrames;
+  }
   if (originalImageWidth > 0) {
     enriched.imagewidth = originalImageWidth;
   } else {
@@ -188,6 +337,19 @@ function enrichTilesetForPhaser(
     enriched.imageheight = originalImageHeight;
   } else {
     enriched.imageheight = contentHeight + 2 * margin + Math.max(0, rows - 1) * spacing;
+  }
+
+  const imagePath = typeof enriched.image === 'string' ? enriched.image : '';
+  if (imagePath.length > 0) {
+    const sourcePublicUrl = resolveTiledImagePublicUrl(
+      `${MAP_MUND_PUBLIC_BASE}/map.tmj`,
+      imagePath,
+    );
+    const processed = resolveProcessedTilesetAsset(sourcePublicUrl);
+    if (processed) {
+      enriched.imagewidth = processed.alignedWidth;
+      enriched.imageheight = processed.alignedHeight;
+    }
   }
 
   return enriched;
@@ -218,7 +380,8 @@ export function buildPhaserTiledMapData(json: TiledMapJson): PhaserReadyTiledMap
   });
 
   const nonGridRanges = listNonGridTilesetGidRanges(tilesets, mapTileWidth, mapTileHeight);
-  const layers = stripNonGridGidsFromTileLayers(source.layers, nonGridRanges);
+  const layersWithoutProps = stripNonGridGidsFromTileLayers(source.layers, nonGridRanges);
+  const layers = stripOutOfRangeGidsFromTileLayers(layersWithoutProps, tilesets);
 
   return {
     ...source,

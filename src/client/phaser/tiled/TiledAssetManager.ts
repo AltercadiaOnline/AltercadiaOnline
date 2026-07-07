@@ -4,6 +4,10 @@ import {
   tiledTilesetTextureKey,
 } from '../../../config/tiledMapManifest.js';
 import { resolveTiledPublicAssetUrl } from './tiledAssetPaths.js';
+import {
+  tiledSharedTilesetTextureKey,
+  tiledTilesetLookupKey,
+} from './tiledTextureKeys.js';
 import type { PhaserTiledScene } from './phaserTiledMapTypes.js';
 
 const TERRAIN_PATH_PREFIX = '/assets/terrain/';
@@ -15,19 +19,31 @@ const PHASER_TILED_JSON_FORMAT = 1;
 
 /**
  * Pré-carrega texturas referenciadas pelo export Tiled (/terrain, /structures, /props).
- * Novos PNGs nas pastas entram automaticamente quando o JSON é espelhado no build.
+ *
+ * Tilesets de grade usam sempre `load.image` (folha inteira). `load.spritesheet` quebra
+ * `addTilesetImage` — Phaser.Tilemaps.Tileset#setImage usa texture.get() (primeiro frame 32×32)
+ * em vez da imagem completa, e o chão fica fatiado errado mesmo com o Tiled correto.
+ * Frames 0…N para createFromObjects são gerados depois em ensureTiledTilesetTextureFrames.
+ *
+ * PNGs idênticos carregam uma vez com chave compartilhada por URL.
  */
 export class TiledAssetManager {
+  /** tilesetName → textureKey efetiva (pode ser chave compartilhada por URL). */
+  private readonly tilesetTextureKeyByLookup = new Map<string, string>();
+
+  /** url pública → textureKey canônica (dedupe de preload). */
+  private readonly sharedKeyByImageUrl = new Map<string, string>();
+
   queueMapAssets(scene: PhaserTiledScene, descriptor: TiledMapDescriptor): void {
-    const queued = new Set<string>();
+    const queuedTextureKeys = new Set<string>();
 
     for (const tileset of descriptor.tilesets) {
-      this.queueImage(
-        scene,
-        tiledTilesetTextureKey(descriptor.cacheKey, tileset.name),
-        resolveTiledPublicAssetUrl(descriptor.jsonUrl, tileset.imagePath),
-        queued,
-      );
+      const publicUrl = resolveTiledPublicAssetUrl(descriptor.jsonUrl, tileset.imagePath);
+      const sharedKey = this.resolveSharedTextureKey(descriptor.cacheKey, publicUrl);
+      const lookupKey = tiledTilesetLookupKey(descriptor.cacheKey, tileset.name);
+
+      this.tilesetTextureKeyByLookup.set(lookupKey, sharedKey);
+      this.queueTilesetTexture(scene, publicUrl, sharedKey, queuedTextureKeys);
     }
 
     for (const imagePath of descriptor.objectImages) {
@@ -35,11 +51,19 @@ export class TiledAssetManager {
         scene,
         tiledObjectTextureKey(descriptor.cacheKey, imagePath),
         resolveTiledPublicAssetUrl(descriptor.jsonUrl, imagePath),
-        queued,
+        queuedTextureKeys,
       );
     }
 
     this.registerTilemapData(scene, descriptor);
+  }
+
+  /**
+   * Resolve a textura efetiva para bindTilesets — preferir chave compartilhada por URL.
+   */
+  resolveTilesetTextureKey(mapCacheKey: string, tilesetName: string): string | null {
+    const lookupKey = tiledTilesetLookupKey(mapCacheKey, tilesetName);
+    return this.tilesetTextureKeyByLookup.get(lookupKey) ?? null;
   }
 
   /**
@@ -88,6 +112,28 @@ export class TiledAssetManager {
     return 'other';
   }
 
+  private queueTilesetTexture(
+    scene: PhaserTiledScene,
+    publicUrl: string,
+    textureKey: string,
+    queued: Set<string>,
+  ): void {
+    if (queued.has(textureKey)) return;
+    queued.add(textureKey);
+
+    scene.load.image(textureKey, publicUrl);
+  }
+
+  private resolveSharedTextureKey(mapCacheKey: string, publicUrl: string): string {
+    const normalizedUrl = publicUrl.replace(/\\/g, '/');
+    const cached = this.sharedKeyByImageUrl.get(normalizedUrl);
+    if (cached) return cached;
+
+    const sharedKey = tiledSharedTilesetTextureKey(mapCacheKey, normalizedUrl);
+    this.sharedKeyByImageUrl.set(normalizedUrl, sharedKey);
+    return sharedKey;
+  }
+
   private queueImage(
     scene: PhaserTiledScene,
     textureKey: string,
@@ -105,4 +151,9 @@ let activeManager: TiledAssetManager | null = null;
 export function getTiledAssetManager(): TiledAssetManager {
   if (!activeManager) activeManager = new TiledAssetManager();
   return activeManager;
+}
+
+/** Limpa registro de aliases — útil ao trocar de instância de mapa. */
+export function resetTiledAssetManager(): void {
+  activeManager = null;
 }

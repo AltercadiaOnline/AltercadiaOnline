@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { isAuthCallbackPath } from '../../shared/auth/authCallback.js';
 import { applyHttpCors } from '../config/cors.js';
 import type { ServerEnv } from '../config/env.js';
+import { createServerPublicClientConfig } from '../config/clientPublicConfig.js';
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import { handleCriticalPersistOpsRoute } from './criticalPersistOpsRoute.js';
 import { handleGiftTransferRoute } from './giftTransferRoute.js';
@@ -34,6 +35,43 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.gif': 'image/gif',
 };
+
+function isCompiledBrowserAsset(relative: string): boolean {
+  if (relative.startsWith('client/') || relative.startsWith('shared/') || relative.startsWith('config/')) {
+    return relative.endsWith('.js') || relative.endsWith('.json');
+  }
+  if (relative.startsWith('game/')) {
+    return relative.endsWith('.js') || relative.endsWith('.json');
+  }
+  return relative.startsWith('assets/') && relative.endsWith('.js');
+}
+
+function resolveDevHtmlCacheBustVersion(distDir: string): string {
+  const mainJs = path.join(distDir, 'client', 'browser', 'main.js');
+  if (existsSync(mainJs)) {
+    return `dev-${Math.floor(statSync(mainJs).mtimeMs)}`;
+  }
+  return `dev-${Date.now()}`;
+}
+
+function injectDevCacheBust(html: string, version: string): string {
+  return html.replace(/\?v=[^"'?]+/g, `?v=${version}`);
+}
+
+function streamDistOrPublicJs(
+  res: ServerResponse,
+  filePath: string,
+  source: 'dist' | 'public',
+  nodeEnv: string,
+): void {
+  const extraHeaders: Record<string, string> = {};
+  let cacheControl: string | undefined;
+  if (nodeEnv === 'development') {
+    cacheControl = 'no-store';
+    extraHeaders['X-Altercadia-Asset-Source'] = source;
+  }
+  streamFile(res, filePath, cacheControl, extraHeaders);
+}
 
 function projectRootFromModule(metaUrl: string): string {
   return path.join(fileURLToPath(metaUrl), '..', '..', '..');
@@ -101,11 +139,17 @@ async function readTextFile(filePath: string): Promise<string> {
   return readFile(filePath, 'utf8');
 }
 
-function streamFile(res: ServerResponse, filePath: string, cacheControl?: string): void {
+function streamFile(
+  res: ServerResponse,
+  filePath: string,
+  cacheControl?: string,
+  extraHeaders?: Record<string, string>,
+): void {
   const ext = path.extname(filePath);
   res.writeHead(200, {
     'Content-Type': MIME[ext] ?? 'application/octet-stream',
     ...(cacheControl ? { 'Cache-Control': cacheControl } : {}),
+    ...extraHeaders,
   });
   createReadStream(filePath).pipe(res);
 }
@@ -212,31 +256,57 @@ async function serveStaticFile(
   res: ServerResponse,
 ): Promise<boolean> {
   const relative = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+  const isDev = options.serverEnv.nodeEnv === 'development';
+  const preferDist = isDev && isCompiledBrowserAsset(relative);
 
-  const publicFile = safePath(options.publicDir, relative);
-  if (publicFile && existsSync(publicFile) && statSync(publicFile).isFile()) {
+  const tryServeDist = (): boolean => {
+    const distFile = safePath(options.distDir, relative);
+    if (!distFile || !existsSync(distFile) || !statSync(distFile).isFile()) {
+      return false;
+    }
+    const ext = path.extname(distFile);
+    if (ext !== '.js' && ext !== '.json') {
+      return false;
+    }
+    streamDistOrPublicJs(res, distFile, 'dist', options.serverEnv.nodeEnv);
+    return true;
+  };
+
+  const tryServePublic = async (): Promise<boolean> => {
+    const publicFile = safePath(options.publicDir, relative);
+    if (!publicFile || !existsSync(publicFile) || !statSync(publicFile).isFile()) {
+      return false;
+    }
     const ext = path.extname(publicFile);
     if (ext === '.html') {
-      const html = await readTextFile(publicFile);
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      let html = await readTextFile(publicFile);
+      if (isDev) {
+        const version = resolveDevHtmlCacheBustVersion(options.distDir);
+        html = injectDevCacheBust(html, version);
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        ...(isDev ? { 'Cache-Control': 'no-store' } : {}),
+      });
       res.end(html);
       return true;
     }
     const cacheControl = ext === '.js' ? 'public, max-age=0, must-revalidate' : undefined;
-    streamFile(res, publicFile, cacheControl);
-    return true;
-  }
-
-  const distFile = safePath(options.distDir, relative);
-  if (distFile && existsSync(distFile) && statSync(distFile).isFile()) {
-    const ext = path.extname(distFile);
-    if (ext === '.js' || ext === '.json') {
-      streamFile(res, distFile, ext === '.js' ? 'no-store' : undefined);
-      return true;
+    if (isDev && ext === '.js') {
+      streamDistOrPublicJs(res, publicFile, 'public', options.serverEnv.nodeEnv);
+    } else {
+      streamFile(res, publicFile, cacheControl);
     }
+    return true;
+  };
+
+  if (preferDist) {
+    if (tryServeDist()) return true;
+    return tryServePublic();
   }
 
-  return false;
+  if (await tryServePublic()) return true;
+  return tryServeDist();
 }
 
 /** Handler HTTP reutilizável (Node local + testes). */
@@ -275,8 +345,33 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
       }
 
       if (pathname === '/config/client') {
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(options.clientPublicConfig));
+        const clientConfig =
+          options.serverEnv.nodeEnv === 'development'
+            ? createServerPublicClientConfig(options.serverEnv, options.distDir)
+            : options.clientPublicConfig;
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          ...(options.serverEnv.nodeEnv === 'development' ? { 'Cache-Control': 'no-store' } : {}),
+        });
+        res.end(JSON.stringify(clientConfig));
+        return;
+      }
+
+      if (pathname === '/config/game-origin.json') {
+        const gameOriginFile = safePath(options.publicDir, 'config/game-origin.json');
+        if (
+          gameOriginFile
+          && existsSync(gameOriginFile)
+          && statSync(gameOriginFile).isFile()
+        ) {
+          streamFile(
+            res,
+            gameOriginFile,
+            options.serverEnv.nodeEnv === 'development' ? 'no-store' : undefined,
+          );
+          return;
+        }
+        writeJson(res, 200, { gameWsUrl: null, gameHttpUrl: null });
         return;
       }
 

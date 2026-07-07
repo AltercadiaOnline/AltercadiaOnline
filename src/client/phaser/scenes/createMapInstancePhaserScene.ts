@@ -91,6 +91,11 @@ export function createMapInstancePhaserScene(
     }
 
     onMainCreate(data?: MapInstanceSceneInitData): void {
+      if (this.sceneActive && this.mapLoader.isMountedOnScene(this.boundMapId, this as unknown as MapLoaderScene)) {
+        console.debug(`[MapInstanceScene] create() repetido ignorado — mapa "${this.boundMapId}" já montado.`);
+        return;
+      }
+
       this.sceneActive = true;
       const scene = this as unknown as MapLoaderScene;
 

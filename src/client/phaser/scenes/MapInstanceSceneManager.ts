@@ -80,6 +80,20 @@ export class MapInstanceSceneManager {
     options?.beforeTransition?.();
 
     const targetSceneKey = resolveMapInstanceSceneKey(targetMapId);
+    const activeScenes = this.game.scene.getScenes?.(true) ?? [];
+    const targetSceneRunning = activeScenes.some((entry) => entry.scene.key === targetSceneKey);
+    const loadingSceneRunning = activeScenes.some(
+      (entry) => entry.scene.key === PHASER_MAP_LOADING_SCENE_KEY,
+    );
+
+    if (
+      !options?.spawn
+      && targetMapId === this.activeMapId
+      && (targetSceneRunning || loadingSceneRunning)
+    ) {
+      return true;
+    }
+
     const currentSceneKey = this.resolveRunningSceneKey();
     const sourceMapId = this.activeMapId;
 
@@ -110,6 +124,19 @@ export class MapInstanceSceneManager {
   /** Primeira entrada no mundo — sem flush (login/spawn inicial). */
   bootDefaultMap(mapId: MapId = DEFAULT_MAP_ID): boolean {
     return this.transitionTo(mapId);
+  }
+
+  /** Evita recarregar o mapa quando exploração já está ativa ou em LoadingScene. */
+  isActiveMapLoadingOrRunning(): boolean {
+    if (!this.game) return false;
+
+    const targetSceneKey = resolveMapInstanceSceneKey(this.activeMapId);
+    const activeScenes = this.game.scene.getScenes?.(true) ?? [];
+    return activeScenes.some(
+      (entry) =>
+        entry.scene.key === PHASER_MAP_LOADING_SCENE_KEY
+        || entry.scene.key === targetSceneKey,
+    );
   }
 
   private resolveRunningSceneKey(): string | null {

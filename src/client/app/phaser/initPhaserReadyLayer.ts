@@ -1,9 +1,8 @@
 import { getGameUiBridge } from '../bridge/gameUiBridge.js';
 import {
   getRenderLayerBridge,
-  isPhaserRenderEngineActive,
 } from '../bridge/renderLayerBridge.js';
-import { bootPhaserRuntime, ensurePhaserRuntimeForCurrentEngine } from '../../phaser/PhaserRuntime.js';
+import { bootPhaserRuntime, switchPhaserToActiveMapInstance } from '../../phaser/PhaserRuntime.js';
 
 const PHASER_HYBRID_QUERY = 'phaser';
 const PHASER_HYBRID_STORAGE_KEY = 'altercadia.phaserHybrid';
@@ -36,19 +35,32 @@ export function enablePhaserForOnlineSession(): void {
   enablePhaserRenderMode();
 }
 
+let onlineExplorationBootPromise: Promise<boolean> | null = null;
+
 /**
  * Boot Phaser ao entrar no mundo — único motor de render do mapa (modo estrito).
  */
 export async function bootOnlinePhaserExploration(): Promise<boolean> {
-  try {
-    const game = await bootPhaserRuntime();
-    if (!game) return false;
-  } catch (error) {
-    console.error('[Phaser] Falha ao iniciar render online:', error);
-    return false;
+  if (onlineExplorationBootPromise) {
+    return onlineExplorationBootPromise;
   }
 
-  return getRenderLayerBridge().snapshot().phaserBooted;
+  onlineExplorationBootPromise = (async () => {
+    try {
+      const game = await bootPhaserRuntime();
+      if (!game) return false;
+      switchPhaserToActiveMapInstance();
+    } catch (error) {
+      console.error('[Phaser] Falha ao iniciar render online:', error);
+      return false;
+    }
+
+    return getRenderLayerBridge().snapshot().phaserBooted;
+  })().finally(() => {
+    onlineExplorationBootPromise = null;
+  });
+
+  return onlineExplorationBootPromise;
 }
 
 /** @deprecated Use enablePhaserForOnlineSession */
@@ -67,13 +79,9 @@ export function initPhaserReadyLayer(): void {
 
   teardownUiModeListener = getGameUiBridge().subscribe((snapshot) => {
     getRenderLayerBridge().setUiRuntimeMode(snapshot.mode);
-    void ensurePhaserRuntimeForCurrentEngine();
   });
 
   getRenderLayerBridge().subscribe((snapshot) => {
-    if (snapshot.renderEngine === 'phaser') {
-      void ensurePhaserRuntimeForCurrentEngine();
-    }
     document.body.dataset.renderEngine = snapshot.renderEngine;
   });
 
