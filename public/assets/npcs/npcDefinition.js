@@ -2,8 +2,8 @@
  * Manifesto SSOT — definições visuais e físicas de NPCs (sprites PNG).
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
-import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js?v=fc62d36';
-import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, } from '../../shared/npc/npcAssetBundles.js?v=fc62d36';
+import { DESIGN_NPC_DIMENSIONS } from '../../config/spriteDimensions.js?v=36c97ee';
+import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, } from '../../shared/npc/npcAssetBundles.js?v=36c97ee';
 export { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, };
 export const NPC_DEFINITION_REGISTRY = {
     anciao_cael: {
