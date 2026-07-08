@@ -19,7 +19,13 @@ export type PhaserMapSprite = {
   setDepth: (depth: number) => PhaserMapSprite;
   setOrigin: (x: number, y: number) => PhaserMapSprite;
   setDisplaySize: (width: number, height: number) => PhaserMapSprite;
+  setFrame?: (frame: string | number) => PhaserMapSprite;
+  setRotation?: (rotation: number) => PhaserMapSprite;
+  setFlip?: (flipX: boolean, flipY: boolean) => PhaserMapSprite;
+  setAngle?: (angle: number) => PhaserMapSprite;
   setData: (key: string, value: unknown) => PhaserMapSprite;
+  setVisible: (visible: boolean) => PhaserMapSprite;
+  setAlpha: (alpha: number) => PhaserMapSprite;
   destroy: () => void;
 };
 
@@ -100,6 +106,24 @@ export type TiledMapObjectRecord = {
   readonly name?: string;
 };
 
+export type PhaserArcadeColliderBody = {
+  setSize: (width: number, height: number, center?: boolean) => void;
+  setOffset: (x: number, y: number) => void;
+};
+
+export type PhaserPhysicsColliderTarget = {
+  readonly body?: PhaserArcadeColliderBody | null;
+};
+
+export type PhaserStaticColliderGroup = {
+  create: (x: number, y: number, textureKey: string) => PhaserMapSprite;
+  destroy: (removeFromScene?: boolean) => void;
+};
+
+export type PhaserPhysicsCollider = {
+  destroy: () => void;
+};
+
 export type MapLoaderMountResult = {
   readonly mapId: MapId;
   readonly widthPx: number;
@@ -175,9 +199,14 @@ export type MapLoaderScene = {
   readonly physics?: {
     add: {
       existing: (
-        target: PhaserMapSprite | PhaserTiledTilemapLayer,
+        target: PhaserMapSprite | PhaserTiledTilemapLayer | PhaserPhysicsColliderTarget,
         isStatic: boolean,
-      ) => PhaserMapSprite | PhaserTiledTilemapLayer;
+      ) => PhaserMapSprite | PhaserTiledTilemapLayer | PhaserPhysicsColliderTarget;
+      staticGroup: () => PhaserStaticColliderGroup;
+      collider: (
+        object1: PhaserPhysicsColliderTarget | PhaserStaticColliderGroup,
+        object2: PhaserPhysicsColliderTarget | PhaserStaticColliderGroup,
+      ) => PhaserPhysicsCollider;
     };
   };
 };

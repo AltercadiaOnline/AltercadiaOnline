@@ -13,7 +13,8 @@ export type PeerBroadcastSender = (
 ) => void;
 
 /**
- * Broadcasting com Interest Management — só envia peers próximos em formato compacto.
+ * Broadcasting legado via mensagem `world-peers` (formato compacto).
+ * Peers visíveis passam pelo `state-sync` tick (`nearbyPlayers`) — preferir esse canal.
  */
 export class WorldBroadcastHub {
   private readonly lastSignatureByConnection = new Map<string, string>();

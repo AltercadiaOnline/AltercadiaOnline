@@ -1,16 +1,16 @@
 {
-    "activeFile": "map_mund/city_01_test.tmx",
+    "activeFile": "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
     "expandedProjectPaths": [
-        "urban",
-        "props",
-        "maps",
+        "player",
+        "terrain",
+        "npcs",
+        "creatures",
         "combat",
         ".",
-        "player",
-        "npcs",
-        "terrain",
+        "props",
         "map_mund",
-        "creatures"
+        "urban",
+        "maps"
     ],
     "file.lastUsedOpenFilter": "Todos os Ficheiros (*)",
     "fileStates": {
@@ -18,20 +18,192 @@
             "scaleInDock": 1,
             "scaleInEditor": 4
         },
+        "map_mund/city_01_test.tmj": {
+            "scale": 0.586328125,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 639.5736175882745,
+                "y": 639.5736175882745
+            }
+        },
+        "map_mund/city_01_test.tmj#alquimia_estrutura_Test1": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#arbustro_pequeno_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#area_pet_1_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#area_pet_2": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#banco_madeira_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#banco_madeira_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#casinha_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#casinha_3_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#chao_Batalha_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#chao_batalha_1_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#chao_beco_dos_fundos": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#chao_madeira_Escuro_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#chao_madeira_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#computador_props_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#estrutura_1_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#estrutura_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#estrutura_3_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#estrutura_4_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#geladeira_props_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#lixeira_test_props": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#mercado_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#mercado_test_props": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#poste_test_prop": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#pulpito_pvp_base_test_Aseet": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#terrain_pack_2_TEst": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#terrain_pack_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#terrain_test_pack_3": {
+            "scaleInDock": 1
+        },
         "map_mund/city_01_test.tmx": {
             "expandedObjectLayers": [
-                20,
-                17,
                 19,
                 12,
-                18
+                18,
+                17,
+                20,
+                11
             ],
-            "scale": 1,
+            "scale": 0.5,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 717.5,
-                "y": 640
+                "x": 672,
+                "y": 618
             }
+        },
+        "map_mund/city_01_test.tmx#alquimia_estrutura_Test1": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#arbustro_pequeno_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#area_pet_1_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#area_pet_2": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#banco_madeira_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#banco_madeira_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#casinha_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#casinha_3_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#chao_Batalha_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#chao_batalha_1_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#chao_beco_dos_fundos": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#chao_madeira_Escuro_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#chao_madeira_Test": {
+            "scaleInDock": 2
+        },
+        "map_mund/city_01_test.tmx#computador_props_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#estrutura_1_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#estrutura_2_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#estrutura_3_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#estrutura_4_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#geladeira_props_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#lixeira_test_props": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#mercado_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#mercado_test_props": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#poste_test_prop": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#pulpito_pvp_base_test_Aseet": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#terrain_pack_2_TEst": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#terrain_pack_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmx#terrain_test_pack_3": {
+            "scaleInDock": 1
         },
         "map_mund/computador_antigo_Test.tsx": {
             "dynamicWrapping": true,
@@ -42,28 +214,62 @@
             "scale": 0.44135416666666666,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 320.60420108567394,
+                "x": 321.73707812131227,
                 "y": 960.679726221383
             }
         },
         "map_mund/sem zona_beco_dos_fundos_tilemap.tmx": {
             "expandedObjectLayers": [
-                5,
-                6,
-                3
+                6
             ],
-            "scale": 2,
-            "selectedLayer": 3,
+            "scale": 0.5,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": 610.75,
-                "y": 1831
+                "x": 104,
+                "y": 1402
             }
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#arvore_rosa_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#chao_2_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#chao_batalha_1_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#chao_beco_dos_fundos": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#chao_cidade_Test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#chao_cidade_roxo_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#chao_madeira_Escuro_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#computador_props_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#poste_2_test_props": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#terrain_pack_2_TEst": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#terrain_pack_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#terrain_test_pack_3": {
+            "scaleInDock": 1
         },
         "map_mund/zona_beco_dos_fundos_tilemap.tmj": {
             "scale": 0.44135416666666666,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 320.60420108567394,
+                "x": 321.73707812131227,
                 "y": 960.679726221383
             }
         },
@@ -191,7 +397,7 @@
         },
         "terrain/abusto_outono_test.tsx": {
             "dynamicWrapping": false,
-            "scaleInDock": 1,
+            "scaleInDock": 0.25,
             "scaleInEditor": 1
         },
         "terrain/arbustro_pequeno_test.tsx": {
@@ -201,7 +407,7 @@
         },
         "terrain/arvore_rosa_test.tsx": {
             "dynamicWrapping": false,
-            "scaleInDock": 1,
+            "scaleInDock": 3,
             "scaleInEditor": 1
         },
         "terrain/arvore_verde_test.tsx": {
@@ -326,23 +532,24 @@
     "map.width": 20,
     "openFiles": [
         "map_mund/city_01_test.tmx",
-        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx"
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+        "map_mund/city_01_test.tmj"
     ],
     "project": "projeto_tiled_altercadia.tiled-project",
     "property.type": "bool",
     "recentFiles": [
-        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
         "map_mund/city_01_test.tmx",
+        "map_mund/city_01_test.tmj",
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+        "map_mund/zona_beco_dos_fundos_tilemap.tmj",
+        "map_mund/sem zona_beco_dos_fundos_tilemap.tmj",
         "props/Living gazebo1.tsx",
         "props/casinha_2_Test.tsx",
         "props/casinha_1_Test.tsx",
         "terrain/terrain_test_pack_3.tsx",
         "terrain/terrain_pack_2_TEst.tsx",
         "terrain/terrain_pack_test.tsx",
-        "props/lixeira_test_props.tsx",
-        "props/casinha_4_test.tsx",
-        "map_mund/sem zona_beco_dos_fundos_tilemap.tmj",
-        "map_mund/zona_beco_dos_fundos_tilemap.tmj"
+        "props/lixeira_test_props.tsx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.margin": 0,

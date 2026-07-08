@@ -31,6 +31,7 @@ import {
   ensureTextureOrPlaceholder,
   type PhaserPlaceholderTextures,
 } from '../assets/phaserPlaceholderTexture.js';
+import { PhaserActorSpritePool } from './phaserActorSpritePool.js';
 
 const CREATURE_TRIM: AssetTrimRatios = {
   top: 0.04,
@@ -180,6 +181,8 @@ async function ensureNpcTexture(
 export class PhaserWorldActorsController {
   private readonly sprites = new Map<string, PhaserActorImage>();
 
+  private readonly pool = new PhaserActorSpritePool<PhaserActorImage>();
+
   private scene: PhaserActorScene | null = null;
 
   private ySortContainer: PhaserLayoutContainer | null = null;
@@ -210,7 +213,7 @@ export class PhaserWorldActorsController {
 
     for (const [key, sprite] of this.sprites) {
       if (seen.has(key)) continue;
-      sprite.destroy();
+      this.pool.release(sprite);
       this.sprites.delete(key);
     }
   }
@@ -220,6 +223,7 @@ export class PhaserWorldActorsController {
       sprite.destroy();
     }
     this.sprites.clear();
+    this.pool.drain();
     this.scene = null;
     this.ySortContainer = null;
     this.hasRenderedActors = false;
@@ -250,9 +254,11 @@ export class PhaserWorldActorsController {
 
     let sprite = this.sprites.get(instanceKey);
     if (!sprite) {
-      sprite = creatureFrame != null
-        ? scene.add.image(0, 0, resolvedTextureKey, creatureFrame)
-        : scene.add.image(0, 0, resolvedTextureKey);
+      sprite = this.pool.acquire(() => (
+        creatureFrame != null
+          ? scene.add.image(0, 0, resolvedTextureKey, creatureFrame)
+          : scene.add.image(0, 0, resolvedTextureKey)
+      ));
       sprite.setOrigin(0.5, 1);
       this.ySortContainer?.add(sprite);
       this.sprites.set(instanceKey, sprite);

@@ -20,11 +20,18 @@ import { resolveTiledObjectFootCollisionHitbox } from './tiledObjectCollisionHit
 
 type RawTiledObject = TiledObjectPropertySource & {
   readonly type?: string;
+  readonly gid?: number;
   readonly x: number;
   readonly y: number;
   readonly width: number;
   readonly height: number;
   readonly visible?: boolean;
+};
+
+export type TiledCollidableObjectVisit = {
+  readonly layerName: string;
+  readonly object: RawTiledObject;
+  readonly kind: WorldCollisionObstacle['kind'];
 };
 
 type RawTiledLayer = {
@@ -75,14 +82,11 @@ function pushCollidableObject(
   });
 }
 
-/** Extrai obstáculos colidíveis das object layers Tiled — sem Phaser. */
-export function parseTiledWorldCollision(
-  mapId: MapId,
+/** Percorre object layers com `collidable: true` (inclui `npcs` e props com gid). */
+export function forEachTiledCollidableObject(
   rawMap: RawTiledMap,
-): readonly WorldCollisionObstacle[] {
-  const tileSize = rawMap.tilewidth ?? GAME_CONFIG.TILE_SIZE;
-  const obstacles: WorldCollisionObstacle[] = [];
-
+  visit: (entry: TiledCollidableObjectVisit) => void,
+): void {
   for (const layer of rawMap.layers ?? []) {
     if (layer.type !== 'objectgroup') continue;
     if (isTiledSpawnObjectLayer(layer.name)) continue;
@@ -93,7 +97,7 @@ export function parseTiledWorldCollision(
         const npcId = resolveTiledNpcId(object);
         if (!npcId) continue;
         if (!resolveTiledNpcCollidable(object)) continue;
-        pushCollidableObject(obstacles, mapId, layer.name, object, tileSize, 'npc');
+        visit({ layerName: layer.name, object, kind: 'npc' });
       }
       continue;
     }
@@ -101,16 +105,31 @@ export function parseTiledWorldCollision(
     if (isTiledCollisionObjectLayer(layer.name)) {
       for (const object of layer.objects ?? []) {
         if (object.visible === false) continue;
-        pushCollidableObject(obstacles, mapId, layer.name, object, tileSize, 'tiled_prop');
+        if (!isTiledMapObjectCollidable(object)) continue;
+        visit({ layerName: layer.name, object, kind: 'tiled_prop' });
       }
       continue;
     }
 
     for (const object of layer.objects ?? []) {
       if (object.visible === false) continue;
-      pushCollidableObject(obstacles, mapId, layer.name, object, tileSize, 'tiled_prop');
+      if (!isTiledMapObjectCollidable(object)) continue;
+      visit({ layerName: layer.name, object, kind: 'tiled_prop' });
     }
   }
+}
+
+/** Extrai obstáculos colidíveis das object layers Tiled — sem Phaser. */
+export function parseTiledWorldCollision(
+  mapId: MapId,
+  rawMap: RawTiledMap,
+): readonly WorldCollisionObstacle[] {
+  const tileSize = rawMap.tilewidth ?? GAME_CONFIG.TILE_SIZE;
+  const obstacles: WorldCollisionObstacle[] = [];
+
+  forEachTiledCollidableObject(rawMap, ({ layerName, object, kind }) => {
+    pushCollidableObject(obstacles, mapId, layerName, object, tileSize, kind);
+  });
 
   return obstacles;
 }

@@ -12,6 +12,9 @@ export const PHASER_BATTLE_SCENE_KEY = 'BattleArena';
 /** Mediadora de carregamento entre instâncias de mapa (Phaser). */
 export const PHASER_MAP_LOADING_SCENE_KEY = 'MapInstanceLoading';
 
+/** Pré-carregamento global (atlas Road2 + criaturas) antes da LoadingScene. */
+export const PHASER_PRELOADER_SCENE_KEY = 'PreloaderScene';
+
 /** Coluna de render compartilhada — filha direta de #game-container. */
 export const GAME_RENDER_COLUMN_ID = 'game-render-column';
 

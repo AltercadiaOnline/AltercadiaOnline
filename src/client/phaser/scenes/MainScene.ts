@@ -87,6 +87,9 @@ function resolveLoaderFile(args: readonly unknown[]): PhaserLoaderFile {
 /**
  * Esqueleto base — somente mundo (física, colisão, sprites).
  * HUD, texto e barras ficam na camada React acima do canvas.
+ *
+ * Regra: NÃO usar `this.load.atlas` / `this.load.image` para tilesets globais (ex. road2_atlas).
+ * Esses assets são carregados na PreloaderScene; subclasses consomem texturas já no cache.
  */
 export function createMainSceneClass(
   Phaser: PhaserNamespace,
@@ -119,7 +122,9 @@ export function createMainSceneClass(
       this.onMainUpdate(time, delta);
     }
 
-    onMainPreload(): void {}
+    onMainPreload(): void {
+      // Intencionalmente vazio — sem this.load.* (road2_atlas vem da PreloaderScene).
+    }
 
     onMainCreate(): void {}
 

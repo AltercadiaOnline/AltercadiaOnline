@@ -5,6 +5,9 @@ import {
 } from '../../../config/tiledMapManifest.js';
 import { resolveTiledPublicAssetUrl } from './tiledAssetPaths.js';
 import {
+  queueProcessedTilesetAtlas,
+} from './processedTilesetPreload.js';
+import {
   tiledSharedTilesetTextureKey,
   tiledTilesetLookupKey,
 } from './tiledTextureKeys.js';
@@ -20,9 +23,8 @@ const PHASER_TILED_JSON_FORMAT = 1;
 /**
  * Pré-carrega texturas referenciadas pelo export Tiled (/terrain, /structures, /props).
  *
- * Tilesets de grade usam sempre `load.image` (folha inteira). `load.spritesheet` quebra
- * `addTilesetImage` — Phaser.Tilemaps.Tileset#setImage usa texture.get() (primeiro frame 32×32)
- * em vez da imagem completa, e o chão fica fatiado errado mesmo com o Tiled correto.
+ * Tilesets de grade: `load.image` na folha bruta OU `load.atlas` quando há manifest
+ * processado (PNG alinhado + JSON), exceto Road2 (`road2_atlas`) — exclusivo da PreloaderScene.
  * Frames 0…N para createFromObjects são gerados depois em ensureTiledTilesetTextureFrames.
  *
  * PNGs idênticos carregam uma vez com chave compartilhada por URL.
@@ -39,8 +41,19 @@ export class TiledAssetManager {
 
     for (const tileset of descriptor.tilesets) {
       const publicUrl = resolveTiledPublicAssetUrl(descriptor.jsonUrl, tileset.imagePath);
-      const sharedKey = this.resolveSharedTextureKey(descriptor.cacheKey, publicUrl);
       const lookupKey = tiledTilesetLookupKey(descriptor.cacheKey, tileset.name);
+
+      const processedAtlasKey = queueProcessedTilesetAtlas(
+        scene,
+        publicUrl,
+        queuedTextureKeys,
+      );
+      if (processedAtlasKey) {
+        this.tilesetTextureKeyByLookup.set(lookupKey, processedAtlasKey);
+        continue;
+      }
+
+      const sharedKey = this.resolveSharedTextureKey(descriptor.cacheKey, publicUrl);
 
       this.tilesetTextureKeyByLookup.set(lookupKey, sharedKey);
       this.queueTilesetTexture(scene, publicUrl, sharedKey, queuedTextureKeys);

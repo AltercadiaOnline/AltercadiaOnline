@@ -2,6 +2,7 @@ import type { AuthoritativePlayerSnapshot } from '../playerDataSnapshots.js';
 import type { EconomyEvent } from '../economy/events.js';
 import type { AuthoritativePositionDelta } from '../world/movementIntent.js';
 import type { WorldCreatureSnapshot } from '../world/worldCreatureSync.js';
+import type { RemotePlayerSnapshot } from '../world/remotePlayerSync.js';
 
 export { WORLD_TICK_MS, WORLD_TICK_HZ } from '../world/worldGameLoopConfig.js';
 
@@ -24,6 +25,8 @@ export type WorldTickDelta = {
   readonly position?: AuthoritativePositionDelta;
   /** Criaturas ativas no mapa atual do jogador — coordenadas autoritativas do servidor. */
   readonly creatures?: readonly WorldCreatureSnapshot[];
+  /** Jogadores próximos — futuro broadcast; cliente interpola sem predição local. */
+  readonly nearbyPlayers?: readonly RemotePlayerSnapshot[];
 };
 
 export type StateSyncBody =

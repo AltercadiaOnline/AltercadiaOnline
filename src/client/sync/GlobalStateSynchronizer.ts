@@ -35,8 +35,10 @@ import {
   parseWorldCreatureSnapshots,
   resolveMapIdFromCreatureSnapshots,
 } from '../world/worldCreatureSyncBridge.js';
+import { parseAndApplyRemotePlayerSnapshots } from '../world/remoteEntitySyncBridge.js';
 import { isVisualDebugModeEnabled } from '../debug/visualDebugMode.js';
 import { resetAuthoritativeRenderStore } from '../render/AuthoritativeRenderStore.js';
+import { clearRemoteEntitySyncBridge } from '../world/remoteEntitySyncBridge.js';
 
 
 
@@ -237,6 +239,21 @@ export class GlobalStateSynchronizer {
         }
       }
 
+      if (tickDelta.nearbyPlayers) {
+        const mapId =
+          tickDelta.position?.mapId
+          ?? getMutableDataStore().getWorldPosition()?.mapId;
+        if (!mapId) {
+          console.warn('[GlobalStateSynchronizer] nearbyPlayers ignorados — mapId ausente no tick.');
+        } else {
+          parseAndApplyRemotePlayerSnapshots(
+            mapId,
+            tickDelta.nearbyPlayers,
+            tickDelta.serverTimeMs,
+          );
+        }
+      }
+
     }
 
 
@@ -286,6 +303,7 @@ export function getGlobalStateSynchronizer(): GlobalStateSynchronizer {
 export function resetGlobalStateSynchronizer(): void {
   synchronizer = null;
   resetAuthoritativeRenderStore();
+  clearRemoteEntitySyncBridge();
 }
 
 

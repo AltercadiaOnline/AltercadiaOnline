@@ -11,8 +11,13 @@ import {
 import type { MapInstanceSceneInitData } from './createMapInstancePhaserScene.js';
 import type { LoadingSceneInitData } from './createLoadingPhaserScene.js';
 import { getRenderLayerBridge } from '../../app/bridge/renderLayerBridge.js';
-import { PHASER_MAP_LOADING_SCENE_KEY } from '../PhaserConfig.js';
+import { PHASER_MAP_LOADING_SCENE_KEY, PHASER_PRELOADER_SCENE_KEY } from '../PhaserConfig.js';
 import { revealPhaserMountHost } from '../phaserExplorationPipeline.js';
+import {
+  consumePendingMapLoading,
+  isPreloaderReady,
+  requestMapLoadingAfterPreloader,
+} from '../preloader/preloaderGate.js';
 
 type PhaserSceneManager = {
   start: (key: string, data?: MapInstanceSceneInitData | LoadingSceneInitData) => void;
@@ -126,7 +131,12 @@ export class MapInstanceSceneManager {
       ...(options?.spawn ? { spawn: options.spawn } : {}),
     };
 
-    this.game.scene.start(PHASER_MAP_LOADING_SCENE_KEY, loadingData);
+    requestMapLoadingAfterPreloader(loadingData);
+    if (isPreloaderReady()) {
+      consumePendingMapLoading();
+      this.game.scene.start(PHASER_MAP_LOADING_SCENE_KEY, loadingData);
+    }
+
     return true;
   }
 
@@ -149,7 +159,8 @@ export class MapInstanceSceneManager {
     const activeScenes = this.game.scene.getScenes?.(true) ?? [];
     return activeScenes.some(
       (entry) =>
-        entry.scene.key === PHASER_MAP_LOADING_SCENE_KEY
+        entry.scene.key === PHASER_PRELOADER_SCENE_KEY
+        || entry.scene.key === PHASER_MAP_LOADING_SCENE_KEY
         || entry.scene.key === targetSceneKey,
     );
   }
@@ -162,7 +173,7 @@ export class MapInstanceSceneManager {
 
     for (const entry of scenes) {
       const key = entry.scene.key;
-      if (isMapInstanceSceneKey(key) || key === PHASER_MAP_LOADING_SCENE_KEY) {
+      if (isMapInstanceSceneKey(key) || key === PHASER_MAP_LOADING_SCENE_KEY || key === PHASER_PRELOADER_SCENE_KEY) {
         return key;
       }
     }

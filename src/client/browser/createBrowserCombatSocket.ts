@@ -1,16 +1,9 @@
-import type { EquippedSlots } from '../../shared/character/equipmentState.js';
-import type { MarcoDominanceInput } from '../../shared/progression/estiloPersonagem.js';
-import type { CombatClassId } from '../../shared/types.js';
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
 import type { ActionRequest } from '../../shared/events.js';
 import type { CombatSocket } from '../combat/client/combatSocketHandler.js';
-import {
-  abortCombatFeedbackOnDisconnect,
-  releaseCombatActionLock,
-  releaseForfeitInFlight,
-} from '../combat/index.js';
 import { USER_WS_CONNECT_FAILED } from '../../shared/brand.js';
 import { getGameStore } from '../state/GameStore.js';
+import { loadCombatClient } from '../domains/ServiceRegistry.js';
 import {
   connectionPhaseLabel,
   setConnectionPhase,
@@ -20,20 +13,7 @@ import {
 export type BrowserCombatSocket = CombatSocket & {
   readonly readyState: number;
   send(type: 'combat-action', payload: ActionRequest): void;
-  send(type: 'combat-join', payload?: {
-    readonly displayName?: string;
-    readonly classId?: CombatClassId;
-    readonly activeMovesets?: readonly string[];
-    readonly monsterInstanceId?: string;
-    readonly worldVitals?: {
-      readonly hpCurrent: number;
-      readonly hpMax: number;
-      readonly mpCurrent: number;
-      readonly mpMax: number;
-    };
-    readonly marcoDominance?: MarcoDominanceInput;
-    readonly equipmentSnapshot?: EquippedSlots;
-  }): void;
+  send(type: 'combat-join', payload?: Record<string, unknown>): void;
   send(type: 'combat-collect-loot', payload: { readonly lootId: string; readonly battleId: string }): void;
   send(type: 'combat-dismiss-loot', payload: { readonly lootId: string }): void;
   send(type: string, payload?: unknown): void;
@@ -92,9 +72,11 @@ function bindWsEvents(
         console.warn('[WS] combat-error:', data.payload);
         onSystemError?.(reason, data.payload);
         getGameStore().rejectLatestCombatPending(reason);
-        abortCombatFeedbackOnDisconnect();
-        releaseForfeitInFlight();
-        releaseCombatActionLock();
+        void loadCombatClient().then((combat) => {
+          combat.abortCombatFeedbackOnDisconnect();
+          combat.releaseForfeitInFlight();
+          combat.releaseCombatActionLock();
+        });
         return;
       }
 
@@ -227,10 +209,14 @@ export function createBrowserCombatSocket(
     send(type: string, payload?: unknown): void {
       if (!ws || ws.readyState !== WS_OPEN) {
         console.warn('[WS] Socket fechado — mensagem ignorada:', type);
-        if (type === 'combat-action') {
-          releaseCombatActionLock();
-        } else if (type === 'combat-forfeit') {
-          releaseForfeitInFlight();
+        if (type === 'combat-action' || type === 'combat-forfeit') {
+          void loadCombatClient().then((combat) => {
+            if (type === 'combat-action') {
+              combat.releaseCombatActionLock();
+            } else {
+              combat.releaseForfeitInFlight();
+            }
+          });
         }
         return;
       }

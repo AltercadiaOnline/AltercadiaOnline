@@ -950,7 +950,6 @@ export class CombatWsHub implements CombatWsRouteHost {
       syncAuthority: this.syncAuthority,
       timeManager: this.timeManager,
       gameState: this.gameState,
-      broadcastHub: this.broadcastHub,
       getWorldSession: (connectionId) => {
         const world = this.worldConnections.get(connectionId);
         if (!world) return null;

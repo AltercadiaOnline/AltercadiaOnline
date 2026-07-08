@@ -8,6 +8,7 @@ import {
   PLAYER_ASSET_BUNDLE_ROOT,
 } from '../../entities/player/playerConstants.js';
 import { getCreatureAssets } from '../../loaders/CreatureAssetLoader.js';
+import { isPhaserRuntimeActive } from '../../phaser/phaserRuntimeState.js';
 import {
   battleSpriteSrcCandidates,
   resolveBattleSpriteFromMonsterId,
@@ -77,6 +78,7 @@ export class BattleSprite {
   /** Troca pose side-view (idle ↔ attack) via CreatureAssetLoader. */
   setStance(stance: 'idle' | 'attack'): void {
     if (this.side !== 'foe' || !this.boundCreatureId) return;
+    if (!isPhaserRuntimeActive()) return;
     if (this.currentStance === stance) return;
     this.currentStance = stance;
 

@@ -5,10 +5,6 @@ import {
   tiledObjectTextureKey,
   tiledTilesetTextureKey,
 } from '../../../config/tiledMapManifest.js';
-import {
-  resolveZone1ProcessedCreatureAtlas,
-  ZONE1_TOPDOWN_CREATURES_ATLAS_KEY,
-} from '../../../config/zone1ProcessedCreatureAtlas.js';
 import { getTiledAssetManager } from '../tiled/TiledAssetManager.js';
 import { isTilemapCacheReady } from '../tiled/tilemapCacheReady.js';
 import type { PhaserTiledScene } from '../tiled/phaserTiledMapTypes.js';
@@ -69,23 +65,8 @@ export function queueMapInstanceAssets(scene: AssetQueueScene, mapId: MapId): vo
     }
   }
 
-  const zone1Atlas = resolveZone1ProcessedCreatureAtlas();
-  if (zone1Atlas && !scene.textures.exists(ZONE1_TOPDOWN_CREATURES_ATLAS_KEY)) {
-    const loadAtlas = scene.load.atlas;
-    if (typeof loadAtlas !== 'function') {
-      console.error('[mapInstanceAssetManifest] Phaser load.atlas indisponível — criaturas zone1 podem falhar.');
-    } else {
-      loadAtlas.call(
-        scene.load,
-        ZONE1_TOPDOWN_CREATURES_ATLAS_KEY,
-        zone1Atlas.imageUrl,
-        zone1Atlas.atlasUrl,
-      );
-    }
-  }
-
+  // Atlas zone1_top_down_creatures: carregado na PreloaderScene (asset crítico / preloaderGate).
   // Sprite do jogador: ensurePlayerSheetTexture() na montagem (PlayerSpriteLoader + metadata).
-  // Preload Phaser com chaves "altercadia-player-sheet:rot:*" gerava 404 (south.png relativo) no P4.
 }
 
 /**

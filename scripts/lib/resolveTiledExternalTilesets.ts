@@ -39,7 +39,7 @@ export function readPngDimensions(absPath: string): { width: number; height: num
   }
 }
 
-function applyImageMetrics(
+export function applyImageMetrics(
   tileset: TiledMapTilesetRef,
   imageAbsPath: string,
 ): TiledMapTilesetRef {

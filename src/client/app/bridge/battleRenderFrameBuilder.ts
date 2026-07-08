@@ -9,6 +9,7 @@ import {
   battleSpriteSrcCandidates,
   resolveBattleSpriteFromMonsterId,
 } from '../../ui/battle/battleSpriteCatalog.js';
+import { isPhaserRuntimeActive } from '../../phaser/phaserRuntimeState.js';
 import {
   DEFAULT_PLAYER_SOUTH_ROTATION_URL,
   PLAYER_ASSET_BUNDLE_ROOT,
@@ -50,6 +51,18 @@ function buildFoeSlot(
       stance,
       creatureId: null,
       monsterId: null,
+      label,
+    };
+  }
+
+  if (!isPhaserRuntimeActive()) {
+    return {
+      side: 'foe',
+      spriteSrc: '',
+      spriteSrcFallbacks: [],
+      stance,
+      creatureId: null,
+      monsterId,
       label,
     };
   }

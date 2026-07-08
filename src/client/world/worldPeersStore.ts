@@ -3,7 +3,7 @@ import { isWorldPeersCompactPayload } from '../../shared/world/worldPeerWire.js'
 
 let latestByMap = new Map<string, WorldPeersCompactPayload>();
 
-/** Espelho local de peers visíveis (AOI) — alimentado pelo servidor via world-peers. */
+/** Espelho legado de peers compactos (`world-peers`). Render usa `nearbyPlayers` no state-sync. */
 export function applyWorldPeersPayload(raw: unknown): void {
   if (!isWorldPeersCompactPayload(raw)) return;
   latestByMap.set(raw.m, raw);

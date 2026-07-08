@@ -14,6 +14,7 @@ import {
   resolvePlayerFeetWorld,
 } from '../../../game/constants/GameConfig.js';
 import { GAME_ASSET_TARGETS } from '../../../game/assets/assetNormalizer.js';
+import { DESIGN_CONFIG } from '../../../config/designConstants.js';
 import { normalizePhaserAsset } from '../assets/phaserAssetNormalizer.js';
 import { ensureTextureOrPlaceholder } from '../assets/phaserPlaceholderTexture.js';
 import { resolvePhaserWorldDepth } from '../layout/phaserWorldDepth.js';
@@ -30,6 +31,20 @@ type PhaserPlayerImage = {
   clearTint?: () => PhaserPlayerImage;
   setVisible: (visible: boolean) => PhaserPlayerImage;
   destroy: () => void;
+  readonly body?: {
+    setSize: (width: number, height: number, center?: boolean) => void;
+    setOffset: (x: number, y: number) => void;
+  } | null;
+};
+
+export type PhaserPhysicsColliderTarget = PhaserPlayerImage;
+
+type PhaserPlayerPhysicsScene = {
+  physics?: {
+    add: {
+      existing: (target: PhaserPlayerImage, isStatic: boolean) => PhaserPlayerImage;
+    };
+  };
 };
 
 type PhaserPlayerScene = {
@@ -121,6 +136,26 @@ export class PhaserPlayerSpriteController {
 
   isReady(): boolean {
     return this.sheetReady && this.sprite !== null;
+  }
+
+  /** Body Arcade para `MapLoader.bindPlayerCollider`. */
+  getColliderTarget(): PhaserPhysicsColliderTarget | null {
+    return this.sprite;
+  }
+
+  enableArcadePhysics(scene: PhaserPlayerPhysicsScene): void {
+    if (!this.sprite || !scene.physics?.add) return;
+
+    scene.physics.add.existing(this.sprite, false);
+    const body = this.sprite.body;
+    if (!body) return;
+
+    const insetX = 8;
+    const insetTop = 24;
+    const bodyWidth = Math.max(1, DESIGN_CONFIG.PLAYER.WIDTH - insetX * 2);
+    const bodyHeight = Math.max(1, DESIGN_CONFIG.PLAYER.HEIGHT - insetTop);
+    body.setSize(bodyWidth, bodyHeight, true);
+    body.setOffset(-bodyWidth / 2, -bodyHeight);
   }
 
   usesPlaceholder(): boolean {

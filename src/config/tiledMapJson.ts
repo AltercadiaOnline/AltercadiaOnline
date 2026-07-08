@@ -381,13 +381,35 @@ export function buildPhaserTiledMapData(json: TiledMapJson): PhaserReadyTiledMap
 
   const nonGridRanges = listNonGridTilesetGidRanges(tilesets, mapTileWidth, mapTileHeight);
   const layersWithoutProps = stripNonGridGidsFromTileLayers(source.layers, nonGridRanges);
-  const layers = stripOutOfRangeGidsFromTileLayers(layersWithoutProps, tilesets);
+  const layersGridSafe = stripOutOfRangeGidsFromTileLayers(layersWithoutProps, tilesets);
+  const layers = stripFlipFlagsFromObjectLayers(layersGridSafe);
 
   return {
     ...source,
     tilesets,
     layers,
   };
+}
+
+/** Object layers: GID com flags de flip (ex. 2147483886) → realGid para o Phaser resolver o tile. */
+function stripFlipFlagsFromObjectLayers(layers: unknown): unknown {
+  if (!Array.isArray(layers)) return layers;
+
+  return layers.map((layer) => {
+    if (!layer || typeof layer !== 'object') return layer;
+    const record = layer as Record<string, unknown>;
+    if (record.type !== 'objectgroup' || !Array.isArray(record.objects)) return layer;
+
+    return {
+      ...record,
+      objects: (record.objects as Array<Record<string, unknown>>).map((object) => {
+        if (typeof object.gid !== 'number' || object.gid <= 0) return object;
+        const realGid = Number(object.gid) & TILED_GID_MASK;
+        if (realGid === object.gid) return object;
+        return { ...object, gid: realGid };
+      }),
+    };
+  });
 }
 
 /** Tilesets declarados no export Tiled — fonte única para preload (sem lista manual). */

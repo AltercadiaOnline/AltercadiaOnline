@@ -391,3 +391,67 @@ export function ensurePlaceholdersForFailedKeys(
   }
   return created;
 }
+
+/** Tile magenta/rosa canônico — GID sem textura ou frame válido no cache. */
+export const TILED_MISSING_GID_TEXTURE_KEY = 'tiled-missing-gid';
+
+function drawMissingGidPattern(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#ff00ff';
+  ctx.fillRect(0, 0, width, height);
+
+  const cell = Math.max(4, Math.min(width, height) / 4);
+  ctx.fillStyle = '#1a001a';
+  for (let y = 0; y < height; y += cell) {
+    for (let x = 0; x < width; x += cell) {
+      if (((x / cell) + (y / cell)) % 2 === 0) continue;
+      ctx.fillRect(x, y, Math.min(cell, width - x), Math.min(cell, height - y));
+    }
+  }
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, width - 2, height - 2);
+
+  if (width >= 16 && height >= 16) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.max(8, Math.floor(Math.min(width, height) * 0.35))}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('!', width / 2, height / 2);
+  }
+}
+
+export function ensureTiledMissingGidTexture(
+  textures: PhaserPlaceholderTextures,
+  width: number = DESIGN_CONFIG.TILE.SIZE,
+  height: number = DESIGN_CONFIG.TILE.SIZE,
+): string | null {
+  if (textures.exists(TILED_MISSING_GID_TEXTURE_KEY)) {
+    return TILED_MISSING_GID_TEXTURE_KEY;
+  }
+
+  if (typeof document === 'undefined') return null;
+
+  const w = clampDimension(width, DESIGN_CONFIG.TILE.SIZE);
+  const h = clampDimension(height, DESIGN_CONFIG.TILE.SIZE);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  drawMissingGidPattern(ctx, w, h);
+  textures.addCanvas(TILED_MISSING_GID_TEXTURE_KEY, canvas);
+  try {
+    textures.get(TILED_MISSING_GID_TEXTURE_KEY).setFilter(PHASER_TEXTURE_FILTER_NEAREST);
+  } catch {
+    /* noop */
+  }
+
+  return TILED_MISSING_GID_TEXTURE_KEY;
+}

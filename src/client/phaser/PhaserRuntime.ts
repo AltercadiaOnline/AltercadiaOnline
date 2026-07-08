@@ -8,14 +8,25 @@ import {
   PHASER_BATTLE_SCENE_KEY,
   PHASER_MAP_LOADING_SCENE_KEY,
   PHASER_MOUNT_ROOT_ID,
+  PHASER_PRELOADER_SCENE_KEY,
 } from './PhaserConfig.js';
 import { DEFAULT_MAP_ID, MAP_REGISTRY, type MapId } from '../../shared/world/mapRegistry.js';
+import { resetCreatureAssetLoaderSession } from '../loaders/CreatureAssetLoader.js';
 import {
   getMapInstanceSceneManager,
   resetMapInstanceSceneManager,
 } from './scenes/MapInstanceSceneManager.js';
 import { createAllMapInstancePhaserScenes } from './scenes/ExplorationPhaserScene.js';
 import { createLoadingPhaserScene } from './scenes/createLoadingPhaserScene.js';
+import { createPreloaderPhaserScene } from './scenes/createPreloaderPhaserScene.js';
+import { resetPreloaderGate } from './preloader/preloaderGate.js';
+import { setPhaserRuntimeActive } from './phaserRuntimeState.js';
+import {
+  clearAltercadiaPhaserDebugHook,
+  installAltercadiaPhaserDebugHook,
+} from './phaserDebugHook.js';
+
+export { isPhaserRuntimeActive } from './phaserRuntimeState.js';
 
 type PhaserGameInstance = {
   destroy: (removeCanvas: boolean) => void;
@@ -76,13 +87,16 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     const mapIds = Object.keys(MAP_REGISTRY) as MapId[];
     const mapInstanceScenes = createAllMapInstancePhaserScenes(PhaserNs as never, mapIds);
     const loadingScene = createLoadingPhaserScene(PhaserNs as never);
+    const preloaderScene = createPreloaderPhaserScene(PhaserNs as never);
 
     revealPhaserMountHost();
 
     const gameConfig = buildPhaserGameConfig({
       Phaser: PhaserNs,
       parent: host,
+      // Ordem canônica: PreloaderScene primeiro (auto-start), depois Loading → MapInstance (MainScene).
       scenes: [
+        preloaderScene,
         loadingScene,
         ...mapInstanceScenes,
         createBattlePhaserScene(PhaserNs as never),
@@ -90,6 +104,7 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     });
 
     activeGame = new PhaserNs.Game(gameConfig);
+    setPhaserRuntimeActive(true);
     applyPhaserCanvasTransparency(host);
     activeGame.scale?.refresh();
 
@@ -98,6 +113,8 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
 
     getMapInstanceSceneManager().init(activeGame, mapIds);
 
+    installAltercadiaPhaserDebugHook(activeGame);
+
     getRenderLayerBridge().markPhaserBooted(true);
     getRenderLayerBridge().markPhaserSceneReady(false);
     getRenderLayerBridge().setActivePhaserScene('exploration');
@@ -105,6 +122,7 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
     return activeGame;
   })().catch((error) => {
     console.error('[PhaserRuntime] Falha ao iniciar Phaser:', error);
+    setPhaserRuntimeActive(false);
     getRenderLayerBridge().markPhaserBooted(false);
     getRenderLayerBridge().markPhaserSceneReady(false);
     hidePhaserMountHost();
@@ -122,11 +140,15 @@ export async function bootPhaserRuntime(): Promise<PhaserGameInstance | null> {
 }
 
 export function shutdownPhaserRuntime(): void {
+  clearAltercadiaPhaserDebugHook();
   if (activeGame) {
     activeGame.destroy(true);
     activeGame = null;
   }
+  setPhaserRuntimeActive(false);
   resetMapInstanceSceneManager();
+  resetPreloaderGate();
+  resetCreatureAssetLoaderSession();
   deactivatePhaserExplorationPipeline();
   getRenderLayerBridge().markPhaserBooted(false);
   getRenderLayerBridge().markPhaserEntitiesReady(false);
@@ -142,6 +164,7 @@ export function switchPhaserScene(sceneKey: string): void {
     sceneKey === PHASER_BATTLE_SCENE_KEY
       ? 'battle'
       : sceneKey === PHASER_MAP_LOADING_SCENE_KEY
+          || sceneKey === PHASER_PRELOADER_SCENE_KEY
           || sceneKey.startsWith('MapInstance:')
         ? 'exploration'
         : null;
@@ -153,10 +176,6 @@ export function switchPhaserToActiveMapInstance(): void {
   const manager = getMapInstanceSceneManager();
   if (!manager.isInitialized()) return;
   manager.transitionTo(manager.getActiveMapId());
-}
-
-export function isPhaserRuntimeActive(): boolean {
-  return activeGame !== null;
 }
 
 export async function ensurePhaserRuntimeForCurrentEngine(): Promise<void> {

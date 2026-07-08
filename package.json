@@ -38,6 +38,7 @@
     "generate:meu-pack": "tsx scripts/generate-meu-pack-registry.ts",
     "generate:city01-wiring": "tsx scripts/generate-city01-test-pack-wiring.ts",
     "mirror:map-mund": "tsx scripts/mirror-map-mund-export.ts",
+    "embed:tmj-tilesets": "tsx scripts/embed-tmj-tilesets.ts",
     "generate:assets": "npm run generate:test-assets && npm run generate:meu-pack && npm run generate:city01-wiring",
     "generate-assets": "tsx scripts/generateAtlas.ts",
     "typecheck": "tsc --noEmit",

@@ -4,9 +4,10 @@ import type { AuthoritativePositionDelta } from '../../shared/world/movementInte
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { WorldCreatureSnapshot } from '../../shared/world/worldCreatureSync.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
+import { buildNearbyPlayerSnapshots } from '../../shared/world/buildNearbyPlayerSnapshots.js';
 import type { Player } from '../models/Player.js';
 import type { MovementIntentHandler } from './MovementIntentHandler.js';
-import type { WorldBroadcastHub } from './WorldBroadcastHub.js';
+import { selectPeersInInterest } from './InterestManager.js';
 import type { WorldGameState } from './WorldGameState.js';
 import { getWorldProfile } from './worldProfileStore.js';
 import type { ServerSyncAuthority } from '../sync/ServerSyncAuthority.js';
@@ -23,7 +24,6 @@ export type GameLoopDeps = {
   readonly syncAuthority: ServerSyncAuthority;
   readonly timeManager: TimeManager;
   readonly gameState: WorldGameState;
-  readonly broadcastHub: WorldBroadcastHub;
   readonly getWorldSession: (connectionId: string) => GameLoopWorldSession | null;
   readonly getPlayer: (playerId: string, characterId: number) => Player | null;
   readonly sendStateSync: (
@@ -91,16 +91,32 @@ export class GameLoop {
         ? deps.buildCreaturesForMap(profile.currentMapId)
         : [];
 
+      const observer = deps.gameState.getByConnection(session.connectionId);
+      const peersOnMap = deps.gameState.listExploringOnMap(profile.currentMapId);
+      const nearbyPlayers = observer
+        ? buildNearbyPlayerSnapshots(
+          selectPeersInInterest(observer, peersOnMap).map((peer) => ({
+            playerId: peer.playerId,
+            characterId: peer.characterId,
+            displayName: peer.displayName,
+            mapId: peer.mapId,
+            feetX: peer.x,
+            feetY: peer.y,
+            facing: peer.facing,
+          })),
+          envelope.serverTimeMs,
+        )
+        : [];
+
       deps.sendStateSync(session.connectionId, envelope, {
         mode: 'tick',
         delta: {
           ...deltaBase,
           position,
           creatures,
+          nearbyPlayers,
         },
       });
     }
-
-    deps.broadcastHub.broadcastPeerUpdates(tick, deps.gameState);
   }
 }

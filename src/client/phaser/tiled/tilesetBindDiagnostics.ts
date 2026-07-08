@@ -41,10 +41,31 @@ export type TilesetBindDiagnostic = {
   readonly bindOk: boolean;
 };
 
-const TILED_GID_MASK = 0x1fffffff;
+export const TILED_GID_MASK = 0x1fffffff;
+export const TILED_GID_HORIZONTAL_FLIP = 0x80000000;
+export const TILED_GID_VERTICAL_FLIP = 0x40000000;
+export const TILED_GID_DIAGONAL_FLIP = 0x20000000;
 
+export type TiledGidDecode = {
+  readonly realGid: number;
+  readonly flipX: boolean;
+  readonly flipY: boolean;
+  readonly flipDiagonal: boolean;
+};
+
+/** Remove flags de flip/rotação Tiled (bits 29–31) — ex.: 2147483886 → 238. */
 export function stripTiledGidFlags(rawGid: number): number {
   return Number(rawGid) & TILED_GID_MASK;
+}
+
+export function decodeTiledGid(rawGid: number): TiledGidDecode {
+  const gid = Number(rawGid);
+  return {
+    realGid: gid & TILED_GID_MASK,
+    flipX: (gid & TILED_GID_HORIZONTAL_FLIP) !== 0,
+    flipY: (gid & TILED_GID_VERTICAL_FLIP) !== 0,
+    flipDiagonal: (gid & TILED_GID_DIAGONAL_FLIP) !== 0,
+  };
 }
 
 export function computeTilesetFrameCapacity(

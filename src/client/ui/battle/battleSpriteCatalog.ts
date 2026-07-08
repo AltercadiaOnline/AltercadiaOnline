@@ -2,6 +2,7 @@ import {
   getCreatureAssets,
   getCreatureBattleSpriteCandidates,
 } from '../../loaders/CreatureAssetLoader.js';
+import { isPhaserRuntimeActive } from '../../phaser/phaserRuntimeState.js';
 import { getMonsterByCreatureId } from '../../../shared/combat/MonsterCatalog.js';
 import { getMonsterRegistryEntry } from '../../../shared/world/monsterRegistry.js';
 
@@ -14,21 +15,30 @@ export type BattleSpriteCatalogEntry = {
   readonly classId: string | null;
 };
 
+function canResolveCreatureBattleAssets(): boolean {
+  return isPhaserRuntimeActive();
+}
+
 /** URL idle side-view resolvida via manifesto da zona. */
 export function buildCreatureBattleSpriteSrc(creatureId: string): string {
+  if (!canResolveCreatureBattleAssets()) return '';
   return getCreatureAssets(creatureId).sprites.idle;
 }
 
 export function buildCreatureAttackSpriteSrc(creatureId: string): string {
+  if (!canResolveCreatureBattleAssets()) return '';
   return getCreatureAssets(creatureId).sprites.attack;
 }
 
 export function battleSpriteSrcCandidates(creatureId: string): readonly string[] {
+  if (!canResolveCreatureBattleAssets()) return [];
   return getCreatureBattleSpriteCandidates(creatureId);
 }
 
 /** Resolve sprite do oponente a partir do monsterId do world registry. */
 export function resolveBattleSpriteFromMonsterId(monsterId: string): BattleSpriteCatalogEntry | null {
+  if (!canResolveCreatureBattleAssets()) return null;
+
   const entry = getMonsterRegistryEntry(monsterId);
   if (!entry) return null;
 

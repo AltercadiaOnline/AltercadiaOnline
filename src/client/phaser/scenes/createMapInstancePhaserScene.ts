@@ -11,6 +11,7 @@ import { bindExplorationPhaserSync } from '../explorationPhaserSync.js';
 import { createMainSceneClass, type PhaserWorldSceneBase } from './MainScene.js';
 import { PhaserPlayerSpriteController } from '../player/phaserPlayerSpriteController.js';
 import { PhaserWorldActorsController } from '../player/phaserWorldActorsController.js';
+import { PhaserRemotePlayersController } from '../player/phaserRemotePlayersController.js';
 import { MapLoader } from '../tiled/MapLoader.js';
 import type { MapLoaderScene } from '../tiled/phaserTiledMapTypes.js';
 import { PhaserPetController } from '../pet/phaserPetController.js';
@@ -34,6 +35,10 @@ import type { MapTransitionPayload } from '../../../shared/world/protocol.js';
 import { activatePhaserExplorationPipeline } from '../phaserExplorationPipeline.js';
 import { enablePhaserRenderMode } from '../../app/phaser/initPhaserReadyLayer.js';
 import { TiledMapLoadError } from '../tiled/mapLoadFatalError.js';
+import {
+  buildWorldViewportFromCamera,
+  filterWorldActorsForViewport,
+} from '../../world/worldActorViewportFilter.js';
 
 type PhaserNamespace = {
   Scene: new (config?: string | Record<string, unknown>) => PhaserWorldSceneBase;
@@ -62,6 +67,8 @@ export function createMapInstancePhaserScene(
 
     private readonly worldActors = new PhaserWorldActorsController();
 
+    private readonly remotePlayers = new PhaserRemotePlayersController();
+
     private readonly mapLoader = new MapLoader();
 
     private readonly pet = new PhaserPetController();
@@ -89,7 +96,7 @@ export function createMapInstancePhaserScene(
     }
 
     onMainPreload(): void {
-      // Assets carregados pela MapInstanceLoadingScene antes de scene.start nesta instância.
+      // Sem this.load.* — road2_atlas (PreloaderScene) + demais assets (MapInstanceLoading).
     }
 
     onMainCreate(data?: MapInstanceSceneInitData): void {
@@ -171,7 +178,10 @@ export function createMapInstancePhaserScene(
 
       if (this.entitiesMounted) {
         this.playerSprite.applyFrame(frame);
-        this.worldActors.sync(frame.worldActors);
+        const viewport = buildWorldViewportFromCamera(frame.cameraX, frame.cameraY);
+        const visibleActors = filterWorldActorsForViewport(frame.worldActors, viewport);
+        this.worldActors.sync(visibleActors);
+        this.remotePlayers.sync(frame.mapId, frame.timestampMs);
         this.pet.sync(frame.pet, frame.timestampMs);
         this.worldOverlay.sync(frame, this.lastMinimap ?? getMinimapSnapshot(), {
           drawPlayerPlaceholder: !this.playerSprite.isReady(),
@@ -201,6 +211,11 @@ export function createMapInstancePhaserScene(
         this as unknown as Parameters<PhaserWorldActorsController['mount']>[0],
         this.layoutRoots.ySortContainer,
       );
+      this.remotePlayers.mount(
+        this as unknown as Parameters<PhaserRemotePlayersController['mount']>[0],
+        this.boundMapId,
+        this.layoutRoots.ySortContainer,
+      );
       this.pet.mount(
         this as unknown as Parameters<PhaserPetController['mount']>[0],
         this.layoutRoots.ySortContainer,
@@ -218,6 +233,8 @@ export function createMapInstancePhaserScene(
         .then((ready) => {
           if (!this.sceneActive) return;
           if (ready) {
+            this.playerSprite.enableArcadePhysics(this as never);
+            this.mapLoader.bindPlayerCollider(this.playerSprite.getColliderTarget());
             console.debug('[MapInstanceScene] Sprite do jogador Phaser montado.');
           } else {
             console.warn('[MapInstanceScene] Sprite do jogador indisponível — silhueta/placeholder.');
@@ -251,6 +268,7 @@ export function createMapInstancePhaserScene(
       this.layoutRoots = null;
       this.playerSprite.destroy();
       this.worldActors.destroy();
+      this.remotePlayers.destroy();
       this.mapLoader.destroy();
       this.pet.destroy();
       this.worldOverlay.destroy();
