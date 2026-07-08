@@ -23,8 +23,8 @@ const PHASER_TILED_JSON_FORMAT = 1;
 /**
  * Pré-carrega texturas referenciadas pelo export Tiled (/terrain, /structures, /props).
  *
- * Tilesets de grade: `load.image` na folha bruta OU `load.atlas` quando há manifest
- * processado (PNG alinhado + JSON), exceto Road2 (`road2_atlas`) — exclusivo da PreloaderScene.
+ * Tilesets de grade: `load.image` na folha processada (PNG alinhado) — `load.atlas` quebra
+ * tile layers do Phaser (addTilesetImage). Road2 (`road2_atlas`) vem da PreloaderScene.
  * Frames 0…N para createFromObjects são gerados depois em ensureTiledTilesetTextureFrames.
  *
  * PNGs idênticos carregam uma vez com chave compartilhada por URL.

@@ -13,7 +13,7 @@ import { PhaserPlayerSpriteController } from '../player/phaserPlayerSpriteContro
 import { PhaserWorldActorsController } from '../player/phaserWorldActorsController.js';
 import { PhaserRemotePlayersController } from '../player/phaserRemotePlayersController.js';
 import { MapLoader } from '../tiled/MapLoader.js';
-import type { MapLoaderScene } from '../tiled/phaserTiledMapTypes.js';
+import type { MapLoaderMountResult, MapLoaderScene } from '../tiled/phaserTiledMapTypes.js';
 import { PhaserPetController } from '../pet/phaserPetController.js';
 import { PhaserWorldOverlayController } from '../overlay/phaserWorldOverlayController.js';
 import {
@@ -100,18 +100,25 @@ export function createMapInstancePhaserScene(
     }
 
     onMainCreate(data?: MapInstanceSceneInitData): void {
-      if (this.sceneActive && this.mapLoader.isMountedOnScene(this.boundMapId, this as unknown as MapLoaderScene)) {
+      const scene = this as unknown as MapLoaderScene;
+
+      if (this.mapLoader.isMountedOnScene(this.boundMapId, scene)) {
         console.debug(`[MapInstanceScene] create() repetido ignorado — mapa "${this.boundMapId}" já montado.`);
+        enablePhaserRenderMode();
+        activatePhaserExplorationPipeline();
+        if (!this.entityLayerStarted) {
+          this.mountExplorationEntityLayer();
+        }
         return;
       }
 
       this.sceneActive = true;
-      const scene = this as unknown as MapLoaderScene;
 
       try {
         if (isTiledMapEnabled(this.boundMapId)) {
           const mounted = this.mapLoader.load(scene, this.boundMapId);
           this.applyCameraBounds(mounted.widthPx, mounted.heightPx);
+          this.focusCameraOnSpawn(mounted.playerSpawn, mounted.widthPx, mounted.heightPx);
         } else {
           this.applyCameraBounds(this.resolveFallbackMapWidthPx(), this.resolveFallbackMapHeightPx());
         }
@@ -245,6 +252,22 @@ export function createMapInstancePhaserScene(
     private applyCameraBounds(mapWidthPx: number, mapHeightPx: number): void {
       configureExplorationPhaserCamera(this.cameras.main, mapWidthPx, mapHeightPx);
       this.cameras.main.setBounds(0, 0, mapWidthPx, mapHeightPx);
+    }
+
+    private focusCameraOnSpawn(
+      spawn: MapLoaderMountResult['playerSpawn'],
+      mapWidthPx: number,
+      mapHeightPx: number,
+    ): void {
+      if (!spawn) return;
+
+      const scroll = clampExplorationCameraScroll(
+        spawn.x - GAME_CONFIG.VIEWPORT_WIDTH / 2,
+        spawn.y - GAME_CONFIG.VIEWPORT_HEIGHT / 2,
+        mapWidthPx,
+        mapHeightPx,
+      );
+      this.cameras.main.setScroll(scroll.x, scroll.y);
     }
 
     private resolveFallbackMapWidthPx(): number {

@@ -20,7 +20,10 @@ export const ROAD2_ATLAS_TEXTURE_KEY = 'road2_atlas';
  */
 export function processedTilesetAtlasKeyFromSourceUrl(sourcePublicUrl: string): string {
   const normalized = sourcePublicUrl.replace(/\\/g, '/');
-  if (normalized === ROAD2_SOURCE_PUBLIC_URL) {
+  if (
+    normalized === ROAD2_SOURCE_PUBLIC_URL
+    || normalized.endsWith('/assets/processed/tilesets/Road2.png')
+  ) {
     return ROAD2_ATLAS_TEXTURE_KEY;
   }
   const file = normalized.split('/').pop() ?? 'tileset';
@@ -76,14 +79,8 @@ export function queueProcessedTilesetAtlas(
     return atlasKey;
   }
 
-  const loadAtlas = scene.load.atlas;
-  if (typeof loadAtlas !== 'function') {
-    console.error('[processedTilesetPreload] load.atlas indisponível — fallback image:', atlasKey);
-    scene.load.image(atlasKey, processed.imageUrl);
-    return atlasKey;
-  }
-
-  loadAtlas.call(scene.load, atlasKey, processed.imageUrl, processed.atlasUrl);
+  // Tilemap.addTilesetImage exige folha PNG contínua — load.atlas quebra tile layers (tela preta).
+  scene.load.image(atlasKey, processed.imageUrl);
   return atlasKey;
 }
 

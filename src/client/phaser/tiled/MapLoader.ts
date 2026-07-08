@@ -874,7 +874,9 @@ export class MapLoader {
       const jsonTilecount = Number(layout.cached?.tilecount ?? 1);
       const imageUrl = tileset.image
         ? this.assets.resolvePublicUrl(jsonUrl, tileset.image)
-        : '(sem image)';
+        : (layout.cached?.image
+          ? this.assets.resolvePublicUrl(jsonUrl, String(layout.cached.image))
+          : this.assets.resolveTilesetTextureKey(cacheKey, tileset.name) ?? '(sem url)');
 
       const textureSource = this.readTextureSourceMetrics(resolvedTextureKey);
       const added = map.addTilesetImage(
