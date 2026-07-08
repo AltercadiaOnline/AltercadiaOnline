@@ -9,6 +9,7 @@ type PhaserScaleNamespace = {
 export type PhaserGameConfigDeps = {
   readonly Phaser: {
     AUTO: number;
+    WEBGL: number;
     Scale: PhaserScaleNamespace;
   };
   readonly parent: HTMLElement;
@@ -25,12 +26,14 @@ export function buildPhaserGameConfig(deps: PhaserGameConfigDeps): Record<string
   const { width, height } = PHASER_RUNTIME_CONFIG;
 
   return {
-    type: deps.Phaser.AUTO,
+    // TilemapLayer exige WebGL — AUTO pode cair em Canvas e deixar o mapa invisível (tela preta).
+    type: deps.Phaser.WEBGL,
     parent: deps.parent,
     width,
     height,
     title: 'Altercadia Online',
-    transparent: true,
+    backgroundColor: '#1a2830',
+    transparent: false,
     clearBeforeRender: true,
     canvasStyle: PHASER_CANVAS_STYLE,
     // Equivalente a render: { pixelArt: true, antialias: false, roundPixels: true }

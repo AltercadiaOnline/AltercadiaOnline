@@ -148,8 +148,7 @@ if (warnings.length) {
 
 if (failures.length) {
   console.error(`Falhou com ${failures.length} erro(s).`);
-  process.exit(1);
+  process.exitCode = 1;
+} else {
+  console.log('Login/deploy audit OK.');
 }
-
-console.log('Login/deploy audit OK.');
-process.exit(0);

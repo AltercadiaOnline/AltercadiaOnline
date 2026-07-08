@@ -231,6 +231,8 @@ export class MapLoader {
           'Recarregue com Ctrl+Shift+R (cache de JS antigo). Confira 404 em /assets/terrain e /assets/props no console.',
         );
       }
+    } else {
+      this.logVisualTileLayerDiagnostics();
     }
 
     if (issues.length > 0) {
@@ -387,9 +389,32 @@ export class MapLoader {
       }
 
       tileLayer.setDepth(depth);
+      this.worldRoot?.add(tileLayer);
       depth += 1;
       this.visualTileLayers.push(tileLayer);
     }
+  }
+
+  /** Amostra GIDs na primeira camada — ajuda a distinguir bind OK vs pixels vazios. */
+  private logVisualTileLayerDiagnostics(): void {
+    const firstLayer = this.visualTileLayers[0] as {
+      readonly layer?: { readonly name?: string; readonly data?: readonly number[] };
+      readonly name?: string;
+      getTileAt?: (x: number, y: number) => { readonly index?: number; readonly gid?: number } | null;
+    } | undefined;
+    if (!firstLayer) return;
+
+    const layerName = firstLayer.layer?.name ?? firstLayer.name ?? 'tile-layer';
+    const sampleTile = firstLayer.getTileAt?.(0, 0);
+    const sampleGid = sampleTile?.index ?? sampleTile?.gid ?? 0;
+    const layerData = firstLayer.layer?.data;
+    const nonEmptyEstimate = Array.isArray(layerData)
+      ? layerData.filter((value) => value > 0).length
+      : null;
+
+    console.info(
+      `[MapLoader:layer] "${layerName}" — tile(0,0) gid=${sampleGid}, tiles não-vazios≈${nonEmptyEstimate ?? '?'}`,
+    );
   }
 
   private buildCollisionPhysics(
@@ -894,8 +919,14 @@ export class MapLoader {
         );
       }
 
-      // Atlas processado (load.atlas) ou folha inteira (load.image) + frames 0…N para GIDs de props.
-      if (added && jsonTilecount > 1 && this.scene?.textures.exists(resolvedTextureKey)) {
+      // Só props multi-tile (folhas ≠ 32×32) precisam de frames nomeados para GIDs em object layers.
+      // Em tilesets de grade, frames extras quebram addTilesetImage (tela preta com bind OK).
+      if (
+        added
+        && !isGridTileset
+        && jsonTilecount > 1
+        && this.scene?.textures.exists(resolvedTextureKey)
+      ) {
         const textureManager = this.scene.textures as unknown as {
           get: (key: string) => Parameters<typeof ensureTiledTilesetTextureFrames>[0];
         };

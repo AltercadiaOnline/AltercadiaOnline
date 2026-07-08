@@ -43,6 +43,7 @@ type PhaserGameInstance = {
 type PhaserModule = {
   Game: new (config: Record<string, unknown>) => PhaserGameInstance;
   AUTO: number;
+  WEBGL: number;
   Scale: {
     FIT: number;
     CENTER_BOTH: number;

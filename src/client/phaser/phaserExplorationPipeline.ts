@@ -1,4 +1,6 @@
 import { getRenderLayerBridge } from '../app/bridge/renderLayerBridge.js';
+import { forceHideZoneTransitionOverlay } from '../world/zoneTransitionOverlay.js';
+import { resetBattleSceneTransitionFade } from './battle/battleSceneTransitionFade.js';
 import { GAME_RENDER_HOST_ID, PHASER_MOUNT_ROOT_ID } from './PhaserConfig.js';
 
 /** Superfície de input do mundo (clique / WASD focus) — host Phaser. */
@@ -29,6 +31,8 @@ export function activatePhaserExplorationPipeline(): void {
     renderHost.dataset.renderEngine = 'phaser';
   }
 
+  resetBattleSceneTransitionFade();
+  forceHideZoneTransitionOverlay();
   revealPhaserMountHost();
   getRenderLayerBridge().markPhaserSceneReady(true);
 }
