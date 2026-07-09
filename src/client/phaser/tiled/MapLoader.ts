@@ -124,12 +124,7 @@ export class MapLoader {
   /** tileset Tiled name (lower) → textureKey vinculada em bindTilesets. */
   private tilesetTextureKeyByName = new Map<string, string>();
 
-  /** Agrupa sprites de object layers (props/structures). Tile layers ficam na cena — não em Container. */
-  private propsRoot: {
-    add: (child: unknown) => unknown;
-    setDepth: (depth: number) => unknown;
-    destroy: () => void;
-  } | null = null;
+  /** Sprites de object layers ficam na cena com depth Y — não em Container (tilemap já fora). */
 
   queuePreload(scene: MapLoaderScene, mapId: MapId): boolean {
     const descriptor = resolveTiledMapDescriptor(mapId);
@@ -212,9 +207,6 @@ export class MapLoader {
         `[MapLoader] Nenhum tileset ${map.tileWidth}×${map.tileHeight} vinculado — tile layers podem ficar vazias.`,
       );
     }
-
-    this.propsRoot = scene.add.container(0, 0);
-    this.propsRoot.setDepth(PHASER_GROUND_DEPTH + 1);
 
     this.buildVisualTileLayers(map, tilesets, issues);
     this.buildCollisionPhysics(map, tilesets);
@@ -350,9 +342,6 @@ export class MapLoader {
     this.playerCollider = null;
     this.collidableStaticGroup?.destroy(true);
     this.collidableStaticGroup = null;
-
-    this.propsRoot?.destroy();
-    this.propsRoot = null;
 
     this.map?.destroy();
     this.map = null;
@@ -500,7 +489,7 @@ export class MapLoader {
     issues: string[],
   ): void {
     const scene = this.scene;
-    if (!scene || !this.propsRoot) return;
+    if (!scene) return;
 
     const descriptor = this.mountedMapId ? resolveTiledMapDescriptor(this.mountedMapId) : null;
     const cachedTilesets = this.listCachedTilesets(cacheKey, descriptor);
@@ -736,8 +725,6 @@ export class MapLoader {
     if (isTiledMapObjectCollidable(objectData)) {
       this.applyStaticCollision(scene, sprite, objectData);
     }
-
-    this.propsRoot?.add(sprite);
 
     const record: TiledMapObjectRecord = {
       uid,

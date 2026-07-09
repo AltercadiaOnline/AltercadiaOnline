@@ -27,6 +27,7 @@ import {
   configureExplorationPhaserCamera,
 } from '../layout/explorationPhaserCamera.js';
 import { GAME_MAP_HEIGHT_PX, GAME_MAP_WIDTH_PX } from '../../../game/constants/GameConfig.js';
+import { PHASER_GROUND_DEPTH } from '../layout/phaserWorldDepth.js';
 import { buildTeleportZonesFromPortals } from '../world/buildTeleportZonesFromPortals.js';
 import { TeleportZoneController } from '../world/TeleportZoneController.js';
 import { notifyPortalZonePhaserTrigger } from '../world/portalZonePhaserBridge.js';
@@ -213,6 +214,8 @@ export function createMapInstancePhaserScene(
 
       const layoutScene = this as unknown as PhaserLayoutScene;
       this.layoutRoots = mountPhaserLayoutRoots(layoutScene);
+      const entityDepth = PHASER_GROUND_DEPTH + this.mapLoader.getVisualTileLayerCount() + 1;
+      this.layoutRoots.worldRoot.setDepth(entityDepth);
       this.worldOverlay.mount(this as unknown as Parameters<PhaserWorldOverlayController['mount']>[0]);
       this.worldActors.mount(
         this as unknown as Parameters<PhaserWorldActorsController['mount']>[0],

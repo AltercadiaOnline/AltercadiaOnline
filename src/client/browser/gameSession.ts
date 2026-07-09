@@ -111,6 +111,7 @@ import { registerMapLoadFatalHandler } from '../phaser/tiled/mapLoadFatalError.j
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 import { deactivateGameDomain } from '../domains/executionDomain.js';
 import { resetServiceRegistry } from '../domains/ServiceRegistry.js';
+import { warnIfStaleClientBuild } from './runtimeBuildIntegrity.js';
 
 const DEV_DEBUG_ALLOWED_EMAILS: readonly string[] = ['juninhomc94@gmail.com'];
 
@@ -525,6 +526,15 @@ function connectSocket(): void {
 
 export function enterWorldAfterHudReady(): void {
   if (worldStarted) return;
+
+  void warnIfStaleClientBuild('enter-world').then((integrity) => {
+    if (integrity.stale) {
+      setStatus(
+        `Versão antiga no cache (carregado ${integrity.loaded}, produção ${integrity.expected}). `
+        + 'Recarregue com Ctrl+Shift+R.',
+      );
+    }
+  });
 
   beginWorldLoginHandshake();
   mountWorldMapScene();

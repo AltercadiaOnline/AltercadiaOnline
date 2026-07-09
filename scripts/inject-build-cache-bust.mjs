@@ -22,8 +22,28 @@ function bustModuleSrc(htmlContent, modulePath) {
   return htmlContent.replace(pattern, `$1?v=${version}"`);
 }
 
+function bustStylesheetHref(htmlContent, hrefPath) {
+  const escaped = hrefPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(href="${escaped})(\\?v=[^"]*)?"`, 'g');
+  return htmlContent.replace(pattern, `$1?v=${version}"`);
+}
+
 for (const modulePath of ['/app-ui/ui-runtime.js', '/client/browser/main.js']) {
   html = bustModuleSrc(html, modulePath);
+}
+
+for (const stylesheetPath of ['/app-ui/ui-runtime.css', '/styles.css']) {
+  html = bustStylesheetHref(html, stylesheetPath);
+}
+
+const buildStampTag = `<script>window.__ALTERCADIA_BUILD__="${version}";</script>`;
+if (html.includes('window.__ALTERCADIA_BUILD__')) {
+  html = html.replace(
+    /<script>window\.__ALTERCADIA_BUILD__="[^"]*";<\/script>/,
+    buildStampTag,
+  );
+} else {
+  html = html.replace('</head>', `    ${buildStampTag}\n  </head>`);
 }
 
 function stampJsImports(filePath) {
@@ -63,6 +83,7 @@ const stampRoots = [
   path.join(root, 'public', 'assets'),
   path.join(root, 'public', 'config'),
   path.join(root, 'public', 'game'),
+  path.join(root, 'public', 'app-ui'),
 ];
 
 let stampedCount = 0;

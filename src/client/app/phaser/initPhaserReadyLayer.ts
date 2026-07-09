@@ -38,6 +38,11 @@ export function enablePhaserForOnlineSession(): void {
 
 let onlineExplorationBootPromise: Promise<boolean> | null = null;
 
+/** Evita transitionTo duplicado enquanto bootOnlinePhaserExploration está em andamento. */
+export function isOnlineExplorationBootInFlight(): boolean {
+  return onlineExplorationBootPromise !== null;
+}
+
 /**
  * Boot Phaser ao entrar no mundo — único motor de render do mapa (modo estrito).
  */

@@ -10,6 +10,7 @@ import {
 } from './PhaserConfig.js';
 import { isPhaserRuntimeActive, switchPhaserScene, switchPhaserToActiveMapInstance } from './PhaserRuntime.js';
 import { getMapInstanceSceneManager } from './scenes/MapInstanceSceneManager.js';
+import { isOnlineExplorationBootInFlight } from '../app/phaser/initPhaserReadyLayer.js';
 
 function resolveTargetScene(state: GameState): ActivePhaserScene {
   if (state === GameStateValue.Exploration) return 'exploration';
@@ -37,6 +38,11 @@ export function syncPhaserSceneForGameState(state: GameState): void {
   }
 
   if (target === 'exploration') {
+    if (isOnlineExplorationBootInFlight()) {
+      getRenderLayerBridge().setActivePhaserScene(target);
+      return;
+    }
+
     const manager = getMapInstanceSceneManager();
     if (!manager.isInitialized()) {
       getRenderLayerBridge().setActivePhaserScene(target);
