@@ -52,6 +52,7 @@
     "deploy": "node scripts/deploy.mjs",
     "jpush": "node scripts/deploy.mjs",
     "deploy:vercel": "npm run deploy",
+    "deploy:vercel-hook": "node scripts/trigger-vercel-deploy.mjs",
     "vercel:dashboard": "powershell -NoProfile -Command Start-Process 'https://vercel.com/dashboard'",
     "mvp": "npm run build && npm start",
     "dev:mvp": "npm run build && node scripts/dev.mjs",

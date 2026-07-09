@@ -70,6 +70,12 @@ if (statusPorcelain()) {
 const pushedCommit = headCommit();
 run('git push origin main');
 
+try {
+  run('node scripts/trigger-vercel-deploy.mjs');
+} catch {
+  console.warn('[deploy] Hook Vercel não disparou — confira integração Git ou redeploy manual no painel.');
+}
+
 console.log('');
 console.log('[deploy] Push concluído → GitHub main');
 console.log('[deploy]   • Vercel: deploy automático (se ligado ao repo)');
