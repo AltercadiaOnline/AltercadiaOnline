@@ -124,7 +124,8 @@ export class MapLoader {
   /** tileset Tiled name (lower) → textureKey vinculada em bindTilesets. */
   private tilesetTextureKeyByName = new Map<string, string>();
 
-  private worldRoot: {
+  /** Agrupa sprites de object layers (props/structures). Tile layers ficam na cena — não em Container. */
+  private propsRoot: {
     add: (child: unknown) => unknown;
     setDepth: (depth: number) => unknown;
     destroy: () => void;
@@ -212,8 +213,8 @@ export class MapLoader {
       );
     }
 
-    this.worldRoot = scene.add.container(0, 0);
-    this.worldRoot.setDepth(PHASER_GROUND_DEPTH);
+    this.propsRoot = scene.add.container(0, 0);
+    this.propsRoot.setDepth(PHASER_GROUND_DEPTH + 1);
 
     this.buildVisualTileLayers(map, tilesets, issues);
     this.buildCollisionPhysics(map, tilesets);
@@ -350,8 +351,8 @@ export class MapLoader {
     this.collidableStaticGroup?.destroy(true);
     this.collidableStaticGroup = null;
 
-    this.worldRoot?.destroy();
-    this.worldRoot = null;
+    this.propsRoot?.destroy();
+    this.propsRoot = null;
 
     this.map?.destroy();
     this.map = null;
@@ -389,7 +390,7 @@ export class MapLoader {
       }
 
       tileLayer.setDepth(depth);
-      this.worldRoot?.add(tileLayer);
+      // TilemapLayer não pode ir para Container — WebGL culling/render quebra (tela preta).
       depth += 1;
       this.visualTileLayers.push(tileLayer);
     }
@@ -407,9 +408,18 @@ export class MapLoader {
     const layerName = firstLayer.layer?.name ?? firstLayer.name ?? 'tile-layer';
     const sampleTile = firstLayer.getTileAt?.(0, 0);
     const sampleGid = sampleTile?.index ?? sampleTile?.gid ?? 0;
-    const layerData = firstLayer.layer?.data;
-    const nonEmptyEstimate = Array.isArray(layerData)
-      ? layerData.filter((value) => value > 0).length
+    const descriptor = this.mountedMapId ? resolveTiledMapDescriptor(this.mountedMapId) : null;
+    const mapJson = this.scene && this.mapCacheKey && descriptor
+      ? readTilemapJsonFromMemory(this.scene, this.mapCacheKey, descriptor)
+      : null;
+    const jsonLayers = Array.isArray((mapJson as { layers?: unknown } | null)?.layers)
+      ? (mapJson as { layers: readonly { type?: string; name?: string; data?: readonly number[] }[] }).layers
+      : [];
+    const tiledLayer = jsonLayers.find(
+      (entry) => entry.type === 'tilelayer' && entry.name === layerName,
+    );
+    const nonEmptyEstimate = Array.isArray(tiledLayer?.data)
+      ? tiledLayer.data.filter((value: number) => value > 0).length
       : null;
 
     console.info(
@@ -490,7 +500,7 @@ export class MapLoader {
     issues: string[],
   ): void {
     const scene = this.scene;
-    if (!scene || !this.worldRoot) return;
+    if (!scene || !this.propsRoot) return;
 
     const descriptor = this.mountedMapId ? resolveTiledMapDescriptor(this.mountedMapId) : null;
     const cachedTilesets = this.listCachedTilesets(cacheKey, descriptor);
@@ -727,7 +737,7 @@ export class MapLoader {
       this.applyStaticCollision(scene, sprite, objectData);
     }
 
-    this.worldRoot?.add(sprite);
+    this.propsRoot?.add(sprite);
 
     const record: TiledMapObjectRecord = {
       uid,
