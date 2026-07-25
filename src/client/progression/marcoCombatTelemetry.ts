@@ -1,12 +1,13 @@
-import { CombatEventType, type CombatEvent } from '../../shared/events.js';
-import type { MarcoProgressEvent } from '../../shared/progression/marcoProgressEngine.js';
+import type { CombatEvent } from '../../shared/events.js';
 import { MarcoCombatTelemetryAccumulator } from '../../shared/progression/marcoCombatTelemetryCore.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 import { canApplyLocalGameplayMutations } from '../sync/intentPolicy.js';
 
 /**
  * Acumula telemetria de combate no cliente e envia intenções PROGRESS_MARCO
- * após a batalha — apenas em mock/local. Online: servidor aplica no fim da batalha.
+ * após a batalha — apenas em mock legado sem LocalCombatAuthority.
+ * Online / GAME_MODE=local: autoridade aplica no fim da batalha (CombatSession).
  */
 class MarcoCombatTelemetry {
   private readonly accumulator = new MarcoCombatTelemetryAccumulator();
@@ -20,7 +21,8 @@ class MarcoCombatTelemetry {
   }
 
   flushAfterBattle(victory: boolean): void {
-    if (!canApplyLocalGameplayMutations(getActionDispatcher().getMode())) {
+    // Local L1 e online: deliverEnded / CombatWsHub aplicam marcos.
+    if (isLocalGameMode() || !canApplyLocalGameplayMutations(getActionDispatcher().getMode())) {
       this.reset();
       return;
     }
@@ -48,4 +50,4 @@ export function resetMarcoCombatTelemetry(): void {
   telemetry = null;
 }
 
-export type { MarcoProgressEvent };
+export type { MarcoProgressEvent } from '../../shared/progression/marcoProgressEngine.js';

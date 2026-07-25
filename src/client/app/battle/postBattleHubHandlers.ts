@@ -5,36 +5,47 @@ export type PostBattleHubHandlerBundle = {
   readonly onExit: () => void | Promise<void>;
 };
 
-let handlers: PostBattleHubHandlerBundle | null = null;
+type GlobalWithPostBattleHubHandlers = typeof globalThis & {
+  __ALTERCADIA_POST_BATTLE_HUB_HANDLERS__?: PostBattleHubHandlerBundle | null;
+};
 
+function getHandlers(): PostBattleHubHandlerBundle | null {
+  return (globalThis as GlobalWithPostBattleHubHandlers).__ALTERCADIA_POST_BATTLE_HUB_HANDLERS__ ?? null;
+}
+
+/**
+ * Singleton cross-bundle (main.js + app-ui).
+ * Sem globalThis, o React clica num registry vazio e Estatísticas/Recompensas/Sair
+ * viram no-op (Sair fica preso em "Saindo…").
+ */
 export function registerPostBattleHubHandlers(bundle: PostBattleHubHandlerBundle): void {
-  handlers = bundle;
+  (globalThis as GlobalWithPostBattleHubHandlers).__ALTERCADIA_POST_BATTLE_HUB_HANDLERS__ = bundle;
 }
 
 export function clearPostBattleHubHandlers(): void {
-  handlers = null;
+  (globalThis as GlobalWithPostBattleHubHandlers).__ALTERCADIA_POST_BATTLE_HUB_HANDLERS__ = null;
 }
 
 export function triggerPostBattleStatistics(): void {
-  handlers?.onStatistics();
+  getHandlers()?.onStatistics();
 }
 
-export function triggerPostBattleRewards(): void {
-  const action = handlers?.onRewards;
-  if (!action) return;
-  void Promise.resolve(action());
+export function triggerPostBattleRewards(): Promise<void> {
+  const action = getHandlers()?.onRewards;
+  if (!action) return Promise.resolve();
+  return Promise.resolve(action()).then(() => undefined);
 }
 
 export function triggerPostBattleViewOpponent(): void {
-  handlers?.onViewOpponent?.();
+  getHandlers()?.onViewOpponent?.();
 }
 
-export function triggerPostBattleExit(): void {
-  const action = handlers?.onExit;
-  if (!action) return;
-  void Promise.resolve(action());
+export function triggerPostBattleExit(): Promise<void> {
+  const action = getHandlers()?.onExit;
+  if (!action) return Promise.resolve();
+  return Promise.resolve(action()).then(() => undefined);
 }
 
 export function hasPostBattleHubHandlers(): boolean {
-  return handlers !== null;
+  return getHandlers() !== null;
 }

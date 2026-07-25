@@ -39,7 +39,7 @@ export const CREATURE_PROCEDURAL_HEIGHT_PX = 18;
 
 /**
  * Escala CSS atual (#game-stage-scale) — lê --game-display-scale após updateScale().
- * Contain: min(viewportW/640, viewportH/360) — barras pretas, sem crop.
+ * Cover: max(viewportW/640, viewportH/360) — preenche a coluna sem faixas pretas (crop mínimo).
  */
 export function getRenderScale(root?: ParentNode): number {
   if (typeof document === 'undefined') return 1;

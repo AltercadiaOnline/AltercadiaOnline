@@ -5,9 +5,15 @@ import {
   type CharacterServerKey,
 } from '../../shared/supabase/characterServerScope.js';
 import { exportCharacterEconomyPersistence } from '../../Economy/economyStore.js';
+import { exportPetAffinityPersistence } from '../../Economy/petAffinityStore.js';
+import { exportPetRosterPersistence } from '../../Economy/petRosterStore.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getSupabaseAdminClient } from './supabaseAdmin.js';
-import { upsertPlayerCurrency, upsertPlayerInventory } from './playerGameDataRepository.js';
+import {
+  upsertPlayerCurrency,
+  upsertPlayerInventory,
+  upsertPlayerPets,
+} from './playerGameDataRepository.js';
 
 /**
  * Persiste snapshot autoritativo no Supabase no momento do login,
@@ -25,6 +31,7 @@ export async function persistAuthoritativeLoginSnapshot(
   const currencyResult = await upsertPlayerCurrency(
     client,
     scope.userId,
+    scope.characterId,
     serverId,
     economy.wallet.dollarVolt,
     economy.wallet.alterCoins,
@@ -43,6 +50,18 @@ export async function persistAuthoritativeLoginSnapshot(
   );
   if (!inventoryResult.ok) {
     throw new Error(inventoryResult.message ?? 'Falha ao persistir inventário no login.');
+  }
+
+  const petsResult = await upsertPlayerPets(
+    client,
+    scope.userId,
+    scope.characterId,
+    serverId,
+    exportPetRosterPersistence(scope.userId, scope.characterId),
+    exportPetAffinityPersistence(scope.userId, scope.characterId),
+  );
+  if (!petsResult.ok) {
+    throw new Error(petsResult.message ?? 'Falha ao persistir pets no login.');
   }
 
   const displayName = progression.characterProfile.displayName?.trim();

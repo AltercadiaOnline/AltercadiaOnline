@@ -1,64 +1,54 @@
+import { useRef } from 'react';
+import { useBattleHudStore } from '../../battle/battleHudStore.js';
 import { requestBattleItem, requestBattleMove } from '../../battle/battlePaletteHandlers.js';
-import { useBattleHud } from '../../battle/battleHudStore.js';
-import { usePlayerData } from '../../store/gameStore.js';
+import { useAlignHudFrameToGameStage } from '../../hooks/useAlignHudFrameToGameStage.js';
+import { useGameStore, usePlayerLevel } from '../../store/gameStore.js';
 import { UI_LAYER_Z_INDEX } from '../../shell/uiLayers.js';
-import { BattleChatPanel } from './BattleChatPanel.js';
-import { BattleCommandBarHud } from './BattleCommandBarHud.js';
-import { BattleItemsPalette } from './BattleItemsPalette.js';
-import { BattleLogPanel } from './BattleLogPanel.js';
-import { BattleMovesetPalette } from './BattleMovesetPalette.js';
+import { BattleBottomStrip } from './BattleBottomStrip.js';
 import { BattleVitalsRow } from './BattleVitalsRow.js';
 
 /**
- * HUD de combate — overlay React sobre Phaser (#game-react-hud-root).
- * Estado unificado via `useBattleHud` (Zustand + BattleHudController).
+ * Shell de combate — preenche o playfield (viewport − sidebar).
+ * Arena 640×360 fica no letterbox DOM; chrome (vitals + faixa inferior) usa a coluna útil.
  */
 export function BattleHUD() {
-  const hud = useBattleHud();
-  const playerData = usePlayerData();
+  const viewMode = useGameStore((state) => state.viewMode);
+  const active = useBattleHudStore(
+    (state) => state.controllerReady && state.battleHudActive,
+  );
+  const status = useBattleHudStore((state) => state.status);
+  const playerLevel = usePlayerLevel();
+  const frameRef = useRef<HTMLDivElement>(null);
+  useAlignHudFrameToGameStage(frameRef);
 
-  if (!hud) {
+  if (viewMode !== 'battle' || !active) {
     return null;
   }
 
   return (
     <div
-      className="battle-hud-shell pointer-events-none absolute inset-0 flex flex-col overflow-hidden"
+      className="battle-hud-shell game-playfield-hud pointer-events-none absolute inset-0"
       style={{ zIndex: UI_LAYER_Z_INDEX.battleHud }}
       data-ui-surface="battle-hud"
-      data-battle-status={hud.status}
-      data-player-level={playerData.level}
+      data-battle-status={status}
+      data-player-level={playerLevel}
     >
-      <div className="battle-hud-shell__chrome flex min-h-0 flex-1 flex-col">
-        <BattleVitalsRow hud={hud} />
+      <div
+        ref={frameRef}
+        className="battle-hud-frame pointer-events-none"
+        data-ui-surface="battle-hud-frame"
+      >
+        <div className="battle-hud-shell__chrome flex min-h-0 h-full flex-col">
+          <div className="pointer-events-auto">
+            <BattleVitalsRow />
+          </div>
 
-        <div className="battle-hud-shell__spacer min-h-0 flex-1" aria-hidden="true" />
+          <div className="battle-hud-shell__spacer min-h-0 flex-1" aria-hidden="true" />
 
-        <div className="battle-hud-shell__controls mt-auto flex flex-col justify-end">
-          <section className="battle-command-middle pointer-events-auto" aria-label="Comandos">
-            {hud.movesetDrawerOpen ? (
-              <BattleMovesetPalette
-                moves={hud.movesetMoves}
-                enabled={hud.movesetEnabled}
-                turnBlocked={hud.paletteTurnBlocked}
-                onSelectMove={requestBattleMove}
-              />
-            ) : null}
-            {hud.itemsDrawerOpen ? (
-              <BattleItemsPalette
-                items={hud.itemRows}
-                enabled={hud.itemsEnabled}
-                turnBlocked={hud.paletteTurnBlocked}
-                onUseItem={requestBattleItem}
-              />
-            ) : null}
-            <BattleCommandBarHud locked={hud.commandBarLocked} />
-          </section>
-
-          <footer className="battle-terminal-footer pointer-events-auto">
-            <BattleLogPanel lines={hud.logLines} />
-            <BattleChatPanel lines={hud.chatLines} />
-          </footer>
+          <BattleBottomStrip
+            requestMove={requestBattleMove}
+            requestItem={requestBattleItem}
+          />
         </div>
       </div>
     </div>

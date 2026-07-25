@@ -7,7 +7,6 @@ import {
 import type { IDevMockEconomyService, IEconomyService } from './IEconomyService.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getMutableDataStore, initDataStore, resetDataStore } from '../PlayerDataStore.js';
-import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
 import {
   activateGameStoreAfterAuth,
   initGameStore,
@@ -15,13 +14,14 @@ import {
   resetGameStoreState,
 } from '../state/GameStore.js';
 import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 
 export type EconomyBackend = 'mock' | 'local';
 
 let mockService: IDevMockEconomyService | null = null;
 let mockServicePromise: Promise<IDevMockEconomyService | null> | null = null;
 
-/** Dynamic import — MockEconomyService (e Economy/*) só carrega em localhost. */
+/** Dynamic import — MockEconomyService só se fallback offline for reativado. */
 function loadMockEconomyService(): Promise<IDevMockEconomyService | null> {
   if (!allowsOfflineGameplayFallback()) {
     return Promise.resolve(null);
@@ -49,6 +49,24 @@ function wireMockEconomyService(mock: IDevMockEconomyService): void {
   });
 }
 
+/** GAME_MODE=local — liga slot ao save localStorage (schema CharacterPersistenceRecord). */
+export async function bindLocalGameCharacter(
+  playerId: string,
+  characterId: number,
+  options?: { readonly displayName?: string },
+): Promise<boolean> {
+  if (!isLocalGameMode()) return false;
+  const mock = await loadMockEconomyService();
+  if (!mock) {
+    console.warn('[LocalSave] MockEconomyService indisponível — pets/itens não serão persistidos.');
+    return false;
+  }
+  // Dispatcher inicia em 'online' (fail-closed). Em GAME_MODE=local sempre força mock.
+  wireMockEconomyService(mock);
+  mock.bindLocalCharacter(playerId, characterId, options);
+  return true;
+}
+
 export function initEconomyLayer(mode: EconomyBackend = 'mock'): void {
   initActionDispatcher();
   initGameStore();
@@ -61,6 +79,8 @@ export function initEconomyLayer(mode: EconomyBackend = 'mock'): void {
 
     void loadMockEconomyService().then((mock) => {
       if (!mock) return;
+      // Não sobrescrever se a página já não estiver em GAME_MODE=local.
+      if (!isLocalGameMode()) return;
       wireMockEconomyService(mock);
     });
     return;
@@ -75,7 +95,7 @@ export function initEconomyLayer(mode: EconomyBackend = 'mock'): void {
   getGlobalStateSynchronizer().setRequestTransport(null);
 }
 
-/** WS conectado — mock não intercepta equip; servidor é autoridade. */
+/** WS conectado — servidor (local ou Railway) é autoridade. */
 export function attachOnlineEconomyLayer(): void {
   mockService = null;
   initDataStore();
@@ -85,25 +105,18 @@ export function attachOnlineEconomyLayer(): void {
   dispatcher.setMode('online');
 }
 
-/** WS caiu — mock local apenas em localhost; produção permanece em modo online. */
+/**
+ * WS caiu — permanece online aguardando reconexão.
+ * Não troca para mock: local e produção compartilham o mesmo caminho autoritativo.
+ */
 export function attachOfflineEconomyLayer(): void {
   activateGameStoreAfterAuth();
-
-  if (!allowsOfflineGameplayFallback()) {
-    mockService = null;
-    const dispatcher = getActionDispatcher();
-    dispatcher.setEconomyService(null);
-    dispatcher.setMode('online');
-    getGlobalStateSynchronizer().setRequestTransport(null);
-    console.warn('[Economy] Servidor desconectado — aguardando reconexão (mock desabilitado).');
-    return;
-  }
-
-  void loadMockEconomyService().then((mock) => {
-    if (!mock) return;
-    mock.syncInventoryStacksFromClient(getPlayerItemStore().toInventoryStacks(), false);
-    wireMockEconomyService(mock);
-  });
+  mockService = null;
+  const dispatcher = getActionDispatcher();
+  dispatcher.setEconomyService(null);
+  dispatcher.setMode('online');
+  getGlobalStateSynchronizer().setRequestTransport(null);
+  console.warn('[Economy] Servidor desconectado — aguardando reconexão (mesmo caminho online).');
 }
 
 export function getDataStore(): IDataStore {

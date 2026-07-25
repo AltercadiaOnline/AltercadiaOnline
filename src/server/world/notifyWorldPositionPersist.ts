@@ -1,13 +1,20 @@
 import type { PlayerProfile } from '../models/playerProfile.js';
 import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
+import { touchCharacterPersistenceDirty } from '../persistence/PersistenceGateway.js';
 import { getPersistenceManager } from '../supabase/persistenceManagerRegistry.js';
 
-/** Enfileira posição LOW_PRIORITY após mutação autoritativa do perfil de mundo. */
+/**
+ * Após mutação autoritativa de posição/mapa:
+ * - marca dirty file/postgres (flush no intervalo / logout — não a cada passo)
+ * - enfileira posição LOW_PRIORITY no Supabase (batch 30s)
+ */
 export function notifyWorldPositionPersist(
   playerId: string,
   characterId: number,
   profile: PlayerProfile,
 ): void {
+  touchCharacterPersistenceDirty(playerId, characterId, 'world');
+
   const manager = getPersistenceManager();
   if (!manager?.isEnabled()) return;
 

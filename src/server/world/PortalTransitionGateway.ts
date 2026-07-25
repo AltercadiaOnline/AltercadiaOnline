@@ -7,15 +7,18 @@ import {
   type WorldExplorationSessionSync,
 } from '../../shared/world/zoneTransition.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
+import type { MapId } from '../../shared/world/mapRegistry.js';
 import { saveWorldProfile } from './worldProfileStore.js';
 import { notifyWorldPositionPersist } from './notifyWorldPositionPersist.js';
+import { rejectMapTransitionIfNotAllowed } from '../instance/serverWorldScope.js';
+import { getZoneLoadGateway } from './ZoneLoadGateway.js';
 
 export type PortalTransitionGatewayResult =
   | { readonly ok: true; readonly ready: PortalTransitionReadyPayload; readonly profile: PlayerProfile }
   | { readonly ok: false; readonly failed: PortalTransitionFailedPayload };
 
 /**
- * Etapa A autoritativa — valida portal, persiste posição e snapshot de sessão.
+ * Etapa A autoritativa — valida portal, garante zona destino, persiste posição.
  */
 export class PortalTransitionGateway {
   handleRequest(
@@ -29,6 +32,30 @@ export class PortalTransitionGateway {
         failed: {
           requestId: request.requestId,
           ...resolved.failed,
+        },
+      };
+    }
+
+    const targetMapId = resolved.ready.mapId as MapId;
+    if (rejectMapTransitionIfNotAllowed(targetMapId)) {
+      return {
+        ok: false,
+        failed: {
+          requestId: request.requestId,
+          reason: 'Mapa de destino não está nesta instância.',
+          code: 'MAP_NOT_ON_INSTANCE',
+        },
+      };
+    }
+
+    const zoneEnsure = getZoneLoadGateway().ensure(targetMapId);
+    if (!zoneEnsure.ok) {
+      return {
+        ok: false,
+        failed: {
+          requestId: request.requestId,
+          reason: 'Zona de destino ainda não está pronta — tente novamente.',
+          code: 'ZONE_NOT_READY',
         },
       };
     }

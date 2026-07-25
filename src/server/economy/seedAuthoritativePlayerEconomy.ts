@@ -1,24 +1,19 @@
 import {
-  seedDemoProfileIfEmpty,
-  seedPlayerWalletIfEmpty,
-  syncDemoProfileInventoryIfIncomplete,
+  ensureAuthoritativePlayerEconomyEmpty,
 } from '../../Economy/economyStore.js';
 
-export type AuthoritativeEconomySeed = {
-  readonly dollarVolt?: number;
-  readonly alterCoins?: number;
-};
-
 /**
- * Zero Trust — único ponto no servidor autorizado a popular moedas/inventário
- * no runtime (`economyStore`). Nunca importar no cliente.
+ * Personagem limpo — garante carteira/inventário em memória sem itens nem moedas.
+ * Não injeta DEMO_STARTER nem VOLTS de teste.
+ * Nunca importar no cliente.
  */
 export function seedAuthoritativePlayerEconomyIfEmpty(
   playerId: string,
   characterId: number,
-  seed: AuthoritativeEconomySeed = { dollarVolt: 1200, alterCoins: 50 },
+  _seed?: { readonly dollarVolt?: number; readonly alterCoins?: number },
 ): void {
-  seedPlayerWalletIfEmpty(playerId, seed);
-  seedDemoProfileIfEmpty(playerId, characterId);
-  syncDemoProfileInventoryIfIncomplete(playerId, characterId);
+  ensureAuthoritativePlayerEconomyEmpty(playerId, characterId);
 }
+
+/** Alias explícito — preferir este nome em código novo. */
+export const ensureAuthoritativePlayerEconomyIfEmpty = seedAuthoritativePlayerEconomyIfEmpty;

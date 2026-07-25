@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "0481f4c7-b5a7-46cb-adff-19a1b965ba25",
+      "name": null,
+      "prompt": "Cyberpunk tactical combat manual book with metallic corners and glowing red data strap item sprite, 90s anime style, pixel art, high quality, bold outlines, flat color blocks, cell-shaded illustrations, inspired by Eastward game aesthetic, techwear design, clean dark shading, icons set style, game asset, isolated on solid black background",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-20T02:52:58.803157"
+}

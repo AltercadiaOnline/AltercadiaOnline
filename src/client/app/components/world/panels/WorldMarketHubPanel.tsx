@@ -2,6 +2,7 @@ import { formatVolts } from '../../../../../shared/economy/premiumCurrency.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
 import { renderItemIconHtml } from '../../../../ui/items/itemIconDisplay.js';
+import { bindItemHoverHandlers } from '../../../../ui/tooltip/itemHoverTooltip.js';
 import { useMarketHubPanelState } from '../../../panels/useMarketHubPanelState.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
@@ -49,7 +50,10 @@ export function WorldMarketHubPanel({ zIndex, focused }: WorldMarketHubPanelProp
               const statusClass = entry.status === 'LISTED' ? 'is-listed' : 'is-sold';
               return (
                 <li key={entry.id} className="market-hub__row grid grid-cols-[1fr_auto_auto] gap-2 rounded border border-white/10 p-2 text-[11px]">
-                  <div className="market-hub__col market-hub__col--item">
+                  <div
+                    className="market-hub__col market-hub__col--item"
+                    {...bindItemHoverHandlers(entry.itemId)}
+                  >
                     <div
                       className="market-hub__item-name flex items-center gap-2"
                       dangerouslySetInnerHTML={{

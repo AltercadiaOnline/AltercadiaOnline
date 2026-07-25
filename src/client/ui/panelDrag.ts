@@ -12,13 +12,21 @@ export type DraggablePanelController = {
   dispose(): void;
 };
 
+/**
+ * Posiciona via camada GPU (`translate3d`) — evita reflow de `left`/`top` a cada frame.
+ * Âncora em (0,0) da camada; o deslocamento fica só no transform.
+ */
 function applyPanelPoint(panel: HTMLElement, point: { left: number; top: number }): void {
+  const x = Math.round(point.left);
+  const y = Math.round(point.top);
   panel.style.position = 'absolute';
-  panel.style.left = `${point.left}px`;
-  panel.style.top = `${point.top}px`;
+  panel.style.left = '0';
+  panel.style.top = '0';
   panel.style.right = 'auto';
   panel.style.bottom = 'auto';
-  panel.style.transform = 'none';
+  panel.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  panel.dataset.panelX = String(x);
+  panel.dataset.panelY = String(y);
 }
 
 function measurePanel(panel: HTMLElement): { width: number; height: number } {
@@ -28,7 +36,10 @@ function measurePanel(panel: HTMLElement): { width: number; height: number } {
 }
 
 /**
- * Arraste pelo header da janela HUD, com posição inicial e clamp na camada pai.
+ * Arraste pelo header da janela HUD.
+ * - pointermove → só agenda rAF (1 apply/frame)
+ * - posição = translate3d (compositor), não left/top
+ * - medidas da camada/painel cacheadas no pointerdown
  */
 export function attachDraggablePanel(
   panel: HTMLElement,
@@ -38,31 +49,73 @@ export function attachDraggablePanel(
   const handleSelector = options.handleSelector ?? '.ui-panel__header';
   panel.classList.add('ui-panel--movable');
   panel.style.position = 'absolute';
+  panel.style.left = '0';
+  panel.style.top = '0';
 
   let dragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
   let activePointerId: number | null = null;
 
-  const onPointerMove = (event: PointerEvent): void => {
-    if (!dragging || activePointerId !== event.pointerId) return;
-    const layerRect = layer.getBoundingClientRect();
-    const { width, height } = measurePanel(panel);
+  let layerLeft = 0;
+  let layerTop = 0;
+  let layerWidth = 0;
+  let layerHeight = 0;
+  let panelWidth = 0;
+  let panelHeight = 0;
+
+  let pendingClientX = 0;
+  let pendingClientY = 0;
+  let hasPendingMove = false;
+  let rafId = 0;
+
+  const cancelPendingFrame = (): void => {
+    if (rafId !== 0) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+    hasPendingMove = false;
+  };
+
+  const flushPendingMove = (): void => {
+    rafId = 0;
+    if (!dragging || !hasPendingMove) return;
+    hasPendingMove = false;
+
     const next = clampPanelPosition(
-      event.clientX - dragOffsetX - layerRect.left,
-      event.clientY - dragOffsetY - layerRect.top,
-      width,
-      height,
-      layer.clientWidth,
-      layer.clientHeight,
+      pendingClientX - dragOffsetX - layerLeft,
+      pendingClientY - dragOffsetY - layerTop,
+      panelWidth,
+      panelHeight,
+      layerWidth,
+      layerHeight,
     );
     applyPanelPoint(panel, next);
     panel.dataset.positioned = 'true';
   };
 
+  const onPointerMove = (event: PointerEvent): void => {
+    if (!dragging || activePointerId !== event.pointerId) return;
+    pendingClientX = event.clientX;
+    pendingClientY = event.clientY;
+    hasPendingMove = true;
+    if (rafId === 0) {
+      rafId = requestAnimationFrame(flushPendingMove);
+    }
+  };
+
   const stopDragging = (event?: PointerEvent): void => {
     if (!dragging) return;
     if (event && activePointerId !== null && event.pointerId !== activePointerId) return;
+
+    // Flush do último ponteiro sem esperar o próximo frame.
+    if (rafId !== 0) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+    if (hasPendingMove) {
+      flushPendingMove();
+    }
 
     dragging = false;
     panel.classList.remove('ui-panel--dragging');
@@ -94,7 +147,17 @@ export function attachDraggablePanel(
 
     bringToFront();
 
+    const layerRect = layer.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
+    const size = measurePanel(panel);
+
+    layerLeft = layerRect.left;
+    layerTop = layerRect.top;
+    layerWidth = layer.clientWidth;
+    layerHeight = layer.clientHeight;
+    panelWidth = size.width;
+    panelHeight = size.height;
+
     dragging = true;
     activePointerId = event.pointerId;
     dragOffsetX = event.clientX - panelRect.left;
@@ -102,7 +165,7 @@ export function attachDraggablePanel(
     panel.classList.add('ui-panel--dragging');
     panel.setPointerCapture(event.pointerId);
 
-    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerup', stopDragging);
     window.addEventListener('pointercancel', stopDragging);
     event.preventDefault();
@@ -112,9 +175,9 @@ export function attachDraggablePanel(
   const ensureDefaultPosition = (): void => {
     if (panel.dataset.positioned === 'true') return;
 
-    const layerWidth = layer.clientWidth;
-    const layerHeight = layer.clientHeight;
-    if (layerWidth <= 0 || layerHeight <= 0) {
+    const nextLayerWidth = layer.clientWidth;
+    const nextLayerHeight = layer.clientHeight;
+    if (nextLayerWidth <= 0 || nextLayerHeight <= 0) {
       requestAnimationFrame(ensureDefaultPosition);
       return;
     }
@@ -124,8 +187,8 @@ export function attachDraggablePanel(
       options.panelId,
       width,
       height,
-      layerWidth,
-      layerHeight,
+      nextLayerWidth,
+      nextLayerHeight,
     );
     applyPanelPoint(panel, point);
     panel.dataset.positioned = 'true';
@@ -148,6 +211,7 @@ export function attachDraggablePanel(
     bringToFront,
     dispose(): void {
       stopDragging();
+      cancelPendingFrame();
       panel.removeEventListener('pointerdown', onPointerDown);
       panel.removeEventListener('pointerdown', onPanelPointerDown);
     },

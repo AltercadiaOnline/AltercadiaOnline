@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "36a8d0ae-b89c-4c04-b2a2-c3e1833f7fcc",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, an intense sharp-looking falcon eye, orange iris, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:24:11.231687"
+}

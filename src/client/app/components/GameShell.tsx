@@ -6,7 +6,7 @@ type GameShellProps = {
 
 /**
  * Envelope da HUD in-game — agrupa battle/world sob a mesma superfície React.
- * Render (canvas/Phaser) permanece em #game-render-host fora desta árvore.
+ * Render (Construct) permanece em #game-render-host fora desta árvore.
  */
 export function GameShell({ children }: GameShellProps) {
   return (

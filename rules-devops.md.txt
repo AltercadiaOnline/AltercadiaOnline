@@ -1,0 +1,21 @@
+# Guia de DevOps e Deploy - Altercadia V2
+
+## Fluxo de Deploy (Automático)
+1. `npm run deploy:check` (valida build/typecheck).
+2. `npm run deploy` (commit + push + sync).
+3. Nunca commitar: `node_modules/`, `dist/`, `data/`, `.env`.
+
+## Checklist de Alterações no Servidor (src/server/**)
+- Validar no Dockerfile: entrada deve ser `dist/server/index.js`.
+- JSON do motor deve existir em `dist/server/engine/`.
+- `GET /health` deve responder `{ ok: true }`.
+- Porta: nunca porta fixa, usar `process.env.PORT`.
+
+## Gateway Online (Protocolo)
+- Toda Intent deve ter `intentId` e handler em `src/server/handlers/` herdando `BaseIntentHandler`.
+- UI: Botões devem usar `ActionGatewayButton` com `PendingIntentRegistry`.
+- Proibido: lógica inline, mensagens ad-hoc, mutação de estado fora de transação atômica.
+
+## Variáveis de Ambiente
+- .env: Fonte local única (template: .env.example).
+- Vercel/Railway: Chaves devem ser injetadas via painel, nunca versionadas no Git.

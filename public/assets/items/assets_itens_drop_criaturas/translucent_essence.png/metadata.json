@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "a0e8938e-751b-4a19-ae83-39e9670564dd",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, large decorative glass bottle with glowing light blue liquid, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:30:06.508242"
+}

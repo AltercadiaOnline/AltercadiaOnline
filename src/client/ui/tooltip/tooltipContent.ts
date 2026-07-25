@@ -42,6 +42,7 @@ export const ITEM_TOOLTIP_BORDER_COLORS: Record<ItemCategory, string> = {
 
 export const MOVE_TOOLTIP_BORDER_COLOR = '#5e4a30';
 export const MARCO_TOOLTIP_BORDER_COLOR = '#00ffcc';
+export const HINT_TOOLTIP_BORDER_COLOR = '#a89b88';
 
 const PROGRESSION_TOOLTIP_BORDER: Record<ProgressionTooltipKind, string> = {
   'player-level': '#c5a059',
@@ -140,6 +141,14 @@ function buildProgressionModel(data: TooltipData & { kind: 'progression' }): Too
   };
 }
 
+function buildHintModel(data: TooltipData & { kind: 'hint' }): TooltipRenderModel {
+  return {
+    borderColor: HINT_TOOLTIP_BORDER_COLOR,
+    title: data.title,
+    lines: data.lines ? [...data.lines] : [],
+  };
+}
+
 export function buildTooltipRenderModel(data: TooltipData): TooltipRenderModel | null {
   if (data.kind === 'item') {
     return buildItemModel(data.data, data.heldAmountLabel);
@@ -152,6 +161,9 @@ export function buildTooltipRenderModel(data: TooltipData): TooltipRenderModel |
   }
   if (data.kind === 'progression') {
     return buildProgressionModel(data);
+  }
+  if (data.kind === 'hint') {
+    return buildHintModel(data);
   }
   return buildMoveModel(data.data);
 }

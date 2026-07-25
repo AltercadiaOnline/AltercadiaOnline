@@ -5,7 +5,6 @@ import {
 } from '../shared/bank/bankService.js';
 import { validateBankItemTransfer } from '../shared/bank/bankItemRules.js';
 import {
-  consumeInventoryQuantity,
   unlockInventoryQuantity,
   lockInventoryQuantity,
 } from '../shared/bank/inventoryLockOps.js';
@@ -108,11 +107,8 @@ export class BankTransactionManager {
         request.playerId,
         request.characterId,
         (store) => {
-          const consumed = consumeInventoryQuantity(store.getInventory(), request.itemId, quantity);
-          if (!consumed.ok) {
-            throw new Error(consumed.reason);
-          }
-          store.setInventory(consumed.stacks);
+          // Inventário já veio do swap atômico (consume + add) — não re-consumir.
+          store.setInventory(preview.value.inventoryStacks);
           store.setBank(preview.value.bankStacks, bank.currencies);
         },
       );
@@ -161,7 +157,9 @@ export class BankTransactionManager {
         request.playerId,
         request.characterId,
         (store) => {
-          store.setInventory(preview.value.inventoryStacks);
+          // skipEquipmentDedupe: cópia sacada do cofre deve permanecer na bag
+          // mesmo se o mesmo itemId já estiver equipado no SET.
+          store.setInventory(preview.value.inventoryStacks, { skipEquipmentDedupe: true });
           store.setBank(preview.value.bankStacks, bank.currencies);
         },
       );
@@ -190,13 +188,13 @@ export class BankTransactionManager {
 
     let lockedAmount = 0;
     try {
-      const lock = lockWalletCurrency(request.playerId, kind, amount);
+      const lock = lockWalletCurrency(request.playerId, request.characterId, kind, amount);
       if (!lock.ok) {
         return { ok: false, message: lock.message };
       }
       lockedAmount = amount;
 
-      const fullWallet = getPlayerWallet(request.playerId);
+      const fullWallet = getPlayerWallet(request.playerId, request.characterId);
       const walletView: BankWalletSnapshot = {
         dollarVolt: fullWallet.dollarVolt,
         alterCoins: fullWallet.alterCoins,
@@ -223,7 +221,7 @@ export class BankTransactionManager {
       return { ok: true, tx };
     } finally {
       if (lockedAmount > 0) {
-        unlockWalletCurrency(request.playerId, kind, lockedAmount);
+        unlockWalletCurrency(request.playerId, request.characterId, kind, lockedAmount);
       }
       this.release(request.playerId, request.characterId);
     }
@@ -242,7 +240,7 @@ export class BankTransactionManager {
     }
 
     try {
-      const fullWallet = getPlayerWallet(request.playerId);
+      const fullWallet = getPlayerWallet(request.playerId, request.characterId);
       const wallet: BankWalletSnapshot = {
         dollarVolt: fullWallet.dollarVolt,
         alterCoins: fullWallet.alterCoins,

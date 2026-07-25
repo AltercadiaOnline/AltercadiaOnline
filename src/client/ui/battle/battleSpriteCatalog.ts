@@ -2,7 +2,6 @@ import {
   getCreatureAssets,
   getCreatureBattleSpriteCandidates,
 } from '../../loaders/CreatureAssetLoader.js';
-import { isPhaserRuntimeActive } from '../../phaser/phaserRuntimeState.js';
 import { getMonsterByCreatureId } from '../../../shared/combat/MonsterCatalog.js';
 import { getMonsterRegistryEntry } from '../../../shared/world/monsterRegistry.js';
 
@@ -15,40 +14,33 @@ export type BattleSpriteCatalogEntry = {
   readonly classId: string | null;
 };
 
-function canResolveCreatureBattleAssets(): boolean {
-  return isPhaserRuntimeActive();
-}
-
-/** URL idle side-view resolvida via manifesto da zona. */
+/** URL de batalha (side-view Zona 1) com fallback do manifesto. */
 export function buildCreatureBattleSpriteSrc(creatureId: string): string {
-  if (!canResolveCreatureBattleAssets()) return '';
-  return getCreatureAssets(creatureId).sprites.idle;
+  return getCreatureBattleSpriteCandidates(creatureId)[0]!;
 }
 
 export function buildCreatureAttackSpriteSrc(creatureId: string): string {
-  if (!canResolveCreatureBattleAssets()) return '';
   return getCreatureAssets(creatureId).sprites.attack;
 }
 
 export function battleSpriteSrcCandidates(creatureId: string): readonly string[] {
-  if (!canResolveCreatureBattleAssets()) return [];
   return getCreatureBattleSpriteCandidates(creatureId);
 }
 
 /** Resolve sprite do oponente a partir do monsterId do world registry. */
 export function resolveBattleSpriteFromMonsterId(monsterId: string): BattleSpriteCatalogEntry | null {
-  if (!canResolveCreatureBattleAssets()) return null;
 
   const entry = getMonsterRegistryEntry(monsterId);
   if (!entry) return null;
 
   const creature = getMonsterByCreatureId(entry.creatureId);
   const assets = getCreatureAssets(entry.creatureId);
+  const battleSrc = buildCreatureBattleSpriteSrc(entry.creatureId);
   return {
     monsterId: entry.id,
     creatureId: entry.creatureId,
     name: entry.name,
-    spriteSrc: assets.sprites.idle,
+    spriteSrc: battleSrc,
     attackSpriteSrc: assets.sprites.attack,
     classId: creature?.classId ?? null,
   };

@@ -112,6 +112,7 @@ function collectMissingRequirements(
   ctx: MarcoTreePlayerContext,
 ): string[] {
   const missing: string[] = [];
+  const isStarter = isMarcoBranchStarter(node.id);
 
   for (const reqId of node.requires) {
     if (!isMarcoActive(ctx.activeMarcos, reqId)) {
@@ -127,15 +128,19 @@ function collectMissingRequirements(
     }
   }
 
-  if (node.unlockAtFlowSpeed !== undefined && ctx.flowSpeedBase < node.unlockAtFlowSpeed) {
-    missing.push(`flow:${node.unlockAtFlowSpeed}`);
-  }
+  // Primeira instância da trilha: só nível do personagem (Nv. 10).
+  // Fluxo / progresso de marco valem a partir do 2º nó.
+  if (!isStarter) {
+    if (node.unlockAtFlowSpeed !== undefined && ctx.flowSpeedBase < node.unlockAtFlowSpeed) {
+      missing.push(`flow:${node.unlockAtFlowSpeed}`);
+    }
 
-  if (
-    node.unlockAtMilestoneProgress !== undefined &&
-    ctx.milestoneTotalProgress < node.unlockAtMilestoneProgress
-  ) {
-    missing.push(`milestone:${node.unlockAtMilestoneProgress}`);
+    if (
+      node.unlockAtMilestoneProgress !== undefined
+      && ctx.milestoneTotalProgress < node.unlockAtMilestoneProgress
+    ) {
+      missing.push(`milestone:${node.unlockAtMilestoneProgress}`);
+    }
   }
 
   const treeTierLevel = node.layout.row + 1;

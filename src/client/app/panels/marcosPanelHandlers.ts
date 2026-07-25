@@ -32,11 +32,12 @@ export function buildMarcosPlayerContext(): MarcoTreePlayerContext {
 
 export function buildMarcosRenderModel(
   hoverNodeId: string | null,
+  selectedNodeId: string | null = null,
 ): MarcoTreeRenderModel {
   const marcosState = getDataStore().getMarcosState();
   return {
     nodes: buildMarcoTreeView(buildMarcosPlayerContext()),
-    selectedNodeId: null,
+    selectedNodeId,
     hoverNodeId,
     ramificacaoSelecionada: resolveRamificacaoFromContext(marcosState.ramificacaoSelecionada),
     trilhaTravada: marcosState.trilhaTravada,
@@ -56,20 +57,44 @@ export function handleMarcosPanelClick(
     return { pendingBranchNodeId: null, refreshFull: true };
   }
 
-  const confirmBtn = target.closest<HTMLElement>('[data-action="confirm-branch"]');
-  if (confirmBtn?.dataset.marcoId) {
-    const dispatcher = getActionDispatcher();
-    const result = dispatcher.dispatch({
-      type: 'SELECT_MARCO_BRANCH',
-      payload: { starterNodeId: confirmBtn.dataset.marcoId },
-    });
-    if (result.ok && (result.status === 'applied' || result.status === 'pending')) {
-      return { pendingBranchNodeId: null, refreshFull: true };
-    }
+  const nodeBtn = target.closest<HTMLElement>('[data-marco-node]');
+  if (nodeBtn?.dataset.marcoNode) {
+    const nodeId = nodeBtn.dataset.marcoNode;
     const ctx = buildMarcosPlayerContext();
-    const blocked = resolveMarcoChooseBlockedMessage(confirmBtn.dataset.marcoId, ctx);
+
+    if (canSelectBranchStarter(nodeId, ctx)) {
+      return { pendingBranchNodeId: nodeId, refreshFull: true };
+    }
+
+    if (pendingBranchNodeId) {
+      return { pendingBranchNodeId, refreshFull: false };
+    }
+
+    if (isMarcoBranchStarter(nodeId) && !ctx.ramificacaoSelecionada) {
+      const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
+      if (blocked) {
+        alertSystem(blocked);
+        return { pendingBranchNodeId, refreshFull: false };
+      }
+    }
+
+    if (canChooseMarco(nodeId, ctx)) {
+      const result = getActionDispatcher().dispatch({
+        type: 'CHOOSE_MARCO',
+        payload: { nodeId },
+      });
+      if (result.ok && result.status === 'applied') {
+        alertSystem('Habilidade Marcos ativada.');
+        return { pendingBranchNodeId, refreshFull: true };
+      }
+      const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
+      if (blocked) alertSystem(blocked);
+      else if (!result.ok) alertSystem(result.reason);
+      return { pendingBranchNodeId, refreshFull: false };
+    }
+
+    const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
     if (blocked) alertSystem(blocked);
-    else if (!result.ok) alertSystem(result.reason);
     return { pendingBranchNodeId, refreshFull: false };
   }
 
@@ -77,42 +102,6 @@ export function handleMarcosPanelClick(
     return { pendingBranchNodeId, refreshFull: false };
   }
 
-  const nodeBtn = target.closest<HTMLElement>('[data-marco-node]');
-  if (!nodeBtn?.dataset.marcoNode) {
-    return { pendingBranchNodeId, refreshFull: false };
-  }
-
-  const nodeId = nodeBtn.dataset.marcoNode;
-  const ctx = buildMarcosPlayerContext();
-
-  if (canSelectBranchStarter(nodeId, ctx)) {
-    return { pendingBranchNodeId: nodeId, refreshFull: true };
-  }
-
-  if (isMarcoBranchStarter(nodeId) && !ctx.ramificacaoSelecionada) {
-    const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
-    if (blocked) {
-      alertSystem(blocked);
-      return { pendingBranchNodeId, refreshFull: false };
-    }
-  }
-
-  if (canChooseMarco(nodeId, ctx)) {
-    const result = getActionDispatcher().dispatch({
-      type: 'CHOOSE_MARCO',
-      payload: { nodeId },
-    });
-    if (result.ok && result.status === 'applied') {
-      return { pendingBranchNodeId, refreshFull: true };
-    }
-    const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
-    if (blocked) alertSystem(blocked);
-    else if (!result.ok) alertSystem(result.reason);
-    return { pendingBranchNodeId, refreshFull: false };
-  }
-
-  const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
-  if (blocked) alertSystem(blocked);
   return { pendingBranchNodeId, refreshFull: false };
 }
 

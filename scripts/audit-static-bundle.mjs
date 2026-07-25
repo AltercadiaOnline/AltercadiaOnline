@@ -14,12 +14,7 @@ const REQUIRED_STATIC_MODULES = [
   'client/browser/main.js',
   'client/ui/ambient/AmbientOverlay.js',
   'client/services/loginScreen.js',
-  'client/app/runtime/mountHudRuntime.js',
   'config/designConstants.js',
-  'config/maps/city01TiledMap.json',
-  'config/maps/city01PhaserMap.json',
-  'config/maps/farmZone01TiledMap.json',
-  'config/maps/farmZone01PhaserMap.json',
   'config/sceneConfig.js',
   'game/constants/GameConfig.js',
   'game/assets/assetNormalizer.js',
@@ -39,7 +34,6 @@ const REQUIRED_STATIC_MODULES = [
   'assets/terrain/groundTileManifest.js',
   'assets/npcs/npcDefinition.js',
   'vendor/gsap/index.js',
-  'vendor/phaser/phaser.esm.js',
   'app-ui/ui-runtime.js',
 ];
 

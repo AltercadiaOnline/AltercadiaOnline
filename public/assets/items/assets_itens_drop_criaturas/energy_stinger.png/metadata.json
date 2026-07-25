@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "ee69e7b6-75d7-434f-bf7c-cca6b3708f06",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a clear floating drop, light blue, slightly glowing, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:43:08.326873"
+}

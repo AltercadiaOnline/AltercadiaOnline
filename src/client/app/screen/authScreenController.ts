@@ -44,8 +44,9 @@ import { updateUserProfileMetadata } from '../../auth/profileMetadata.js';
 import { getUser } from '../../auth/supabaseAuth.js';
 import { getAuthBridge } from '../bridge/authBridge.js';
 import {
-  getAuthBootstrapPhase,
   getAuthBootstrapFailureMessage,
+  getAuthBootstrapPhase,
+  markAuthBootstrapPending,
   subscribeAuthBootstrap,
   waitForAuthBootstrapReady,
 } from '../../auth/authBootstrapState.js';
@@ -191,9 +192,22 @@ class AuthScreenController {
   }
 
   patchAuthBootstrapPending(pending: boolean): void {
+    const ready = isSupabaseReady();
+    const clearPreparing =
+      !pending
+      && ready
+      && this.state.statusMessage === 'Preparando autenticação…';
+    if (
+      this.state.authBootstrapPending === pending
+      && this.state.loginActionsReady === ready
+      && !clearPreparing
+    ) {
+      return;
+    }
     this.patch({
       authBootstrapPending: pending,
-      loginActionsReady: isSupabaseReady(),
+      loginActionsReady: ready,
+      ...(clearPreparing ? { statusMessage: '', statusIsError: false } : {}),
     });
   }
 
@@ -350,11 +364,33 @@ class AuthScreenController {
     return false;
   }
 
+  private async runAuthBootstrapRetry(forceReset = false): Promise<void> {
+    const { prepareClientAuthBootstrap, resetClientAuthBootstrapCache } = await import('../../browser/appScreens.js');
+    if (forceReset) {
+      resetClientAuthBootstrapCache();
+    }
+    markAuthBootstrapPending();
+    await prepareClientAuthBootstrap();
+  }
+
   private async ensureAuthReady(): Promise<boolean> {
     if (isSupabaseReady()) return true;
 
     const bootstrapPhase = getAuthBootstrapPhase();
     if (bootstrapPhase === 'failed') {
+      this.setStatus('Reconectando autenticação…', false);
+      try {
+        await this.runAuthBootstrapRetry(true);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Falha ao preparar autenticação.';
+        this.setStatus(message, true);
+        return false;
+      }
+      if (isSupabaseReady()) {
+        this.syncLoginActionsReady();
+        this.setStatus('', false);
+        return true;
+      }
       this.setStatus(
         getAuthBootstrapFailureMessage() ?? 'Falha ao preparar autenticação.',
         true,
@@ -365,11 +401,13 @@ class AuthScreenController {
     this.setStatus('Preparando autenticação…', false);
 
     try {
-      const ready = await waitForAuthBootstrapReady();
-      if (!ready && !isSupabaseReady()) {
-        const { prepareClientAuthBootstrap, resetClientAuthBootstrapCache } = await import('../../browser/appScreens.js');
-        resetClientAuthBootstrapCache();
-        await prepareClientAuthBootstrap();
+      if (bootstrapPhase === 'idle') {
+        await this.runAuthBootstrapRetry(false);
+      } else {
+        const ready = await waitForAuthBootstrapReady();
+        if (!ready && !isSupabaseReady()) {
+          await this.runAuthBootstrapRetry(true);
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao preparar autenticação.';
@@ -781,6 +819,7 @@ export function initAuthScreenController(options: AuthScreenBootstrapOptions): b
 
   const syncBootstrapPhase = (): void => {
     const phase = getAuthBootstrapPhase();
+    // ready/failed/idle → libera botões; só 'pending' bloqueia a UI
     controller.patchAuthBootstrapPending(phase === 'pending');
     controller.syncLoginActionsReady();
     if (phase === 'failed') {
@@ -789,8 +828,11 @@ export function initAuthScreenController(options: AuthScreenBootstrapOptions): b
         controller.setStatus(failure, true);
       }
     }
-    if (phase === 'ready') {
+    if (phase === 'ready' && isSupabaseReady()) {
       controller.syncLoginActionsReady();
+      if (controller.snapshot().statusMessage === 'Preparando autenticação…') {
+        controller.setStatus('', false);
+      }
     }
   };
   syncBootstrapPhase();

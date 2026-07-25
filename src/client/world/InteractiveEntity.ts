@@ -5,6 +5,7 @@
 import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { isAdjacentTile } from '../../shared/world/tileAdjacency.js';
 import { tileFootprintDepthY, type WorldDepthDrawable } from '../../shared/world/worldDepthSort.js';
+import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import { renderCreatureOnWorldMap } from './creatureWorldRenderer.js';
 
 export type InteractiveEntityProps = {
@@ -13,6 +14,10 @@ export type InteractiveEntityProps = {
   readonly name: string;
   readonly tileX: number;
   readonly tileY: number;
+  /** Pés em px (Construct) — se ausente, usa centro do tile. */
+  readonly worldX?: number;
+  readonly worldY?: number;
+  readonly facing?: PlayerFacing;
 };
 
 export class InteractiveEntity {
@@ -21,6 +26,9 @@ export class InteractiveEntity {
   readonly name: string;
   readonly tileX: number;
   readonly tileY: number;
+  readonly worldX: number | undefined;
+  readonly worldY: number | undefined;
+  readonly facing: PlayerFacing;
 
   private adjacent = false;
   private alertPulse = 0;
@@ -31,6 +39,9 @@ export class InteractiveEntity {
     this.name = props.name;
     this.tileX = props.tileX;
     this.tileY = props.tileY;
+    this.worldX = props.worldX;
+    this.worldY = props.worldY;
+    this.facing = props.facing ?? 'south';
   }
 
   isAdjacentToPlayer(playerTileX: number, playerTileY: number): boolean {
@@ -76,6 +87,9 @@ export class InteractiveEntity {
       tileY: this.tileY,
       adjacent: this.adjacent,
       alertPulse: this.alertPulse,
+      facing: this.facing,
+      ...(this.worldX !== undefined ? { worldX: this.worldX } : {}),
+      ...(this.worldY !== undefined ? { worldY: this.worldY } : {}),
     });
   }
 }

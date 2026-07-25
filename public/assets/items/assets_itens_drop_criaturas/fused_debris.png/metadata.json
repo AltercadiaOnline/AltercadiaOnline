@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "47f0fe73-0f2a-4ab1-8da9-3b5a12651187",
+      "name": null,
+      "prompt": "\"Pixel art icon, 32x32px, 90s retro anime aesthetic, bold dark outlines, flat color blocks, high contrast, cel-shaded illustration style, minimal dithering, vibrant but balanced palette, isolated on white background, clean and readable silhouette.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:45:12.632849"
+}

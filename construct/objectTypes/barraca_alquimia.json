@@ -1,0 +1,64 @@
+{
+	"name": "barraca_alquimia",
+	"plugin-id": "Sprite",
+	"sid": 769675001484611,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 779473840346269
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 64,
+						"height": 64,
+						"originX": 0.5,
+						"originY": 0.5,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 7481976,
+						"collisionPoly": {
+							"points": [
+								0.150390625,
+								0.267578125,
+								0.89453125,
+								0.255859375,
+								0.90234375,
+								0.29296875,
+								0.921875,
+								0.703125,
+								0.890625,
+								0.921875,
+								0.09375,
+								0.921875,
+								0.125,
+								0.27734375
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 261570196731758,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
 import { resolveInventoryItemLabel } from '../../../../ui/inventory/inventoryItemDisplay.js';
+import { bindItemHoverHandlers } from '../../../../ui/tooltip/itemHoverTooltip.js';
 import { resolveMaxCraftBatches } from '../../../../../shared/crafting/craftValidation.js';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
@@ -120,6 +121,7 @@ export function WorldCraftPanel({ context, zIndex, focused }: WorldCraftPanelPro
                             'craft-panel__material',
                             ok ? '' : 'craft-panel__material--missing',
                           ].filter(Boolean).join(' ')}
+                          {...bindItemHoverHandlers(input.itemId)}
                         >
                           {resolveInventoryItemLabel(input.itemId)} ×{need}
                           <span className="craft-panel__owned"> (possui ×{owned})</span>
@@ -129,7 +131,10 @@ export function WorldCraftPanel({ context, zIndex, focused }: WorldCraftPanelPro
                   </ul>
                 </div>
 
-                <p className="craft-panel__output">
+                <p
+                  className="craft-panel__output"
+                  {...bindItemHoverHandlers(selectedRecipe.output.itemId)}
+                >
                   Produz:{' '}
                   <strong>
                     {resolveInventoryItemLabel(selectedRecipe.output.itemId)}

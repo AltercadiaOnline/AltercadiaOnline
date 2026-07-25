@@ -59,13 +59,33 @@ export async function fetchExpectedDeployCommit(): Promise<string | null> {
   }
 }
 
+function isLocalMonolithHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1';
+}
+
+/** Em npm run dev o HTML pode ser `dev` enquanto o manifest tem o commit Git — não é cache stale. */
+function isLocalDevStampMismatch(expected: string | null, loaded: string | null): boolean {
+  if (!isLocalMonolithHost()) return false;
+  if (!expected || !loaded) return false;
+  const loadedDev = loaded === 'dev' || loaded.startsWith('dev-') || loaded === 'local-dev';
+  const expectedDev = expected === 'dev' || expected.startsWith('dev-') || expected === 'local-dev';
+  return loadedDev || expectedDev;
+}
+
 export async function checkClientBuildIntegrity(): Promise<ClientBuildIntegrity> {
   const [expected, loaded] = await Promise.all([
     fetchExpectedDeployCommit(),
     Promise.resolve(resolveLoadedClientBuildStamp()),
   ]);
 
-  const stale = Boolean(expected && loaded && expected !== loaded);
+  const stale = Boolean(
+    expected
+    && loaded
+    && expected !== loaded
+    && !isLocalDevStampMismatch(expected, loaded),
+  );
 
   return { expected, loaded, stale };
 }
@@ -87,7 +107,7 @@ export async function warnIfStaleClientBuild(context: string): Promise<ClientBui
 
   console.error(
     `[Altercadia] Build desatualizado no navegador (${context}) — esperado ${integrity.expected}, carregado ${integrity.loaded}. `
-    + 'Use Ctrl+Shift+R ou abra em aba anônima. O mapa Phaser pode ficar preto com JS antigo.',
+    + 'Use Ctrl+Shift+R ou abra em aba anônima. O mundo Construct pode falhar com JS antigo.',
   );
 
   return integrity;

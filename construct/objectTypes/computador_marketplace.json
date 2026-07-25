@@ -1,0 +1,66 @@
+{
+	"name": "computador_marketplace",
+	"plugin-id": "Sprite",
+	"sid": 151503903117288,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 322250052836308
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 48,
+						"height": 48,
+						"originX": 0.5,
+						"originY": 0.5,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 310845,
+						"collisionPoly": {
+							"points": [
+								0.20833333333333334,
+								0.08333333333333333,
+								0.8125,
+								0.10416666666666667,
+								0.8541666666666666,
+								0.1875,
+								0.8333333333333334,
+								0.7291666666666666,
+								0.75,
+								0.9166666666666666,
+								0.22916666666666666,
+								0.8958333333333334,
+								0.16666666666666666,
+								0.7291666666666666,
+								0.14583333333333334,
+								0.1875
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 709876573455593,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

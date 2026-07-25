@@ -12,7 +12,10 @@ import {
   setupPauseMenu,
 } from '../components/pauseMenu.js';
 import { AppScreens, prepareClientAuthBootstrap } from './appScreens.js';
-import { registerAuthBootstrapPromise } from '../auth/authBootstrapState.js';
+import {
+  markAuthBootstrapPending,
+  registerAuthBootstrapPromise,
+} from '../auth/authBootstrapState.js';
 import { showScreen } from '../navigation.js';
 import type { AuthUser } from '../../shared/authService.js';
 import type { AuthPostLoginOptions } from '../auth/authSessionBridge.js';
@@ -111,7 +114,8 @@ function enterWorld(): void {
 
   activateGameDomain();
 
-  showScreen('game-container');
+  // Continua na tela de personagem + loading até o mundo estar 100% pronto.
+  showScreen('char-select-screen');
 
   let hudResolved = false;
 
@@ -147,6 +151,8 @@ function enterWorld(): void {
       ensurePauseControlsBound();
     } catch (error) {
       console.error('[Altercadia] Falha ao carregar domínio de jogo:', error);
+      hidePlayerInitLoading();
+      AppScreens.abortGameWorldBootShell();
       const { deactivateGameDomain } = await import('../domains/executionDomain.js');
       const { resetServiceRegistry } = await import('../domains/ServiceRegistry.js');
       deactivateGameDomain();
@@ -237,6 +243,7 @@ function ensureLoginHudBound(): boolean {
 async function bootstrap(): Promise<void> {
   if (bootstrapInFlight) return;
   bootstrapInFlight = true;
+  markAuthBootstrapPending();
 
   hideBootstrapFatalError();
 

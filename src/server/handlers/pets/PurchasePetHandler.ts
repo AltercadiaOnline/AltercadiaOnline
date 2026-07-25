@@ -35,6 +35,7 @@ export class PurchasePetHandler extends BaseIntentHandler<PurchasePetPayload> {
     this.sendResponse(playerId, intentId, true, {
       petName: result.petName,
       priceVolts: result.priceVolts,
+      roster: result.roster,
     });
   }
 }

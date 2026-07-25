@@ -1,7 +1,7 @@
 import type { CombatClassId } from '../../shared/types.js';
 import type { WorldExplorationSessionSync } from '../../shared/world/zoneTransition.js';
 import { getDefaultClassActiveLoadout, normalizeClassActiveLoadout } from '../../shared/combat/movesetLoadout.js';
-import { inferClassIdFromMovesetMastery } from '../../shared/progression/movesetMasterySeed.js';
+import { resolveAuthoritativeClassId } from '../../shared/progression/movesetMasterySeed.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getWorldProfile, saveWorldProfile } from '../world/worldProfileStore.js';
 
@@ -23,9 +23,11 @@ export function applyCombatJoinSessionSync(
 
   if (join.activeMovesets?.length) {
     const progression = getAuthoritativeProgression(playerId, characterId);
-    const inferredClass =
-      inferClassIdFromMovesetMastery(progression.progression.movesetMastery) ?? 'IMPETUS';
-    const classId = join.classId ?? inferredClass;
+    // Classe vem do perfil persistido — cliente só sugere moves, não redefine a classe.
+    const classId = resolveAuthoritativeClassId(
+      progression.characterProfile.classId,
+      progression.progression.movesetMastery,
+    );
     const normalized =
       normalizeClassActiveLoadout(classId, join.activeMovesets)
       ?? getDefaultClassActiveLoadout(classId);
@@ -34,6 +36,7 @@ export function applyCombatJoinSessionSync(
         playerId,
         characterId,
         classId,
+        clientClassHint: join.classId ?? null,
         received: join.activeMovesets,
         applied: normalized,
       });

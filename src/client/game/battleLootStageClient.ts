@@ -7,9 +7,11 @@ import { resolveBattleCreatureId } from '../../shared/items/combatCreatureRegist
 import { resolveCreatureIdFromActorId } from '../../shared/combat/MonsterCatalog.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getMockEconomyService } from '../economy/economyLayer.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 import { peekBattleLootPackage } from '../combat/client/battleLootPackageBuffer.js';
 
-const stagedBattleIds = new Set<string>();
+/** Já staged / coletado / descartado nesta batalha — impede re-roll. */
+const resolvedBattleIds = new Set<string>();
 
 export type BattleLootStageStatus = 'READY' | 'WAITING_FOR_SERVER' | 'UNAVAILABLE';
 
@@ -26,10 +28,28 @@ export function hasValidPendingBattleLoot(battleId: string): boolean {
   return peekBattleLootPackage(battleId) !== null;
 }
 
-export function resolveBattleLootStageStatus(battleId: string): BattleLootStageStatus {
+export function isBattleLootResolved(battleId: string): boolean {
+  return resolvedBattleIds.has(battleId);
+}
+
+/** Marca batalha como já staged/coletada/descartada — sem segundo roll. */
+export function markBattleLootResolved(battleId: string): void {
+  if (battleId) resolvedBattleIds.add(battleId);
+}
+
+export function resolveBattleLootStageStatus(
+  battleId: string,
+  options?: { readonly expectServerPackage?: boolean },
+): BattleLootStageStatus {
   if (hasValidPendingBattleLoot(battleId)) return 'READY';
-  if (isOnlineCombatClient()) return 'WAITING_FOR_SERVER';
-  return 'UNAVAILABLE';
+  // Já coletou/descartou nesta batalha — não reabre waiting.
+  if (resolvedBattleIds.has(battleId) && !hasValidPendingBattleLoot(battleId)) {
+    return 'UNAVAILABLE';
+  }
+  // Sem pacote esperado (ex.: sem creatureId) — não deixa o hub em waiting eterno.
+  if (options?.expectServerPackage === false) return 'UNAVAILABLE';
+  // Vitória PVE: pacote chega após BATTLE_ENDED.
+  return 'WAITING_FOR_SERVER';
 }
 
 export function isBattleLootWaitingForServer(
@@ -79,10 +99,10 @@ export function resolveLootSourceForBattle(
 
   if (context.monsterInstanceId) {
     const entry = getMonsterRegistryEntry(context.monsterInstanceId);
-    const sourceId = entry?.creatureId ?? 'rat';
+    if (!entry?.creatureId) return null;
     return {
-      sourceId,
-      defeatedLevel: resolveDefeatedCreatureLevel(sourceId),
+      sourceId: entry.creatureId,
+      defeatedLevel: resolveDefeatedCreatureLevel(entry.creatureId),
     };
   }
 
@@ -101,21 +121,30 @@ export function resolveLootSourceForBattle(
     }
   }
 
-  return { sourceId: 'rat', defeatedLevel: resolveDefeatedCreatureLevel('rat') };
+  // Sem inventar criatura — caller trata null.
+  return null;
 }
 
 /**
  * Solicita staging via mock economy (gateway autoritativo).
- * Online: nunca gera no cliente — aguarda BATTLE_LOOT_PACKAGE.
+ * Online / local-authority: nunca gera no cliente — aguarda BATTLE_LOOT_PACKAGE.
  */
 function requestBattleLootStagingViaMock(
   battleId: string,
   context: BattleLootSourceContext,
 ): BattleLootPackagePayload | null {
   const cached = peekBattleLootPackage(battleId);
-  if (cached) return cached;
+  if (cached) {
+    markBattleLootResolved(battleId);
+    return cached;
+  }
+
+  // Já resolveu esta batalha (coletou/descartou) — não re-rola.
+  if (resolvedBattleIds.has(battleId)) return null;
 
   if (isOnlineCombatClient()) return null;
+  // Local: LocalCombatAuthority emite BATTLE_LOOT_PACKAGE — evita double-stage.
+  if (isLocalGameMode()) return null;
   if (getActionDispatcher().getMode() !== 'mock' || !getMockEconomyService()) return null;
 
   const source = resolveLootSourceForBattle(context);
@@ -131,26 +160,30 @@ function requestBattleLootStagingViaMock(
   });
   if (!result.ok) return null;
 
-  stagedBattleIds.add(battleId);
+  markBattleLootResolved(battleId);
   return peekBattleLootPackage(battleId);
 }
 
 /**
- * Pré-solicita loot após vitória PVE (mock).
- * Online: só retorna pacote já recebido via BATTLE_LOOT_PACKAGE.
+ * Pré-solicita loot após vitória PVE (mock puro).
+ * Online/local: só retorna pacote já recebido via BATTLE_LOOT_PACKAGE.
  */
 export function ensureBattleLootPackageStaged(
   battleId: string,
   context: BattleLootSourceContext,
 ): BattleLootPackagePayload | null {
   const cached = peekBattleLootPackage(battleId);
-  if (cached) return cached;
+  if (cached) {
+    markBattleLootResolved(battleId);
+    return cached;
+  }
 
   if (isOnlineCombatClient()) return null;
+  if (isLocalGameMode()) return null;
 
   return requestBattleLootStagingViaMock(battleId, context);
 }
 
 export function clearBattleLootStageSession(): void {
-  stagedBattleIds.clear();
+  resolvedBattleIds.clear();
 }

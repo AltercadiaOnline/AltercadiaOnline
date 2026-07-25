@@ -5,7 +5,17 @@ import type { AnimationState } from '../../entities/player/types.js';
 import type { WorldActorRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
 import type { PetRenderSnapshot } from '../../entities/pet/PetFollowEntity.js';
 import type { NavigationDestination } from '../../managers/PointClickController.js';
-import type { ExplorationDebugOverlaySnapshot } from '../../phaser/overlay/explorationDebugOverlay.js';
+
+/** Snapshot opcional de debug (Construct / ferramentas). */
+export type ExplorationDebugOverlaySnapshot = {
+  readonly mapId: MapId;
+  readonly playerX: number;
+  readonly playerY: number;
+  readonly cameraX: number;
+  readonly cameraY: number;
+  readonly viewWidth: number;
+  readonly viewHeight: number;
+};
 
 export type ExplorationPlayerSpriteFrame = {
   readonly frameIndex: number;
@@ -13,7 +23,7 @@ export type ExplorationPlayerSpriteFrame = {
   readonly direction: SpriteDirectionKey;
 };
 
-/** Frame de exploração publicado pelo loop — espelhado pela camada Phaser. */
+/** Frame de exploração publicado pelo loop — espelhado pela camada Construct. */
 export type ExplorationRenderFrame = {
   readonly mapId: MapId;
   readonly playerX: number;

@@ -34,6 +34,9 @@ export type ResolvedCreatureLootConfig = {
   readonly dropChances: DropChancesConfig;
   readonly equipDropChance: number;
   readonly genericItems: readonly CreatureGenericDropCandidate[];
+  /** Pool de equipáveis exclusivos (principal + extras). */
+  readonly equipableItemIds: readonly string[];
+  /** @deprecated Prefer `equipableItemIds[0]` — mantido para leituras legadas. */
   readonly equipableItemId: string | null;
   readonly voltRange: { readonly min: number; readonly max: number };
 };
@@ -125,13 +128,19 @@ export function resolveCreatureLootConfig(
     baseEquipChance * Math.max(1, lootBonusMultiplier),
   );
 
+  const equipableItemIds = [
+    ...(entry.equipableItemId ? [entry.equipableItemId] : []),
+    ...(entry.alternateEquipableItemIds ?? []),
+  ];
+
   return {
     creatureId,
     zoneId: entry.zoneId,
     dropChances,
     equipDropChance,
     genericItems: buildGenericCandidates(creatureId, entry.genericDropIds, profile),
-    equipableItemId: entry.equipableItemId,
+    equipableItemIds,
+    equipableItemId: equipableItemIds[0] ?? null,
     voltRange: resolveScaledVoltRange(table, defeatedLevel),
   };
 }

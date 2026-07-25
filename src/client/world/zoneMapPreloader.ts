@@ -22,7 +22,7 @@ let activePreloader: ZoneMapPreloader | null = null;
 export class ZoneMapPreloader {
   private readonly cache = new Map<MapId, PreloadedZoneAssets>();
 
-  /** Aquece city + farm no boot da exploração (sync, mapas pequenos). */
+  /** Aquece mapas indicados (default = todos — preferir só city no boot). */
   warmSessionMaps(mapIds: readonly MapId[] = LINKED_EXPLORATION_MAP_IDS): void {
     for (const mapId of mapIds) {
       this.ensureReady(mapId);

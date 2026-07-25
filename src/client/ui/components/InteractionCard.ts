@@ -20,6 +20,7 @@ export type InteractionCardOptions = {
   ) => void;
   readonly onDismiss: () => void;
   readonly npcSupportsShop?: (targetId: string) => boolean;
+  readonly npcShopActionLabel?: (targetId: string) => string;
 };
 
 type InteractionCardButton = {
@@ -156,9 +157,10 @@ export class InteractionCard {
 
   private buildNpcButtons(targetId: string): InteractionCardButton[] {
     const canBuy = this.options.npcSupportsShop?.(targetId) ?? false;
+    const buyLabel = this.options.npcShopActionLabel?.(targetId) ?? 'Comprar';
     return [
       { action: 'talk', label: 'Conversar' },
-      { action: 'buy', label: 'Comprar', disabled: !canBuy },
+      { action: 'buy', label: buyLabel, disabled: !canBuy },
     ];
   }
 

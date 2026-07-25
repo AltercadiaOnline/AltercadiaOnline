@@ -22,18 +22,19 @@ export type NpcLoreProfile = {
   readonly rumor?: string;
 };
 
-const ARENA_PULPIT_LORE_BASE: Omit<NpcLoreProfile, 'npcId' | 'greeting'> = {
-  displayName: 'Registrador de Apostas',
-  epithet: 'voz do palco',
-  role: 'Recebe apostas nos torneios da arena e valida registros de duelo.',
-  district: 'Arena Central — Púlpitos frontais',
+const ARENA_COMPUTER_LORE: NpcLoreProfile = {
+  npcId: 'computador_arena',
+  displayName: 'Computador da Arena',
+  epithet: 'hub PvP NexGrid',
+  role: 'Central de combate PvP e ranking PvP da cidade — mesma lógica, um único terminal.',
+  district: 'Arena Central',
+  greeting: 'Hub PvP online — ranking e fila de arena. O duelo autoritativo vem a seguir.',
   biography: [
-    'Funcionários da NexGrid operam os púlpitos como terminais vivos: cada aposta gera um hash de intenção enviado ao servidor da arena antes do combate começar.',
-    'Dizem que quem aposta no púlpito central enxerga o futuro do duelo por uma fração de segundo — efeito colateral das lentes de refração instaladas no telhado.',
-    'Ninguém sabe o nome deles. Só importa o lado do palco em que você está.',
+    'Um console único concentra o que antes era espalhado em púlpitos e monitores: intenção de PvP, placar e memória de vitórias.',
+    'O servidor valida cada registro. O Construct só posiciona o terminal; a mecânica vive neste repositório.',
   ],
-  motivation: 'Manter o fluxo de VOLTS circulando e a arena sempre cheia de espectadores.',
-  rumor: 'Apostas feitas no púlpito oeste pagam melhor quando chove — ninguém explica por quê.',
+  motivation: 'Ser o ponto único de entrada para PvP urbano e seu ranking.',
+  rumor: 'Quem abre o ranking três vezes seguidas jura ver o próximo duelo piscando no canto da tela.',
 };
 
 const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
@@ -120,19 +121,19 @@ const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
   },
   {
     npcId: 'treinador_zeno',
-    displayName: 'Treinador Zeno',
-    epithet: 'o Domador de Fendas',
+    displayName: 'Treinadora Zena',
+    epithet: 'a Domadora de Fendas',
     role: 'Adota e registra companheiros dimensionais (gato ou cachorro tático).',
     district: 'Praça residencial — próximo ao laboratório',
     greeting:
       'Gato ou Cachorro Dimensional — escolhe o parceiro, assina o vínculo. Eu cuido do registro; o servidor cuida da verdade.',
     biography: [
-      'Zeno não domestica animais — estabiliza entidades que escaparam de mapas colapsados. Cada pet é um contrato de convivência: nome, cor, gênero, slot no roster.',
+      'Zena não domestica animais — estabiliza entidades que escaparam de mapas colapsados. Cada pet é um contrato de convivência: nome, cor, gênero, slot no roster.',
       'Acredita que afinidade se constrói em combate e cuidado, não em comandos. Por isso insiste em ração especial do Ancião Cael para quem leva o vínculo a sério.',
       'Marcou presença na cidade após o primeiro torneio aberto. Desde então, ninguém entra na arena sem perguntar se o companheiro pode seguir.',
     ],
     motivation: 'Garantir que nenhum dimensional órfão seja vendido à NexGrid como matéria-prima.',
-    rumor: 'Dizem que o gato dele pisca em sincronia com o cooldown de alimentação — coincidência ou telemetria emocional?',
+    rumor: 'Dizem que o gato dela pisca em sincronia com o cooldown de alimentação — coincidência ou telemetria emocional?',
   },
   {
     npcId: 'banqueiro',
@@ -151,17 +152,17 @@ const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
     rumor: 'Conta-se que há um cofre fantasma só para quem nunca perdeu uma aposta na arena — ninguém provou que existe.',
   },
   {
-    npcId: 'terminal_mercado',
-    displayName: 'Terminal de Trocas',
+    npcId: 'computador_marketplace',
+    displayName: 'Computador Marketplace',
     epithet: 'o Livro Aberto',
-    role: 'Interface do mercado global — listagens, ordens e coleta de VOLTS.',
+    role: 'Hub P2P — listagens, ordens e coleta de VOLTS entre jogadores.',
     district: 'Bloco do Mercado — distrito comercial leste',
     greeting:
-      'Mercado global online. Listagens anônimas, ordens de compra, VOLTS em escrow — escolhe o teu risco.',
+      'Marketplace P2P online. Listagens, ordens de compra, VOLTS em escrow — escolhe o teu risco.',
     biography: [
-      'Não é uma pessoa: é um terminal fixo ligado ao gateway econômico da cidade. A voz sintética foi substituída por uma interface minimalista porque jogadores confiavam mais em texto do que em avatar.',
-      'Cada listagem é um intent público; cada coleta de VOLTS espera confirmação antes de celebrar. O terminal nunca mente sobre taxas — o servidor é a única fonte de preço justo.',
-      'Operadores da NexGrid tentaram comprar o bloco inteiro. A cidade recusou. O mercado é infraestrutura, não propriedade corporativa.',
+      'Não é uma pessoa: é o computador de marketplace ligado ao gateway econômico da cidade.',
+      'Cada listagem é um intent público; cada coleta de VOLTS espera confirmação do servidor.',
+      'Toda a lógica que antes vivia no “terminal de trocas” / mercado P2P converge neste ponto.',
     ],
     motivation: 'Manter liquidez entre jogadores sem intermediários que calculem loot no cliente.',
     rumor: 'À meia-noite, uma listagem fantasma aparece por três segundos — item raro, preço absurdo, dono desconhecido.',
@@ -182,39 +183,7 @@ const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
     motivation: 'Filtrar operadores impulsivos antes que entrem em zonas 15×15 sem noção de foco.',
     rumor: 'Quem bate recorde no estande ganha um frame de mira fantasma na arena — efeito puramente cosmético, dizem.',
   },
-  {
-    npcId: 'arena_pulpit_west',
-    displayName: 'Registrador Oeste',
-    epithet: ARENA_PULPIT_LORE_BASE.epithet,
-    role: ARENA_PULPIT_LORE_BASE.role,
-    district: 'Arena Central — Púlpito Oeste',
-    greeting: 'Apostas do lado oeste — visão lateral do palco. Registra a tua intenção.',
-    biography: ARENA_PULPIT_LORE_BASE.biography,
-    motivation: ARENA_PULPIT_LORE_BASE.motivation,
-    rumor: 'Apostadores do oeste juram que enxergam debuffs antes do combate começar.',
-  },
-  {
-    npcId: 'arena_pulpit_center',
-    displayName: 'Registrador Central',
-    epithet: ARENA_PULPIT_LORE_BASE.epithet,
-    role: ARENA_PULPIT_LORE_BASE.role,
-    district: 'Arena Central — Púlpito Central',
-    greeting: 'Púlpito central — linha de fogo do duelo. A aposta aqui pesa no rumor da cidade.',
-    biography: ARENA_PULPIT_LORE_BASE.biography,
-    motivation: ARENA_PULPIT_LORE_BASE.motivation,
-    rumor: 'Apostas feitas no púlpito oeste pagam melhor quando chove — ninguém explica por quê.',
-  },
-  {
-    npcId: 'arena_pulpit_east',
-    displayName: 'Registrador Leste',
-    epithet: ARENA_PULPIT_LORE_BASE.epithet,
-    role: ARENA_PULPIT_LORE_BASE.role,
-    district: 'Arena Central — Púlpito Leste',
-    greeting: 'Lado leste do palco — aposta rápida, fila curta. O servidor não espera indecisos.',
-    biography: ARENA_PULPIT_LORE_BASE.biography,
-    motivation: ARENA_PULPIT_LORE_BASE.motivation,
-    rumor: 'Dizem que o púlpito leste fecha dez segundos antes dos outros — superstição de torneio.',
-  },
+  ARENA_COMPUTER_LORE,
 ] as const;
 
 const loreById = new Map<string, NpcLoreProfile>(

@@ -3,6 +3,8 @@ import {
   applyAuthoritativeWalletBalances,
   setCharacterInventoryStacks,
 } from '../../Economy/economyStore.js';
+import { hydratePetAffinityPersistence } from '../../Economy/petAffinityStore.js';
+import { hydratePetRosterPersistence } from '../../Economy/petRosterStore.js';
 import { seedAuthoritativePlayerEconomyIfEmpty } from '../economy/seedAuthoritativePlayerEconomy.js';
 import { loadServerEnv } from '../config/env.js';
 import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
@@ -15,7 +17,7 @@ export type ServerPlayerBootstrapResult = {
   readonly created?: boolean;
 };
 
-/** Espelha Supabase → economyStore; seed só via seedAuthoritativePlayerEconomyIfEmpty. */
+/** Espelha Supabase → economyStore/pet stores; seed só via seedAuthoritativePlayerEconomyIfEmpty. */
 export async function ensureServerPlayerBootstrap(
   userId: string,
   characterId: number,
@@ -43,6 +45,7 @@ export async function ensureServerPlayerBootstrap(
   if (hasCurrency) {
     applyAuthoritativeWalletBalances(
       userId,
+      characterId,
       Number(result.currency!.dollar_volt),
       Number(result.currency!.alter_coins),
     );
@@ -53,6 +56,12 @@ export async function ensureServerPlayerBootstrap(
     applyAuthoritativeEquippedSlots(userId, characterId, result.inventory!.equipped ?? {});
   }
 
+  if (result.pets) {
+    hydratePetRosterPersistence(userId, characterId, result.pets.roster);
+    hydratePetAffinityPersistence(userId, characterId, result.pets.affinity);
+  }
+
+  // Sem dados no Supabase: inicializa vazio (não injeta demo/VOLTS).
   if (!hasCurrency || !hasInventory) {
     seedAuthoritativePlayerEconomyIfEmpty(userId, characterId);
   }

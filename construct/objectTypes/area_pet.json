@@ -1,0 +1,64 @@
+{
+	"name": "area_pet",
+	"plugin-id": "Sprite",
+	"sid": 373698488676269,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 326980956871551
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 64,
+						"height": 64,
+						"originX": 0.5,
+						"originY": 0.5,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 367298,
+						"collisionPoly": {
+							"points": [
+								0.43359375,
+								0.330078125,
+								0.96484375,
+								0.197265625,
+								0.9375,
+								0.40625,
+								0.96484375,
+								0.65234375,
+								0.95703125,
+								0.958984375,
+								0.060546875,
+								0.93359375,
+								0.048828125,
+								0.33203125
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 376200672627510,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

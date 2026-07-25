@@ -19,6 +19,10 @@ export type CreateCharacterRequest = {
   readonly skinBundleId?: PlayerSkinBundleId;
 };
 
+export type DeleteCharacterRequest = {
+  readonly characterId: number;
+};
+
 export function isCharacterHubResponse(value: unknown): value is CharacterHubResponse {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
@@ -29,6 +33,14 @@ export function isCharacterHubErrorResponse(value: unknown): value is CharacterH
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   return record.ok === false && typeof record.message === 'string';
+}
+
+export function isDeleteCharacterRequest(value: unknown): value is DeleteCharacterRequest {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.characterId === 'number'
+    && Number.isInteger(record.characterId)
+    && record.characterId >= 1;
 }
 
 /** Extrai mensagem legível de erros HTTP do character hub (SecurityGuard ou API). */

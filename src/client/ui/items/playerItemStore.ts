@@ -593,43 +593,37 @@ class PlayerItemStore {
 
 
 
-let store: PlayerItemStore | null = null;
-
-
-
 function isEquipmentUiSlotId(value: string): value is EquipmentUiSlotId {
   return (Object.values(UiSlot) as string[]).includes(value);
 }
 
 function resolveUiSlotAlias(targetSlot: string): EquipmentUiSlotId | null {
-
   if (targetSlot === 'head') {
-
     return UiSlot.Helmet;
-
   }
-
   return isEquipmentUiSlotId(targetSlot) ? targetSlot : null;
-
 }
 
+type GlobalWithPlayerItemStore = typeof globalThis & {
+  __ALTERCADIA_PLAYER_ITEM_STORE__?: PlayerItemStore | null;
+};
 
+function getPlayerItemStoreGlobal(): GlobalWithPlayerItemStore {
+  return globalThis as GlobalWithPlayerItemStore;
+}
 
+/** Singleton cross-bundle (main.js + ui-runtime.js) — inventário único após compra/loot. */
 export function getPlayerItemStore(): PlayerItemStore {
-
-  if (!store) store = new PlayerItemStore();
-
-  return store;
-
+  const g = getPlayerItemStoreGlobal();
+  if (!g.__ALTERCADIA_PLAYER_ITEM_STORE__) {
+    g.__ALTERCADIA_PLAYER_ITEM_STORE__ = new PlayerItemStore();
+  }
+  return g.__ALTERCADIA_PLAYER_ITEM_STORE__;
 }
-
-
 
 export function resetPlayerItemStore(): void {
-
-  store?.reset();
-
-  store = null;
-
+  const g = getPlayerItemStoreGlobal();
+  g.__ALTERCADIA_PLAYER_ITEM_STORE__?.reset();
+  g.__ALTERCADIA_PLAYER_ITEM_STORE__ = null;
 }
 

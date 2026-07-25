@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "47be5b01-4a70-40bb-8161-5a75b2ef3eda",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a glowing crystal core inside a small sphere, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:39:16.760990"
+}

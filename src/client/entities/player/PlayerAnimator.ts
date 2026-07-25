@@ -8,11 +8,21 @@ import {
 } from './playerConfig.js';
 import type { AnimationState, AnimatorSnapshot, PlayerSpriteCatalog, SpriteFrame } from './types.js';
 
+function toCardinalDirection(direction: SpriteDirectionKey): SpriteDirectionKey {
+  if (direction === 'north' || direction === 'south' || direction === 'east' || direction === 'west') {
+    return direction;
+  }
+  if (direction.startsWith('north')) return 'north';
+  if (direction.startsWith('south')) return 'south';
+  if (direction.includes('east')) return 'east';
+  return 'west';
+}
+
 function resolveRotationFrame(
   catalog: PlayerSpriteCatalog,
   direction: SpriteDirectionKey,
 ): readonly SpriteFrame[] {
-  const rotation = catalog.rotations[direction];
+  const rotation = catalog.rotations[direction] ?? catalog.rotations[toCardinalDirection(direction)];
   if (rotation) return [rotation];
 
   const firstKey = Object.keys(catalog.rotations)[0] as SpriteDirectionKey | undefined;
@@ -20,8 +30,26 @@ function resolveRotationFrame(
   return fallback ? [fallback] : [];
 }
 
+function resolveClipFrames(
+  catalog: PlayerSpriteCatalog,
+  state: AnimationState,
+  direction: SpriteDirectionKey,
+): readonly SpriteFrame[] {
+  const byState = catalog.animations?.[state];
+  if (!byState) return [];
+
+  const exact = byState[direction];
+  if (exact && exact.length > 0) return exact;
+
+  const cardinal = byState[toCardinalDirection(direction)];
+  if (cardinal && cardinal.length > 0) return cardinal;
+
+  // Sem clip nesta direção → caller usa rotação estática (não misturar idle south com facing north).
+  return [];
+}
+
 /**
- * Direção + estado locomotion — apenas rotações estáticas do bundle top-down.
+ * Direção + estado locomotion — rotações estáticas ou clips do metadata (male_1 design).
  * Spritesheet opcional (sheet.png) mantém ciclo de frames via config.
  */
 export class PlayerAnimator {
@@ -82,12 +110,6 @@ export class PlayerAnimator {
   }
 
   advance(timestampMs: number, catalog: PlayerSpriteCatalog): void {
-    if (!this.spriteSheetMode) {
-      this.frameIndex = 0;
-      this.lastTimestampMs = timestampMs;
-      return;
-    }
-
     const frames = this.resolveFrames(catalog);
     const playableFrames = this.resolvePlayableFrameCount(frames.length);
 
@@ -126,22 +148,28 @@ export class PlayerAnimator {
     if (this.spriteSheetMode) {
       return [{ image: { complete: true } as HTMLImageElement, src: 'spritesheet' }];
     }
+
+    const clipFrames = resolveClipFrames(catalog, this.state, this.direction);
+    if (clipFrames.length > 0) {
+      return clipFrames;
+    }
+
     return resolveRotationFrame(catalog, this.direction);
   }
 
   private resolvePlayableFrameCount(loadedFrameCount: number): number {
-    if (!this.spriteSheetMode) {
-      return 1;
+    if (this.spriteSheetMode) {
+      if (this.state === 'walk' || this.state === 'run') {
+        const clip = PLAYER_ANIMATION_CONFIG.walkAnimation;
+        return resolveClipFrameCount(clip, loadedFrameCount);
+      }
+      if (this.state === 'idle') {
+        const clip = PLAYER_ANIMATION_CONFIG.idleAnimation;
+        return resolveClipFrameCount(clip, loadedFrameCount);
+      }
+      return loadedFrameCount;
     }
-    if (this.state === 'walk' || this.state === 'run') {
-      const clip = PLAYER_ANIMATION_CONFIG.walkAnimation;
-      return resolveClipFrameCount(clip, loadedFrameCount);
-    }
-    if (this.state === 'idle') {
-      const clip = PLAYER_ANIMATION_CONFIG.idleAnimation;
-      return resolveClipFrameCount(clip, loadedFrameCount);
-    }
-    return loadedFrameCount;
+    return Math.max(1, loadedFrameCount);
   }
 
   private resolveFrameDurationMs(): number {

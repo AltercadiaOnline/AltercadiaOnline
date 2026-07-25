@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Altercadia.online</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=bc997c1" />
-    <link rel="stylesheet" href="/app-ui/ui-runtime.css?v=bc997c1" />
-    <link rel="modulepreload" href="/app-ui/ui-runtime.js" />
+    <link rel="stylesheet" href="/styles.css?v=e2bc57f" />
+    <link rel="stylesheet" href="/app-ui/ui-runtime.css?v=e2bc57f" />
+    <link rel="modulepreload" href="/app-ui/ui-runtime.js?v=86000eb" />
     <script>
       (function () {
         var CANONICAL = 'https://altercadia-online.vercel.app';
@@ -40,7 +40,7 @@
         }
       })();
     </script>
-      <script>window.__ALTERCADIA_BUILD__="bc997c1";</script>
+      <script>window.__ALTERCADIA_BUILD__="e2bc57f";</script>
   </head>
   <body data-ui-architecture="online-react-v1">
     <div id="login-screen" class="screen hidden" aria-hidden="true" hidden></div>
@@ -51,15 +51,15 @@
     <div id="screen-overlay-root" class="screen-overlay-root" aria-hidden="true"></div>
 
     <div id="game-container" class="screen hidden" aria-hidden="true">
-      <!-- Coluna de render compartilhada — persiste entre exploração e combate (Phaser não é destruído). -->
+      <!-- Coluna de render compartilhada — Construct (mundo); combate usa shell React. -->
       <div id="game-render-column" class="game-render-column" aria-label="Viewport do jogo">
         <div id="game-viewport" class="game-viewport-container game-layout__viewport">
           <div id="game-stage-frame" class="game-stage-frame">
             <!-- Core de layout: container 640×360 — escala CSS aplicada aqui (spec: #game-container) -->
             <div id="game-stage-scale" class="game-stage-scale">
               <main id="game-stage">
-                <div id="game-render-host" class="game-render-host" data-render-engine="phaser">
-                  <div id="phaser-mount-root" class="phaser-mount-root hidden" aria-hidden="true" aria-label="Mundo Altercadia"></div>
+                <div id="game-render-host" class="game-render-host" data-render-engine="construct">
+                  <div id="world-mount-root" class="world-mount-root hidden" aria-hidden="true" aria-label="Mundo Altercadia (Construct)"></div>
                 </div>
               </main>
             </div>
@@ -72,7 +72,7 @@
         </div>
       </div>
 
-      <!-- Fade compartilhado — exploração ↔ batalha (ramo Phaser); cobre #game-render-column -->
+      <!-- Fade compartilhado — exploração ↔ batalha; cobre #game-render-column -->
       <div id="game-scene-fade-overlay" class="game-scene-fade-overlay hidden" aria-hidden="true"></div>
 
       <div id="scene-exploration" class="scene hidden">
@@ -84,13 +84,29 @@
       <div id="scene-combat" class="scene hidden" aria-hidden="true">
         <div id="battle-fade-overlay" class="battle-fade-overlay hidden" aria-hidden="true"></div>
         <div
-          class="battle-screen battle-screen--terminal battle-screen--side-view battle-screen--phaser-shell"
+          class="battle-screen battle-screen--terminal battle-screen--side-view"
           data-battle-hud
           aria-hidden="true"
         >
           <section class="battle-combat-top" aria-label="Área de combate">
-            <div class="battle-arena battle-arena--shell" aria-label="Cenário de combate">
-              <div class="battle-arena__effects" data-battle-effects-layer aria-hidden="true"></div>
+            <div id="battle-stage-frame" class="battle-stage-frame">
+              <div id="battle-stage-scale" class="battle-stage-scale">
+                <div class="battle-arena battle-arena--side-view battle-arena--canvas" aria-label="Cenário de combate">
+                  <canvas
+                    id="battle-arena-canvas"
+                    class="battle-arena__canvas"
+                    width="640"
+                    height="360"
+                    aria-label="Arena de batalha"
+                  ></canvas>
+                  <!-- Slots invisíveis: ponte de cues/labels do BattleScreen legado -->
+                  <div class="battle-arena__fighters battle-arena__fighters--sr-only" aria-hidden="true">
+                    <div id="battle-player-portrait" class="battle-portrait battle-portrait--player"></div>
+                    <div id="battle-opponent-portrait" class="battle-portrait battle-portrait--opponent"></div>
+                  </div>
+                  <div class="battle-arena__effects" data-battle-effects-layer aria-hidden="true"></div>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -111,13 +127,14 @@
         "imports": {
           "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/+esm",
           "gsap": "/vendor/gsap/index.js",
-          "phaser": "/vendor/phaser/phaser.esm.js",
           "zustand": "https://cdn.jsdelivr.net/npm/zustand@5.0.14/+esm",
           "zustand/": "https://cdn.jsdelivr.net/npm/zustand@5.0.14/"
         }
       }
     </script>
-    <script type="module" src="/app-ui/ui-runtime.js?v=bc997c1"></script>
-    <script type="module" src="/client/browser/main.js?v=bc997c1"></script>
+    <script>(function(){var b=window.__ALTERCADIA_BUILD__;if(!b)return;fetch("/config/deploy-manifest.json",{cache:"no-store"}).then(function(r){return r.json();}).then(function(m){var e=(m.commitShort||m.commit||"").slice(0,12);if(!e||e===b)return;var k="altercadia.boot-reload."+e;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("build",e);location.replace(u.href);}).catch(function(){});})();</script>
+
+    <script type="module" src="/app-ui/ui-runtime.js?v=e2bc57f"></script>
+    <script type="module" src="/client/browser/main.js?v=e2bc57f"></script>
   </body>
 </html>

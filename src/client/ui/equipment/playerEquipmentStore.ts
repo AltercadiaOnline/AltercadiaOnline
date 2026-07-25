@@ -72,10 +72,6 @@ function itemLabel(itemId: string): string {
 }
 
 function canPlaceInUiSlot(itemId: string, uiSlotId: EquipmentUiSlotId): boolean {
-  if (uiSlotId === 'card') {
-    return false;
-  }
-
   const expected = UI_SLOT_TO_EQUIPMENT_SLOT[uiSlotId];
   if (!expected) return false;
 
@@ -86,6 +82,9 @@ function canPlaceInUiSlot(itemId: string, uiSlotId: EquipmentUiSlotId): boolean 
       if (slotCode === 'B') return uiSlotId === 'boots';
       if (slotCode === 'P') return uiSlotId === 'legs';
       return uiSlotId === 'legs' || uiSlotId === 'boots';
+    }
+    if (equip.slot === EquipmentSlot.Amulet) {
+      return uiSlotId === 'amulet' || uiSlotId === 'card';
     }
     return equip.slot === expected;
   }
@@ -152,8 +151,19 @@ export class PlayerEquipmentStore {
   }
 
   setVitals(vitals: Partial<PlayerVitals>): void {
-    this.vitals = { ...this.vitals, ...vitals };
-    this.publish();
+    const next = { ...this.vitals, ...vitals };
+    if (
+      next.hpCurrent === this.vitals.hpCurrent
+      && next.hpMax === this.vitals.hpMax
+      && next.mpCurrent === this.vitals.mpCurrent
+      && next.mpMax === this.vitals.mpMax
+    ) {
+      return;
+    }
+    this.vitals = next;
+    // Vitals ≠ grade de equipamento — não emitir EQUIPMENT_UPDATED
+    // (senão refreshHudPlayerHpMax reentra em loop síncrono).
+    this.publish({ equipmentChanged: false });
   }
 
   loadEquipped(equipped: EquippedSlots): void {
@@ -242,28 +252,40 @@ export class PlayerEquipmentStore {
     return itemLabel(itemId);
   }
 
-  private publish(): void {
+  private publish(options: { readonly equipmentChanged?: boolean } = {}): void {
+    const equipmentChanged = options.equipmentChanged !== false;
     const snapshot = this.getSnapshot();
     for (const listener of this.listeners) {
       listener(snapshot);
     }
-    uiEvents.emit(UIEventType.EQUIPMENT_UPDATED, {
-      equipment: snapshot.equipment,
-      equipped: snapshot.equipped,
-    });
+    if (equipmentChanged) {
+      uiEvents.emit(UIEventType.EQUIPMENT_UPDATED, {
+        equipment: snapshot.equipment,
+        equipped: snapshot.equipped,
+      });
+    }
     uiEvents.emit(UIEventType.PLAYER_VITALS_UPDATED, { vitals: snapshot.vitals });
   }
 }
 
-let activeStore: PlayerEquipmentStore | null = null;
+type GlobalWithEquipmentStore = typeof globalThis & {
+  __ALTERCADIA_PLAYER_EQUIPMENT_STORE__?: PlayerEquipmentStore | null;
+};
 
+function getEquipmentStoreGlobal(): GlobalWithEquipmentStore {
+  return globalThis as GlobalWithEquipmentStore;
+}
+
+/** Singleton cross-bundle (main.js + ui-runtime) — classId/moveset HUD únicos. */
 export function getPlayerEquipmentStore(): PlayerEquipmentStore {
-  if (!activeStore) {
-    activeStore = new PlayerEquipmentStore();
+  const g = getEquipmentStoreGlobal();
+  if (!g.__ALTERCADIA_PLAYER_EQUIPMENT_STORE__) {
+    g.__ALTERCADIA_PLAYER_EQUIPMENT_STORE__ = new PlayerEquipmentStore();
   }
-  return activeStore;
+  return g.__ALTERCADIA_PLAYER_EQUIPMENT_STORE__;
 }
 
 export function resetPlayerEquipmentStore(): void {
-  activeStore = null;
+  const g = getEquipmentStoreGlobal();
+  g.__ALTERCADIA_PLAYER_EQUIPMENT_STORE__ = null;
 }

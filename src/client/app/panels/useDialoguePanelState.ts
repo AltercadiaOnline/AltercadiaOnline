@@ -19,7 +19,7 @@ import { resolveWorldLoreCredentials } from '../../services/worldLoreCredentials
 import { resolveCaelPetRationQuote } from '../../../shared/economy/caelPetService.js';
 import { formatVolts } from '../../../shared/economy/premiumCurrency.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
-import { usePlayerData } from '../store/gameStore.js';
+import { usePlayerLevel } from '../store/gameStore.js';
 
 export type DialogueView = {
   readonly npcId: string;
@@ -53,7 +53,7 @@ export function isMarcosTrailMasterDialogue(dialogue: DialogueView): boolean {
 }
 
 export function useDialoguePanelState(dialogue: DialogueView) {
-  const { level } = usePlayerData();
+  const level = usePlayerLevel();
   const [chroniclesLoading, setChroniclesLoading] = useState(false);
   const [chroniclesError, setChroniclesError] = useState<string | null>(null);
   const [chroniclesSnapshot, setChroniclesSnapshot] = useState<WorldChroniclesSnapshot | null>(null);

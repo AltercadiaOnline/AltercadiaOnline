@@ -28,7 +28,7 @@ test.describe('smoke produção', () => {
     const paths = [
       '/client/browser/main.js',
       '/config/designConstants.js',
-      '/vendor/phaser/phaser.esm.js',
+      '/vendor/gsap/index.js',
     ];
 
     for (const path of paths) {

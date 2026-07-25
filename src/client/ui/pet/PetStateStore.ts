@@ -190,17 +190,25 @@ class PetStateStore {
   }
 }
 
-let store: PetStateStore | null = null;
+type GlobalWithPetStateStore = typeof globalThis & {
+  __ALTERCADIA_PET_STATE_STORE__?: PetStateStore | null;
+};
 
+function getPetStateStoreGlobal(): GlobalWithPetStateStore {
+  return globalThis as GlobalWithPetStateStore;
+}
+
+/** Singleton cross-bundle — mesma instância que o playerPetStore no main e no React HUD. */
 export function getPetStateStore(): PetStateStore {
-  if (!store) {
-    store = new PetStateStore();
+  const g = getPetStateStoreGlobal();
+  if (!g.__ALTERCADIA_PET_STATE_STORE__) {
+    g.__ALTERCADIA_PET_STATE_STORE__ = new PetStateStore();
   }
-  return store;
+  return g.__ALTERCADIA_PET_STATE_STORE__;
 }
 
 export function resetPetStateStore(): void {
-  store = null;
+  getPetStateStoreGlobal().__ALTERCADIA_PET_STATE_STORE__ = null;
 }
 
 export { MAX_BIOLOGICAL_AGE };

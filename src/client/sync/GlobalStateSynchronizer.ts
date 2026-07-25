@@ -19,7 +19,11 @@ import {
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
 import { getGameStore } from '../state/GameStore.js';
+import { getBattleStore } from '../combat/client/battleStore.js';
+import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
+import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { isWorldSessionReady } from '../world/worldSessionGate.js';
+import { isClassType } from '../../shared/progression/movesetMasterySeed.js';
 
 import { getGameTimeStore } from '../world/gameTimeStore.js';
 
@@ -156,7 +160,25 @@ export class GlobalStateSynchronizer {
 
     applyGameTimeFromPlayerSnapshot(state);
 
+    // Classe autoritativa ANTES da progressão/loadout — evita espelho preso em IMPETUS.
+    if (isClassType(state.classId)) {
+      const equip = getPlayerEquipmentStore().getSnapshot();
+      getPlayerEquipmentStore().setPlayerInfo(equip.displayName, equip.level, {
+        classId: state.classId,
+      });
+      getGlobalPlayerStore().ensureClassMovePool(state.classId);
+    }
+
     const result = getMutableDataStore().applyFullState(state);
+    if (result === 'applied' && state.activeMovesets && state.activeMovesets.length > 0) {
+      getGlobalPlayerStore().hydrateConfirmedLoadout(
+        state.activeMovesets,
+        isClassType(state.classId) ? state.classId : undefined,
+      );
+      getBattleStore().resyncLoadout();
+    } else if (result === 'applied' && isClassType(state.classId)) {
+      getBattleStore().resyncLoadout();
+    }
     getGameStore().bootstrapFromServerSession();
 
     return result;
@@ -219,7 +241,7 @@ export class GlobalStateSynchronizer {
           if (!mapId) {
             console.warn('[GlobalStateSynchronizer] Criaturas ignoradas — mapId ausente no tick.');
           } else {
-            const shouldLog = isVisualDebugModeEnabled() || creatures.length > 0;
+            const shouldLog = isVisualDebugModeEnabled();
             if (shouldLog) {
               console.debug(
                 '[GlobalStateSynchronizer] state-sync criaturas recebidas:',

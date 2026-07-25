@@ -1,6 +1,6 @@
 /**
  * Estruturas da Cidade 01 — footprints em tiles (32px) → PNG 1:1.
- * Chaves alinhadas a worldAssetImageLoader / city01PlaceholderLayout.
+ * Chaves alinhadas ao manifesto de estruturas (Construct desenha a cena).
  */
 export const STRUCTURE_ASSET_PUBLIC_BASE = '/assets/structures';
 

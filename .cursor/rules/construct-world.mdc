@@ -1,0 +1,92 @@
+---
+description: Construct 3 — motor de cena, grid oficial e bridge Altercadia
+alwaysApply: true
+---
+
+# Construct 3 — Motor de Cena (Altercadia)
+
+## Autoridade
+
+| Camada | Responsável |
+|--------|-------------|
+| Lógica / spawn / combate | Servidor + `NPC_REGISTRY` + gateways |
+| Cena visual (tilemap, props) | **Construct 3** em `public/construct-world/` |
+| Entidades dinâmicas (player, NPCs, criaturas) | Overlay canvas (`ConstructEntityOverlay`) espelhando `exploration-frame` |
+| HUD (inventário, lojas, fila PvP, etc.) | React `#game-react-hud-root` — **fora** do Construct |
+
+**Phaser e Tiled map runtime estão removidos.** Não reintroduzir parsers de `.tmj`, `*PhaserMap.json` ou motor canvas legado.
+
+## Grid oficial
+
+- Tile **32×32 px** — usar `DESIGN_CONFIG.TILE.SIZE` / `GAME_CONFIG.TILE_SIZE`, nunca hardcode 40/64.
+- Cidade: layout Construct **`cidade_01` 1280×1280 px** (40×40 @ 32 — só math de coords; sem paint Tiled).
+- Beco (farm): layout Construct **`zonabeco1` 860×2400 px** (autoridade visual/bounds). Grade lógica = ceil(px/32) só para portais/coords — **não** pintar walkable Tiled.
+- Viewport fixo: **640×360** (`DESIGN_CONFIG.VIEWPORT`).
+- Câmera, spawns, portais e posições de NPC derivam do registry / Construct — não de exports Tiled.
+
+## Layouts Construct ↔ mapId
+
+| mapId Altercadia | Layout Construct |
+|------------------|------------------|
+| `city_01` | `cidade_01` |
+| `farm_zone_01` | `zonabeco1` (legado: `beco_dos_fundos_zona1`) |
+
+Alias de markers legados: `npc_treinador_pet` → `treinador_zeno`, `computador_marktplace` → `computador_marketplace`.
+
+## Workflow export
+
+1. Editar em `construct/altercadia-world/` (**Tilemap** 32×32 para terreno; poucos props)
+2. Export HTML5 → pasta do projeto (sobrescreve `index.html` / `data.json` / `images/` / `scripts/`)
+3. `npm run sync:construct` — limpa `public/construct-world/` e valida layouts + bridge
+4. `npm run prepare:construct` / audit — **força WebGL-only** (`project[13]=false`; fullscreen `project[12]=0`; viewport 640×360; sampling `nearest`; gpu `high-performance`). Bridge DOM trava `devicePixelRatio=1`. WebGPU no export causa canvas preto / timeout em vários GPUs (ex. AMD).
+5. `npm run audit:construct` — revalidar (falha se WebGPU/viewport/sampling voltarem errados). Também roda em `deploy:check`.
+6. Testar: `npm run dev` → login → mundo — console deve logar `rendering with WebGL` (e `[altercadia-bridge-dom] Renderer OK`), **nunca** WebGPU
+
+### Contrato enxuto (v2)
+
+- **Obrigatório:** layouts `cidade_01`, `zonabeco1` (ou alias) + bridge `altercadia-bridge-worker.js` / `altercadia-bridge-dom.js`
+- **Coords de gameplay:** `npm run generate:construct-placements` → NPCs, portais, spawns de criatura, `spawn_players`
+- **Opcional visual:** markers escondidos no bridge (overlay desenha PNGs)
+- Contrato tipado: `constructExportContract.ts`
+
+## Bridge (postMessage)
+
+- Fonte: `construct/bridge/altercadia-bridge-{worker,dom}.js` → sync/prepare copia para `public/construct-world/scripts/`
+- Tipos: `src/client/worldRender/construct/constructBridgeProtocol.ts`
+- Runtime: `src/client/worldRender/construct/ConstructWorldRuntime.ts`
+- Auditoria: `src/client/worldRender/construct/constructDependencyAudit.ts`
+
+**Altercadia → Construct:** `altercadia:load-map`, `altercadia:exploration-frame`, `altercadia:battle-frame`, `altercadia:set-mode`
+
+**Construct → Altercadia:** `construct:ready`, `construct:layout-ready`, `construct:error`
+
+## NPCs e terminais
+
+- Gameplay: `src/shared/world/npcRegistry.ts` (posição, ação, diálogo)
+- Posição: **somente** markers Construct → `*.generated.ts` via `npm run generate:construct-placements` (também em sync/prepare)
+- Registry: identidade/ação/diálogo — `tileX/tileY` stub até o resolve aplicar Construct
+- Sprites: `public/assets/npcs/{bundle}/` via `npcAssetBundles.ts` (frame size = colisão)
+- Colisão: NPCs = AABB Altercadia; props físicos Solid = polígono Construct (`constructCollidableProps*.ts`)
+- Terminais: `src/shared/world/worldTerminalCatalog.ts`
+- Spawns Zona 1: `spawn_*` → `constructCreatureSpawnPlacements.generated.ts`
+- Spawn jogador: `spawn_players` → `constructPlayerSpawnPlacements.generated.ts` (perfil default + safe spawn)
+
+## Itens (ícones)
+
+- Convenção: `public/assets/items/{catalogId}.png`
+- Sync de subpastas: `npm run sync:item-icons`
+- Auditoria: `npm run audit:item-icons`
+
+## Colisão
+
+- `WORLD_LEGACY_COLLISION_ENABLED = false` — sem colisão Tiled/Phaser
+- **Props** (casa, poste, árvore, barraca…): autoridade = behavior **Solid** + `collisionPoly` no Construct → extract bake world polygons (sem footprint sintético / allowlist manual)
+- **NPCs / terminais:** colisão gerada por nós (asset size / registry) — excluídos do canal prop mesmo se tiverem Solid
+- **Criaturas:** não bloqueiam movimento
+- Movimento: círculo dos pés do player × (polígono props | AABB NPCs) + bounds do mapa
+
+## Proibido em código novo
+
+- Importar ou referenciar `phaser`, `Phaser`, `*PhaserMap.json`, `parseTiled*`, `tiledMapPlacements`
+- Calcular spawn/NPC a partir de object layers Tiled em runtime
+- Adicionar segundo motor de cena além de `ConstructWorldRuntime`

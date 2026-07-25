@@ -41,6 +41,13 @@ export default tseslint.config(
     },
   },
   {
+    // L1 local: reusa CombatSession / gateways do servidor no mesmo processo (paridade online).
+    files: ['src/client/combat/local/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
     files: ['src/server/**/*.ts'],
     rules: {
       'no-restricted-imports': [

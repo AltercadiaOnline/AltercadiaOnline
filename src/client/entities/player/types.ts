@@ -1,7 +1,12 @@
 import type { SkinSlotId } from '../../../shared/character/playerSkin.js';
 import type { SpriteDirectionKey } from '../../../shared/world/playerFacing.js';
 
-/** Tipos do export metadata.json (v3.0) — layout genérico para troca de assets. */
+/** Clips de idle/walk por direção — paths relativos ao bundle. */
+export type PlayerAssetAnimationClips = Readonly<
+  Partial<Record<'idle' | 'walk' | 'run' | 'combat', Readonly<Partial<Record<string, readonly string[]>>>>>
+>;
+
+/** Tipos do export metadata.json (v3.0+) — layout genérico para troca de assets. */
 export type PlayerAssetMetadata = {
   readonly states: readonly {
     readonly character: {
@@ -9,6 +14,7 @@ export type PlayerAssetMetadata = {
     };
     readonly frames: {
       readonly rotations: Readonly<Record<string, string>>;
+      readonly animations?: PlayerAssetAnimationClips;
     };
   }[];
 };
@@ -47,6 +53,10 @@ export type PlayerSpriteCatalog = {
   readonly frameHeight: number;
   /** Rotação estática por direção (8-way top-down). */
   readonly rotations: Readonly<Partial<Record<SpriteDirectionKey, SpriteFrame>>>;
+  /** Clips animados (idle/walk) — opcional; male_1 design usa isto. */
+  readonly animations?: Readonly<
+    Partial<Record<AnimationState, Readonly<Partial<Record<SpriteDirectionKey, readonly SpriteFrame[]>>>>>
+  >;
 };
 
 export type AnimatorSnapshot = {

@@ -1,4 +1,3 @@
-import { DEMO_STARTER_INVENTORY_STACKS } from '../shared/demo/demoStarterInventory.js';
 import { assertDeleteItemAllowed, assertAddItemAllowed, validateAddItem } from './InventoryService.js';
 import type { ActiveBookBuff, EquippedSlots, InventoryStack } from '../shared/character/equipmentState.js';
 import type { BankCurrencyBalances } from '../shared/bank/bankTypes.js';
@@ -25,6 +24,10 @@ import {
   normalizePlayerLoadoutData,
   type PlayerLoadoutData,
 } from '../shared/world/playerLoadout.js';
+import {
+  isRetiredItemId,
+  stripRetiredInventoryStacks,
+} from '../shared/items/retiredItems.js';
 
 type InventoryRow = InventoryStack;
 
@@ -132,8 +135,9 @@ function getOrCreateBankVault(playerId: string, characterId: number): BankVaultS
   return vault;
 }
 
-function getOrCreateWallet(playerId: string): PlayerWallet {
-  const existing = state.wallets.get(playerId);
+function getOrCreateWallet(playerId: string, characterId: number): PlayerWallet {
+  const key = profileKey(playerId, characterId);
+  const existing = state.wallets.get(key);
   if (existing) return existing;
   const wallet: PlayerWallet = {
     dollarVolt: 0,
@@ -141,7 +145,7 @@ function getOrCreateWallet(playerId: string): PlayerWallet {
     lockedDollarVolt: 0,
     lockedAlterCoins: 0,
   };
-  state.wallets.set(playerId, wallet);
+  state.wallets.set(key, wallet);
   return wallet;
 }
 
@@ -241,14 +245,14 @@ export async function executeEconomyTransaction(
   try {
     await mutate({
       addDollarVolt(amount) {
-        const wallet = getOrCreateWallet(playerId);
+        const wallet = getOrCreateWallet(playerId, characterId);
         wallet.dollarVolt += amount;
       },
       spendDollarVolt(amount) {
         if (!Number.isInteger(amount) || amount <= 0) {
           throw new Error('Quantidade de VOLTS inválida.');
         }
-        const wallet = getOrCreateWallet(playerId);
+        const wallet = getOrCreateWallet(playerId, characterId);
         if (wallet.dollarVolt < amount) {
           throw new Error('VOLTS insuficientes.');
         }
@@ -258,21 +262,21 @@ export async function executeEconomyTransaction(
         if (!Number.isInteger(amount) || amount <= 0) {
           throw new Error('Quantidade de VOLTS inválida.');
         }
-        const wallet = getOrCreateWallet(playerId);
+        const wallet = getOrCreateWallet(playerId, characterId);
         const debited = Math.min(wallet.dollarVolt, amount);
         wallet.dollarVolt -= debited;
         return debited;
       },
       addAlterCoins(amount) {
         if (amount <= 0) return;
-        const wallet = getOrCreateWallet(playerId);
+        const wallet = getOrCreateWallet(playerId, characterId);
         wallet.alterCoins += Math.floor(amount);
       },
       spendAlterCoins(amount) {
         if (!Number.isInteger(amount) || amount <= 0) {
           throw new Error('Quantidade de Alter Coins inválida.');
         }
-        const wallet = getOrCreateWallet(playerId);
+        const wallet = getOrCreateWallet(playerId, characterId);
         if (wallet.alterCoins < amount) {
           throw new Error('Alter Coins insuficientes.');
         }
@@ -280,6 +284,7 @@ export async function executeEconomyTransaction(
       },
       addInventoryItem(itemId, qty) {
         if (qty <= 0) return;
+        if (isRetiredItemId(itemId)) return;
 
         assertAddItemAllowed(itemId, profile.inventory, qty);
 
@@ -307,6 +312,7 @@ export async function executeEconomyTransaction(
       },
       addInventoryItemPartial(itemId, qty) {
         if (qty <= 0) return { added: 0, overflow: 0 };
+        if (isRetiredItemId(itemId)) return { added: 0, overflow: qty };
 
         const addCheck = validateAddItem(itemId, profile.inventory, qty);
         if (!addCheck.ok) {
@@ -347,7 +353,7 @@ export async function executeEconomyTransaction(
         syncInventoryFromProfile(key, profile);
       },
       setInventory(stacks) {
-        profile.inventory = stacks.map((row) => ({ ...row }));
+        profile.inventory = stripRetiredInventoryStacks(stacks).map((row) => ({ ...row }));
         dedupeProfileInventoryFromEquipment(profile);
         syncInventoryFromProfile(key, profile);
       },
@@ -388,8 +394,8 @@ export async function executeEconomyTransaction(
       ok: true,
       playerId,
       characterId,
-      walletBalance: getOrCreateWallet(playerId).dollarVolt,
-      alterCoins: getOrCreateWallet(playerId).alterCoins,
+      walletBalance: getOrCreateWallet(playerId, characterId).dollarVolt,
+      alterCoins: getOrCreateWallet(playerId, characterId).alterCoins,
       inventorySnapshot: state.inventories.get(key) ?? [],
     };
   } catch (error) {
@@ -401,16 +407,16 @@ export async function executeEconomyTransaction(
   }
 }
 
-export function getWalletBalance(playerId: string): number {
-  return getOrCreateWallet(playerId).dollarVolt;
+export function getWalletBalance(playerId: string, characterId: number): number {
+  return getOrCreateWallet(playerId, characterId).dollarVolt;
 }
 
-export function getAlterCoinsBalance(playerId: string): number {
-  return getOrCreateWallet(playerId).alterCoins;
+export function getAlterCoinsBalance(playerId: string, characterId: number): number {
+  return getOrCreateWallet(playerId, characterId).alterCoins;
 }
 
-export function getPlayerWallet(playerId: string): Readonly<PlayerWallet> {
-  const wallet = getOrCreateWallet(playerId);
+export function getPlayerWallet(playerId: string, characterId: number): Readonly<PlayerWallet> {
+  const wallet = getOrCreateWallet(playerId, characterId);
   return {
     dollarVolt: wallet.dollarVolt,
     alterCoins: wallet.alterCoins,
@@ -419,25 +425,23 @@ export function getPlayerWallet(playerId: string): Readonly<PlayerWallet> {
   };
 }
 
-/** Demo / QA — saldo inicial de Volts e Alter Coins. */
+/** Garante carteira do personagem em memória (0/0 se nova) — não injeta VOLTS de teste. */
 export function seedPlayerWalletIfEmpty(
   playerId: string,
-  seed: { readonly dollarVolt?: number; readonly alterCoins?: number },
+  characterId: number,
+  _seed?: { readonly dollarVolt?: number; readonly alterCoins?: number },
 ): void {
-  const wallet = getOrCreateWallet(playerId);
-  if (wallet.dollarVolt === 0 && wallet.alterCoins === 0) {
-    wallet.dollarVolt = seed.dollarVolt ?? 0;
-    wallet.alterCoins = seed.alterCoins ?? 0;
-  }
+  getOrCreateWallet(playerId, characterId);
 }
 
 /** Snapshot autoritativo externo (Supabase / persistência). */
 export function applyAuthoritativeWalletBalances(
   playerId: string,
+  characterId: number,
   dollarVolt: number,
   alterCoins: number,
 ): void {
-  const wallet = getOrCreateWallet(playerId);
+  const wallet = getOrCreateWallet(playerId, characterId);
   wallet.dollarVolt = Math.max(0, Math.floor(dollarVolt));
   wallet.alterCoins = Math.max(0, Math.floor(alterCoins));
 }
@@ -464,31 +468,69 @@ export function getCharacterProfile(playerId: string, characterId: number): Char
   };
 }
 
-/** Inventário demo — alinhado ao cliente (BankPanel / inventário). */
-export function seedDemoProfileIfEmpty(playerId: string, characterId: number): void {
-  const profile = getOrCreateProfile(playerId, characterId);
-  if (profile.inventory.length > 0) return;
-
-  profile.inventory = DEMO_STARTER_INVENTORY_STACKS.map((row) => ({ ...row }));
-  profile.equipped = {};
-  profile.equipmentUiGrid = equippedToEquipmentUiGrid({});
-  syncInventoryFromProfile(profileKey(playerId, characterId), profile);
-}
-
-/** Inventário demo legado tinha 4 pilhas — não confundir com equip/consumo (7 pilhas). */
-const LEGACY_DEMO_PARTIAL_STACK_COUNT = 4;
-
-/** Corrige perfis antigos com inventário parcial (seed legado de 4 itens). */
-export function syncDemoProfileInventoryIfIncomplete(
+/**
+ * Garante que o perfil existe em memória.
+ * Não apaga inventário já carregado (login / hydrate).
+ */
+export function ensureAuthoritativePlayerEconomyEmpty(
   playerId: string,
   characterId: number,
 ): void {
+  getOrCreateWallet(playerId, characterId);
   const profile = getOrCreateProfile(playerId, characterId);
-  if (profile.inventory.length !== LEGACY_DEMO_PARTIAL_STACK_COUNT) return;
-
-  profile.inventory = DEMO_STARTER_INVENTORY_STACKS.map((row) => ({ ...row }));
-  dedupeProfileInventoryFromEquipment(profile);
+  if (!profile.equipmentUiGrid) {
+    profile.equipmentUiGrid = equippedToEquipmentUiGrid(profile.equipped ?? {});
+  }
   syncInventoryFromProfile(profileKey(playerId, characterId), profile);
+}
+
+/**
+ * Força inventário/equip/banco/carteira zerados (create / recriação).
+ * Carteira é por personagem — não afeta outros chars da conta.
+ */
+export function resetAuthoritativePlayerEconomyToEmpty(
+  playerId: string,
+  characterId: number,
+): void {
+  const key = profileKey(playerId, characterId);
+  const wallet = getOrCreateWallet(playerId, characterId);
+  wallet.dollarVolt = 0;
+  wallet.alterCoins = 0;
+  wallet.lockedDollarVolt = 0;
+  wallet.lockedAlterCoins = 0;
+
+  const profile = defaultProfile();
+  profile.equipmentUiGrid = equippedToEquipmentUiGrid({});
+  state.profiles.set(key, profile);
+  syncInventoryFromProfile(key, profile);
+  state.banks.set(key, emptyBankVault());
+  clearAuthoritativePlayerLoadout(playerId, characterId);
+}
+
+/** Remove economia do personagem da RAM (delete / recriação). */
+export function purgeAuthoritativeCharacterEconomy(
+  playerId: string,
+  characterId: number,
+): void {
+  const key = profileKey(playerId, characterId);
+  state.profiles.delete(key);
+  state.inventories.delete(key);
+  state.banks.delete(key);
+  state.wallets.delete(key);
+  clearAuthoritativePlayerLoadout(playerId, characterId);
+}
+
+/** @deprecated Use ensureAuthoritativePlayerEconomyEmpty — não injeta mais demo. */
+export function seedDemoProfileIfEmpty(playerId: string, characterId: number): void {
+  ensureAuthoritativePlayerEconomyEmpty(playerId, characterId);
+}
+
+/** @deprecated No-op — não re-injeta inventário demo legado. */
+export function syncDemoProfileInventoryIfIncomplete(
+  _playerId: string,
+  _characterId: number,
+): void {
+  /* personagem limpo: não sincronizar DEMO_STARTER */
 }
 
 export function getCharacterInventoryStacks(
@@ -523,13 +565,14 @@ export function getBankVaultState(
 
 export function lockWalletCurrency(
   playerId: string,
+  characterId: number,
   currency: 'volts' | 'coins',
   amount: number,
 ): { readonly ok: true } | { readonly ok: false; readonly message: string } {
   const qty = Math.floor(amount);
   if (qty <= 0) return { ok: false, message: 'Valor inválido.' };
 
-  const wallet = getOrCreateWallet(playerId);
+  const wallet = getOrCreateWallet(playerId, characterId);
   const available = currency === 'volts'
     ? wallet.dollarVolt - wallet.lockedDollarVolt
     : wallet.alterCoins - wallet.lockedAlterCoins;
@@ -547,12 +590,13 @@ export function lockWalletCurrency(
 
 export function unlockWalletCurrency(
   playerId: string,
+  characterId: number,
   currency: 'volts' | 'coins',
   amount: number,
 ): void {
   const qty = Math.floor(amount);
   if (qty <= 0) return;
-  const wallet = getOrCreateWallet(playerId);
+  const wallet = getOrCreateWallet(playerId, characterId);
   if (currency === 'volts') {
     wallet.lockedDollarVolt = Math.max(0, wallet.lockedDollarVolt - qty);
   } else {
@@ -560,11 +604,11 @@ export function unlockWalletCurrency(
   }
 }
 
-export function getEffectiveWalletSnapshot(playerId: string): {
+export function getEffectiveWalletSnapshot(playerId: string, characterId: number): {
   readonly dollarVolt: number;
   readonly alterCoins: number;
 } {
-  const wallet = getOrCreateWallet(playerId);
+  const wallet = getOrCreateWallet(playerId, characterId);
   return {
     dollarVolt: wallet.dollarVolt - wallet.lockedDollarVolt,
     alterCoins: wallet.alterCoins - wallet.lockedAlterCoins,
@@ -584,8 +628,16 @@ export type BankEconomyTransactionResult =
     }
   | { ok: false; message: string };
 
+export type BankSetInventoryOptions = {
+  /**
+   * Saque do cofre: não remover cópias recém-sacadas só porque o mesmo itemId
+   * já está no SET — senão o item some do banco e não entra na bag.
+   */
+  readonly skipEquipmentDedupe?: boolean;
+};
+
 export type BankEconomyMutator = {
-  setInventory(stacks: readonly InventoryStack[]): void;
+  setInventory(stacks: readonly InventoryStack[], options?: BankSetInventoryOptions): void;
   setBank(stacks: readonly InventoryStack[], currencies: BankCurrencyBalances): void;
   applyWalletAndBank(
     wallet: { dollarVolt: number; alterCoins: number },
@@ -609,13 +661,15 @@ export async function executeBankEconomyTransaction(
   const key = profileKey(playerId, characterId);
   const profile = getOrCreateProfile(playerId, characterId);
   const bank = getOrCreateBankVault(playerId, characterId);
-  const wallet = getOrCreateWallet(playerId);
+  const wallet = getOrCreateWallet(playerId, characterId);
 
   try {
     await mutate({
-      setInventory(stacks) {
+      setInventory(stacks, options) {
         profile.inventory = stacks.map((row) => ({ ...row }));
-        dedupeProfileInventoryFromEquipment(profile);
+        if (!options?.skipEquipmentDedupe) {
+          dedupeProfileInventoryFromEquipment(profile);
+        }
         syncInventoryFromProfile(key, profile);
       },
       setBank(stacks, currencies) {
@@ -704,7 +758,7 @@ export function exportCharacterEconomyPersistence(
   playerId: string,
   characterId: number,
 ): CharacterEconomyPersistenceSlice {
-  const wallet = getOrCreateWallet(playerId);
+  const wallet = getOrCreateWallet(playerId, characterId);
   const profile = getCharacterProfile(playerId, characterId);
   const bank = getBankVaultState(playerId, characterId);
   return {
@@ -725,7 +779,7 @@ export function hydrateCharacterEconomyPersistence(
   characterId: number,
   slice: CharacterEconomyPersistenceSlice,
 ): void {
-  const wallet = getOrCreateWallet(playerId);
+  const wallet = getOrCreateWallet(playerId, characterId);
   wallet.dollarVolt = slice.wallet.dollarVolt;
   wallet.alterCoins = slice.wallet.alterCoins;
   wallet.lockedDollarVolt = slice.wallet.lockedDollarVolt;

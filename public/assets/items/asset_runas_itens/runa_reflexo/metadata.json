@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "152334ea-0bbd-4ed7-9459-ed059e9b6128",
+      "name": null,
+      "prompt": "\"Aja como um artista de UI/Assets para jogos pixel art 16-bit. Todo conte\u00fado gerado deve seguir estritamente este padr\u00e3o visual:\n\nEstilo Geral: Runas com est\u00e9tica 'Druida-Tecno'. S\u00edmbolos r\u00fasticos, talhados em pedra ou madeira fossilizada, mas com incrusta\u00e7\u00f5es de componentes eletr\u00f4nicos (fios de cobre, transistores, micro-leds) integrados ao design.\n\nFormas: Org\u00e2nicas e assim\u00e9tricas. O design das runas deve remeter a iconografia celta ou tribal, com bordas desgastadas pelo tempo.\n\nPaleta: Materiais naturais (pedra cinza, madeira escura) contrastando com brilhos neon internos (azul el\u00e9trico, laranja, verde biol\u00f3gico).\n\nAcabamento: Textura de 'baixo-relevo' manual. O brilho n\u00e3o \u00e9 uma luz externa, mas uma energia que emana de dentro das ranhuras esculpidas na pedra.\n\nPerspectiva: Top-down isom\u00e9trica para os \u00edcones, alta legibilidade e bordas limpas para garantir leitura clara na UI.\n\nO pr\u00f3ximo item a ser gerado \u00e9: [INSIRA O NOME DA RUNA]. Mantenha a consist\u00eancia visual com estas diretrizes.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-16T05:14:32.941794"
+}

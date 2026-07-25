@@ -1,0 +1,42 @@
+{
+  "states": [
+    {
+      "character": {
+        "id": "computador_terminal",
+        "name": "Computador (terminal)",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "directions": 1,
+        "view": "top-down"
+      },
+      "folder": ".",
+      "frames": {
+        "rotations": {
+          "south": "rotations/south.png",
+          "north": "rotations/north.png",
+          "east": "rotations/east.png",
+          "west": "rotations/west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-07-18T19:38:18.130Z",
+  "source": {
+    "constructSheet": "images/shared-0-sheet1.webp",
+    "crop": {
+      "left": 67,
+      "top": 129,
+      "width": 48,
+      "height": 48
+    },
+    "sharedByNpcIds": [
+      "computador_arena",
+      "computador_marketplace",
+      "computador_zona1"
+    ]
+  }
+}

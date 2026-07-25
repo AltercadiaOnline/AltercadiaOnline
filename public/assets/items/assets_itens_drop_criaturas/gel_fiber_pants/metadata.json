@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "86defd7c-c120-42ca-b5fd-4b23f317c7bc",
+      "name": null,
+      "prompt": "Sleek urban joggers made of iridescent holographic fabric that blurs movement item sprite, 90s anime style, pixel art, high quality, bold outlines, flat color blocks, cell-shaded illustrations, inspired by Eastward game aesthetic, techwear urban style, clean dark shading, icons set style, game asset, isolated on solid black background",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-20T03:13:34.068386"
+}

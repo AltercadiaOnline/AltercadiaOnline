@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "d108d1e0-b204-4fd7-8a51-ea49495ac402",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, dark pants with black feathers stitched on the sides, anime style, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:47:22.645512"
+}

@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "83f2dfdb-f28e-4c2e-8e1c-9c8c3ded7552",
+      "name": null,
+      "prompt": "Futuristic glowing neon tournament ticket card with a digital guild crest item sprite, 90s anime style, pixel art, high quality, bold outlines, flat color blocks, cell-shaded illustrations, inspired by Eastward game aesthetic, techwear design, clean dark shading, icons set style, game asset, isolated on solid black background",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-20T02:53:22.636729"
+}

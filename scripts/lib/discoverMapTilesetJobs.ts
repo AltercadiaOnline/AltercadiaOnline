@@ -1,5 +1,5 @@
 /**
- * Descobre tilesets 32×32 desalinhados referenciados pelos exports Tiled em map_mund/.
+ * Descobre tilesets 32×32 desalinhados referenciados por exports de referência em map_mund/.
  * Só entram no pipeline sharp os PNGs que mapas reais usam — não o pack inteiro.
  */
 import { existsSync, readFileSync } from 'node:fs';

@@ -1,14 +1,20 @@
 import type { ItemDefinition } from '../../../shared/items/itemSchema.js';
 import {
   getItemById,
+  getItemMechanicalById,
   resolveItemDefinitionForDisplay,
 } from '../../../shared/items/itemCatalog.js';
+import { mergeItemDefinitionParts } from '../../../shared/items/itemCatalogMerge.js';
 import {
   isMarketplaceListableItem,
   isNpcVendorSellableItem,
 } from '../../../shared/economy/itemValorEconomy.js';
 import { NPC_HIGH_VALUE_MARKETPLACE_HINT } from '../../../shared/economy/npcSellRarityPolicy.js';
-import { uiEvents, UIEventType } from '../uiEvents.js';
+import {
+  bumpItemTooltipEpoch,
+  getItemTooltipEpoch,
+} from './itemTooltipEpoch.js';
+import { showGameTooltip, showHintTooltip } from './showGameTooltip.js';
 
 export type EmitItemTooltipOptions = {
   readonly heldAmountLabel?: string;
@@ -22,16 +28,42 @@ function loadItemForTooltip(itemId: string): Promise<ItemDefinition | undefined>
   const pending = pendingTooltipLoads.get(itemId);
   if (pending) return pending;
 
-  const promise = resolveItemDefinitionForDisplay(itemId).finally(() => {
-    pendingTooltipLoads.delete(itemId);
-  });
+  const promise = resolveItemDefinitionForDisplay(itemId)
+    .catch(() => undefined)
+    .finally(() => {
+      pendingTooltipLoads.delete(itemId);
+    });
   pendingTooltipLoads.set(itemId, promise);
   return promise;
 }
 
+function buildImmediateItemDefinition(itemId: string): ItemDefinition | undefined {
+  const core = getItemById(itemId);
+  if (!core) return undefined;
+  return mergeItemDefinitionParts(core, getItemMechanicalById(itemId));
+}
+
+function emitItemData(
+  item: ItemDefinition,
+  clientX: number,
+  clientY: number,
+  options: EmitItemTooltipOptions,
+): void {
+  showGameTooltip({
+    data: {
+      kind: 'item',
+      data: item,
+      ...(options.heldAmountLabel ? { heldAmountLabel: options.heldAmountLabel } : {}),
+    },
+    x: clientX,
+    y: clientY,
+    ...(options.placement ? { placement: options.placement } : {}),
+  });
+}
+
 /**
- * Exibe tooltip de item com lazy load de metadados estendidos (descrição/efeitos/lore).
- * Usa o core imediatamente para casos especiais (ex.: hint de marketplace).
+ * Exibe tooltip de item com core/mecânica **na hora** e enriquece descrição/efeitos/lore
+ * quando o lazy load terminar (sem reaparecer se o hover já saiu).
  */
 export function emitItemTooltip(
   itemId: string,
@@ -47,29 +79,23 @@ export function emitItemTooltip(
     && isMarketplaceListableItem(itemId)
     && !isNpcVendorSellableItem(itemId)
   ) {
-    uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
-      data: {
-        kind: 'marco',
-        data: { name: core.name, effect: NPC_HIGH_VALUE_MARKETPLACE_HINT },
-      },
-      x: clientX,
-      y: clientY,
+    showHintTooltip(core.name, clientX, clientY, {
+      lines: [NPC_HIGH_VALUE_MARKETPLACE_HINT],
       ...(options.placement ? { placement: options.placement } : {}),
     });
     return;
   }
 
+  const epoch = bumpItemTooltipEpoch();
+  const immediate = buildImmediateItemDefinition(itemId);
+  if (immediate) {
+    emitItemData(immediate, clientX, clientY, options);
+  }
+
   void loadItemForTooltip(itemId).then((item) => {
-    if (!item) return;
-    uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
-      data: {
-        kind: 'item',
-        data: item,
-        ...(options.heldAmountLabel ? { heldAmountLabel: options.heldAmountLabel } : {}),
-      },
-      x: clientX,
-      y: clientY,
-      ...(options.placement ? { placement: options.placement } : {}),
-    });
+    if (epoch !== getItemTooltipEpoch() || !item) return;
+    emitItemData(item, clientX, clientY, options);
   });
 }
+
+export { cancelPendingItemTooltipEnrichment } from './itemTooltipEpoch.js';

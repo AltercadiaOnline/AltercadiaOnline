@@ -1,5 +1,6 @@
 import { feedPetSpecialRation } from '../../../Economy/economyGateway.js';
 import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
+import { buildPetIntentAckData } from './PetRosterHandlers.js';
 
 export type FeedPetPayload = {
   readonly slotIndex?: number;
@@ -17,11 +18,16 @@ export class FeedPetHandler extends BaseIntentHandler<FeedPetPayload> {
     });
 
     if (!result.ok) {
-      this.sendResponse(playerId, intentId, false, result.code);
+      this.sendResponse(playerId, intentId, false, result.message);
       return;
     }
 
-    this.sendResponse(playerId, intentId, true, { message: result.message });
+    this.sendResponse(
+      playerId,
+      intentId,
+      true,
+      buildPetIntentAckData(playerId, this.characterId, { message: result.message }),
+    );
   }
 }
 

@@ -1,21 +1,21 @@
 import type { PlayerSkin } from '../../../shared/character/playerSkin.js';
-import { getSharedPlayerSprite } from '../../entities/player/index.js';
-import { paintCharacterAvatarPreview } from './characterAvatarPreview.js';
+import { getActivePlayerSkinBundleId } from '../../entities/player/activePlayerSkinBundle.js';
+import { paintCharacterBundleSouthPreview } from './characterAvatarPreview.js';
 
-/** Desenha preview idle (south) no canvas da ficha de personagem. */
+/** Desenha preview idle (south) no canvas da ficha — PNG preenche ~80% do slot. */
 export function paintCharacterPanelPreview(
   canvas: HTMLCanvasElement,
   skin: PlayerSkin,
 ): void {
-  void paintCharacterAvatarPreview(
+  void paintCharacterBundleSouthPreview(
     canvas,
+    getActivePlayerSkinBundleId(),
     {
       skin,
       facing: 'south',
       backdropAlpha: 0.35,
-      visualOccupancy: 0.58,
+      visualOccupancy: 0.8,
       showSkinAccentStrip: true,
     },
-    getSharedPlayerSprite(),
   );
 }

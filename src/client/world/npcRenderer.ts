@@ -20,8 +20,9 @@ import {
   getNpcDefinition,
 } from '../../assets/npcs/npcDefinition.js';
 import { getCachedNpcAssetImage } from '../loaders/npcAssetImageLoader.js';
-import { snapDrawImageDest } from '../render/pixelSnap.js';
+import { drawImage1To1AtFeet, readImageNaturalSize } from '../render/spriteImageDraw.js';
 import { renderNpcHumanoidSprite } from './npcHumanoidRenderer.js';
+import type { WorldNpcRenderSnapshot } from './worldActorsRenderSnapshot.js';
 
 const SPRITE_PALETTE: Record<string, { body: string; accent: string }> = {
   terminal: { body: '#14283b', accent: '#00ffcc' },
@@ -53,16 +54,18 @@ function renderNpcDefinitionSprite(
   const { x: anchorX, feetY } = resolveEntitySpriteCenter(bounds);
   const bobPhase = timestampMs * def.animationSpeed * 0.001 * Math.PI * 2;
   const bobOffset = Math.sin(bobPhase) * 1.5;
-  const { dx, dy, dWidth, dHeight } = snapDrawImageDest(
-    anchorX - def.width / 2,
-    feetY - def.height + bobOffset,
-    def.width,
-    def.height,
-  );
+  const natural = readImageNaturalSize(image);
+  if (natural.width <= 0 || natural.height <= 0) return;
 
   ctx.save();
-  disableCanvasImageSmoothing(ctx);
-  ctx.drawImage(image, dx, dy, dWidth, dHeight);
+  drawImage1To1AtFeet(
+    ctx,
+    image,
+    { sx: 0, sy: 0, sw: natural.width, sh: natural.height },
+    anchorX,
+    feetY + bobOffset,
+    `npc:${npc.id}`,
+  );
   ctx.restore();
 }
 
@@ -93,10 +96,61 @@ export function renderNpcSprite(
   renderNpcHumanoidSprite(ctx, bounds, npc.sprite);
 }
 
-function renderTerminalSprite(
+function resolveSnapshotBounds(snapshot: WorldNpcRenderSnapshot): EntitySpriteBounds {
+  return {
+    x: snapshot.feetX - snapshot.drawWidth / 2,
+    y: snapshot.feetY - snapshot.drawHeight,
+    width: snapshot.drawWidth,
+    height: snapshot.drawHeight,
+  };
+}
+
+/** Renderiza NPC a partir do snapshot de exploração (overlay Construct). */
+export function renderWorldNpcSnapshot(
+  ctx: CanvasRenderingContext2D,
+  snapshot: WorldNpcRenderSnapshot,
+  spriteKey: string,
+  timestampMs: number,
+): void {
+  const def = getNpcDefinition(snapshot.npcId);
+  const png = def ? getCachedNpcAssetImage(snapshot.npcId) : null;
+
+  if (def && png) {
+    // Mesmo contrato do player: desenho 1:1 nos pés (não forçar 35×54 — PNCs costumam ser ~100×100).
+    const natural = readImageNaturalSize(png);
+    if (natural.width > 0 && natural.height > 0) {
+      ctx.save();
+      drawImage1To1AtFeet(
+        ctx,
+        png,
+        { sx: 0, sy: 0, sw: natural.width, sh: natural.height },
+        snapshot.feetX,
+        snapshot.feetY + snapshot.bobOffset,
+        `npc:${snapshot.npcId}`,
+      );
+      ctx.restore();
+      return;
+    }
+  }
+
+  const bounds = resolveSnapshotBounds(snapshot);
+
+  if (spriteKey === 'terminal') {
+    renderTerminalSpriteFromBounds(ctx, bounds);
+    return;
+  }
+
+  if (spriteKey === 'pulpit') {
+    renderPulpitSprite(ctx, bounds);
+    return;
+  }
+
+  renderNpcHumanoidSprite(ctx, bounds, spriteKey);
+}
+
+function renderTerminalSpriteFromBounds(
   ctx: CanvasRenderingContext2D,
   bounds: EntitySpriteBounds,
-  _npc: NPC,
 ): void {
   const palette = SPRITE_PALETTE.terminal ?? { body: '#14283b', accent: '#00ffcc' };
   const { x: anchorX, feetY } = resolveEntitySpriteCenter(bounds);
@@ -139,6 +193,14 @@ function renderTerminalSprite(
   );
 
   ctx.restore();
+}
+
+function renderTerminalSprite(
+  ctx: CanvasRenderingContext2D,
+  bounds: EntitySpriteBounds,
+  _npc: NPC,
+): void {
+  renderTerminalSpriteFromBounds(ctx, bounds);
 }
 
 function renderPulpitSprite(ctx: CanvasRenderingContext2D, bounds: EntitySpriteBounds): void {

@@ -91,6 +91,24 @@ export type CombatWsRouteHost = {
     payload: PlayerHonorGivenPayload,
   ): void;
 
+  handlePveEncounterAccept(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly monsterInstanceId: string },
+  ): void;
+
+  handlePveEncounterRequest(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly monsterInstanceId: string },
+  ): void;
+
+  handlePveEncounterFlee(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly monsterInstanceId: string },
+  ): void;
+
   handleCollectLoot(
     ws: LiveSocket,
     connectionId: string,

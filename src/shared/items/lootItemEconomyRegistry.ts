@@ -162,11 +162,27 @@ export const LOOT_ECONOMY_REGISTRY: Record<string, LootEconomyMeta> = {
 
   hundred_feet_boots: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 
+  segmented_pants: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
+  gel_fiber_pants: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
+  rift_woven_pants: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
   electric_slime_ring: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
+  conductive_plate_armor: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 
   pulsing_rift_amulet: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 
+  molten_beam_amulet: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
+  translucent_amulet: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
+  articulated_amulet: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
   rail_armor: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
+  molten_rail_helm: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 
   spectral_mantle: { valorBase: 210, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 

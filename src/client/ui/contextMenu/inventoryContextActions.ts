@@ -1,7 +1,5 @@
 import { ItemCategory } from '../../../shared/items/itemSchema.js';
 import { getItemById, getItemMechanicalById } from '../../../shared/items/itemCatalog.js';
-import { DIARIO_MEMORIAS_ITEM_ID } from '../../../shared/items/soulboundItems.js';
-import { openDiaryPanel } from '../diary/openDiaryPanel.js';
 import { getGameStateManager } from '../../../shared/state/GameStateManager.js';
 import { findCompatibleEquipmentSlot } from '../equipment/inventoryEquip.js';
 import {
@@ -56,18 +54,6 @@ export function buildInventorySlotContextActions(
   const { itemId, locked } = slotState;
   const item = getItemMechanicalById(itemId)!;
   const actions: ActionMenuItem[] = [];
-
-  if (itemId === DIARIO_MEMORIAS_ITEM_ID) {
-    actions.push({
-      id: 'inventory-open-diary',
-      label: 'Abrir Diário',
-      icon: '📔',
-      disabled: () => false,
-      run: () => {
-        openDiaryPanel();
-      },
-    });
-  }
 
   const mutationBlocked = (): boolean =>
     locked

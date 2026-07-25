@@ -8,7 +8,7 @@ import {
   resolveEquippedRuneDurability,
 } from '../../shared/items/chargedEquipment.js';
 import { loadCombatBalanceConfig } from '../engine/combatBalanceConfig.js';
-import { clampPlayerHpCurrent, computePlayerHpMax } from '../../shared/character/playerVitals.js';
+import { applyPlayerHpMaxChange, computePlayerHpMax } from '../../shared/character/playerVitals.js';
 
 function resolveClassSpeedBias(classId: PlayerCombatLoadout['classId']): number {
   return loadCombatBalanceConfig().initiative.classSpeedBias[classId] ?? 0;
@@ -30,9 +30,14 @@ export function buildCombatantFromLoadout(
   });
 
   const maxHp = computePlayerHpMax(resolved.modifiers.maxHpBonusPercent);
-  const persistedHp = loadout.worldVitals?.hpCurrent;
-  const hpCurrent =
-    persistedHp !== undefined ? clampPlayerHpCurrent(persistedHp, maxHp) : maxHp;
+  const persisted = loadout.worldVitals;
+  const hpCurrent = persisted
+    ? applyPlayerHpMaxChange(
+      persisted.hpCurrent,
+      persisted.hpMax > 0 ? persisted.hpMax : maxHp,
+      maxHp,
+    )
+    : maxHp;
 
   const combatStats: CombatantCombatStats = resolved.combatStats;
 

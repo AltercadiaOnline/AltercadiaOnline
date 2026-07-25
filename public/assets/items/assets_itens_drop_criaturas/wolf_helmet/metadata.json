@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "21622e6b-dad6-47c5-a3b4-f68f7605c1ac",
+      "name": null,
+      "prompt": "Aggressive armored wolf-shaped combat visor helmet item sprite, 90s anime style, pixel art, high quality, bold outlines, flat color blocks, cell-shaded illustrations, inspired by Eastward game aesthetic, urban combat gear, clean dark shading, icons set style, game asset, isolated on solid black background",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-20T03:00:52.767234"
+}

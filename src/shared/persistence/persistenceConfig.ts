@@ -1,8 +1,8 @@
 /** Modo de persistência do servidor — MVP online. */
 export const PersistenceMode = {
-  /** Estado efêmero (dev local, testes unitários). */
+  /** Estado efêmero (testes unitários / deploys descartáveis). */
   Memory: 'memory',
-  /** JSON em disco — QA online e redeploy sem perder progresso. */
+  /** JSON em disco — QA local/online e redeploy sem perder progresso (inclui pets). */
   File: 'file',
   /** Postgres via pool `pg` — schema/SQL plugável futuramente. */
   Postgres: 'postgres',

@@ -8,10 +8,8 @@ import {
   isMarketplaceListableItem,
   isNpcVendorSellableItem,
 } from '../../../../../shared/economy/itemValorEconomy.js';
-import { NPC_HIGH_VALUE_MARKETPLACE_HINT } from '../../../../../shared/economy/npcSellRarityPolicy.js';
 import type { GameStoreGold } from '../../../../state/GameStore.js';
 import {
-  resolveInventoryItemAbbrev,
   resolveInventoryItemKindClass,
   resolveInventoryItemLabel,
 } from '../../../../ui/inventory/inventoryItemDisplay.js';
@@ -19,6 +17,8 @@ import {
   isWalletBackedCurrencyItemId,
   resolveWalletCurrencySlotQtyLabel,
 } from '../../../../ui/inventory/inventoryCurrencyDisplay.js';
+import { hideGameTooltip, showHintTooltip } from '../../../../ui/tooltip/showGameTooltip.js';
+import { ItemSlotIcon } from './ItemSlotIcon.js';
 
 type InventorySlotCellProps = {
   index: number;
@@ -73,7 +73,6 @@ export function InventorySlotCell({
 
   const itemId = slot.itemId;
   const label = resolveInventoryItemLabel(itemId);
-  const abbrev = resolveInventoryItemAbbrev(itemId);
   const kindClass = resolveInventoryItemKindClass(itemId);
   const npcHighValue =
     vendorOpen
@@ -104,20 +103,26 @@ export function InventorySlotCell({
       aria-label={label}
       aria-busy={pending || undefined}
       disabled={pending}
-      title={
-        npcHighValue
-          ? NPC_HIGH_VALUE_MARKETPLACE_HINT
-          : locked
-            ? 'Item bloqueado — transação bancária em andamento'
-            : undefined
-      }
       onClick={() => onClick?.(itemId, index)}
       onDoubleClick={() => onDoubleClick?.(itemId)}
       onContextMenu={(event) => onContextMenu?.(event, itemId)}
-      onMouseEnter={(event) => onTooltipShow?.(event, itemId)}
-      onMouseLeave={() => onTooltipHide?.()}
+      onMouseEnter={(event) => {
+        if (locked) {
+          showHintTooltip(label, event.clientX, event.clientY, {
+            lines: ['Item bloqueado — transação bancária em andamento'],
+          });
+          return;
+        }
+        onTooltipShow?.(event, itemId);
+      }}
+      onMouseLeave={() => {
+        hideGameTooltip();
+        onTooltipHide?.();
+      }}
     >
-      <span className="slot-item__icon" aria-hidden="true">{abbrev}</span>
+      <span className="slot-item__icon" aria-hidden="true">
+        <ItemSlotIcon itemId={itemId} />
+      </span>
       {pending ? <span className="slot-item__pending" aria-hidden="true">⟳</span> : null}
       {!showCharges && qtyLabel ? (
         <span className={`slot-item__meta slot-item__meta--qty${isWalletBackedCurrencyItemId(itemId) ? ' slot-item__meta--wallet' : ''}`}>

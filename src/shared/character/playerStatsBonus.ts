@@ -7,10 +7,14 @@ import {
 } from '../world/gridMovement.js';
 import { VELOCIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
 
-/** Bônus acumulados do SET equipado — valores iniciais em zero. */
+/**
+ * Bônus acumulados do SET equipado — valores iniciais em zero.
+ * `vida` = soma de % de HP (ex.: 5+8 → 13), não pontos flat no teto.
+ */
 export type PlayerStatsBonus = {
   defesa: number;
   esquiva: number;
+  /** Soma de bônus % de vida do SET (não HP absoluto). */
   vida: number;
   agilidade: number;
   critico: number;
@@ -30,7 +34,7 @@ export const EMPTY_PLAYER_STATS_BONUS: PlayerStatsBonus = {
 export const PLAYER_STATS_BONUS_LABELS: Record<keyof PlayerStatsBonus, string> = {
   defesa: 'Defesa',
   esquiva: 'Esquiva',
-  vida: 'Vida',
+  vida: 'Vida (%)',
   agilidade: VELOCIDADE_STAT_LABEL,
   critico: 'Crítico',
   forca: 'Força',

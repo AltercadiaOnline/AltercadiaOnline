@@ -16,7 +16,7 @@ import { buildBankStorageView } from '../../shared/bank/bankService.js';
 import { buildMovesProgressionData } from '../../shared/progression/moveProgression.js';
 import {
   ensureMovesetMasteryForClass,
-  inferClassIdFromMovesetMastery,
+  resolveAuthoritativeClassId,
   resolveClassMovePoolForMastery,
 } from '../../shared/progression/movesetMasterySeed.js';
 import type { ClassType } from '../../shared/types/classes.js';
@@ -29,6 +29,11 @@ import {
 } from '../../Economy/economyStore.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getTimeManager } from '../TimeManager.js';
+import { getWorldProfile } from '../world/worldProfileStore.js';
+import {
+  getDefaultClassActiveLoadout,
+  normalizeClassActiveLoadout,
+} from '../../shared/combat/movesetLoadout.js';
 
 /** Monta payload `full-state-sync` a partir do estado autoritativo em memória. */
 export function buildAuthoritativePlayerSnapshot(
@@ -36,7 +41,7 @@ export function buildAuthoritativePlayerSnapshot(
   characterId: number,
   revision = Date.now(),
 ): AuthoritativePlayerSnapshot {
-  const wallet = getPlayerWallet(playerId);
+  const wallet = getPlayerWallet(playerId, characterId);
   const economy = exportCharacterEconomyPersistence(playerId, characterId);
   const progressionState = getAuthoritativeProgression(playerId, characterId);
   const equipmentUiGrid = economy.profile.equipmentUiGrid
@@ -52,18 +57,26 @@ export function buildAuthoritativePlayerSnapshot(
     economy.bank.currencies,
   );
 
-  const inferredClassId: ClassType = inferClassIdFromMovesetMastery(
+  const classId: ClassType = resolveAuthoritativeClassId(
+    progressionState.characterProfile.classId,
     progressionState.progression.movesetMastery,
-  ) ?? 'IMPETUS';
+  );
   const classPool = resolveClassMovePoolForMastery(
     progressionState.progression.movesetMastery,
-    inferredClassId,
+    classId,
   );
   const masteryForSnapshot = ensureMovesetMasteryForClass(
     progressionState.progression.movesetMastery,
-    inferredClassId,
+    classId,
   );
   const movesProgression = buildMovesProgressionData(masteryForSnapshot, classPool);
+  const worldProfile = getWorldProfile(playerId, characterId);
+  const savedMovesets = worldProfile.sessionSync?.activeMovesets;
+  const activeMovesets =
+    savedMovesets && savedMovesets.length > 0
+      ? [...(normalizeClassActiveLoadout(classId, savedMovesets)
+        ?? getDefaultClassActiveLoadout(classId))]
+      : [...getDefaultClassActiveLoadout(classId)];
 
   return {
     revision,
@@ -105,6 +118,8 @@ export function buildAuthoritativePlayerSnapshot(
       ...movesProgression,
       revision,
     },
+    classId,
+    activeMovesets,
     petRoster: {
       ...getPetRosterSnapshot(playerId, characterId),
       revision,

@@ -100,3 +100,46 @@ export async function createAuthoritativeCharacter(
 
   return { ok: false, message: 'Falha ao criar personagem.' };
 }
+
+export async function deleteAuthoritativeCharacter(
+  characterId: number,
+  options: { readonly deadlineMs?: number } = {},
+): Promise<{ ok: true; hub: AccountCharacterHub } | { ok: false; message: string }> {
+  let response: Response;
+  try {
+    response = await gameServerFetch(buildCharacterHubPath(), {
+      method: 'DELETE',
+      searchParams: { serverId: resolveActiveServerId() },
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId }),
+      deadlineMs: options.deadlineMs ?? CHARACTER_HUB_FETCH_DEADLINE_MS,
+    });
+  } catch (error) {
+    if (isGameServerFetchTimeoutError(error)) {
+      return { ok: false, message: 'Servidor ocupado, tente novamente.' };
+    }
+    return { ok: false, message: 'Erro ao conectar ao servidor de dados.' };
+  }
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { ok: false, message: 'Resposta inválida do servidor.' };
+  }
+
+  if (isCharacterHubResponse(body)) {
+    return { ok: true, hub: body.hub };
+  }
+
+  if (isCharacterHubErrorResponse(body)) {
+    return { ok: false, message: body.message };
+  }
+
+  const deleteResolved = resolveCharacterHubErrorMessage(body);
+  if (deleteResolved) {
+    return { ok: false, message: deleteResolved };
+  }
+
+  return { ok: false, message: 'Falha ao excluir personagem.' };
+}

@@ -323,9 +323,19 @@ export class PlayerHybridLocomotion {
       && guard < maxSteps
     ) {
       guard += 1;
-      const stepX = Math.sign(target.tileX - this.tileX) as -1 | 0 | 1;
-      const stepY = Math.sign(target.tileY - this.tileY) as -1 | 0 | 1;
-      if (stepX === 0 && stepY === 0) break;
+      const stepXRaw = Math.sign(target.tileX - this.tileX) as -1 | 0 | 1;
+      const stepYRaw = Math.sign(target.tileY - this.tileY) as -1 | 0 | 1;
+      if (stepXRaw === 0 && stepYRaw === 0) break;
+
+      let stepX = stepXRaw;
+      let stepY = stepYRaw;
+      if (stepX !== 0 && stepY !== 0) {
+        if (Math.abs(target.tileX - this.tileX) >= Math.abs(target.tileY - this.tileY)) {
+          stepY = 0;
+        } else {
+          stepX = 0;
+        }
+      }
 
       const origin = tileCenterToWorldPixel(this.tileX, this.tileY);
       const next = tryGridStep(origin, { stepX, stepY }, mapData);

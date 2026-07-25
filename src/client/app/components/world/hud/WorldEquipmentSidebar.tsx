@@ -25,6 +25,12 @@ import {
   usePlayerEquipmentSnapshot,
   usePlayerProfileSnapshot,
 } from '../../../hooks/usePlayerHudStores.js';
+import { refreshHudPlayerHpMax } from '../../../../ui/equipment/playerHudHpMax.js';
+import {
+  hidePlayerHpTooltip,
+  showPlayerHpTooltip,
+} from '../../../../ui/equipment/playerHpTooltip.js';
+import { ItemSlotIcon } from '../panels/ItemSlotIcon.js';
 import { buildProgressionTooltipDataAttributes } from './progressionTooltipProps.js';
 
 function EquipSlotButton({
@@ -79,17 +85,11 @@ function EquipSlotButton({
       onMouseLeave={itemId ? hideTooltip : undefined}
     >
       {itemId ? (
-        <>
-          <span className="equip-slot__placeholder" hidden>{label}</span>
-          <span className="equip-slot__icon">{itemId.slice(0, 2).toUpperCase()}</span>
-          <span className="equip-slot__name">{displayName}</span>
-        </>
+        <span className="equip-slot__sprite-wrap" aria-hidden="true">
+          <ItemSlotIcon itemId={itemId} className="equip-slot__sprite" />
+        </span>
       ) : (
-        <>
-          <span className="equip-slot__placeholder">{label}</span>
-          <span className="equip-slot__icon" hidden />
-          <span className="equip-slot__name" hidden />
-        </>
+        <span className="equip-slot__placeholder">{label}</span>
       )}
       {pending ? <span className="equip-slot__pending" aria-hidden="true">⟳</span> : null}
     </button>
@@ -120,6 +120,10 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
     : 0;
 
   useEffect(() => {
+    refreshHudPlayerHpMax();
+  }, []);
+
+  useEffect(() => {
     const root = rootRef.current;
     if (!root) return undefined;
 
@@ -145,7 +149,12 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
       </header>
 
       <section className="equipment-sidebar__vitals" aria-label="Status vital">
-        <div className="vital-row">
+        <div
+          className="vital-row"
+          onMouseEnter={(event) => showPlayerHpTooltip(event.clientX, event.clientY)}
+          onMouseMove={(event) => showPlayerHpTooltip(event.clientX, event.clientY)}
+          onMouseLeave={() => hidePlayerHpTooltip()}
+        >
           <span className="vital-label">HP</span>
           <div className="vital-bar vital-bar--hp" role="progressbar" aria-label="Vida">
             <div className="vital-bar__fill" style={{ width: `${hpPct}%` }} />

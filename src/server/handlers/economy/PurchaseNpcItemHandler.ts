@@ -33,6 +33,7 @@ export class PurchaseNpcItemHandler extends BaseIntentHandler<PurchaseNpcItemPay
       itemId: result.itemId,
       quantity: result.quantity,
       totalVolts: result.totalVolts,
+      inventorySync: result.inventorySync,
     });
   }
 }

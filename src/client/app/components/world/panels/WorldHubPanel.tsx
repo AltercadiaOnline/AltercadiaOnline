@@ -12,6 +12,7 @@ type WorldHubPanelProps = {
 export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) {
   return (
     <section
+      id="world-hub-panel"
       className="ui-panel ui-panel--hub ui-panel--hub-bar ui-panel--open pointer-events-auto"
       style={{ zIndex }}
       role="dialog"

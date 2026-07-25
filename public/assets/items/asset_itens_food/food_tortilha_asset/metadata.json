@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "b3521231-baf7-466c-a966-076b53106643",
+      "name": null,
+      "prompt": "General Description:\nGenerate a comprehensive collection of icons and modular graphic elements for a game Heads-Up Display (HUD) featuring a distinct Urban Cyberpunk Neon aesthetic. The visual style must synthesize the dense, high-energy atmosphere of Tokyo (characterized by neon signage and digital displays) with the cosmopolitan, modern architecture of New York.\n\nTechnical Guidelines:\n\nResolution: Strictly 32x32 pixels per individual asset (or modular equivalents for composite elements like bars).\n\nStyle: High-definition Pixel Art with crisp, clean anti-aliased outlines (modern 8-bit/16-bit interpretation).\n\nColor Palette: High contrast is mandatory. All elements must be set against a solid dark or black background (which will be made transparent) using intensely saturated, vibrant neon colors: Electric Cyan, Magenta, Lime Green, Bright Yellow, and Cobalt Blue.\n\nFormat: Final assets must have transparent backgrounds (PNG format), organized logically within a spritesheet or as individual files.\n\nSpecific Asset List:\n\n1. Status and Attribute Icons (32x32 px)\n\nHealth/HP: A stylized pixelated heart or a futuristic medical cross, glowing in neon red or pink.\n\nEnergy/Stamina: A lightning bolt, a battery cell, or a running icon, glowing in neon cyan or yellow.\n\nHunger/Thirst: Stylized icons of a hamburger or a water glass, outlined in neon orange or green.\n\nDefense/Shield: A hexagonal shield icon or a forcefield barrier outline, in neon blue.\n\n2. Modular Bar Elements (Variable Width, Height 32px)\n\nEmpty Bar Container: A dark, metallic frame or a frosted glass tube designed to serve as the base structure for HP/Energy bars.\n\nBar Fill (HP): A solid texture or gradient designed to fill the health bar, using glowing neon red.\n\nBar Fill (Energy): A texture for filling the energy bar, using glowing neon cyan.\n\nWindow Corner Pieces: Modular corner elements (top-left, top-right, etc.) featuring an industrial/cyberpunk design language for constructing text boxes, inventory windows, or menus.\n\n3. System and Menu Icons (32x32 px)\n\nInventory: An icon of a tactical backpack, a travel suitcase, or a toolbox, glowing in neon yellow.\n\nMap: An icon of a folded paper map, a stylized GPS pin, or a holographic globe, in neon green.\n\nQuests/Journal: An icon of a holographic scroll, a tablet device, or a notebook featuring an exclamation mark, in neon magenta.\n\nSettings/Options: A classic gear icon or a linear control panel slider, in neon white or gray.\n\n4. Cursor and Reticle Elements (32x32 px)\n\nStandard Cursor: A stylized mouse pointer arrow with a glowing outline (e.g., white fill with a cyan border).\n\nInteraction Cursor: A pixelated hand or a rotating loading circle, in neon green.\n\nTargeting Reticle: A simple central point, an \"X,\" or a small open circle for use in combat areas, in neon red or pink.\n\nVisual Style Reference (Mental Mood Board):\nVisualize a nocturnal scene in Shinjuku, Tokyo, reflected sharply in the rain puddles of a Manhattan street, with dense electronic signs and LED lights glowing intensely against the dark concrete. The icons should appear as small digital terminals or floating holograms within this environment.",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-24T03:16:26.340780"
+}

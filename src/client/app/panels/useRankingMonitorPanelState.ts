@@ -31,8 +31,8 @@ export function resolveRankingMonitorFromContext(
     };
   }
   return {
-    objectId: 'arena_ranking_monitor',
-    label: 'Monitor de Ranking',
+    objectId: 'computador_arena',
+    label: 'Computador da Arena',
   };
 }
 

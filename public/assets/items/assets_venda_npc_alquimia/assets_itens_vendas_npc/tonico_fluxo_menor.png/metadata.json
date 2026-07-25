@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "b1f0ead3-2ca0-4532-ba34-5ff186105d99",
+      "name": null,
+      "prompt": "small glass bottle, cork stopper, light blue liquid, minimalist design",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T18:01:09.144447"
+}

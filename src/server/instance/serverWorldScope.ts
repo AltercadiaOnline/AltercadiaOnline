@@ -8,6 +8,7 @@ import {
 import { getResolvedNpcRegistry, type NpcRegistryEntry } from '../../shared/world/npcRegistry.js';
 import {
   buildWorldCreaturesForMap,
+  buildWorldCreaturesNearObserver,
   type WorldCreatureSnapshot,
 } from '../../shared/world/worldCreatureSync.js';
 import type { PlayerProfile } from '../models/playerProfile.js';
@@ -31,6 +32,19 @@ export function buildServerScopedWorldCreaturesForMap(
     return [];
   }
   return buildWorldCreaturesForMap(mapId);
+}
+
+/** AOI — só criaturas perto do observador nesta instância. */
+export function buildServerScopedWorldCreaturesNearObserver(
+  mapId: MapId,
+  worldX: number,
+  worldY: number,
+  instance: ServerInstanceDefinition = getServerInstanceContext(),
+): readonly WorldCreatureSnapshot[] {
+  if (!isMapAllowedOnInstance(mapId, instance)) {
+    return [];
+  }
+  return buildWorldCreaturesNearObserver(mapId, worldX, worldY);
 }
 
 /** Garante que o perfil está em um mapa desta instância — corrige spawn se necessário. */

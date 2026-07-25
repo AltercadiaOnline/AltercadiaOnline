@@ -82,12 +82,21 @@ import { resolveTargetUiSlotForEquip } from '../shared/character/equipItemMappin
 import { getAuthoritativeProgression } from '../server/progression/authoritativeProgressionStore.js';
 import type { GiftTransferSuccess } from '../shared/gift/giftTransferProtocol.js';
 import { validateCaelRationPurchase, validatePetFeedSpecialRation } from '../shared/economy/caelPetService.js';
-import { applyPetDirectFeed } from '../shared/pet/petState.js';
-import { formatPetAffinityGainPercent } from '../shared/pet/petAffinity.js';
-import { clampPetSlotIndex } from '../shared/pet/petRoster.js';
+import { applyPetCare, applyPetDirectFeed } from '../shared/pet/petState.js';
+import { applyPetAffinityXp, formatPetAffinityGainPercent } from '../shared/pet/petAffinity.js';
+import { PET_AFFECTION_CONFIG, resolvePetAffectionAvailability } from '../shared/pet/petAffection.js';
+import {
+  activatePetSlot,
+  clampPetSlotIndex,
+  createEmptyPetRoster,
+  deactivateAllPetSlots,
+  rosterHasPetKind,
+  selectPetSlot,
+} from '../shared/pet/petRoster.js';
 import { getSkinShopItem } from '../shared/character/skinShopCatalog.js';
 import type { SkinSlotId } from '../shared/character/playerSkin.js';
 import { addOwnedSkinOption, ownsSkinOption } from './skinOwnershipStore.js';
+import { getItemById } from '../shared/items/itemCatalog.js';
 import {
   buildAdoptedPet,
   validatePetPurchase,
@@ -95,10 +104,15 @@ import {
 import type { PetKindId } from '../shared/pet/petCatalog.js';
 import type { PetColorId } from '../shared/pet/petColorPalette.js';
 import type { PetGenderId } from '../shared/pet/petGender.js';
-import { rosterHasPetKind } from '../shared/pet/petRoster.js';
 import { formatVolts } from '../shared/economy/premiumCurrency.js';
-import { addRationCharges, consumeRationCharge, getPetAffinityRecord, recordPetRationFeedAt } from './petAffinityStore.js';
-import { adoptPetOnServer, getPetRosterSnapshot, updatePetAtSlot } from './petRosterStore.js';
+import {
+  addRationCharges,
+  consumeRationCharge,
+  getPetAffinityRecord,
+  recordPetAffectionAt,
+  recordPetRationFeedAt,
+} from './petAffinityStore.js';
+import { adoptPetOnServer, getPetRosterSnapshot, setPetRosterSnapshot, updatePetAtSlot } from './petRosterStore.js';
 import { computeInventoryChecksum } from '../shared/character/inventoryChecksum.js';
 import { getInventoryLockRegistry, INVENTORY_LOCK_TIMEOUT_MS } from './inventoryLockRegistry.js';
 import { unlockInventoryQuantity } from '../shared/bank/inventoryLockOps.js';
@@ -124,7 +138,9 @@ function auditEconomyMutation(
   }));
 }
 
-function inventoryUpdatedPayload(
+export type InventorySyncPayload = ReturnType<typeof buildInventorySyncPayload>;
+
+export function buildInventorySyncPayload(
   playerId: string,
   characterId: number,
   items: readonly import('../shared/character/equipmentState.js').InventoryStack[],
@@ -158,7 +174,7 @@ export function publishInventoryUpdated(
 ): void {
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(playerId, characterId, items, extras),
+    payload: buildInventorySyncPayload(playerId, characterId, items, extras),
   });
 }
 
@@ -381,7 +397,7 @@ export async function collectBattleLoot(
   });
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
+    payload: buildInventorySyncPayload(
       request.winnerId,
       request.characterId,
       tx.inventorySnapshot,
@@ -461,7 +477,7 @@ export async function consumeConsumableInCombat(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
+    payload: buildInventorySyncPayload(
       request.playerId,
       request.characterId,
       tx.inventorySnapshot,
@@ -557,14 +573,19 @@ export async function consumeChargedEquipmentBattleParticipation(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(playerId, characterId, tx.inventorySnapshot),
+    payload: buildInventorySyncPayload(playerId, characterId, tx.inventorySnapshot),
   });
 
   return consumption;
 }
 
 export type BattleSurrenderPenaltyResult =
-  | { readonly ok: true; readonly debited: number }
+  | {
+      readonly ok: true;
+      readonly debited: number;
+      readonly dollarVolt: number;
+      readonly alterCoins: number;
+    }
   | { readonly ok: false; readonly message: string };
 
 /** Penalidade ao render-se — debita até BATTLE_SURRENDER_VOLT_PENALTY (saldo pode ser parcial). */
@@ -598,7 +619,12 @@ export async function debitBattleSurrenderPenalty(
     });
   }
 
-  return { ok: true, debited };
+  return {
+    ok: true,
+    debited,
+    dollarVolt: tx.walletBalance,
+    alterCoins: tx.alterCoins,
+  };
 }
 
 export type ExchangeAlterCoinsRequest = {
@@ -749,7 +775,7 @@ function emitBankSuccess(
   });
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
+    payload: buildInventorySyncPayload(
       tx.playerId,
       tx.characterId,
       tx.inventorySnapshot.map((row) => ({ ...row })),
@@ -1017,7 +1043,7 @@ export async function syncEquipmentLoadoutFromGrid(
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
     payload: {
-      ...inventoryUpdatedPayload(playerId, characterId, inventorySnapshot, {
+      ...buildInventorySyncPayload(playerId, characterId, inventorySnapshot, {
         ...(intentId ? { intentId } : {}),
       }),
       equipped: normalized.equipped ?? equipmentUiGridToEquipped(normalized.equipmentUiGrid),
@@ -1100,7 +1126,7 @@ export async function equipFromInventoryItem(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(playerId, characterId, inventorySnapshot, {
+    payload: buildInventorySyncPayload(playerId, characterId, inventorySnapshot, {
       ...(intentId ? { intentId } : {}),
     }),
   });
@@ -1157,7 +1183,7 @@ export async function unequipToInventorySlot(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(playerId, characterId, inventorySnapshot, {
+    payload: buildInventorySyncPayload(playerId, characterId, inventorySnapshot, {
       ...(intentId ? { intentId } : {}),
     }),
   });
@@ -1193,6 +1219,7 @@ export type PurchaseNpcItemAtVendorResult =
       readonly itemId: string;
       readonly quantity: number;
       readonly totalVolts: number;
+      readonly inventorySync: InventorySyncPayload;
     }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
@@ -1205,7 +1232,7 @@ export async function purchaseNpcItemAtVendor(
     return { ok: false, code: 'ITEM_UNAVAILABLE', message: 'Item indisponível nesta loja.' };
   }
 
-  const wallet = getPlayerWallet(request.playerId);
+  const wallet = getPlayerWallet(request.playerId, request.characterId);
   const validation = validateNpcPurchase({
     listing,
     quantity: request.quantity,
@@ -1242,6 +1269,7 @@ export async function purchaseNpcItemAtVendor(
 
   syncAuthoritativeLoadoutFromEconomyProfile(request.playerId, request.characterId);
   const revision = Date.now();
+  const inventoryRevision = revision + 1;
 
   globalEventBus.emit({
     type: EconomyEventType.WalletUpdated,
@@ -1256,12 +1284,12 @@ export async function purchaseNpcItemAtVendor(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
+    payload: buildInventorySyncPayload(
       request.playerId,
       request.characterId,
       tx.inventorySnapshot,
       {
-        revision,
+        revision: inventoryRevision,
         ...(request.intentId ? { intentId: request.intentId } : {}),
       },
     ),
@@ -1280,6 +1308,12 @@ export async function purchaseNpcItemAtVendor(
     itemId: request.itemId,
     quantity: quote.quantity,
     totalVolts: quote.totalVolts,
+    inventorySync: buildInventorySyncPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      { revision: inventoryRevision },
+    ),
   };
 }
 
@@ -1298,6 +1332,7 @@ export type SellNpcItemAtVendorResult =
       readonly itemId: string;
       readonly quantity: number;
       readonly totalVolts: number;
+      readonly inventorySync: InventorySyncPayload;
     }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
@@ -1347,7 +1382,7 @@ export async function sellNpcItemAtVendor(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
+    payload: buildInventorySyncPayload(
       request.playerId,
       request.characterId,
       tx.inventorySnapshot,
@@ -1382,6 +1417,12 @@ export async function sellNpcItemAtVendor(
     itemId: request.itemId,
     quantity: quote.quantity,
     totalVolts: quote.totalVolts,
+    inventorySync: buildInventorySyncPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      { revision },
+    ),
   };
 }
 
@@ -1468,7 +1509,7 @@ export type BuyCaelPetRationResult =
 export async function buyCaelPetRationAtNpc(
   request: BuyCaelPetRationRequest,
 ): Promise<BuyCaelPetRationResult> {
-  const wallet = getPlayerWallet(request.playerId);
+  const wallet = getPlayerWallet(request.playerId, request.characterId);
   const validation = validateCaelRationPurchase({
     npcId: request.npcId,
     walletVolts: wallet.dollarVolt,
@@ -1550,14 +1591,19 @@ export type PurchasePetAtTrainerRequest = {
 };
 
 export type PurchasePetAtTrainerResult =
-  | { readonly ok: true; readonly petName: string; readonly priceVolts: number }
+  | {
+      readonly ok: true;
+      readonly petName: string;
+      readonly priceVolts: number;
+      readonly roster: import('../shared/pet/petRoster.js').PlayerPetRosterSnapshot;
+    }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Adoção no Treinador Zeno — debita VOLTS e adiciona pet ao roster (ACID + rollback). */
 export async function purchasePetAtTrainer(
   request: PurchasePetAtTrainerRequest,
 ): Promise<PurchasePetAtTrainerResult> {
-  const wallet = getPlayerWallet(request.playerId);
+  const wallet = getPlayerWallet(request.playerId, request.characterId);
   const roster = getPetRosterSnapshot(request.playerId, request.characterId);
 
   if (rosterHasPetKind(roster, request.kindId)) {
@@ -1650,6 +1696,11 @@ export async function purchasePetAtTrainer(
     ok: true,
     petName: validation.adoption.name,
     priceVolts: validation.quote.priceVolts,
+    roster: {
+      pets: nextRoster.pets.map((pet) => ({ ...pet })),
+      activeSlotIndex: nextRoster.activeSlotIndex,
+      selectedSlotIndex: nextRoster.selectedSlotIndex,
+    },
   };
 }
 
@@ -1711,7 +1762,7 @@ export async function craftItemAtStation(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
+    payload: buildInventorySyncPayload(
       request.playerId,
       request.characterId,
       inventorySnapshot,
@@ -1758,7 +1809,12 @@ export type DeleteInventoryItemRequest = {
 };
 
 export type DeleteInventoryItemResult =
-  | { readonly ok: true; readonly itemId: string; readonly quantity: number }
+  | {
+      readonly ok: true;
+      readonly itemId: string;
+      readonly quantity: number;
+      readonly inventorySync: InventorySyncPayload;
+    }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Descarte autoritativo — remove item do inventário (política inventoryPolicy). */
@@ -1816,7 +1872,7 @@ export async function deleteInventoryItem(
 
   globalEventBus.emit({
     type: EconomyEventType.InventoryUpdated,
-    payload: inventoryUpdatedPayload(
+    payload: buildInventorySyncPayload(
       request.playerId,
       request.characterId,
       tx.inventorySnapshot,
@@ -1835,7 +1891,17 @@ export async function deleteInventoryItem(
     'inventory_delete',
   );
 
-  return { ok: true, itemId: request.itemId, quantity };
+  return {
+    ok: true,
+    itemId: request.itemId,
+    quantity,
+    inventorySync: buildInventorySyncPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      { revision },
+    ),
+  };
 }
 
 export type GiftTransferValidationInput = {
@@ -2020,7 +2086,7 @@ export async function purchaseSkinAtShop(
     return { ok: false, code: 'SKIN_ALREADY_OWNED', message: 'Você já possui esta peça.' };
   }
 
-  const wallet = getPlayerWallet(request.playerId);
+  const wallet = getPlayerWallet(request.playerId, request.characterId);
   if (wallet.dollarVolt < item.price) {
     return { ok: false, code: 'INSUFFICIENT_FUNDS', message: 'DOLLAR VOLT insuficiente.' };
   }
@@ -2070,6 +2136,279 @@ export async function purchaseSkinAtShop(
   });
 
   return { ok: true, message };
+}
+
+/** Dev-only — grants via same WalletUpdated/InventoryUpdated path as gameplay. */
+export async function devGrantInventoryItem(request: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly itemId: string;
+  readonly quantity?: number;
+  readonly intentId?: string;
+}): Promise<{ ok: true; added: number } | { ok: false; message: string }> {
+  const quantity = Math.max(1, Math.floor(request.quantity ?? 1));
+  if (!getItemById(request.itemId)) {
+    return { ok: false, message: `Item desconhecido: ${request.itemId}` };
+  }
+
+  let added = 0;
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      const result = store.addInventoryItemPartial(request.itemId, quantity);
+      added = result.added;
+      if (result.added <= 0) {
+        throw new Error(result.overflow > 0 ? 'Inventário cheio.' : 'Não foi possível adicionar o item.');
+      }
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, message: tx.message };
+  }
+
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId: request.playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: buildInventorySyncPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      request.intentId ? { intentId: request.intentId } : undefined,
+    ),
+  });
+
+  return { ok: true, added };
+}
+
+export async function devGrantCurrency(request: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly volts?: number;
+  readonly alterCoins?: number;
+  readonly intentId?: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const volts = Math.floor(request.volts ?? 0);
+  const alterCoins = Math.floor(request.alterCoins ?? 0);
+  if (volts === 0 && alterCoins === 0) {
+    return { ok: false, message: 'Informe volts e/ou alterCoins.' };
+  }
+
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      if (volts > 0) store.addDollarVolt(volts);
+      if (alterCoins > 0) store.addAlterCoins(alterCoins);
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, message: tx.message };
+  }
+
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId: request.playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  return { ok: true };
+}
+
+export async function devResetPlayerEconomy(request: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly intentId?: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const wallet = getPlayerWallet(request.playerId, request.characterId);
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      if (wallet.dollarVolt > 0) store.debitUpToDollarVolt(wallet.dollarVolt);
+      if (wallet.alterCoins > 0) store.spendAlterCoins(wallet.alterCoins);
+      store.setInventory([]);
+      store.setEquippedSlots({});
+      store.setEquipmentUiGrid(equippedToEquipmentUiGrid({}));
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, message: tx.message };
+  }
+
+  setPetRosterSnapshot(request.playerId, request.characterId, createEmptyPetRoster());
+
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId: request.playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: buildInventorySyncPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      request.intentId ? { intentId: request.intentId } : undefined,
+    ),
+  });
+
+  return { ok: true };
+}
+
+function emitPetRosterUpdated(
+  playerId: string,
+  characterId: number,
+  roster: ReturnType<typeof getPetRosterSnapshot>,
+  extras?: { readonly intentId?: string; readonly message?: string },
+): void {
+  globalEventBus.emit({
+    type: EconomyEventType.PetRosterUpdated,
+    payload: {
+      playerId,
+      characterId,
+      pets: roster.pets,
+      activeSlotIndex: roster.activeSlotIndex,
+      selectedSlotIndex: roster.selectedSlotIndex,
+      revision: Date.now(),
+      ...(extras?.message ? { message: extras.message } : {}),
+      ...(extras?.intentId ? { intentId: extras.intentId } : {}),
+    },
+  });
+}
+
+export type PetRosterMutationRequest = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly slotIndex?: number;
+  readonly intentId?: string;
+};
+
+export type PetRosterMutationResult =
+  | { readonly ok: true; readonly message?: string }
+  | { readonly ok: false; readonly message: string };
+
+export function selectPetSlotOnServer(request: PetRosterMutationRequest): PetRosterMutationResult {
+  const roster = getPetRosterSnapshot(request.playerId, request.characterId);
+  const slotIndex = clampPetSlotIndex(request.slotIndex ?? roster.selectedSlotIndex);
+  const next = selectPetSlot(roster, slotIndex);
+  setPetRosterSnapshot(request.playerId, request.characterId, next);
+  emitPetRosterUpdated(request.playerId, request.characterId, next, {
+    ...(request.intentId ? { intentId: request.intentId } : {}),
+  });
+  return { ok: true };
+}
+
+export function activatePetSlotOnServer(request: PetRosterMutationRequest): PetRosterMutationResult {
+  const roster = getPetRosterSnapshot(request.playerId, request.characterId);
+  const slotIndex = clampPetSlotIndex(request.slotIndex ?? roster.selectedSlotIndex);
+  const pet = roster.pets[slotIndex];
+  if (!pet) {
+    return { ok: false, message: 'Nenhum pet neste slot.' };
+  }
+  if (pet.hpCurrent <= 0) {
+    return { ok: false, message: 'Companheiro derrotado — revive no Ancião Cael.' };
+  }
+  const next = activatePetSlot(roster, slotIndex);
+  if (next.activeSlotIndex === roster.activeSlotIndex) {
+    if (slotIndex !== roster.activeSlotIndex) {
+      return { ok: false, message: 'Não foi possível convocar este companheiro.' };
+    }
+    setPetRosterSnapshot(request.playerId, request.characterId, next);
+    const message = `${pet.name} já está convocado.`;
+    emitPetRosterUpdated(request.playerId, request.characterId, next, {
+      message,
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    });
+    return { ok: true, message };
+  }
+  setPetRosterSnapshot(request.playerId, request.characterId, next);
+  const message = `${pet.name} está convocado.`;
+  emitPetRosterUpdated(request.playerId, request.characterId, next, {
+    message,
+    ...(request.intentId ? { intentId: request.intentId } : {}),
+  });
+  return { ok: true, message };
+}
+
+export function deactivatePetsOnServer(request: PetRosterMutationRequest): PetRosterMutationResult {
+  const roster = getPetRosterSnapshot(request.playerId, request.characterId);
+  const next = deactivateAllPetSlots(roster);
+  setPetRosterSnapshot(request.playerId, request.characterId, next);
+  emitPetRosterUpdated(request.playerId, request.characterId, next, {
+    message: 'Companheiro guardado.',
+    ...(request.intentId ? { intentId: request.intentId } : {}),
+  });
+  return { ok: true };
+}
+
+export type PetAffectionServerResult =
+  | { readonly ok: true; readonly xpGained: number }
+  | { readonly ok: false; readonly message: string; readonly remainingMs?: number };
+
+export function applyPetAffectionOnServer(request: PetRosterMutationRequest): PetAffectionServerResult {
+  const now = Date.now();
+  const roster = getPetRosterSnapshot(request.playerId, request.characterId);
+  const slotIndex = clampPetSlotIndex(request.slotIndex ?? roster.selectedSlotIndex);
+  const pet = roster.pets[slotIndex];
+  if (!pet) {
+    return { ok: false, message: 'Nenhum pet neste slot.' };
+  }
+
+  const affinity = getPetAffinityRecord(request.playerId, request.characterId);
+  const availability = resolvePetAffectionAvailability(affinity.lastPetAffectionAtMs, now);
+  if (!availability.canAffect) {
+    return {
+      ok: false,
+      message: 'Carinho disponível em breve.',
+      remainingMs: availability.remainingMs,
+    };
+  }
+
+  const cared = applyPetCare(applyPetAffinityXp(pet, PET_AFFECTION_CONFIG.affinityReward), now);
+  const nextRoster = updatePetAtSlot(request.playerId, request.characterId, slotIndex, cared);
+  if (!nextRoster) {
+    return { ok: false, message: 'Falha ao atualizar companheiro.' };
+  }
+
+  recordPetAffectionAt(request.playerId, request.characterId, now);
+  const updatedAffinity = getPetAffinityRecord(request.playerId, request.characterId);
+  emitPetRosterUpdated(request.playerId, request.characterId, nextRoster, {
+    ...(request.intentId ? { intentId: request.intentId } : {}),
+  });
+  globalEventBus.emit({
+    type: EconomyEventType.PetAffinityUpdated,
+    payload: {
+      playerId: request.playerId,
+      characterId: request.characterId,
+      rationCharges: updatedAffinity.rationCharges,
+      lastPetRationFeedAtMs: updatedAffinity.lastPetRationFeedAtMs,
+      lastPetAffectionAtMs: updatedAffinity.lastPetAffectionAtMs,
+      revision: Date.now(),
+      ...(request.intentId ? { intentId: request.intentId } : {}),
+    },
+  });
+
+  return { ok: true, xpGained: PET_AFFECTION_CONFIG.affinityReward };
 }
 
 export { ALTER_TO_VOLTS_EXCHANGE_RATE };

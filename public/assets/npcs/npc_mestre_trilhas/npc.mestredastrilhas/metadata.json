@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "510e65f3-6761-4d15-b038-a9a9199287c1",
+        "name": "\"Pixel art chibi male banker NPC sprite, top-down perspective, 90s retro anime style. Character with an afro, glasses, and a confident, welcoming expression. Dressed in a sophisticated layered outfit: an oversized elegant beige trench coat worn over a dark charcoal gray kimono-style jacket and light-colored hakama-style pants. The look is completed with polished black Chelsea boots. Exaggerated head-to-body ratio, bold dark outlines, flat color blocks, high contrast, isolated on transparent background, 32x32px clean game asset.\"",
+        "prompt": "\"Pixel art chibi male banker NPC sprite, top-down perspective, 90s retro anime style. Character with an afro, glasses, and a confident, welcoming expression. Dressed in a sophisticated layered outfit: an oversized elegant beige trench coat worn over a dark charcoal gray kimono-style jacket and light-colored hakama-style pants. The look is completed with polished black Chelsea boots. Exaggerated head-to-body ratio, bold dark outlines, flat color blocks, high contrast, isolated on transparent background, 32x32px clean game asset.\"",
+        "size": {
+          "width": 80,
+          "height": 80
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-07-24T03:37:29.431682+00:00"
+      },
+      "folder": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe",
+      "frames": {
+        "rotations": {
+          "south": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/south.png",
+          "south-east": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/south-east.png",
+          "east": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/east.png",
+          "north-east": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/north-east.png",
+          "north": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/north.png",
+          "north-west": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/north-west.png",
+          "west": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/west.png",
+          "south-west": "Pixel_art_chibi_male_banker_NPC_sprite_top-down_pe/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-07-24T04:03:41.042869"
+}

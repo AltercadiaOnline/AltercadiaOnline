@@ -23,8 +23,10 @@ import {
   ensureBattleLootPackageStaged,
   isOnlineCombatClient,
 } from '../../game/battleLootStageClient.js';
+import { isLocalGameMode } from '../../runtime/gameMode.js';
 import { postSystemNotification } from '../../ui/logService.js';
 import { AppScreens } from '../../browser/appScreens.js';
+import { syncGameScenesToCurrentState } from '../../browser/sceneManager.js';
 import { alertSystem } from '../../ui/alertSystem.js';
 import type { CombatFinishedPayload } from '../../../shared/combat/combatFinished.js';
 import { initReactBattleHud } from '../../app/hud/initReactBattleHud.js';
@@ -47,6 +49,7 @@ import {
 } from './battleFinishProbe.js';
 import { refreshCombatDevBindings } from '../../dev/combatDevBindings.js';
 import { destroyActiveLootCasino } from '../../ui/battle/LootCasinoScreen.js';
+import { teardownBattleLootCasinoState } from '../../ui/battle/battleLootCasinoFlow.js';
 import {
   emitBattleVictoryUiReady,
   type BattleVictoryUiReadyPayload,
@@ -107,7 +110,6 @@ import {
 } from './battleFinishFlow.js';
 import { getCombatRole, resolveCombatantHp } from '../../../shared/pet/petCombatRules.js';
 import { requestReturnToExploration } from '../../game/battleReturnToWorld.js';
-import { removeActiveWorldMonster } from '../../../shared/world/worldMonsterInstances.js';
 import { getGameStateManager } from '../../../shared/state/GameStateManager.js';
 import type { CombatState } from '../../../shared/types.js';
 import {
@@ -138,7 +140,6 @@ import {
 import { subscribeConnectionPhase } from '../../sync/connectionState.js';
 import { getPendingIntentRegistry } from '../../sync/pendingIntentRegistry.js';
 import { resetVfxProjectileManager } from '../VfxProjectileManager.js';
-import { resetBattleSceneTransitionFade } from '../../phaser/battle/battleSceneTransitionFade.js';
 import { getBattleStore, initBattleStore, resetBattleStore } from './battleStore.js';
 import { getGlobalPlayerStore } from '../../ui/moveset/globalPlayerStore.js';
 import { BattleCommandController } from './BattleCommandController.js';
@@ -230,6 +231,8 @@ function stagePostBattleLootIfVictory(payload: BattleEndedPayload): void {
   if (!payload.victory) return;
   if (payload.battleType === BattleType.PVP) return;
   if (isOnlineCombatClient()) return;
+  // Local: LocalCombatAuthority envia BATTLE_LOOT_PACKAGE — evita double-stage no mock.
+  if (isLocalGameMode()) return;
   ensureBattleLootPackageStaged(payload.battleId, resolveBattleLootContext(payload.battleId));
 }
 
@@ -370,11 +373,7 @@ function presentPostBattleHubRecovery(
   traceBattleFinish('recovery.start', { battleId: presentation.battleId });
 
   mountEmergencyBattleExit(async () => {
-    clearBattleLootPackages();
-    clearPendingBattleLoot();
-    destroyActiveLootCasino();
-    await completeBattleExit(exitPayload);
-    combatFinishedPresenting = false;
+    await finalizeBattleExit(presentation.battleId, exitPayload);
   });
 
   void showBattleResultOverlay({
@@ -387,10 +386,7 @@ function presentPostBattleHubRecovery(
     mountRoot: document.body,
     onExit: async () => {
       unmountEmergencyBattleExit();
-      clearBattleLootPackages();
-      clearPendingBattleLoot();
-      await completeBattleExit(exitPayload);
-      combatFinishedPresenting = false;
+      await finalizeBattleExit(presentation.battleId, exitPayload);
     },
   }).then(() => {
     releasePostBattleInput();
@@ -486,9 +482,7 @@ async function presentPostBattleHubFallback(
     ],
     mountRoot: combatMount,
     onExit: async () => {
-      clearBattleLootPackages();
-      clearPendingBattleLoot();
-      await completeBattleExit(exitPayload);
+      await finalizeBattleExit(presentation.battleId, exitPayload);
     },
   });
   combatMount.querySelector('.battle-result-overlay')?.classList.add('battle-result-hub--scene');
@@ -547,12 +541,13 @@ function resolveMonsterIdForExit(payload: BattleEndedPayload): string {
 
 /** Volta ao mapa — só marca fim como concluído após EXPLORATION confirmado. */
 async function exitBattleToWorld(payload: BattleEndedPayload): Promise<boolean> {
-  if (battleEndHandled) return true;
-
-  if (payload.victory && payload.monsterInstanceId) {
-    removeActiveWorldMonster(payload.monsterInstanceId);
+  if (battleEndHandled && getGameStateManager().isExploration()) {
+    syncGameScenesToCurrentState();
+    return true;
   }
 
+  // Despawn é autoritativo: online = servidor (respawn scheduler + creature sync);
+  // local = scheduleLocalMonsterRespawn via BATTLE_FINISHED. Cliente não remove direto.
   const monsterId = resolveMonsterIdForExit(payload);
 
   try {
@@ -561,6 +556,9 @@ async function exitBattleToWorld(payload: BattleEndedPayload): Promise<boolean> 
       ...(payload.endReason !== undefined ? { endReason: payload.endReason } : {}),
       ...(monsterId ? { monsterId } : {}),
     });
+
+    // Garante DOM + Construct em exploração mesmo se o listener atrasar.
+    syncGameScenesToCurrentState();
 
     if (!getGameStateManager().isExploration()) {
       throw new Error('GameState não voltou para EXPLORATION');
@@ -595,23 +593,53 @@ function isEnemyDamageEvent(
   return targetId !== playerActorId && !targetId.startsWith('pet_');
 }
 
-function completeBattleExit(payload: BattleEndedPayload): Promise<void> {
-  if (battleEndHandled) return Promise.resolve();
+function completeBattleExit(payload: BattleEndedPayload): Promise<boolean> {
+  if (battleEndHandled && getGameStateManager().isExploration()) {
+    syncGameScenesToCurrentState();
+    return Promise.resolve(true);
+  }
   clearBattleFinishSafety();
   document.querySelectorAll('.battle-result-overlay').forEach((node) => node.remove());
 
-  return new Promise((resolve) => {
-    const finalizeExit = () => {
-      void exitBattleToWorld(payload).finally(resolve);
-    };
-
-    if (!battleScreen) {
-      finalizeExit();
-      return;
+  return (async () => {
+    try {
+      if (battleScreen) {
+        let exited = false;
+        await battleScreen.exitWithFade(async () => {
+          exited = await exitBattleToWorld(payload);
+        });
+        if (exited || getGameStateManager().isExploration()) {
+          syncGameScenesToCurrentState();
+          return true;
+        }
+        return false;
+      }
+      return await exitBattleToWorld(payload);
+    } catch (error) {
+      console.error('[HUD] completeBattleExit falhou:', error);
+      return exitBattleToWorld(payload);
     }
+  })();
+}
 
-    void battleScreen.exitWithFade(finalizeExit).catch(finalizeExit);
-  });
+/**
+ * Saída única da batalha — TODO caminho de "sair para o mapa" (hub, fallback,
+ * recovery, botão de emergência) passa por aqui: descarta loot pendente da
+ * batalha e devolve o jogador à exploração.
+ */
+async function finalizeBattleExit(
+  battleId: string,
+  exitPayload: BattleEndedPayload,
+): Promise<boolean> {
+  teardownBattleLootCasinoState(battleId);
+  clearBattleLootPackages();
+  clearPendingBattleLoot();
+  destroyActiveLootCasino();
+  const exited = await completeBattleExit(exitPayload);
+  if (exited) {
+    combatFinishedPresenting = false;
+  }
+  return exited;
 }
 
 function buildExitPayload(
@@ -641,6 +669,23 @@ function buildExitPayload(
   };
 }
 
+/** Espelha grant/penalty do dispatch — cobre playback OK e fallbacks do hub. */
+function mirrorPostBattleProgressionFromDispatch(
+  dispatch: CombatDispatchPayload | null,
+  battleId: string,
+): void {
+  if (!dispatch) return;
+  const finished = dispatch.events.find((e) => e.type === CombatEventType.COMBAT_FINISHED);
+  if (finished?.type !== CombatEventType.COMBAT_FINISHED) return;
+  const payload = finished.payload;
+  if (payload.victory && payload.progressionGrant) {
+    mirrorBattleProgressionGrant(battleId, payload.progressionGrant);
+  }
+  if (!payload.victory && payload.deathPenaltyOutcome) {
+    mirrorDeathPenaltyOutcome(battleId, payload.deathPenaltyOutcome);
+  }
+}
+
 /** Monta hub — montagem direta; evento é reforço idempotente. */
 function openBattleResultHub(presentation: BattleFinishPresentationPayload): void {
   if (battleEndHandled) return;
@@ -652,10 +697,14 @@ function openBattleResultHub(presentation: BattleFinishPresentationPayload): voi
     pendingBattleEndedPayload,
   );
 
+  // Espelha progressão/penalty também nos caminhos de fallback (stuck-guard / catch playback).
+  mirrorPostBattleProgressionFromDispatch(dispatch, presentation.battleId);
+
   if (
     presentation.victory
     && battleType !== BattleType.PVP
     && !isOnlineCombatClient()
+    && !isLocalGameMode()
   ) {
     ensureBattleLootPackageStaged(
       presentation.battleId,
@@ -1060,13 +1109,8 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     removeHubUi: removePostBattleHubUi,
     getCombatDispatch: resolveDispatchForFinish,
     getBattleLootContext: resolveBattleLootContext,
-    onExit: async (payload) => {
-      clearBattleLootPackages();
-      clearPendingBattleLoot();
-      destroyActiveLootCasino();
-      await completeBattleExit(buildExitPayloadFromVictoryUi(payload));
-      combatFinishedPresenting = false;
-    },
+    onExit: async (payload) =>
+      finalizeBattleExit(payload.battleId, buildExitPayloadFromVictoryUi(payload)),
   });
 
   return hud;
@@ -1117,11 +1161,13 @@ export function registerActiveBattleId(battleId: string): void {
   refreshCombatDevBindings();
 }
 
-export function prepareNextBattle(): void {
+export function prepareNextBattle(options: { readonly keepEndHandled?: boolean } = {}): void {
   combatDispatchGeneration += 1;
   setBattlePlaybackClosing(false);
   setCombatActionPlaybackActive(false);
-  battleEndHandled = false;
+  if (!options.keepEndHandled) {
+    battleEndHandled = false;
+  }
   combatFinishedPresenting = false;
   pendingBattleEndedPayload = null;
   finishFlowBattleId = null;
@@ -1151,7 +1197,6 @@ export function clearBattleSessionUi(): void {
   battleItems?.lock();
   battleScreen?.reset();
   resetTurnStateGuard();
-  resetBattleSceneTransitionFade();
   rootHideBattleDrawers();
 }
 
@@ -1187,7 +1232,6 @@ export const GameClient = {
     resetCombatFeedbackOrchestrator();
     resetCombatTurnGateway();
     resetVfxProjectileManager();
-    resetBattleSceneTransitionFade();
     combatFeedbackOrchestrator = null;
     hud?.clearSkillCache();
     battleCommand?.destroy();

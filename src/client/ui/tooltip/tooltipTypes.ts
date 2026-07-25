@@ -20,7 +20,12 @@ export type TooltipData =
   | { readonly kind: 'move'; readonly data: MoveDefinition }
   | { readonly kind: 'marco'; readonly data: MarcoTooltipPayload }
   | { readonly kind: 'status'; readonly statusId: string; readonly chip: StatusTooltipChipContext }
-  | { readonly kind: 'progression'; readonly data: ProgressionTooltipPayload };
+  | { readonly kind: 'progression'; readonly data: ProgressionTooltipPayload }
+  | {
+      readonly kind: 'hint';
+      readonly title: string;
+      readonly lines?: readonly string[];
+    };
 
 export type TooltipRenderModel = {
   readonly borderColor: string;

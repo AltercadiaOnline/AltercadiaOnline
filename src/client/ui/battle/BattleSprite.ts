@@ -4,11 +4,11 @@
  * Prop monsterId → catálogo de sprites via battleSpriteCatalog.
  */
 import {
+  DEFAULT_PLAYER_EAST_ROTATION_URL,
   DEFAULT_PLAYER_SOUTH_ROTATION_URL,
   PLAYER_ASSET_BUNDLE_ROOT,
 } from '../../entities/player/playerConstants.js';
 import { getCreatureAssets } from '../../loaders/CreatureAssetLoader.js';
-import { isPhaserRuntimeActive } from '../../phaser/phaserRuntimeState.js';
 import {
   battleSpriteSrcCandidates,
   resolveBattleSpriteFromMonsterId,
@@ -78,7 +78,6 @@ export class BattleSprite {
   /** Troca pose side-view (idle ↔ attack) via CreatureAssetLoader. */
   setStance(stance: 'idle' | 'attack'): void {
     if (this.side !== 'foe' || !this.boundCreatureId) return;
-    if (!isPhaserRuntimeActive()) return;
     if (this.currentStance === stance) return;
     this.currentStance = stance;
 
@@ -107,9 +106,11 @@ export class BattleSprite {
     this.frame.removeAttribute('data-monster-id');
     this.frame.setAttribute('aria-label', 'Jogador');
     this.showSilhouetteOnly();
+    // Arena side-view: player olha para leste (oponente à direita); south = fallback.
     this.loadSprite(
-      DEFAULT_PLAYER_SOUTH_ROTATION_URL,
+      DEFAULT_PLAYER_EAST_ROTATION_URL,
       () => this.showSilhouetteOnly(),
+      DEFAULT_PLAYER_SOUTH_ROTATION_URL,
       `${PLAYER_ASSET_BUNDLE_ROOT}/Pixel_art_character_sprite_front/rotations/south.png`,
     );
   }

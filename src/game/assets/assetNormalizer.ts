@@ -2,7 +2,7 @@ import { GAME_CONFIG } from '../constants/GameConfig.js';
 
 /**
  * Normalizador de escala legado (procedural / AssetRegistry).
- * Mapas Tiled (`isTiledMapEnabled`) ignoram este módulo — dimensões vêm do export JSON.
+ * Dimensões de sprites processados — usado pelo pipeline generate-assets.
  */
 
 /** Tolerância de proporção (10%) antes do tint de aviso. */

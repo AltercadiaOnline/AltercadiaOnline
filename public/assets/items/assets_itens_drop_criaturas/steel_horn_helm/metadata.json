@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "528a33b3-4295-4e2e-9a03-ba3db02fb797",
+      "name": null,
+      "prompt": "Futuristic heavy steel helmet with sharp metallic horns item sprite, 90s anime style, pixel art, high quality, bold outlines, flat color blocks, cell-shaded illustrations, inspired by Eastward game aesthetic, urban combat gear, clean dark shading, icons set style, game asset, isolated on solid black background",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-20T03:00:58.138240"
+}

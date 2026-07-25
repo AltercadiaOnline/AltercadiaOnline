@@ -20,7 +20,8 @@ export type AuthoritativeMoveUpdate = PlayerPositionUpdate & {
 
 /** Ignora facing/posição remota por este período após input local. */
 
-export const PREDICTION_LOCK_MS = 100;
+/** Janela em que input local vence o state-sync (evita puxão ao cruzar tiles). */
+export const PREDICTION_LOCK_MS = 220;
 
 
 

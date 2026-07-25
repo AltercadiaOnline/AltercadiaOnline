@@ -2,12 +2,17 @@ import { TileType } from '../tileTypes.js';
 import type { Portal } from '../portals.js';
 import { CITY_01_ID } from './city01.js';
 import {
-  FARM_ZONE_01_ALLEY_MAX,
-  FARM_ZONE_01_ALLEY_MIN,
+  FARM_ZONE_01_PIXEL_HEIGHT,
+  FARM_ZONE_01_PIXEL_WIDTH,
   FARM_ZONE_01_TILE_SIZE,
   FARM_ZONE_01_TILES_HIGH,
   FARM_ZONE_01_TILES_WIDE,
 } from './farmZone01LayoutConstants.js';
+import {
+  CONSTRUCT_PORTAL_PLACEMENTS,
+  constructPortalArrivalTile,
+  constructPortalToTriggerTiles,
+} from '../constructPortalPlacements.js';
 
 export const FARM_ZONE_01_ID = 'farm_zone_01' as const;
 
@@ -15,40 +20,29 @@ export {
   FARM_ZONE_01_TILES_WIDE,
   FARM_ZONE_01_TILES_HIGH,
   FARM_ZONE_01_TILE_SIZE,
+  FARM_ZONE_01_PIXEL_WIDTH,
+  FARM_ZONE_01_PIXEL_HEIGHT,
 } from './farmZone01LayoutConstants.js';
 
-/** Beco dos Fundos — corredor vertical 20×60 tiles @ 32px (640×1920 px). */
+const FARM_SOUTH_TRIGGER = constructPortalToTriggerTiles(
+  CONSTRUCT_PORTAL_PLACEMENTS.farm_portal_south,
+);
+/** Chegada na cidade: um pouco ao sul do portal norte Construct. */
+const CITY_ARRIVAL = constructPortalArrivalTile(
+  CONSTRUCT_PORTAL_PLACEMENTS.city_portal_north,
+  { dx: 0, dy: 2 },
+);
 
-const ALLEY_CENTER_MIN = FARM_ZONE_01_ALLEY_MIN;
-const ALLEY_CENTER_MAX = FARM_ZONE_01_ALLEY_MAX;
-
-const CITY_NORTH_SPAWN_X = 29;
-const CITY_NORTH_SPAWN_Y = 2;
-
-/** Faixa walkable alargada na saída sul — separada do gatilho visual de teleporte. */
+/** Zona de interação = footprint do portal sul Construct. */
 export const FARM_ZONE_01_SOUTH_EXIT_ZONE = {
-  tileX: ALLEY_CENTER_MIN,
-  tileY: FARM_ZONE_01_TILES_HIGH - 6,
-  tileW: (ALLEY_CENTER_MAX - ALLEY_CENTER_MIN + 1) * 2,
-  tileH: 4,
+  tileX: FARM_SOUTH_TRIGGER.tileX,
+  tileY: FARM_SOUTH_TRIGGER.tileY,
+  tileW: FARM_SOUTH_TRIGGER.tileW,
+  tileH: FARM_SOUTH_TRIGGER.tileH,
 } as const;
 
-function southExitZoneContains(tileX: number, tileY: number): boolean {
-  const zone = FARM_ZONE_01_SOUTH_EXIT_ZONE;
-  return (
-    tileX >= zone.tileX
-    && tileX < zone.tileX + zone.tileW
-    && tileY >= zone.tileY
-    && tileY < zone.tileY + zone.tileH
-  );
-}
-
-const FARM_PORTAL_SOUTH_CENTER_X = ALLEY_CENTER_MIN + Math.floor(FARM_ZONE_01_SOUTH_EXIT_ZONE.tileW / 2);
-const FARM_PORTAL_SOUTH_CENTER_Y = FARM_ZONE_01_SOUTH_EXIT_ZONE.tileY + Math.floor(FARM_ZONE_01_SOUTH_EXIT_ZONE.tileH / 2);
-
 /**
- * Beco dos Fundos — única saída manual no sul (retorno à Cidade).
- * O extremo norte é beco sem saída; o jogador deve voltar pelo mesmo caminho.
+ * Beco dos Fundos — gatilho = marker Construct `farm_portal_south`.
  */
 export const portals: readonly Portal[] = [
   {
@@ -56,76 +50,31 @@ export const portals: readonly Portal[] = [
     mapId: FARM_ZONE_01_ID,
     label: 'Retorno à Cidade',
     direction: 'south',
-    tileX: FARM_PORTAL_SOUTH_CENTER_X,
-    tileY: FARM_PORTAL_SOUTH_CENTER_Y,
-    tileW: 1,
-    tileH: 1,
+    tileX: FARM_SOUTH_TRIGGER.tileX,
+    tileY: FARM_SOUTH_TRIGGER.tileY,
+    tileW: FARM_SOUTH_TRIGGER.tileW,
+    tileH: FARM_SOUTH_TRIGGER.tileH,
     targetMapId: CITY_01_ID,
-    targetPosition: { x: CITY_NORTH_SPAWN_X, y: CITY_NORTH_SPAWN_Y },
+    targetPosition: CITY_ARRIVAL,
   },
 ];
 
 export const FARM_ZONE_01_PORTALS = portals;
 
-function paintBorderWalls(mapData: number[][]): void {
-  for (let x = 0; x < FARM_ZONE_01_TILES_WIDE; x++) {
-    mapData[0]![x] = TileType.Wall;
-    mapData[FARM_ZONE_01_TILES_HIGH - 1]![x] = TileType.Wall;
-  }
-  for (let y = 0; y < FARM_ZONE_01_TILES_HIGH; y++) {
-    mapData[y]![0] = TileType.Wall;
-    mapData[y]![FARM_ZONE_01_TILES_WIDE - 1] = TileType.Wall;
-  }
-}
-
-function paintPortalFloors(mapData: number[][]): void {
-  const zone = FARM_ZONE_01_SOUTH_EXIT_ZONE;
-  for (let dy = 0; dy < zone.tileH; dy++) {
-    for (let dx = 0; dx < zone.tileW; dx++) {
-      const x = zone.tileX + dx;
-      const y = zone.tileY + dy;
-      if (mapData[y]?.[x] === TileType.Wall) {
-        mapData[y]![x] = TileType.Floor;
-      }
-    }
-  }
-}
-
-function isAlleyWalkableTile(tileX: number, tileY: number): boolean {
-  if (southExitZoneContains(tileX, tileY)) {
-    return true;
-  }
-  return tileX >= ALLEY_CENTER_MIN && tileX <= ALLEY_CENTER_MAX;
-}
-
-/** Laterais do beco — prédios bloqueiam; só o corredor (e zona de portal) é walkable. */
-function paintAlleyFlankWalls(mapData: number[][]): void {
-  for (let y = 1; y < FARM_ZONE_01_TILES_HIGH - 1; y += 1) {
-    for (let x = 1; x < FARM_ZONE_01_TILES_WIDE - 1; x += 1) {
-      if (!isAlleyWalkableTile(x, y)) {
-        mapData[y]![x] = TileType.Wall;
-      }
-    }
-  }
-}
-
-/** Beco dos Fundos — corredor vertical urbano (EUA + Tóquio) com flancos sólidos. */
+/**
+ * Stub de grade — tudo Floor.
+ * Com WORLD_LEGACY_COLLISION_ENABLED=false a walkability usa pixel bounds do Construct.
+ */
 export function generateFarmZone01MapData(): number[][] {
-  const mapData: number[][] = Array.from({ length: FARM_ZONE_01_TILES_HIGH }, () =>
+  return Array.from({ length: FARM_ZONE_01_TILES_HIGH }, () =>
     Array<number>(FARM_ZONE_01_TILES_WIDE).fill(TileType.Floor),
   );
-
-  paintBorderWalls(mapData);
-  paintAlleyFlankWalls(mapData);
-  paintPortalFloors(mapData);
-
-  return mapData;
 }
 
 export function farmZone01PixelWidth(): number {
-  return FARM_ZONE_01_TILES_WIDE * FARM_ZONE_01_TILE_SIZE;
+  return FARM_ZONE_01_PIXEL_WIDTH;
 }
 
 export function farmZone01PixelHeight(): number {
-  return FARM_ZONE_01_TILES_HIGH * FARM_ZONE_01_TILE_SIZE;
+  return FARM_ZONE_01_PIXEL_HEIGHT;
 }

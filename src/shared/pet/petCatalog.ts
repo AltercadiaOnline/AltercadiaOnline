@@ -3,7 +3,7 @@ import { getDefaultPetColorId, type PetColorId } from './petColorPalette.js';
 import { getDefaultPetGenderId, sanitizePetGenderId, type PetGenderId } from './petGender.js';
 import { createInitialPetCareFields } from './petState.js';
 
-/** Espécies dimensionais vendidas pelo Treinador Zeno. */
+/** Espécies dimensionais vendidas pela Treinadora Zena. */
 export type PetKindId = 'dimensional_cat' | 'dimensional_dog';
 
 export const TREINADOR_ZENO_NPC = 'treinador_zeno' as const;

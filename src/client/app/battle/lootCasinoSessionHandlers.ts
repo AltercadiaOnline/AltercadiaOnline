@@ -5,38 +5,45 @@ export type LootCasinoSessionHandlers = {
   readonly onRetry?: () => void;
 };
 
-let handlers: LootCasinoSessionHandlers | null = null;
+type GlobalWithLootCasinoHandlers = typeof globalThis & {
+  __ALTERCADIA_LOOT_CASINO_HANDLERS__?: LootCasinoSessionHandlers | null;
+};
 
+function getHandlers(): LootCasinoSessionHandlers | null {
+  return (globalThis as GlobalWithLootCasinoHandlers).__ALTERCADIA_LOOT_CASINO_HANDLERS__ ?? null;
+}
+
+/** Singleton cross-bundle — botões do cassino (confirmar/descartar/retry) no React. */
 export function registerLootCasinoSessionHandlers(bundle: LootCasinoSessionHandlers): void {
-  handlers = bundle;
+  (globalThis as GlobalWithLootCasinoHandlers).__ALTERCADIA_LOOT_CASINO_HANDLERS__ = bundle;
 }
 
 export function clearLootCasinoSessionHandlers(): void {
-  handlers = null;
+  (globalThis as GlobalWithLootCasinoHandlers).__ALTERCADIA_LOOT_CASINO_HANDLERS__ = null;
 }
 
 export function triggerLootCasinoConfirm(): void {
-  const action = handlers?.onConfirm;
+  const action = getHandlers()?.onConfirm;
   if (!action) return;
   void Promise.resolve(action());
 }
 
 export function triggerLootCasinoDismiss(): void {
-  handlers?.onDismiss?.();
+  getHandlers()?.onDismiss?.();
 }
 
 export function triggerLootCasinoSpinSettled(): void {
-  handlers?.onSpinSettled?.();
+  getHandlers()?.onSpinSettled?.();
 }
 
 export function triggerLootCasinoRetry(): void {
-  const action = handlers?.onRetry;
+  const action = getHandlers()?.onRetry;
   if (!action) return;
   void Promise.resolve(action());
 }
 
 export async function runLootCasinoConfirm(): Promise<boolean | void> {
-  const action = handlers?.onConfirm;
+  const action = getHandlers()?.onConfirm;
   if (!action) return;
   return Promise.resolve(action());
 }

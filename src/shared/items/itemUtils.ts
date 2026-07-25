@@ -35,7 +35,8 @@ export function createEmptyTotalStats(): PlayerTotalStats {
 
 /**
  * Percorre o SET, resolve cada item via catálogo e soma efeitos.
- * PERCENT e FLAT acumulam no mesmo contador por stat.
+ * HP (vida): só PERCENT — bônus de vida nunca entra como flat no teto.
+ * Demais stats: PERCENT e FLAT acumulam no mesmo contador (legado de UI).
  * Efeitos `combatOnly` (runas condicionais) são ignorados.
  */
 export function calculateTotalStats(playerEquipment: readonly EquipmentSlot[]): PlayerTotalStats {
@@ -52,6 +53,10 @@ export function calculateTotalStats(playerEquipment: readonly EquipmentSlot[]): 
 
       const key = STAT_TO_TOTAL_KEY[effect.stat];
       if (!key) continue;
+
+      if (key === 'vida' && effect.type !== ItemEffectValueType.Percent) {
+        continue;
+      }
 
       totals[key] += effect.value;
     }

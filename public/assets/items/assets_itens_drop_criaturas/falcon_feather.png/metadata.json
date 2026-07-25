@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "b1b3a1aa-bfad-409e-a61e-ad6b5ce9fdb9",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a razor-sharp blade-like wing, metallic edge, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:35:46.525112"
+}

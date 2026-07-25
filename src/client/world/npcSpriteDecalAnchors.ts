@@ -61,23 +61,17 @@ export function buildNpcSpriteDecalEntries(npc: NPC, bounds: EntitySpriteBounds)
   const entries: DomNametagEntry[] = [];
 
   if (npc.sprite === 'terminal') {
+    const isArenaComputer = npc.id === 'computador_arena';
+    const isMarketplace = npc.id === 'computador_marketplace';
+    const isPvpQueue = npc.id === 'combate_pvp';
     const anchor = resolveTerminalMktAnchor(bounds);
     entries.push({
       id: `sprite-decal-mkt-${npc.id}`,
-      label: 'MKT',
+      label: isArenaComputer ? 'PvP' : isPvpQueue ? '1v1' : isMarketplace ? 'P2P' : 'MKT',
       anchor,
-      className: 'sprite-decal-tag sprite-decal-tag--terminal',
-      placement: 'center',
-    });
-  }
-
-  if (npc.sprite === 'pulpit') {
-    const anchor = resolvePulpitBetAnchor(bounds);
-    entries.push({
-      id: `sprite-decal-bet-${npc.id}`,
-      label: 'BET',
-      anchor,
-      className: 'sprite-decal-tag sprite-decal-tag--pulpit',
+      className: isArenaComputer || isPvpQueue
+        ? 'sprite-decal-tag sprite-decal-tag--pulpit'
+        : 'sprite-decal-tag sprite-decal-tag--terminal',
       placement: 'center',
     });
   }
