@@ -68,8 +68,6 @@ import { ExplorationScene } from '../scenes/Exploration.js';
 import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
 import { AppScreens } from './appScreens.js';
 import { createBrowserCombatSocket, connectionPhaseLabel, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
-import { createLocalCombatSocket } from '../combat/local/createLocalCombatSocket.js';
-import { resolveLocalCombatLoadoutFromClient } from '../combat/local/resolveLocalCombatLoadout.js';
 import { resolvePlayerEquippedSkillIds } from '../../shared/combat/movesetLoadout.js';
 import { mountWorldMapScene, SceneManager, resetWorldMapSceneMount } from './sceneManager.js';
 import { initGameRoot } from './GameRoot.js';
@@ -386,7 +384,7 @@ function bindLocalPveEncounterLayer(activeWorld: ExplorationScene): void {
   });
 }
 
-function connectSocket(): void {
+async function connectSocket(): Promise<void> {
   if (socket) {
     positionGateway?.bindSocket(socket);
     refreshCombatDevBindings();
@@ -409,14 +407,21 @@ function connectSocket(): void {
 
   const synchronizer = getGlobalStateSynchronizer();
 
-  socket = getGameMode() === 'local'
-    ? createLocalCombatSocket(resolveLocalCombatLoadoutFromClient, {
+  // Online: NÃO importar createLocalCombatSocket estaticamente — ele puxa
+  // src/server/* e Economy/* que não existem no deploy estático da Vercel (404 → mundo trava).
+  if (getGameMode() === 'local') {
+    const [{ createLocalCombatSocket }, { resolveLocalCombatLoadoutFromClient }] = await Promise.all([
+      import('../combat/local/createLocalCombatSocket.js'),
+      import('../combat/local/resolveLocalCombatLoadout.js'),
+    ]);
+    socket = createLocalCombatSocket(resolveLocalCombatLoadoutFromClient, {
       onSystemError: (reason) => {
         handleWorldAuthError(reason);
         void abortCombatJoinOnError(reason);
       },
-    })
-    : createBrowserCombatSocket(
+    });
+  } else {
+    socket = createBrowserCombatSocket(
       resolveGameWsUrl(window.location, getClientRuntimeConfig()?.gameWsUrl),
       {
         onReconnect: () => {
@@ -431,6 +436,7 @@ function connectSocket(): void {
         },
       },
     );
+  }
   positionGateway?.bindSocket(socket);
   bindRefractionBoothSocket(socket);
 
@@ -885,7 +891,7 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
       });
     }
 
-    connectSocket();
+    await connectSocket();
     wirePortalTransitionBridge();
     focusGameRenderSurfaceForInput();
 

@@ -24,7 +24,17 @@ export function saveWorldProfile(
   characterId: number,
   profile: PlayerProfile,
 ): PlayerProfile {
+  const key = profileKey(playerId, characterId);
+  const existing = profiles.get(key);
   const mapDef = getMapDefinition(profile.currentMapId as MapId);
+  // Posição/facing podem chegar sem sessionSync (ex.: PositionGateway).
+  // Preservar loadout/movesets ativos — senão o combate cai no default da classe.
+  const sessionSync = profile.sessionSync !== undefined
+    ? profile.sessionSync
+    : existing?.sessionSync;
+  const loadout = profile.loadout !== undefined
+    ? profile.loadout
+    : existing?.loadout;
   const normalized: PlayerProfile = {
     currentMapId: mapDef ? profile.currentMapId : createDefaultWorldProfile().currentMapId,
     lastPosition: {
@@ -32,11 +42,11 @@ export function saveWorldProfile(
       y: profile.lastPosition.y,
     },
     facing: profile.facing,
-    ...(profile.sessionSync !== undefined ? { sessionSync: profile.sessionSync } : {}),
-    ...(profile.loadout !== undefined ? { loadout: profile.loadout } : {}),
+    ...(sessionSync !== undefined ? { sessionSync } : {}),
+    ...(loadout !== undefined ? { loadout } : {}),
   };
 
-  profiles.set(profileKey(playerId, characterId), normalized);
+  profiles.set(key, normalized);
   return { ...normalized, lastPosition: { ...normalized.lastPosition } };
 }
 

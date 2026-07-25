@@ -1,0 +1,1 @@
+import{Ka as n,ca as t}from"./chunk-HFDU3UAB.js";function u(r){let o=n(r);if(!o)return 0;let e=o.ppMax;return e===void 0||e<=0?0:Math.floor(e)}function a(r){let o=r.slice(0,t),e=0;for(let p of o)e+=u(p);return{ppCurrent:e,ppMax:e}}export{a};

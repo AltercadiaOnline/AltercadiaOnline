@@ -12,6 +12,7 @@ const publicDir = path.join(root, 'public');
 
 const REQUIRED_STATIC_MODULES = [
   'client/browser/main.js',
+  'client/browser/gameSession.js',
   'client/ui/ambient/AmbientOverlay.js',
   'client/services/loginScreen.js',
   'config/designConstants.js',
@@ -33,6 +34,8 @@ const REQUIRED_STATIC_MODULES = [
   'assets/creatures/zone1/rato/manifest.json',
   'assets/terrain/groundTileManifest.js',
   'assets/npcs/npcDefinition.js',
+  'assets/player/player_male_1/design/rotations/south.png',
+  'assets/player/player_male_1/design/rotations/east.png',
   'vendor/gsap/index.js',
   'app-ui/ui-runtime.js',
 ];
@@ -63,6 +66,26 @@ if (!npcDefinitionSource.includes('NPC_ASSET_BUNDLES')) {
   console.error(
     '[audit-static-bundle] assets/npcs/npcDefinition.js desatualizado — falta export NPC_ASSET_BUNDLES. Rode npm run build:sync.',
   );
+  process.exit(1);
+}
+
+/** Online na Vercel: gameSession não pode puxar src/server ou Economy (404 → mundo trava). */
+const gameSessionPath = path.join(publicDir, 'client', 'browser', 'gameSession.js');
+const gameSessionSource = readFileSync(gameSessionPath, 'utf8');
+const forbiddenStaticImports = [
+  ...gameSessionSource.matchAll(/from\s+['"]([^'"]+)['"]/g),
+].map((match) => match[1]);
+const leakedServerImports = forbiddenStaticImports.filter((specifier) => (
+  specifier.includes('/server/')
+  || specifier.includes('/Economy/')
+  || /(?:^|\/)(?:createLocalCombatSocket|localCombatAuthority|resolveLocalCombatLoadout)\.js/.test(specifier)
+));
+if (leakedServerImports.length > 0) {
+  console.error('[audit-static-bundle] gameSession.js ainda importa módulos só-local/servidor:');
+  for (const entry of leakedServerImports) {
+    console.error(`  - ${entry}`);
+  }
+  console.error('Use dynamic import() apenas quando GAME_MODE=local.');
   process.exit(1);
 }
 

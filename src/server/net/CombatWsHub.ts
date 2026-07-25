@@ -681,7 +681,10 @@ export class CombatWsHub implements CombatWsRouteHost {
   handlePveEncounterAccept(
     ws: LiveSocket,
     connectionId: string,
-    payload: { readonly monsterInstanceId: string },
+    payload: {
+      readonly monsterInstanceId: string;
+      readonly activeMovesets?: readonly string[];
+    },
   ): void {
     const world = this.requireVerifiedWorldSession(ws, connectionId);
     if (!world) return;
@@ -701,10 +704,16 @@ export class CombatWsHub implements CombatWsRouteHost {
       payload: { monsterInstanceId: accepted.monsterInstanceId, reason: 'accepted' },
     });
 
+    // Espelha o loadout confirmado no join (mesma ordem da HUD) antes do bootstrap.
     this.handleJoin(
       ws,
       connectionId,
-      { monsterInstanceId: accepted.monsterInstanceId },
+      {
+        monsterInstanceId: accepted.monsterInstanceId,
+        ...(payload.activeMovesets?.length
+          ? { activeMovesets: payload.activeMovesets }
+          : {}),
+      },
       world.characterId,
       world.playerId,
     );
