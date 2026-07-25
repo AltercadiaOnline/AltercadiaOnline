@@ -9,11 +9,11 @@ import {
   type MarketOfferRow,
   type MarketOfferSide,
 } from '../../../../../shared/economy/marketplaceOrderBook.js';
-import { endWorldHudInteractionSession } from '../../../../world/worldHudInteractionSession.js';
 import { resolveItemLabel } from '../../../../ui/market/marketSellFormHelpers.js';
-import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
+import { bindItemHoverHandlers } from '../../../../ui/tooltip/itemHoverTooltip.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
 import { useMarketPanelState } from '../../../panels/useMarketPanelState.js';
+import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 import { MarketItemIcon } from './MarketItemIcon.js';
 
@@ -58,6 +58,7 @@ function MarketOfferTable({
           }
 
           const name = resolveMarketOfferDisplayName(row);
+          const itemHover = bindItemHoverHandlers(row.itemId);
 
           return (
             <tr
@@ -68,6 +69,7 @@ function MarketOfferTable({
               ].filter(Boolean).join(' ')}
               data-offer-side={side}
               data-offer-id={row.id}
+              {...itemHover}
             >
               <td className="market-terminal__offer-cell market-terminal__offer-cell--name">{name}</td>
               <td className="market-terminal__offer-cell market-terminal__offer-cell--qty">×{row.quantity}</td>
@@ -118,8 +120,10 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
   const {
     wallet,
     browseCategory,
+    browseSource,
     searchQuery,
-    browseItems,
+    sidebarItems,
+    sellRowCount,
     offerForm,
     selectedItemId,
     sellView,
@@ -130,6 +134,7 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
     maxSellQty,
     submitDisabled,
     selectCategory,
+    setBrowseSourceMode,
     updateSearchQuery,
     selectBrowseItem,
     setOfferSide,
@@ -143,17 +148,14 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
 
   useEffect(() => () => {
     revokeMarketTerminalAccess();
-    const snapshot = endWorldHudInteractionSession();
-    if (snapshot) {
-      uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
-    }
   }, []);
+  useReleaseWorldHudOnPanelClose('market');
 
   useLayoutEffect(() => {
     if (itemListRef.current) {
       itemListRef.current.scrollTop = sidebarScrollRef.current;
     }
-  }, [browseCategory, searchQuery, browseItems]);
+  }, [browseCategory, browseSource, searchQuery, sidebarItems]);
 
   const preserveSidebarScroll = useCallback((action: () => void) => {
     sidebarScrollRef.current = itemListRef.current?.scrollTop ?? 0;
@@ -164,6 +166,8 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
   const sellActive = offerForm.offerSide === 'sell';
   const buyActive = offerForm.offerSide === 'buy';
   const categories = getMarketBrowseCategoryLabels();
+  const catalogMode = browseSource === 'catalog';
+  const listCount = sidebarItems.length;
 
   return (
     <MovablePanelFrame
@@ -171,12 +175,13 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
       title="Monitor do Mercado"
       zIndex={zIndex}
       focused={focused}
+      bodyOverflow="hidden"
       panelClassName="world-panel--market ui-panel ui-panel--market ui-panel--market-terminal ui-panel--movable"
       panelStyle={{
         width: 'min(1040px, 97vw)',
         minWidth: 'min(760px, 94vw)',
-        minHeight: 'min(580px, 84vh)',
-        maxHeight: 'min(640px, 90vh)',
+        minHeight: 'min(560px, 82vh)',
+        maxHeight: 'min(720px, 92vh)',
       }}
       onFocus={() => tryFocusReactWorldPanel('market')}
       onClose={() => tryCloseReactWorldPanel('market')}
@@ -191,8 +196,31 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
 
         <div className="market-terminal__workspace">
           <aside className="market-terminal__sidebar" aria-label="Categorias e itens">
+            <div className="market-terminal__source-toggle" role="tablist" aria-label="Fonte da lista">
+              <button
+                type="button"
+                role="tab"
+                className={`market-terminal__source-btn${catalogMode ? ' is-active' : ''}`}
+                aria-selected={catalogMode}
+                onClick={() => preserveSidebarScroll(() => setBrowseSourceMode('catalog'))}
+              >
+                Catálogo ({categories.find((entry) => entry.id === 'all')?.count ?? 0})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className={`market-terminal__source-btn${!catalogMode ? ' is-active' : ''}`}
+                aria-selected={!catalogMode}
+                onClick={() => preserveSidebarScroll(() => setBrowseSourceMode('inventory'))}
+              >
+                Meu inventário ({sellRowCount})
+              </button>
+            </div>
+
             <label className="market-terminal__search">
-              <span className="market-terminal__search-label">Buscar</span>
+              <span className="market-terminal__search-label">
+                {catalogMode ? 'Buscar no catálogo' : 'Buscar no inventário'}
+              </span>
               <input
                 type="search"
                 className="market-terminal__search-input"
@@ -206,34 +234,45 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
               />
             </label>
 
-            <nav className="market-terminal__categories" aria-label="Categorias">
-              {categories.map((entry) => {
-                const active = browseCategory === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    className={`market-terminal__category${active ? ' is-active' : ''}`}
-                    data-market-category={entry.id}
-                    aria-pressed={active}
-                    onClick={() => {
-                      preserveSidebarScroll(() => selectCategory(entry.id));
-                    }}
-                  >
-                    {entry.label}
-                  </button>
-                );
-              })}
-            </nav>
+            {catalogMode ? (
+              <nav className="market-terminal__categories" aria-label="Categorias">
+                {categories.map((entry) => {
+                  const active = browseCategory === entry.id;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={`market-terminal__category${active ? ' is-active' : ''}`}
+                      data-market-category={entry.id}
+                      aria-pressed={active}
+                      onClick={() => {
+                        preserveSidebarScroll(() => selectCategory(entry.id));
+                      }}
+                    >
+                      <span className="market-terminal__category-label">{entry.label}</span>
+                      <span className="market-terminal__category-count">{entry.count}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            ) : (
+              <p className="market-terminal__inventory-hint">
+                Itens que você pode vender no P2P. Selecione um para publicar oferta de venda.
+              </p>
+            )}
+
+            <p className="market-terminal__list-meta" aria-live="polite">
+              {listCount} {listCount === 1 ? 'item' : 'itens'}
+            </p>
 
             <div
               ref={itemListRef}
               className="market-terminal__item-list"
               role="listbox"
-              aria-label="Itens"
+              aria-label={catalogMode ? 'Catálogo do jogo' : 'Inventário vendável'}
             >
-              {browseItems.length > 0 ? (
-                browseItems.map((item) => {
+              {sidebarItems.length > 0 ? (
+                sidebarItems.map((item) => {
                   const active = selectedItemId === item.itemId;
                   return (
                     <button
@@ -243,6 +282,7 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                       data-market-item={item.itemId}
                       aria-pressed={active}
                       onClick={() => selectBrowseItem(item.itemId)}
+                      {...bindItemHoverHandlers(item.itemId)}
                     >
                       <MarketItemIcon itemId={item.itemId} />
                       <span className="market-terminal__item-label">{item.label}</span>
@@ -250,7 +290,11 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                   );
                 })
               ) : (
-                <p className="market-terminal__sidebar-empty">Nenhum item nesta categoria.</p>
+                <p className="market-terminal__sidebar-empty">
+                  {catalogMode
+                    ? 'Nenhum item nesta categoria.'
+                    : 'Nenhum item vendável no inventário.'}
+                </p>
               )}
             </div>
           </aside>
@@ -272,23 +316,27 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                   aria-label="Ofertas de venda"
                 >
                   <h3 className="market-terminal__offers-title">Sell Offers</h3>
-                  <MarketOfferTable
-                    rows={sellView.paddedRows}
-                    side="sell"
-                    onCancel={cancelOffer}
-                    onPurchase={purchaseOffer}
-                  />
+                  <div className="market-terminal__offers-scroll">
+                    <MarketOfferTable
+                      rows={sellView.paddedRows}
+                      side="sell"
+                      onCancel={cancelOffer}
+                      onPurchase={purchaseOffer}
+                    />
+                  </div>
                 </section>
                 <section
                   className="market-terminal__offers-block market-terminal__offers-block--buy"
                   aria-label="Ofertas de compra"
                 >
                   <h3 className="market-terminal__offers-title">Buy Offers</h3>
-                  <MarketOfferTable
-                    rows={buyView.paddedRows}
-                    side="buy"
-                    onCancel={cancelOffer}
-                  />
+                  <div className="market-terminal__offers-scroll">
+                    <MarketOfferTable
+                      rows={buyView.paddedRows}
+                      side="buy"
+                      onCancel={cancelOffer}
+                    />
+                  </div>
                 </section>
               </div>
             ) : (

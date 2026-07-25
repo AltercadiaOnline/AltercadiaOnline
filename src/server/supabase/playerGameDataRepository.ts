@@ -10,11 +10,14 @@ import {
 import {
   parseEquippedSlots,
   parseInventoryStacks,
+  parseCharacterPetsRow,
   type CurrencyRow,
   type InventoryRow,
   type PlayerGameDataBundle,
   type ProfileRow,
 } from '../../shared/supabase/gameDatabaseTypes.js';
+import type { PlayerPetRosterSnapshot } from '../../shared/pet/petRoster.js';
+import type { PersistedPetAffinitySlice } from '../../shared/persistence/characterPersistenceRecord.js';
 
 const DEFAULT_PROFILE_WAIT_ATTEMPTS = 12;
 const DEFAULT_PROFILE_WAIT_DELAY_MS = 300;
@@ -23,6 +26,24 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+/** PostgREST / Postgres — relação ainda não migrada. */
+function isMissingRelationError(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const message = (error.message ?? '').toLowerCase();
+  return (
+    error.code === '42P01'
+    || error.code === 'PGRST205'
+    || (
+      message.includes('character_pets')
+      && (
+        message.includes('does not exist')
+        || message.includes('could not find')
+        || message.includes('schema cache')
+      )
+    )
+  );
 }
 
 export async function profileExistsForUser(
@@ -79,7 +100,7 @@ export async function fetchPlayerGameDataForScope(
   if (!scope.userId?.trim()) {
     throw new Error(ARCHITECTURE_SERVER_ID_REQUIRED);
   }
-  const [profileRes, currencyRes, inventoryRes] = await Promise.all([
+  const [profileRes, currencyRes, inventoryRes, petsRes] = await Promise.all([
     client
       .from('profiles')
       .select('*')
@@ -91,10 +112,18 @@ export async function fetchPlayerGameDataForScope(
       .from('currency')
       .select('*')
       .eq('user_id', scope.userId)
+      .eq('character_id', scope.characterId)
       .eq('server_id', scopedServerId)
       .maybeSingle(),
     client
       .from('inventory')
+      .select('*')
+      .eq('user_id', scope.userId)
+      .eq('character_id', scope.characterId)
+      .eq('server_id', scopedServerId)
+      .maybeSingle(),
+    client
+      .from('character_pets')
       .select('*')
       .eq('user_id', scope.userId)
       .eq('character_id', scope.characterId)
@@ -105,6 +134,14 @@ export async function fetchPlayerGameDataForScope(
   if (profileRes.error) throw new Error(profileRes.error.message);
   if (currencyRes.error) throw new Error(currencyRes.error.message);
   if (inventoryRes.error) throw new Error(inventoryRes.error.message);
+  if (petsRes.error && !isMissingRelationError(petsRes.error)) {
+    throw new Error(petsRes.error.message);
+  }
+  if (petsRes.error && isMissingRelationError(petsRes.error)) {
+    console.warn(
+      '[playerGameData] character_pets ausente — aplique supabase/migrations/016_character_pets.sql. Pets via file até lá.',
+    );
+  }
 
   const inventoryRow = inventoryRes.data as InventoryRow | null;
   const normalizedInventory = inventoryRow
@@ -119,6 +156,19 @@ export async function fetchPlayerGameDataForScope(
     profile: (profileRes.data as ProfileRow | null) ?? null,
     currency: (currencyRes.data as CurrencyRow | null) ?? null,
     inventory: normalizedInventory,
+    pets: petsRes.error
+      ? null
+      : parseCharacterPetsRow(
+          petsRes.data as {
+            readonly id: string;
+            readonly user_id: string;
+            readonly character_id: number;
+            readonly server_id: string;
+            readonly roster: unknown;
+            readonly affinity: unknown;
+            readonly updated_at: string;
+          } | null,
+        ),
   };
 }
 
@@ -192,6 +242,7 @@ export async function fetchPlayerGameDataWhenProfileReady(
 export async function upsertPlayerCurrency(
   client: SupabaseClient,
   userId: string,
+  characterId: number,
   serverId: string,
   dollarVolt: number,
   alterCoins: number,
@@ -200,11 +251,12 @@ export async function upsertPlayerCurrency(
   const { error } = await client.from('currency').upsert(
     {
       user_id: userId,
+      character_id: characterId,
       server_id: scopedServerId,
       dollar_volt: Math.max(0, Math.floor(dollarVolt)),
       alter_coins: Math.max(0, Math.floor(alterCoins)),
     },
-    { onConflict: 'user_id,server_id' },
+    { onConflict: 'user_id,character_id,server_id' },
   );
 
   if (error) return { ok: false, message: error.message };
@@ -232,5 +284,45 @@ export async function upsertPlayerInventory(
   );
 
   if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
+
+export async function upsertPlayerPets(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+  serverId: string,
+  roster: PlayerPetRosterSnapshot,
+  affinity: PersistedPetAffinitySlice,
+): Promise<{ ok: boolean; message?: string }> {
+  const scopedServerId = requireServerId(serverId);
+  const { error } = await client.from('character_pets').upsert(
+    {
+      user_id: userId,
+      character_id: characterId,
+      server_id: scopedServerId,
+      roster: {
+        pets: roster.pets.map((pet) => ({ ...pet })),
+        activeSlotIndex: roster.activeSlotIndex,
+        selectedSlotIndex: roster.selectedSlotIndex,
+      },
+      affinity: {
+        rationCharges: affinity.rationCharges,
+        lastPetRationFeedAtMs: affinity.lastPetRationFeedAtMs,
+        lastPetAffectionAtMs: affinity.lastPetAffectionAtMs,
+      },
+    },
+    { onConflict: 'user_id,character_id,server_id' },
+  );
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      console.warn(
+        '[playerGameData] upsert character_pets ignorado — aplique supabase/migrations/016_character_pets.sql',
+      );
+      return { ok: true };
+    }
+    return { ok: false, message: error.message };
+  }
   return { ok: true };
 }

@@ -42,12 +42,19 @@ export function resolveEntitySpriteCenter(bounds: EntitySpriteBounds): { readonl
 }
 
 /**
- * Valida contrato 35×54 — loga aviso no console se divergir.
- * Retorna true quando as dimensões estão no padrão.
+ * Valida contrato 35×54 do jogador/humanoides de design.
+ * Terminais / props (computador, púlpito) usam o frame do asset — não alertar.
  */
 export function validateSpriteDimensions(entity: SpriteDimensionsEntity): boolean {
   const label = entity.id ?? 'entity';
   const dims = entity.dimensions;
+
+  if (
+    label.startsWith('computador_')
+    || label === 'combate_pvp'
+  ) {
+    return true;
+  }
 
   if (!dims) {
     console.warn(`[SpriteDimensions] ${label}: propriedade dimensions ausente (esperado 35×54).`);

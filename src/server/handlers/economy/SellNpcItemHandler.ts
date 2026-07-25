@@ -25,7 +25,7 @@ export class SellNpcItemHandler extends BaseIntentHandler<SellNpcItemPayload> {
     });
 
     if (!result.ok) {
-      this.sendResponse(playerId, intentId, false, result.code);
+      this.sendResponse(playerId, intentId, false, result.message);
       return;
     }
 
@@ -33,6 +33,7 @@ export class SellNpcItemHandler extends BaseIntentHandler<SellNpcItemPayload> {
       itemId: result.itemId,
       quantity: result.quantity,
       totalVolts: result.totalVolts,
+      inventorySync: result.inventorySync,
     });
   }
 }

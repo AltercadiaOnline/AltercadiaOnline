@@ -308,6 +308,12 @@ export function AuthScreen() {
           </p>
         ) : null}
 
+        {!state.loginActionsReady && !state.authBootstrapPending && !state.statusMessage ? (
+          <p className="auth-status" aria-live="polite">
+            Iniciando cliente… aguarde ou clique em LOGIN.
+          </p>
+        ) : null}
+
         {state.bootstrapFatalVisible ? (
           <div className="bootstrap-fatal-overlay mt-4 flex flex-col gap-3">
             <p className="bootstrap-fatal-overlay__message m-0">

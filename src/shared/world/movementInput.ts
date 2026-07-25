@@ -1,22 +1,23 @@
 import { composeKeyboardMoveVector } from './worldMovementAxis.js';
 
-/** Vetor de movimento normalizado (cardinal ou diagonal). */
+/** Vetor de movimento — só cardinais (N/S/L/O). */
 export type MoveVector = {
   readonly dx: number;
   readonly dy: number;
 };
 
-export const DIAGONAL_SPEED_NORMALIZER = 1 / Math.SQRT2;
+/** @deprecated Diagonal desligada — mantido por compat; sempre cardinaliza. */
+export const DIAGONAL_SPEED_NORMALIZER = 1;
 
 export function normalizeMoveVector(rawDx: number, rawDy: number): MoveVector {
   if (rawDx === 0 && rawDy === 0) {
     return { dx: 0, dy: 0 };
   }
   if (rawDx !== 0 && rawDy !== 0) {
-    return {
-      dx: rawDx * DIAGONAL_SPEED_NORMALIZER,
-      dy: rawDy * DIAGONAL_SPEED_NORMALIZER,
-    };
+    if (Math.abs(rawDy) >= Math.abs(rawDx)) {
+      return { dx: 0, dy: rawDy > 0 ? 1 : -1 };
+    }
+    return { dx: rawDx > 0 ? 1 : -1, dy: 0 };
   }
   return { dx: rawDx, dy: rawDy };
 }
@@ -69,15 +70,6 @@ export function normalizeMovementKeyCode(code: string): string {
 export function axisContributionFromKeyboard(key: string, code = ''): AxisContribution | null {
   const normalized = key.toLowerCase();
 
-  switch (code) {
-    case 'KeyQ':
-      return { up: true, left: true };
-    case 'KeyE':
-      return { up: true, right: true };
-    default:
-      break;
-  }
-
   switch (normalized) {
     case 'w':
     case 'arrowup':
@@ -112,14 +104,13 @@ export function axisContributionFromKeyboard(key: string, code = ''): AxisContri
       return { left: true };
     case 'Numpad6':
       return { right: true };
+    // Numpad diagonais → cardinal dominante (sem passo diagonal).
     case 'Numpad7':
-      return { up: true, left: true };
     case 'Numpad9':
-      return { up: true, right: true };
+      return { up: true };
     case 'Numpad1':
-      return { down: true, left: true };
     case 'Numpad3':
-      return { down: true, right: true };
+      return { down: true };
     default:
       return null;
   }
@@ -129,9 +120,9 @@ export function isMovementKey(key: string, code = ''): boolean {
   return axisContributionFromKeyboard(key, code) !== null;
 }
 
-/** Q/E reservadas para diagonal — bloqueio explícito em atalhos HUD. */
-export function isDedicatedDiagonalKey(code: string): boolean {
-  return code === 'KeyQ' || code === 'KeyE';
+/** Diagonal desligada — Q/E não movem o player. */
+export function isDedicatedDiagonalKey(_code: string): boolean {
+  return false;
 }
 
 /** Prioridade Tibia para pivot (CTRL) — cardinais apenas. */

@@ -14,7 +14,6 @@ import { isOriginAllowed } from '../config/cors.js';
 import type { ActionRequest } from '../../shared/events.js';
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
 import type { BattleEndReason } from '../../shared/combat/battleEnded.js';
-import { BattleType } from '../../shared/combat/battleType.js';
 import { BATTLE_SESSION_LEASE_SWEEP_MS } from '../../shared/combat/battleSessionLeaseConstants.js';
 import { combatReactionStaggerDelay } from '../../shared/combat/combatReactionDelay.js';
 import {
@@ -66,13 +65,7 @@ import { recordPlayerLastSeen } from '../world/playerPresenceStore.js';
 import type { StagedBattleLootResult } from '../../Economy/economyGateway.js';
 import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
 import { resolveDefeatedCreatureLevel } from '../../shared/combat/battleXpRewards.js';
-import { buildCombatFinishedEvent } from '../combat/buildCombatFinishedEvent.js';
-import { persistWorldVitalsAfterCombat } from '../world/persistWorldVitalsAfterCombat.js';
-import { applyAuthoritativeBattleProgression, resolveAuthoritativeBattleProgressionGrant } from '../combat/applyAuthoritativeBattleProgression.js';
-import { applyAuthoritativeDeathPenalty } from '../combat/applyAuthoritativeDeathPenalty.js';
-import { progressMarcoAuthoritative } from '../../Economy/progressionGateway.js';
-import { ensureMovesetMasteryForClass } from '../../shared/progression/movesetMasterySeed.js';
-import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
+import { finalizeAuthoritativeBattleEnd } from '../combat/finalizeAuthoritativeBattleEnd.js';
 import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
 import { getInventoryPersistenceBridge } from '../supabase/inventoryPersistenceBridge.js';
 import { getPersistenceManager } from '../supabase/persistenceManagerRegistry.js';
@@ -80,13 +73,38 @@ import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { ChatGlobalPayload } from '../../shared/world/globalChatTypes.js';
 import { normalizeSpeechBubbleText } from '../../shared/world/speechBubbleText.js';
 import { validateGlobalChatOnServer } from '../chat/globalChatModeratorServer.js';
+import {
+  bindChatGlobalBroadcaster,
+  bindChatGlobalDisplayNameResolver,
+  broadcastChatGlobalPayload,
+  unbindChatGlobalBroadcast,
+} from '../chat/chatGlobalBroadcast.js';
 import { WORLD_TICK_MS } from '../../shared/sync/syncProtocol.js';
 import type { StateSyncBody } from '../../shared/sync/syncProtocol.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
 import { getMonsterRegistryEntry, type MonsterRegistryEntry } from '../../shared/world/monsterRegistry.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
-import { removeActiveWorldMonster } from '../../shared/world/worldMonsterInstances.js';
-import { buildServerScopedWorldCreaturesForMap, normalizeProfileForServerInstance } from '../instance/serverWorldScope.js';
+import { tickCreatureWanderAi } from '../world/creatureAiTick.js';
+import {
+  abandonPveEncounterOnDisconnect,
+  acceptPveEncounter,
+  clearForceJoinInFlight,
+  consumeForceBattleNextEncounter,
+  consumePveCombatGrant,
+  releasePveMonsterClaim,
+  requestPveEncounterOffer,
+  tickPveEncounterOffers,
+  tryFleePveEncounter,
+  type PveEncounterOutbound,
+} from '../world/pveEncounterManager.js';
+import {
+  scheduleWorldMonsterRespawn,
+  tickWorldMonsterRespawns,
+} from '../world/monsterRespawnScheduler.js';
+import { CREATURE_RESPAWN_MS } from '../../shared/world/creatureWanderConfig.js';
+import { buildServerScopedWorldCreaturesNearObserver, normalizeProfileForServerInstance } from '../instance/serverWorldScope.js';
+import { getZoneLoadGateway } from '../world/ZoneLoadGateway.js';
+import { clearCreatureSyncConnection } from '../world/creatureSyncDirty.js';
 import { assertPlayerBoundToServerInstance } from '../instance/playerInstanceBinding.js';
 import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
 import { requireServerId } from '../../shared/supabase/characterServerScope.js';
@@ -103,8 +121,10 @@ import {
   isDurablePersistence,
   persistCharacterSession,
   persistPendingLootSnapshot,
+  touchCharacterPersistenceDirty,
 } from '../persistence/PersistenceGateway.js';
 import { patchAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
+import { reconcileAuthoritativeCharacterClassLink } from '../progression/reconcileCharacterClassLink.js';
 import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
 import { resolveMinorAccountNotice, buildAvisoMenor } from '../../shared/auth/accountAgePolicy.js';
 import { SecurityGuard } from '../middleware/securityGuard.js';
@@ -149,7 +169,8 @@ type PveMonsterJoinAuthorization =
         | 'MONSTER_NOT_ACTIVE'
         | 'MONSTER_MAP_MISMATCH'
         | 'PLAYER_NOT_EXPLORING'
-        | 'MONSTER_TOO_FAR';
+        | 'MONSTER_TOO_FAR'
+        | 'ENCOUNTER_REQUIRED';
     };
 
 export class CombatWsHub implements CombatWsRouteHost {
@@ -228,6 +249,17 @@ export class CombatWsHub implements CombatWsRouteHost {
     });
     this.worldTickScheduler.start();
     this.persistenceScheduler.start();
+    bindChatGlobalBroadcaster((payload) => {
+      this.broadcastChatGlobal(payload);
+    });
+    bindChatGlobalDisplayNameResolver((playerId, characterId) => {
+      for (const world of this.worldConnections.values()) {
+        if (world.playerId === playerId && world.characterId === characterId) {
+          return world.displayName;
+        }
+      }
+      return null;
+    });
     console.log('[WS] CombatWsHub ativo — path=/ws (tick 20Hz)');
   }
 
@@ -236,6 +268,7 @@ export class CombatWsHub implements CombatWsRouteHost {
   }
 
   public close(): Promise<void> {
+    unbindChatGlobalBroadcast();
     this.worldTickScheduler.stop();
     this.persistenceScheduler.stop();
     void this.persistenceScheduler.flushAllActive('shutdown');
@@ -301,14 +334,19 @@ export class CombatWsHub implements CombatWsRouteHost {
             ),
           );
         } else if (isDurablePersistence()) {
-          void persistCharacterSession(worldState.playerId, worldState.characterId);
+          void persistCharacterSession(worldState.playerId, worldState.characterId, {
+            force: true,
+            reason: 'disconnect',
+          });
           void persistPendingLootSnapshot();
         }
         clearPlayerSessionFlags(worldState.playerId, worldState.characterId);
         clearIntentReplaySession(worldState.playerId, worldState.characterId);
+        abandonPveEncounterOnDisconnect(worldState.playerId, worldState.characterId);
       }
       this.worldConnections.delete(connectionId);
       this.movementIntentHandler.clearConnection(connectionId);
+      clearCreatureSyncConnection(connectionId);
       console.log('[WS] Desconectado', connectionId);
     });
   }
@@ -514,110 +552,38 @@ export class CombatWsHub implements CombatWsRouteHost {
     surrenderVoltPenalty?: number,
   ): Promise<void> {
     const timerEnriched = this.combatTurnController.enrichPayloadWithTurnTimer(connectionId, session, payload);
-    const enriched = timerEnriched.state.phase === 'ENDED'
-      ? (() => {
-          const combatClassId = session.getCombatClassId();
-          const progressionState = getAuthoritativeProgression(
-            session.getPlayerActorId(),
-            session.getCharacterId(),
-          );
-          const movesetMastery = ensureMovesetMasteryForClass(
-            progressionState.progression.movesetMastery,
-            combatClassId,
-          );
-          const finishedEvent = buildCombatFinishedEvent(
-            timerEnriched.state,
-            session.getPlayerActorId(),
-            null,
-            null,
-            forcedEndReason,
-            session.getMovesUsedInBattle(),
-            {
-              characterLevel: progressionState.characterProfile.level,
-              movesetMastery,
-            },
-          );
-          const endReason: BattleEndReason = forcedEndReason
-            ?? (finishedEvent.payload.victory ? 'VICTORY' : 'DEFEAT');
-          let payloadPatch: Partial<import('../../shared/combat/combatFinished.js').CombatFinishedPayload> =
-            {};
 
-          if (finishedEvent.payload.victory && finishedEvent.payload.progressionGrant) {
-            const scaledGrant = resolveAuthoritativeBattleProgressionGrant(
-              session.getPlayerActorId(),
-              session.getCharacterId(),
-              finishedEvent.payload.progressionGrant,
-            );
-            applyAuthoritativeBattleProgression(
-              session.getPlayerActorId(),
-              session.getCharacterId(),
-              finishedEvent.payload.progressionGrant,
-              combatClassId,
-            );
-            payloadPatch = { progressionGrant: scaledGrant };
-
-            const marcoEvents = session.getMarcoProgressEvents(true);
-            if (marcoEvents.length > 0) {
-              progressMarcoAuthoritative(
-                session.getPlayerActorId(),
-                session.getCharacterId(),
-                marcoEvents,
-              );
-            }
-          } else if (!finishedEvent.payload.victory && endReason !== 'FORFEIT') {
-            const deathPenaltyOutcome = applyAuthoritativeDeathPenalty(
-              session.getPlayerActorId(),
-              session.getCharacterId(),
-              combatClassId,
-            );
-            payloadPatch = { deathPenaltyOutcome };
-          }
-
-          const patchedFinished =
-            Object.keys(payloadPatch).length > 0
-              ? {
-                  ...finishedEvent,
-                  payload: {
-                    ...finishedEvent.payload,
-                    ...payloadPatch,
-                  },
-                }
-              : finishedEvent;
-
-          return {
-            ...timerEnriched,
-            events: [...timerEnriched.events, patchedFinished],
-          };
-        })()
-      : timerEnriched;
-
-    this.sendCombatEvent(ws, enriched);
-
-    if (enriched.state.phase === 'ENDED') {
-      this.combatTurnController.clearTurnTimer(connectionId);
-      const playerActorId = session.getPlayerActorId();
-      const playerCombatant = enriched.state.combatants[playerActorId];
-      if (playerCombatant) {
-        persistWorldVitalsAfterCombat(
-          session.getPlayerActorId(),
-          session.getCharacterId(),
-          playerCombatant,
-        );
-      }
-      const victory = didPlayerWinBattle(enriched.state, playerActorId);
-      if (victory) {
-        this.markPveMonsterDefeated(session);
-      }
-      const mayHaveLoot = victory && Boolean(resolveBattleCreatureId(
-        enriched.state.combatants,
-        session.getPlayerActorId(),
-      ));
-      this.sendBattleEnded(ws, session, enriched, mayHaveLoot, forcedEndReason, surrenderVoltPenalty);
-      if (mayHaveLoot) {
-        this.deferVictoryLootPackage(ws, connectionId, session, enriched);
-      }
-      this.cleanupBattleSession(connectionId, session);
+    if (timerEnriched.state.phase !== 'ENDED') {
+      this.sendCombatEvent(ws, timerEnriched);
+      return;
     }
+
+    const finalized = finalizeAuthoritativeBattleEnd(
+      session,
+      timerEnriched,
+      forcedEndReason,
+      surrenderVoltPenalty,
+    );
+    this.sendCombatEvent(ws, finalized.enriched);
+    this.combatTurnController.clearTurnTimer(connectionId);
+
+    const monsterInstanceId = session.getMonsterInstanceId();
+    if (finalized.victory) {
+      this.markPveMonsterDefeated(session);
+    } else if (monsterInstanceId) {
+      releasePveMonsterClaim(monsterInstanceId);
+    }
+
+    this.send(ws, { type: 'BATTLE_ENDED', payload: finalized.battleEnded });
+    if (finalized.mayHaveLoot) {
+      this.deferVictoryLootPackage(ws, connectionId, session, finalized.enriched);
+    }
+    // Progressão / marcos / death penalty / vitals — flush curto (mesmo debounce do economy).
+    this.scheduleCharacterPersist(
+      session.getPlayerActorId(),
+      session.getCharacterId(),
+    );
+    this.cleanupBattleSession(connectionId, session);
   }
 
   /** Libera a sessão de combate; loot pendente permanece no economyGateway até coleta. */
@@ -631,11 +597,12 @@ export class CombatWsHub implements CombatWsRouteHost {
     const monsterInstanceId = session.getMonsterInstanceId();
     if (!monsterInstanceId) return;
 
-    removeActiveWorldMonster(monsterInstanceId);
-    console.log('[WS] Monstro PVE derrotado no servidor', {
+    scheduleWorldMonsterRespawn(monsterInstanceId);
+    console.log('[WS] Monstro PVE derrotado — respawn agendado', {
       playerId: session.getPlayerActorId(),
       characterId: session.getCharacterId(),
       monsterInstanceId,
+      respawnMs: CREATURE_RESPAWN_MS,
     });
   }
 
@@ -691,40 +658,6 @@ export class CombatWsHub implements CombatWsRouteHost {
     setPlayerInBattle(playerId, characterId, false);
   }
 
-  private sendBattleEnded(
-    ws: WebSocket,
-    session: CombatSession,
-    payload: CombatDispatchPayload,
-    mayHaveLoot: boolean,
-    forcedEndReason?: BattleEndReason,
-    surrenderVoltPenalty?: number,
-  ): void {
-    const victory = didPlayerWinBattle(payload.state, session.getPlayerActorId());
-    const endReason: BattleEndReason = forcedEndReason ?? (victory ? 'VICTORY' : 'DEFEAT');
-    const finished = payload.events.find((e) => e.type === 'COMBAT_FINISHED');
-    const xpGain = finished?.type === 'COMBAT_FINISHED' ? finished.payload.xpGain : 0;
-    const finishedPayload = finished?.type === 'COMBAT_FINISHED' ? finished.payload : null;
-    this.send(ws, {
-      type: 'BATTLE_ENDED',
-      payload: {
-        battleId: payload.state.battleId,
-        victory,
-        monsterInstanceId: session.getMonsterInstanceId() ?? '',
-        lootGranted: false,
-        hasLoot: victory && mayHaveLoot,
-        endReason,
-        xpGain,
-        battleType: payload.state.battleType ?? finishedPayload?.battleType ?? BattleType.PVE,
-        ...(finishedPayload?.rankingResult !== undefined
-          ? { rankingResult: finishedPayload.rankingResult }
-          : {}),
-        ...(endReason === 'FORFEIT' && surrenderVoltPenalty !== undefined && surrenderVoltPenalty > 0
-          ? { surrenderVoltPenalty }
-          : {}),
-      },
-    });
-  }
-
   handlePlayerHonorGiven(
     ws: LiveSocket,
     connectionId: string,
@@ -742,6 +675,135 @@ export class CombatWsHub implements CombatWsRouteHost {
         honorCount,
       },
     });
+  }
+
+  handlePveEncounterAccept(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly monsterInstanceId: string },
+  ): void {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+
+    const accepted = acceptPveEncounter(
+      world.playerId,
+      world.characterId,
+      payload.monsterInstanceId,
+    );
+    if (!accepted.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: accepted.reason } });
+      return;
+    }
+
+    this.send(ws, {
+      type: 'pve-encounter-clear',
+      payload: { monsterInstanceId: accepted.monsterInstanceId, reason: 'accepted' },
+    });
+
+    this.handleJoin(
+      ws,
+      connectionId,
+      { monsterInstanceId: accepted.monsterInstanceId },
+      world.characterId,
+      world.playerId,
+    );
+  }
+
+  handlePveEncounterRequest(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly monsterInstanceId: string },
+  ): void {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+
+    const player = this.getPlayer(world.playerId, world.characterId);
+    if (!player?.isExploring()) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'PLAYER_NOT_EXPLORING' } });
+      return;
+    }
+
+    const profile = getWorldProfile(world.playerId, world.characterId);
+    const result = requestPveEncounterOffer(
+      {
+        connectionId,
+        playerId: world.playerId,
+        characterId: world.characterId,
+        mapId: profile.currentMapId,
+        worldX: profile.lastPosition.x,
+        worldY: profile.lastPosition.y,
+      },
+      payload.monsterInstanceId,
+      Date.now(),
+    );
+
+    if (!result.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
+
+    if (result.kind === 'force_battle') {
+      this.handleJoin(
+        ws,
+        connectionId,
+        { monsterInstanceId: result.monsterInstanceId },
+        world.characterId,
+        world.playerId,
+      );
+      return;
+    }
+
+    for (const message of result.outbound) {
+      this.dispatchPveEncounterOutbound(message);
+    }
+  }
+
+  handlePveEncounterFlee(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly monsterInstanceId: string },
+  ): void {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+
+    const result = tryFleePveEncounter(
+      world.playerId,
+      world.characterId,
+      payload.monsterInstanceId,
+      Date.now(),
+    );
+    if (!result.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
+
+    for (const message of result.outbound) {
+      this.dispatchPveEncounterOutbound(message);
+    }
+
+    if (!result.fled) {
+      this.handleJoin(
+        ws,
+        connectionId,
+        { monsterInstanceId: payload.monsterInstanceId },
+        world.characterId,
+        world.playerId,
+      );
+    }
+  }
+
+  private dispatchPveEncounterOutbound(message: PveEncounterOutbound): void {
+    const ws = this.socketsByConnectionId.get(message.connectionKey);
+    if (!ws) return;
+    if (message.type === 'pve-encounter-offer') {
+      this.send(ws, { type: 'pve-encounter-offer', payload: message.payload });
+      return;
+    }
+    if (message.type === 'pve-encounter-clear') {
+      this.send(ws, { type: 'pve-encounter-clear', payload: message.payload });
+      return;
+    }
+    this.send(ws, { type: 'pve-encounter-flee-result', payload: message.payload });
   }
 
   /** Gera loot fora do hot path do combate — pacote chega em BATTLE_LOOT_PACKAGE. */
@@ -866,6 +928,8 @@ export class CombatWsHub implements CombatWsRouteHost {
     characterId: number,
     options?: { readonly skipSupabase?: boolean },
   ): void {
+    touchCharacterPersistenceDirty(playerId, characterId, 'economy');
+
     const key = `${playerId}:${characterId}`;
     const existing = this.persistTimers.get(key);
     if (existing) clearTimeout(existing);
@@ -875,7 +939,7 @@ export class CombatWsHub implements CombatWsRouteHost {
         this.persistTimers.delete(key);
         void (async () => {
           if (isDurablePersistence()) {
-            await persistCharacterSession(playerId, characterId).catch((error) => {
+            await persistCharacterSession(playerId, characterId, { reason: 'economy' }).catch((error) => {
               console.error('[persistence] Falha ao salvar personagem (file):', error);
             });
           }
@@ -924,7 +988,11 @@ export class CombatWsHub implements CombatWsRouteHost {
   ): void {
     const envelope = this.syncAuthority.nextEnvelope('delta', { force: true });
     const creatures = isMapId(profile.currentMapId)
-      ? buildServerScopedWorldCreaturesForMap(profile.currentMapId)
+      ? buildServerScopedWorldCreaturesNearObserver(
+        profile.currentMapId,
+        profile.lastPosition.x,
+        profile.lastPosition.y,
+      )
       : [];
 
     this.sendStateSync(ws, envelope, {
@@ -965,13 +1033,52 @@ export class CombatWsHub implements CombatWsRouteHost {
         if (!ws) return;
         this.sendStateSync(ws, envelope, body);
       },
-      buildCreaturesForMap: (mapId) =>
-        isMapId(mapId) ? buildServerScopedWorldCreaturesForMap(mapId) : [],
+      buildCreaturesNearObserver: (mapId, worldX, worldY) =>
+        isMapId(mapId)
+          ? buildServerScopedWorldCreaturesNearObserver(mapId, worldX, worldY)
+          : [],
       onTickStart: () => {
         this.expireStaleBattleSessionLeases();
         sweepExpiredInventoryLocks();
+        this.tickPveCreaturesAndEncounters();
       },
     });
+  }
+
+  private tickPveCreaturesAndEncounters(): void {
+    const nowMs = Date.now();
+    const probes = [];
+    for (const [connectionId, world] of this.worldConnections) {
+      const player = this.getPlayer(world.playerId, world.characterId);
+      if (!player?.isExploring()) continue;
+      const profile = getWorldProfile(world.playerId, world.characterId);
+      probes.push({
+        connectionId,
+        playerId: world.playerId,
+        characterId: world.characterId,
+        mapId: profile.currentMapId,
+        worldX: profile.lastPosition.x,
+        worldY: profile.lastPosition.y,
+      });
+    }
+
+    tickWorldMonsterRespawns(nowMs);
+    tickCreatureWanderAi(nowMs, probes);
+    const { outbound, forceBattles } = tickPveEncounterOffers(nowMs, probes);
+    for (const message of outbound) {
+      this.dispatchPveEncounterOutbound(message);
+    }
+    for (const force of forceBattles) {
+      const ws = this.socketsByConnectionId.get(force.connectionId);
+      if (!ws) continue;
+      this.handleJoin(
+        ws,
+        force.connectionId,
+        { monsterInstanceId: force.monsterInstanceId },
+        force.characterId,
+        force.playerId,
+      );
+    }
   }
 
   handleRequestFullState(
@@ -1012,7 +1119,14 @@ export class CombatWsHub implements CombatWsRouteHost {
   }
 
   private invalidateWorldConnection(connectionId: string, world: WorldConnectionState): void {
+    const abandoned = abandonPveEncounterOnDisconnect(world.playerId, world.characterId);
+    if (abandoned) {
+      // Socket já vai morrer — não precisa enviar clear; claim já liberado + force-next marcado.
+      void abandoned;
+    }
+    clearForceJoinInFlight(world.playerId, world.characterId);
     this.worldConnections.delete(connectionId);
+    clearCreatureSyncConnection(connectionId);
     clearPlayerSessionFlags(world.playerId, world.characterId);
     clearIntentReplaySession(world.playerId, world.characterId);
     this.movementIntentHandler.clearConnection(connectionId);
@@ -1262,6 +1376,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       }
 
       const hadPersistedSave = await hydrateCharacterSession(authUserId, payload.characterId);
+      reconcileAuthoritativeCharacterClassLink(authUserId, payload.characterId);
 
       await persistAuthoritativeLoginSnapshot(
         this.serverEnv,
@@ -1276,6 +1391,10 @@ export class CombatWsHub implements CombatWsRouteHost {
       this.positionGateway.handleWorldLogin(loginRequest);
       normalizeProfileForServerInstance(authUserId, payload.characterId);
       const authoritativeProfile = getWorldProfile(authUserId, payload.characterId);
+      // Garante seed/AI da zona atual (farm se login já no beco; cidade = no-op de monstros).
+      if (isMapId(authoritativeProfile.currentMapId)) {
+        getZoneLoadGateway().ensure(authoritativeProfile.currentMapId);
+      }
 
       this.worldLoreLog.onPlayerLogin(authUserId, payload.characterId);
 
@@ -1301,6 +1420,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       });
       this.socketsByPlayerId.set(authUserId, ws);
 
+      // Personagem sem save: perfil vazio (sem DEMO / VOLTS de teste).
       if (!hadPersistedSave && bootstrap.profileReady) {
         seedAuthoritativePlayerEconomyIfEmpty(authUserId, payload.characterId);
       }
@@ -1317,7 +1437,10 @@ export class CombatWsHub implements CombatWsRouteHost {
       });
 
       if (!hadPersistedSave) {
-        await persistCharacterSession(authUserId, payload.characterId);
+        await persistCharacterSession(authUserId, payload.characterId, {
+          force: true,
+          reason: 'login',
+        });
       }
 
       this.sendFullStateSync(ws, authUserId, payload.characterId, true);
@@ -1454,7 +1577,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       sentAt: Date.now(),
     };
 
-    this.broadcastChatGlobal(chatPayload);
+    broadcastChatGlobalPayload(chatPayload);
   }
 
   /** Chat global — todas as sessões de mundo (zonas diferentes incluídas). */
@@ -1557,6 +1680,10 @@ export class CombatWsHub implements CombatWsRouteHost {
       return { ok: false, reason: 'MONSTER_TOO_FAR' };
     }
 
+    if (!consumePveCombatGrant(playerId, characterId, monsterId, Date.now())) {
+      return { ok: false, reason: 'ENCOUNTER_REQUIRED' };
+    }
+
     return { ok: true, monster };
   }
 
@@ -1575,6 +1702,7 @@ export class CombatWsHub implements CombatWsRouteHost {
         joinPayload?.monsterInstanceId,
       );
       if (!monsterAuthorization.ok) {
+        clearForceJoinInFlight(playerId, characterId);
         console.warn('[WS] combat-join PVE rejeitado', {
           connectionId,
           playerId,
@@ -1586,8 +1714,9 @@ export class CombatWsHub implements CombatWsRouteHost {
         return;
       }
       const monsterInstanceId = monsterAuthorization.monster.id;
-
-      seedAuthoritativePlayerEconomyIfEmpty(playerId, characterId, { dollarVolt: 500, alterCoins: 25 });
+      // Join autorizado — limpa obrigatório + in-flight do force-join.
+      consumeForceBattleNextEncounter(playerId, characterId);
+      clearForceJoinInFlight(playerId, characterId);
 
       await consumeChargedEquipmentBattleParticipation(playerId, characterId);
 
@@ -1617,9 +1746,14 @@ export class CombatWsHub implements CombatWsRouteHost {
         battleId: payload.state.battleId,
         monsterInstanceId,
       });
-      this.send(ws, { type: 'START_COMBAT', payload: { battleId: payload.state.battleId } });
+      this.send(ws, {
+        type: 'START_COMBAT',
+        payload: { battleId: payload.state.battleId, monsterInstanceId },
+      });
       void this.deliverCombatPayload(ws, connectionId, session, payload);
     } catch (error) {
+      const playerId = worldPlayerId ?? `player_${connectionId.slice(0, 8)}`;
+      clearForceJoinInFlight(playerId, characterId);
       console.error('[WS] bootstrapJoinBattle falhou', {
         connectionId,
         characterId,

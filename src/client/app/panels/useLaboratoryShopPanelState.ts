@@ -9,7 +9,7 @@ import {
 import { resolveEffectiveNpcBuyUnitPrice } from '../../../shared/economy/npcVendorService.js';
 import { resolveMaxLabPurchaseQuantity } from '../../ui/vendor/labPurchaseHelpers.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
-import { usePlayerData } from '../store/gameStore.js';
+import { usePlayerInventoryAndGold } from '../store/gameStore.js';
 
 export type LaboratoryShopView = {
   readonly vendorId: string;
@@ -29,7 +29,7 @@ export function resolveLaboratoryFromContext(
 }
 
 export function useLaboratoryShopPanelState(vendor: LaboratoryShopView) {
-  const { inventory, gold } = usePlayerData();
+  const { inventory, gold } = usePlayerInventoryAndGold();
   const [activeTab, setActiveTab] = useState<LabShopTabId>('potions');
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);

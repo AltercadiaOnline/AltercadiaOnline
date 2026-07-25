@@ -118,8 +118,14 @@ export class ExecuteMarketPurchaseHandler extends BaseIntentHandler<MarketListin
     );
 
     if (result.ok) {
-      await persistCharacterSession(playerId, this.characterId);
-      await persistCharacterSession(result.sellerPlayerId, result.sellerCharacterId);
+      await persistCharacterSession(playerId, this.characterId, {
+        force: true,
+        reason: 'marketplace',
+      });
+      await persistCharacterSession(result.sellerPlayerId, result.sellerCharacterId, {
+        force: true,
+        reason: 'marketplace',
+      });
       await persistGlobalMarketplaceSnapshot();
     }
 

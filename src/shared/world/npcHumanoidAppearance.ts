@@ -89,6 +89,13 @@ export const NPC_HUMANOID_APPEARANCE: Record<string, NpcHumanoidPalette> = {
     limb: '#152a45',
     accessories: [NpcHumanoidAccessory.HAT, NpcHumanoidAccessory.GLASSES],
   },
+  trail_master: {
+    body: '#c4a574',
+    face: '#d4b896',
+    accent: '#2f2f2f',
+    limb: '#a08858',
+    accessories: [NpcHumanoidAccessory.GLASSES, NpcHumanoidAccessory.HAT],
+  },
 };
 
 export function resolveNpcHumanoidAppearance(sprite: string): NpcHumanoidPalette {

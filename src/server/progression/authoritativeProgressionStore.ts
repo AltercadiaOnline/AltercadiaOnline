@@ -7,6 +7,7 @@ import type {
   PersistedMarcosSlice,
 } from '../../shared/persistence/characterPersistenceRecord.js';
 import { characterPersistenceKey } from '../../shared/persistence/characterPersistenceRecord.js';
+import { markCharacterPersistenceDirty } from '../persistence/characterPersistenceDirty.js';
 
 type AuthoritativeProgressionEntry = {
   progression: PlayerProgressionData;
@@ -110,8 +111,17 @@ export function patchAuthoritativeProgression(
       ...(patch.characterProfile ?? {}),
     },
   });
+  markCharacterPersistenceDirty(playerId, characterId, 'progression');
 }
 
 export function resetAuthoritativeProgressionStore(): void {
   entries.clear();
+}
+
+/** Remove entrada em memória ao excluir personagem. */
+export function clearAuthoritativeProgression(
+  playerId: string,
+  characterId: number,
+): void {
+  entries.delete(key(playerId, characterId));
 }

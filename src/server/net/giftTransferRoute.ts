@@ -80,13 +80,15 @@ export async function handleGiftTransferRoute(
   const auth = await SecurityGuard.enforceHttp(env, req, res, {
     devBypassPlayerId: env.devAuthBypass ? url.searchParams.get('playerId')?.trim() ?? null : null,
     clientServerId: resolveClientServerId(url, body),
-    characterId: payload.characterId ?? 1,
+    ...(typeof payload.characterId === 'number' && Number.isInteger(payload.characterId) && payload.characterId >= 1
+      ? { characterId: payload.characterId }
+      : {}),
   });
   if (!auth) {
     return true;
   }
 
-  if (!('characterId' in auth)) {
+  if (!('characterId' in auth) || typeof auth.characterId !== 'number' || auth.characterId < 1) {
     res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ ok: false, error: 'Personagem inválido para transferência.' }));
     return true;

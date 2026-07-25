@@ -6,12 +6,8 @@ import type { Camera } from '../scenes/Camera.js';
 import { screenToTile as pickScreenTile, screenToWorldPixel } from './screenCoords.js';
 import { buildMapVisualLayout, type MapVisualLayout } from './mapVisualLayouts.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
-import { tileToWorldPixel, type VisualLandmark } from './city01VisualLayout.js';
-import { PlaceholderType, resolveRankingMonitorDecalAnchors } from './placeholderRenderer.js';
-import { sceneTileToWorld } from './city01PlaceholderLayout.js';
 import type { DomNametagEntry } from './worldDomOverlay.js';
 import type { Disposable } from '../utils/Disposable.js';
-import { entityAtTile } from './city01PlaceholderLayout.js';
 
 export type WorldMapClickOptions = {
   readonly doubleClick?: boolean;
@@ -30,11 +26,10 @@ const DOUBLE_CLICK_DISTANCE_PX = 8;
 export type WorldMapHoverState = {
   readonly tileX: number;
   readonly tileY: number;
-  readonly landmark: VisualLandmark | null;
 };
 
 /**
- * Input + overlays DOM do mundo — render visual exclusivo do Phaser (Tiled).
+ * Input do mundo — render visual exclusivo do Construct.
  * Colisão/rede permanecem no mapa autoritativo (MapManager / servidor).
  */
 export class WorldMapRenderer implements Disposable {
@@ -70,10 +65,6 @@ export class WorldMapRenderer implements Disposable {
     this.hover = null;
   }
 
-  public getBackgroundColor(): string {
-    return this.layout.background;
-  }
-
   public getHoverState(): WorldMapHoverState | null {
     return this.hover;
   }
@@ -107,104 +98,9 @@ export class WorldMapRenderer implements Disposable {
     );
   }
 
-  /** Labels de estruturas e portais em DOM — texto nítido acima do Phaser. */
+  /** Labels DOM de estruturas/portais — Construct-first: vazio até markers de label. */
   public collectDomLabelEntries(): DomNametagEntry[] {
-    const tileSize = this.layout.tileSize;
-    const entries: DomNametagEntry[] = [];
-
-    if (this.layout.placeholderScene) {
-      const labelTypes = new Set<string>([
-        PlaceholderType.BUILDING,
-        PlaceholderType.INTERACTIVE_OBJ,
-        PlaceholderType.ARENA,
-        PlaceholderType.TOWER_BUILDING,
-        PlaceholderType.RANKING_MONITOR,
-        PlaceholderType.REFRACTION_BOOTH,
-      ]);
-
-      for (const entity of this.layout.placeholderScene.entities) {
-        if (!entity.label || !labelTypes.has(entity.type)) continue;
-        const { x, y } = sceneTileToWorld(entity.tileX, entity.tileY, tileSize);
-        const widthPx = entity.tileW * tileSize;
-        const heightPx = entity.tileH * tileSize;
-        entries.push({
-          id: `structure-${entity.assetKey}`,
-          label: entity.label,
-          anchor: {
-            worldX: x + widthPx / 2,
-            anchorTopY: y + heightPx / 2,
-          },
-          className: 'structure-label-tag',
-          placement: 'center',
-        });
-
-        if (entity.type === PlaceholderType.RANKING_MONITOR) {
-          const decals = resolveRankingMonitorDecalAnchors(x, y, widthPx, heightPx);
-          entries.push(
-            {
-              id: `structure-decal-${entity.assetKey}-rank`,
-              label: 'RANK',
-              anchor: {
-                worldX: decals.rank.worldX,
-                anchorTopY: decals.rank.anchorTopY,
-              },
-              className: 'structure-decal-tag',
-              placement: 'center',
-            },
-            {
-              id: `structure-decal-${entity.assetKey}-top`,
-              label: 'TOP',
-              anchor: {
-                worldX: decals.top.worldX,
-                anchorTopY: decals.top.anchorTopY,
-              },
-              className: 'structure-decal-tag structure-decal-tag--muted',
-              placement: 'center',
-            },
-          );
-        }
-      }
-    }
-
-    for (const landmark of this.uniquePortalLandmarks()) {
-      const { x: wx, y: wy } = tileToWorldPixel(landmark.tileX, landmark.tileY, tileSize);
-      entries.push({
-        id: `landmark-${landmark.id}`,
-        label: landmark.label,
-        anchor: {
-          worldX: wx + tileSize / 2,
-          anchorTopY: wy,
-        },
-        className: 'portal-label-tag',
-      });
-    }
-
-    if (this.hover?.landmark && this.hover.landmark.kind !== 'portal') {
-      const landmark = this.hover.landmark;
-      const { x: wx, y: wy } = tileToWorldPixel(landmark.tileX, landmark.tileY, tileSize);
-      entries.push({
-        id: `landmark-hover-${landmark.id}`,
-        label: landmark.label,
-        anchor: {
-          worldX: wx + tileSize / 2,
-          anchorTopY: wy,
-        },
-        className: 'landmark-hover-label-tag',
-      });
-    }
-
-    return entries;
-  }
-
-  private uniquePortalLandmarks(): VisualLandmark[] {
-    const seen = new Set<string>();
-    const result: VisualLandmark[] = [];
-    for (const landmark of this.layout.landmarks) {
-      if (landmark.kind !== 'portal' || seen.has(landmark.id)) continue;
-      seen.add(landmark.id);
-      result.push(landmark);
-    }
-    return result;
+    return [];
   }
 
   private bindInput(): void {
@@ -291,29 +187,6 @@ export class WorldMapRenderer implements Disposable {
       return null;
     }
 
-    if (this.layout.placeholderScene) {
-      const entity = entityAtTile(this.layout.placeholderScene, tileX, tileY);
-      if (!entity) return null;
-      return {
-        tileX,
-        tileY,
-        landmark: {
-          id: entity.assetKey,
-          label: entity.label,
-          kind: 'structure',
-          tileX: entity.tileX + Math.floor(entity.tileW / 2),
-          tileY: entity.tileY + Math.floor(entity.tileH / 2),
-        },
-      };
-    }
-
-    const cell = this.layout.tiles[tileY]?.[tileX];
-    if (!cell?.landmarkId) return null;
-
-    const landmark = this.layout.landmarks.find((entry) => entry.id === cell.landmarkId) ?? null;
-    return { tileX, tileY, landmark };
+    return { tileX, tileY };
   }
 }
-
-export { CITY01_VISUAL_PALETTE } from './city01VisualLayout.js';
-export type { VisualLandmark } from './city01VisualLayout.js';

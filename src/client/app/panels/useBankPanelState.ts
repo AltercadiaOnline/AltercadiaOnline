@@ -9,6 +9,7 @@ import {
   BANK_ITEM_SLOT_CAPACITY,
   BankCurrencyType,
 } from '../../../shared/bank/bankConstants.js';
+import { resolveAvailableStackQuantity } from '../../../shared/bank/inventoryLockOps.js';
 import { normalizeBankCurrencyAmount } from '../../../shared/bank/bankCurrencyRules.js';
 import {
   clampBankVaultPageIndex,
@@ -44,6 +45,15 @@ function isCurrencyItem(itemId: string): boolean {
   return itemId === 'dollar_volt' || itemId === 'gold';
 }
 
+function resolveSlotAvailableQuantity(slot: InventorySlotState): number {
+  if (!slot.itemId || slot.quantity <= 0) return 0;
+  return resolveAvailableStackQuantity({
+    itemId: slot.itemId,
+    quantity: slot.quantity,
+    ...(slot.lockedQuantity !== undefined ? { lockedQuantity: slot.lockedQuantity } : {}),
+  });
+}
+
 function resolveStagedTransfer(
   staged: StagedTransfer | null,
   inventorySlots: readonly InventorySlotState[],
@@ -56,8 +66,9 @@ function resolveStagedTransfer(
     if (!slot?.itemId || slot.quantity <= 0) return null;
     if (slot.itemId !== staged.itemId) return null;
     if (isCurrencyItem(slot.itemId)) return null;
-    if ((slot.lockedQuantity ?? 0) > 0) return null;
-    return { ...staged, maxQuantity: slot.quantity };
+    const available = resolveSlotAvailableQuantity(slot);
+    if (available <= 0) return null;
+    return { ...staged, maxQuantity: available };
   }
 
   const vaultSlots = stacksToInventorySlotsWithStacking(
@@ -90,8 +101,11 @@ export function useBankPanelState() {
   );
 
   const flowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingTick, setPendingTick] = useState(0);
 
-  const inFlight = pendingFlow !== null || getPendingIntentRegistry().hasPendingBankTransaction();
+  const registryHasBankPending = getPendingIntentRegistry().hasPendingBankTransaction();
+  const inFlight = pendingFlow !== null || registryHasBankPending;
+  void pendingTick;
 
   const clearPendingTransfer = useCallback(() => {
     if (flowTimerRef.current) {
@@ -117,6 +131,9 @@ export function useBankPanelState() {
       setBankStorage(bank);
       setVaultPage((page) => clampBankVaultPageIndex(page, bank.itemCapacity));
     });
+    const unsubPending = getPendingIntentRegistry().subscribeChange(() => {
+      setPendingTick((tick) => tick + 1);
+    });
 
     const onBankTxConfirmed = (): void => {
       clearPendingTransfer();
@@ -125,7 +142,7 @@ export function useBankPanelState() {
       setBankStorage(dataStore.getBankStorage());
     };
 
-    const unsubSuccess = uiEvents.on(UIEventType.BANK_UPDATE_SUCCESS, onBankTxConfirmed);
+    const unsubSuccess = uiEvents.on(UIEventType.BANK_TRANSACTION_SUCCESS, onBankTxConfirmed);
     const unsubFail = uiEvents.on(UIEventType.BANK_TRANSACTION_FAILED, () => {
       clearPendingTransfer();
     });
@@ -146,6 +163,7 @@ export function useBankPanelState() {
       unsubWallet();
       unsubInventory();
       unsubBank();
+      unsubPending();
       unsubSuccess();
       unsubFail();
       unsubBalance();
@@ -153,10 +171,28 @@ export function useBankPanelState() {
     };
   }, [clearPendingTransfer, dataStore]);
 
+  // Safety: se a intent sumiu do registry (timeout/reject) e a UI ainda anima, libera.
+  useEffect(() => {
+    if (pendingFlow !== null && !registryHasBankPending) {
+      const timer = setTimeout(() => {
+        if (!getPendingIntentRegistry().hasPendingBankTransaction()) {
+          setPendingFlow(null);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [pendingFlow, registryHasBankPending]);
+
   const resolvedStaged = useMemo(
     () => resolveStagedTransfer(stagedTransfer, inventory.slots, bankStorage),
     [stagedTransfer, inventory.slots, bankStorage],
   );
+
+  useEffect(() => {
+    if (!resolvedStaged) return;
+    setItemQuantity((qty) => Math.max(1, Math.min(qty, resolvedStaged.maxQuantity)));
+  }, [resolvedStaged]);
 
   const vaultSlice = useMemo(() => {
     const allVaultSlots = stacksToInventorySlotsWithStacking(
@@ -178,7 +214,8 @@ export function useBankPanelState() {
       const slot = inventory.slots[slotIndex];
       if (!slot?.itemId || slot.quantity <= 0) return;
       if (isCurrencyItem(slot.itemId)) return;
-      if ((slot.lockedQuantity ?? 0) > 0) {
+      const available = resolveSlotAvailableQuantity(slot);
+      if (available <= 0) {
         alertSystem('Item bloqueado — aguarde a transação bancária anterior.');
         return;
       }
@@ -194,7 +231,7 @@ export function useBankPanelState() {
         source,
         slotIndex,
         itemId: slot.itemId,
-        maxQuantity: slot.quantity,
+        maxQuantity: available,
       });
       setItemQuantity(1);
       return;
@@ -242,12 +279,14 @@ export function useBankPanelState() {
     type: 'DEPOSIT_ITEM' | 'WITHDRAW_ITEM',
     itemId: string,
     flow: FlowDirection,
+    maxQuantity: number,
   ) => {
     if (!itemId || inFlight) return;
 
+    const quantity = Math.max(1, Math.min(Math.floor(itemQuantity) || 1, maxQuantity));
     const result = dispatcher.dispatch({
       type,
-      payload: { itemId, quantity: itemQuantity },
+      payload: { itemId, quantity },
     });
     if (!result.ok) {
       alertSystem(result.reason);
@@ -263,13 +302,13 @@ export function useBankPanelState() {
 
   const confirmDeposit = useCallback(() => {
     if (resolvedStaged?.source === 'inventory') {
-      dispatchItem('DEPOSIT_ITEM', resolvedStaged.itemId, 'to-vault');
+      dispatchItem('DEPOSIT_ITEM', resolvedStaged.itemId, 'to-vault', resolvedStaged.maxQuantity);
     }
   }, [dispatchItem, resolvedStaged]);
 
   const confirmWithdraw = useCallback(() => {
     if (resolvedStaged?.source === 'bank') {
-      dispatchItem('WITHDRAW_ITEM', resolvedStaged.itemId, 'to-inventory');
+      dispatchItem('WITHDRAW_ITEM', resolvedStaged.itemId, 'to-inventory', resolvedStaged.maxQuantity);
     }
   }, [dispatchItem, resolvedStaged]);
 
@@ -295,12 +334,19 @@ export function useBankPanelState() {
       return;
     }
 
+    if (result.status === 'applied' || result.status === 'pending') {
+      setPendingFlow(type === 'DEPOSIT_CURRENCY' ? 'to-vault' : 'to-inventory');
+      if (result.status === 'applied') {
+        scheduleFlowClear();
+      }
+    }
+
     if (currency === BankCurrencyType.Volts) {
       setVoltsInput('');
     } else {
       setAlterInput('');
     }
-  }, [dispatcher, inFlight]);
+  }, [dispatcher, inFlight, scheduleFlowClear]);
 
   const updateItemQuantity = useCallback((raw: string) => {
     const next = Math.max(1, Math.floor(Number(raw) || 1));
@@ -316,21 +362,19 @@ export function useBankPanelState() {
   const bridgeMeta = useMemo(() => {
     if (!resolvedStaged) {
       return {
-        label: 'Clique em um item',
+        label: 'Inventário ↔ Cofre',
         direction: 'Ponte',
         abbrev: '—',
         kindClass: '',
-        confirmLabel: 'Confirmar',
         isDeposit: false,
       };
     }
     const isDeposit = resolvedStaged.source === 'inventory';
     return {
       label: resolveInventoryItemLabel(resolvedStaged.itemId),
-      direction: isDeposit ? '→ Cofre' : '← Inventário',
+      direction: isDeposit ? 'Depositar → Cofre' : 'Sacar → Inventário',
       abbrev: resolveInventoryItemAbbrev(resolvedStaged.itemId),
       kindClass: resolveInventoryItemKindClass(resolvedStaged.itemId),
-      confirmLabel: isDeposit ? 'Confirmar depósito' : 'Confirmar saque',
       isDeposit,
     };
   }, [resolvedStaged]);

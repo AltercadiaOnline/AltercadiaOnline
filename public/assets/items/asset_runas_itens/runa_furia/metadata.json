@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "dbeb6b96-5063-4c0f-bce3-a7f2fa970f1f",
+      "name": null,
+      "prompt": "\"Fantasy game rune icon. Design a large, angular, deeply carved stone or metal rune symbol. The central glyph should be an abstract representation of a roaring beast or jagged flames. The overall shape is aggressive and sharp. The color palette should be dominated by deep crimson, fiery orange, and dark iron. Emitting a subtle, hot red aura or glow. The material texture is rough and ancient, suitable for a fantasy RPG UI. High resolution, sharp edges, isolated on a dark background.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-16T05:12:05.503244"
+}

@@ -1,6 +1,5 @@
-import { CITY_01_ID } from './maps/city01.js';
-import { CITY_01_ARENA_RANKING_MONITOR } from './maps/city01LayoutConstants.js';
 import type { MapId } from './mapRegistry.js';
+import { CITY_01_COMPUTADOR_ARENA } from './maps/city01LayoutConstants.js';
 
 export const WorldObjectAction = {
   OPEN_RANKING_MONITOR: 'OPEN_RANKING_MONITOR',
@@ -19,18 +18,11 @@ export type WorldObjectDefinition = {
   readonly action: WorldObjectAction;
 };
 
-export const WORLD_OBJECT_REGISTRY: readonly WorldObjectDefinition[] = [
-  {
-    id: CITY_01_ARENA_RANKING_MONITOR.id,
-    label: CITY_01_ARENA_RANKING_MONITOR.label,
-    mapId: CITY_01_ID,
-    tileX: CITY_01_ARENA_RANKING_MONITOR.tileX,
-    tileY: CITY_01_ARENA_RANKING_MONITOR.tileY,
-    tileW: CITY_01_ARENA_RANKING_MONITOR.tileW,
-    tileH: CITY_01_ARENA_RANKING_MONITOR.tileH,
-    action: WorldObjectAction.OPEN_RANKING_MONITOR,
-  },
-];
+/**
+ * Objetos de mundo clicáveis separados de NPCs.
+ * Hubs de mecânica → terminais `computador_*` (ver worldTerminalCatalog).
+ */
+export const WORLD_OBJECT_REGISTRY: readonly WorldObjectDefinition[] = [];
 
 export function getWorldObjectsForMap(mapId: MapId): readonly WorldObjectDefinition[] {
   return WORLD_OBJECT_REGISTRY.filter((entry) => entry.mapId === mapId);
@@ -39,3 +31,6 @@ export function getWorldObjectsForMap(mapId: MapId): readonly WorldObjectDefinit
 export function getWorldObjectById(objectId: string): WorldObjectDefinition | null {
   return WORLD_OBJECT_REGISTRY.find((entry) => entry.id === objectId) ?? null;
 }
+
+/** @deprecated Use WORLD_TERMINAL_IDS.ARENA */
+export const ARENA_COMPUTER_NPC_ID = CITY_01_COMPUTADOR_ARENA.id;

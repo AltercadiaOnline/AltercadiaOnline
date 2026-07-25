@@ -62,7 +62,7 @@ function parseEquipmentSnapshot(value: unknown): EquippedSlots | undefined {
 
 export type WsOutboundMessage =
 
-  | { readonly type: 'START_COMBAT'; readonly payload: { readonly battleId: string } }
+  | { readonly type: 'START_COMBAT'; readonly payload: { readonly battleId: string; readonly monsterInstanceId?: string } }
 
   | { readonly type: 'combat-event'; readonly payload: CombatDispatchPayload }
 
@@ -174,6 +174,18 @@ export type WsOutboundMessage =
   | {
       readonly type: 'intent-success';
       readonly payload: import('./intent/intentProtocol.js').IntentSuccessPayload;
+    }
+  | {
+      readonly type: 'pve-encounter-offer';
+      readonly payload: import('./world/pveEncounterProtocol.js').PveEncounterOfferPayload;
+    }
+  | {
+      readonly type: 'pve-encounter-clear';
+      readonly payload: import('./world/pveEncounterProtocol.js').PveEncounterClearPayload;
+    }
+  | {
+      readonly type: 'pve-encounter-flee-result';
+      readonly payload: import('./world/pveEncounterProtocol.js').PveEncounterFleeResultPayload;
     };
 
 
@@ -307,6 +319,18 @@ export type WsInboundMessage =
   | {
       readonly type: 'player-intent';
       readonly payload: import('./intent/clientIntent.js').ClientIntent;
+    }
+  | {
+      readonly type: 'pve-encounter-accept';
+      readonly payload: { readonly monsterInstanceId: string };
+    }
+  | {
+      readonly type: 'pve-encounter-request';
+      readonly payload: { readonly monsterInstanceId: string };
+    }
+  | {
+      readonly type: 'pve-encounter-flee';
+      readonly payload: { readonly monsterInstanceId: string };
     };
 
 
@@ -793,6 +817,18 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
             : {}),
         },
       };
+    }
+
+    if (
+      type === 'pve-encounter-accept'
+      || type === 'pve-encounter-request'
+      || type === 'pve-encounter-flee'
+    ) {
+      const payload = record.payload;
+      if (typeof payload !== 'object' || payload === null) return null;
+      const monsterInstanceId = (payload as Record<string, unknown>).monsterInstanceId;
+      if (typeof monsterInstanceId !== 'string' || monsterInstanceId.length === 0) return null;
+      return { type, payload: { monsterInstanceId } };
     }
 
     return null;

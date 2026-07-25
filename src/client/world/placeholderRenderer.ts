@@ -116,7 +116,6 @@ export const PLACEHOLDER_ASSET_REGISTRY: Readonly<Record<string, PlaceholderAsse
   npc_vendedor: { type: PlaceholderType.NPC_SPOT, label: 'Vendedor' },
   npc_alquimista: { type: PlaceholderType.NPC_SPOT, label: 'Alquimista' },
   npc_banqueiro: { type: PlaceholderType.NPC_SPOT, label: 'Banqueiro' },
-  npc_instrutor_refraction: { type: PlaceholderType.NPC_SPOT, label: 'Instrutor Kael' },
   tower_wing: { type: PlaceholderType.TOWER_BUILDING, label: 'TORRE' },
   tower_spire: { type: PlaceholderType.TOWER_BUILDING, label: 'CÚPULA' },
   street_light: { type: PlaceholderType.URBAN_PROP, label: 'Poste' },

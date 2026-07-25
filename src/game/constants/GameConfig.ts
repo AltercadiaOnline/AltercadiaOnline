@@ -11,7 +11,7 @@ export const GAME_CONFIG = {
   MAP_HEIGHT_TILES: 40,
   PLAYER_WIDTH: 35,
   PLAYER_HEIGHT: 54,
-  /** Âncora do sprite — base central dos pés (pivot Phaser / drawImage). */
+  /** Âncora do sprite — base central dos pés (pivot / drawImage). */
   PLAYER_FOOT_OFFSET: { x: 17.5, y: 54 },
 } as const;
 
@@ -54,7 +54,7 @@ export function resolvePlayerFeetWorld(logical: WorldLogicalPosition): WorldLogi
   };
 }
 
-/** Depth Phaser / Y-sort — base dos pés (quanto maior Y, mais ao sul, mais na frente). */
+/** Depth / Y-sort — base dos pés (quanto maior Y, mais ao sul, mais na frente). */
 export function resolvePlayerDepthY(logicalX: number, logicalY: number): number {
   void logicalX;
   return Math.floor(resolvePlayerFeetWorldY(logicalY));

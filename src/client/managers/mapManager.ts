@@ -1,6 +1,6 @@
 import { canPlayerWalkAt as checkPlayerWalkAt } from '../../shared/world/movement.js';
 import { setActiveNpcOccupancyMapId } from '../../shared/world/npcTileOccupancy.js';
-import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
+import { syncConstructWorldCollision } from '../../shared/world/constructWorldCollision.js';
 import { TILE_SIZE } from '../../shared/world/mapConstants.js';
 import {
   DEFAULT_MAP_ID,
@@ -58,7 +58,7 @@ export class MapManager {
     this.currentMap = definition;
     this.mapData = definition.generateData();
     setActiveNpcOccupancyMapId(mapId);
-    setActiveWorldCollisionMapId(mapId);
+    syncConstructWorldCollision(mapId);
     setActiveMapTileSize(mapId);
   }
 
@@ -84,11 +84,11 @@ export class MapManager {
   }
 
   get pixelWidth(): number {
-    return (this.mapData[0]?.length ?? 0) * this.currentMap.tileSize;
+    return this.currentMap.pixelWidth();
   }
 
   get pixelHeight(): number {
-    return this.mapData.length * this.currentMap.tileSize;
+    return this.currentMap.pixelHeight();
   }
 
   attachScene(host: MapSceneHost): void {
@@ -109,7 +109,7 @@ export class MapManager {
     this.currentMap = next;
     this.mapData = spawn?.cachedMapData ?? next.generateData();
     setActiveNpcOccupancyMapId(mapId);
-    setActiveWorldCollisionMapId(mapId);
+    syncConstructWorldCollision(mapId);
     setActiveMapTileSize(mapId);
     this.applySceneForCurrentMap(mapId, spawn);
   }

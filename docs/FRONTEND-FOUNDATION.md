@@ -15,12 +15,15 @@ Screen (React)          →  #screen-react-root  — login, char select (flags o
 
 ## Bootstrap (ordem)
 
-1. `main.ts` → `initReactHudHost()` — reserva roots, `gameUiBridge.setMode('react-hybrid')`
-2. `ui-runtime.js` → `mountReactUiRuntime()`:
+1. `ui-runtime.js` → `mountReactUiRuntime()` (único React):
+   - registra `__ALTERCADIA_HUD_RUNTIME__`
    - `initClientApp()` — bridges + Zustand sync
-   - `mountScreenRuntime` / `mountHudRuntime` / `mountOverlayRuntime`
-3. `enterWorld()` → `initReactGameHud()` — `data-react-game-hud-ui=1`
+   - `mountScreenRuntime` / `mountOverlayRuntime` (HUD in-game sob demanda)
+2. `main.ts` → `initReactHudHost()` — roots + bridges
+3. `enterWorld()` → `ensureGameHudRuntime()` → mesmo React (`__ALTERCADIA_HUD_RUNTIME__`)
 4. `initBattleHud()` → `initReactBattleHud()` — `data-react-battle-hud-ui=1`
+
+**Proibido:** segundo bundle React (`mountHudRuntime.js` standalone). Um só reconciler.
 
 API pública: `src/client/app/index.ts`
 

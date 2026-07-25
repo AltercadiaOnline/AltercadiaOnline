@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "a1311023-f078-4fcd-80c8-bffd3b503344",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a silver dog collar with a small blue tag, clean lineart, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:47:57.507980"
+}

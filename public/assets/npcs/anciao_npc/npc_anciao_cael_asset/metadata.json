@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "1e5268ef-475e-41b1-8710-d2c2c94ed2f5",
+        "name": "\"Pixel art chibi old male NPC sprite with a long white beard, top-down perspective, 90s retro anime style. Reimagined character wearing round glasses, a dark green kimono-style robe featuring glowing gold circuit-board patterns and details, an ornate patterned obi sash, and holding a tall wooden walking cane/staff topped with a small glass terrarium containing a green plant. Exaggerated head-to-body ratio, wise and steady posture, bold dark outlines, flat color blocks, high contrast, isolated on transparent background, 32x32px clean game asset.\"",
+        "prompt": "\"Pixel art chibi old male NPC sprite with a long white beard, top-down perspective, 90s retro anime style. Reimagined character wearing round glasses, a dark green kimono-style robe featuring glowing gold circuit-board patterns and details, an ornate patterned obi sash, and holding a tall wooden walking cane/staff topped with a small glass terrarium containing a green plant. Exaggerated head-to-body ratio, wise and steady posture, bold dark outlines, flat color blocks, high contrast, isolated on transparent background, 32x32px clean game asset.\"",
+        "size": {
+          "width": 80,
+          "height": 80
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-07-24T03:39:12.077587+00:00"
+      },
+      "folder": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh",
+      "frames": {
+        "rotations": {
+          "south": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/south.png",
+          "south-east": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/south-east.png",
+          "east": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/east.png",
+          "north-east": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/north-east.png",
+          "north": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/north.png",
+          "north-west": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/north-west.png",
+          "west": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/west.png",
+          "south-west": "Pixel_art_chibi_old_male_NPC_sprite_with_a_long_wh/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-07-24T03:42:03.966641"
+}

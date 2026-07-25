@@ -28,13 +28,19 @@ export function usePetLovePanelState(
   );
 
   useEffect(() => {
-    const unsubRoster = getPlayerPetStore().subscribeRoster(setRoster);
-    const unsubRation = getPlayerPetStore().subscribeRationCharges(setRationCharges);
-
     const syncAvailability = (): void => {
       setFeedAvailability(getPlayerPetStore().getPetRationFeedAvailability());
       setAffectionAvailability(getPlayerPetStore().getPetAffectionAvailability());
     };
+
+    const unsubRoster = getPlayerPetStore().subscribeRoster((next) => {
+      setRoster(next);
+      syncAvailability();
+    });
+    const unsubRation = getPlayerPetStore().subscribeRationCharges((charges) => {
+      setRationCharges(charges);
+      syncAvailability();
+    });
 
     syncAvailability();
     const cooldownTimer = window.setInterval(syncAvailability, 30_000);

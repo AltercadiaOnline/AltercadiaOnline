@@ -14,6 +14,7 @@ import { validatePortalAccess } from './portalAccess.js';
 import { isWithinInteractionRadius } from './interactableDistance.js';
 import { TILE_SIZE } from './mapConstants.js';
 import type { WorldPosition } from './playerWorldProfile.js';
+import { resolveConstructPlayerSpawn } from './constructPlayerSpawnPlacements.js';
 
 /** Timeout do handshake Etapa A → confirmação do servidor. */
 export const PORTAL_TRANSITION_TIMEOUT_MS = 12_000;
@@ -21,8 +22,12 @@ export const PORTAL_TRANSITION_TIMEOUT_MS = 12_000;
 /** Distância em tiles para iniciar pré-carregamento do mapa de destino. */
 export const PORTAL_PRELOAD_TILE_RADIUS = 14;
 
-/** Spawn seguro na cidade (retorno do beco / fallback de rede). */
-export const CITY_SAFE_SPAWN_TILE = { x: 29, y: 2 } as const;
+/** Spawn seguro na cidade — derivado do marker Construct `spawn_players`. */
+export function getCitySafeSpawnTile(): { readonly x: number; readonly y: number } {
+  const spawn = resolveConstructPlayerSpawn(CITY_01_ID);
+  if (spawn) return { x: spawn.tileX, y: spawn.tileY };
+  return { x: 3, y: 11 };
+}
 
 export type WorldExplorationSessionSync = {
   readonly worldVitals?: {
@@ -54,7 +59,14 @@ export type PortalTransitionReadyPayload = MapTransitionPayload & {
 export type PortalTransitionFailedPayload = {
   readonly requestId: string;
   readonly reason: string;
-  readonly code: 'ACCESS_DENIED' | 'INVALID_PORTAL' | 'NOT_NEAR_PORTAL' | 'INVALID_MAP' | 'SERVER_ERROR';
+  readonly code:
+    | 'ACCESS_DENIED'
+    | 'INVALID_PORTAL'
+    | 'NOT_NEAR_PORTAL'
+    | 'INVALID_MAP'
+    | 'SERVER_ERROR'
+    | 'ZONE_NOT_READY'
+    | 'MAP_NOT_ON_INSTANCE';
   readonly fallback?: MapTransitionPayload;
 };
 
@@ -63,7 +75,10 @@ export type PortalTransitionResolveResult =
   | { readonly ok: false; readonly failed: Omit<PortalTransitionFailedPayload, 'requestId'> };
 
 export function buildCitySafeSpawnPayload(facing: PlayerFacing = 'south'): MapTransitionPayload {
-  const spawn = tileCenterToWorldPixel(CITY_SAFE_SPAWN_TILE.x, CITY_SAFE_SPAWN_TILE.y);
+  const constructSpawn = resolveConstructPlayerSpawn(CITY_01_ID);
+  const spawn = constructSpawn
+    ? { x: constructSpawn.worldX, y: constructSpawn.worldY }
+    : tileCenterToWorldPixel(getCitySafeSpawnTile().x, getCitySafeSpawnTile().y);
   return {
     mapId: CITY_01_ID,
     x: spawn.x,

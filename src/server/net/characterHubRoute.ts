@@ -4,9 +4,11 @@ import type { ServerEnv } from '../config/env.js';
 import type { ClassType } from '../../shared/types/classes.js';
 import { isValidPlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 import type { CreateCharacterRequest } from '../../shared/auth/characterHubProtocol.js';
+import { isDeleteCharacterRequest } from '../../shared/auth/characterHubProtocol.js';
 import {
   buildAuthoritativeCharacterHub,
   createAuthoritativeCharacterInSlot,
+  deleteAuthoritativeCharacter,
 } from './characterHubService.js';
 
 function readDevBypassPlayerId(url: URL): string | null {
@@ -81,6 +83,26 @@ export async function handleCharacterHubRoute(
         ...(body.skinBundleId !== undefined ? { skinBundleId: body.skinBundleId } : {}),
       });
 
+      if (!result.ok) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, message: result.message }));
+        return true;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: true, hub: result.hub }));
+      return true;
+    }
+
+    if (req.method === 'DELETE') {
+      const body = await readJsonBody(req);
+      if (!isDeleteCharacterRequest(body)) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, message: 'Payload inválido para exclusão de personagem.' }));
+        return true;
+      }
+
+      const result = await deleteAuthoritativeCharacter(playerId, env, body.characterId);
       if (!result.ok) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ ok: false, message: result.message }));

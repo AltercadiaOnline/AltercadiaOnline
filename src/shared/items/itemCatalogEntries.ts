@@ -15,8 +15,8 @@ import {
   EQUIPMENT_SLOT_WEIGHT,
 } from './itemWeightConstants.js';
 import { applyLootEconomyToItem } from './lootItemEconomyRegistry.js';
+import { applyMarketplaceCatalogDefaults } from './marketplaceCatalogDefaults.js';
 import { CHARGED_EQUIPMENT_MAX_CHARGES } from './chargedEquipmentConstants.js';
-import { DIARIO_MEMORIAS_ITEM_ID } from './soulboundItems.js';
 
 /** Combat V1.2 — 1 poção/turno, exaustão; cooldown entre usos. */
 export const POTION_COMBAT_COOLDOWN = 2;
@@ -53,22 +53,6 @@ function generic(
     weight,
     effects: [],
     description,
-  };
-}
-
-function soulboundDiary(): ItemDefinition {
-  return {
-    id: DIARIO_MEMORIAS_ITEM_ID,
-    name: 'Diário de Memórias',
-    category: ItemCategory.Generic,
-    weight: 0.15,
-    maxStack: 1,
-    effects: [],
-    description: 'Registro pessoal de feitos, perdas e marcos. Parte da sua alma — não pode ser trocado ou descartado.',
-    iconPath: '/assets/items/diario_memorias.svg',
-    isUnique: true,
-    isIndestructible: true,
-    isTradable: false,
   };
 }
 
@@ -174,8 +158,6 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
   currency('dollar_volt', 'DOLLAR VOLT', 'Moeda in-game — loot, comércio e recompensas.'),
   currency('alter_coin', 'ALTER COIN', 'Moeda premium — trocável por Volts no Mercado.', 0),
 
-  soulboundDiary(),
-
   generic('soul_fragment', 'Fragmento de Alma', 'Item raro vendável. Forja pós-lançamento.'),
   generic('bones', 'Ossos', 'Item genérico vendável.'),
   generic('scale', 'Escama', 'Item genérico vendável.'),
@@ -228,9 +210,17 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
   equip('shadow_wing_cape', 'Capa de Asa Sombria', 'A', [pct('STR', 5)], EQUIPMENT_SLOT_WEIGHT.top),
   equip('black_chitin_ring', 'Anel de Quitina Negra', 'R2', [pct('CRIT', 5)], EQUIPMENT_SLOT_WEIGHT.ring),
   equip('hundred_feet_boots', 'Botas de Cem Pés', 'B', [pct('AGI', 5)], EQUIPMENT_SLOT_WEIGHT.bottom),
+  equip('segmented_pants', 'Calças Segmentadas', 'P', [pct('DEF', 8)], EQUIPMENT_SLOT_WEIGHT.bottom),
+  equip('gel_fiber_pants', 'Calças de Fibra Gelatinosa', 'P', [pct('HP', 8)], EQUIPMENT_SLOT_WEIGHT.bottom),
+  equip('rift_woven_pants', 'Calças da Fenda', 'P', [pct('AGI', 8)], EQUIPMENT_SLOT_WEIGHT.bottom),
   equip('electric_slime_ring', 'Anel de Gosma Elétrica', 'R2', [pct('DEF', 8)], EQUIPMENT_SLOT_WEIGHT.ring),
+  equip('conductive_plate_armor', 'Armadura Condutora', 'A', [pct('STR', 8)], EQUIPMENT_SLOT_WEIGHT.top),
   equip('pulsing_rift_amulet', 'Amuleto da Fenda Pulsante', 'M', [pct('CRIT', 5)], 0.2),
+  equip('molten_beam_amulet', 'Amuleto da Viga Fundida', 'M', [pct('STR', 8)], EQUIPMENT_SLOT_WEIGHT.amulet),
+  equip('translucent_amulet', 'Amuleto Translúcido', 'M', [pct('HP', 8)], EQUIPMENT_SLOT_WEIGHT.amulet),
+  equip('articulated_amulet', 'Amuleto Articulado', 'M', [pct('AGI', 8)], EQUIPMENT_SLOT_WEIGHT.amulet),
   equip('rail_armor', 'Armadura de Trilhos', 'A', [pct('DEF', 10)], 15),
+  equip('molten_rail_helm', 'Elmo de Trilho Fundido', 'H', [pct('DEF', 8)], EQUIPMENT_SLOT_WEIGHT.head),
   equip('spectral_mantle', 'Manto Espectral', 'A', [pct('DODGE', 8)], EQUIPMENT_SLOT_WEIGHT.top),
   equip('steel_horn_helm', 'Elmo de Chifres de Aço', 'H', [pct('DEF', 12)], EQUIPMENT_SLOT_WEIGHT.head),
   equip('arachnid_steel_boots', 'Botas de Aço Aracnídeo', 'B', [pct('DEF', 10)], EQUIPMENT_SLOT_WEIGHT.bottom),
@@ -431,7 +421,7 @@ function buildCatalogSplitRecords(): {
     if (full[entry.id]) {
       throw new Error(`[itemCatalog] ID duplicado: ${entry.id}`);
     }
-    const item = applyLootEconomyToItem(entry);
+    const item = applyMarketplaceCatalogDefaults(applyLootEconomyToItem(entry));
     full[item.id] = item;
     const split = splitCatalogItem(item);
     core[item.id] = split.core;

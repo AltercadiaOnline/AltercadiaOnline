@@ -5,7 +5,7 @@ import { ensureMovesetMasteryForPool } from '../../shared/progression/movesetMas
 export type PlayerProgressionSnapshot = PlayerProgressionData;
 
 type Listener = (snapshot: PlayerProgressionSnapshot) => void;
-const DEFAULT_MILESTONE_PROGRESS = 18;
+const DEFAULT_MILESTONE_PROGRESS = 0;
 
 class PlayerProgressionStore {
   private movesetMastery: Record<string, number> = {};
@@ -72,6 +72,17 @@ class PlayerProgressionStore {
     this.publish();
   }
 
+  /** Debug / intent — define XP total de domínio de um move. */
+  setMoveMasteryXp(moveId: string, masteryXp: number): void {
+    const id = moveId.trim();
+    if (!id) return;
+    this.movesetMastery = {
+      ...this.movesetMastery,
+      [id]: Math.max(0, Math.floor(masteryXp)),
+    };
+    this.publish();
+  }
+
   applyPenaltyResult(
     movesetMastery: Readonly<Record<string, number>>,
     milestoneTotalProgress: number,
@@ -99,13 +110,24 @@ class PlayerProgressionStore {
   }
 }
 
-let store: PlayerProgressionStore | null = null;
+type GlobalWithProgressionStore = typeof globalThis & {
+  __ALTERCADIA_PLAYER_PROGRESSION_STORE__?: PlayerProgressionStore | null;
+};
 
+function getProgressionStoreGlobal(): GlobalWithProgressionStore {
+  return globalThis as GlobalWithProgressionStore;
+}
+
+/** Singleton cross-bundle (main.js + ui-runtime) — domínio de moves único na HUD. */
 export function getPlayerProgressionStore(): PlayerProgressionStore {
-  if (!store) store = new PlayerProgressionStore();
-  return store;
+  const g = getProgressionStoreGlobal();
+  if (!g.__ALTERCADIA_PLAYER_PROGRESSION_STORE__) {
+    g.__ALTERCADIA_PLAYER_PROGRESSION_STORE__ = new PlayerProgressionStore();
+  }
+  return g.__ALTERCADIA_PLAYER_PROGRESSION_STORE__;
 }
 
 export function resetPlayerProgressionStore(): void {
-  store = null;
+  const g = getProgressionStoreGlobal();
+  g.__ALTERCADIA_PLAYER_PROGRESSION_STORE__ = null;
 }

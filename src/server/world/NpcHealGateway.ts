@@ -4,9 +4,9 @@ import { getPlayerWallet } from '../../Economy/economyStore.js';
 import { healPlayer } from '../../shared/world/npcHealService.js';
 import { validateHealNpcProximity } from '../../shared/world/npcHealAccessPolicy.js';
 import { sanitizeAuthoritativeWorldVitals } from '../../shared/world/resolveHealNpcVitals.js';
-import type { PlayerProfile } from '../models/playerProfile.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getWorldProfile, saveWorldProfile } from './worldProfileStore.js';
+import { syncWorldVitalsHpMaxFromLoadout } from './syncWorldVitalsHpMaxFromLoadout.js';
 
 export type HealAtNpcIntentRequest = {
   readonly playerId: string;
@@ -19,33 +19,13 @@ export type HealAtNpcIntentRequest = {
 };
 
 export type HealAtNpcIntentResult =
-  | { readonly ok: true }
+  | {
+      readonly ok: true;
+      readonly vitals: PlayerWorldVitals;
+      readonly message: string;
+      readonly voltsCost: number;
+    }
   | { readonly ok: false; readonly message: string };
-
-function resolveWorldVitals(profile: PlayerProfile): PlayerWorldVitals {
-  const stored = profile.sessionSync?.worldVitals;
-  if (
-    stored
-    && Number.isFinite(stored.hpMax)
-    && Number.isFinite(stored.mpMax)
-  ) {
-    return {
-      hpCurrent: stored.hpCurrent,
-      hpMax: stored.hpMax,
-      mpCurrent: stored.mpCurrent,
-      mpMax: stored.mpMax,
-    };
-  }
-
-  const hpMax = 100;
-  const mpMax = 48;
-  return {
-    hpMax,
-    mpMax,
-    hpCurrent: Math.min(hpMax - 1, hpMax),
-    mpCurrent: Math.min(mpMax - 1, mpMax),
-  };
-}
 
 function mapHealFailureReason(reason: string): string {
   if (reason.includes('VOLTS insuficientes')) {
@@ -75,8 +55,13 @@ export async function applyHealAtNpc(
     request.playerId,
     request.characterId,
   ).characterProfile.level;
-  const wallet = getPlayerWallet(request.playerId);
-  const serverVitals = resolveWorldVitals(profile);
+  const wallet = getPlayerWallet(request.playerId, request.characterId);
+
+  // Teto de cura = HP máx com buffs do SET (ex.: 112), nunca base 100 hardcoded.
+  const serverVitals = syncWorldVitalsHpMaxFromLoadout(
+    request.playerId,
+    request.characterId,
+  );
   const vitals = sanitizeAuthoritativeWorldVitals(serverVitals) ?? serverVitals;
 
   const healResult = healPlayer({
@@ -110,15 +95,21 @@ export async function applyHealAtNpc(
     return { ok: false, message: economyResult.message };
   }
 
+  const latest = getWorldProfile(request.playerId, request.characterId);
   saveWorldProfile(request.playerId, request.characterId, {
-    currentMapId: profile.currentMapId,
-    lastPosition: { ...profile.lastPosition },
-    facing: profile.facing,
+    currentMapId: latest.currentMapId,
+    lastPosition: { ...latest.lastPosition },
+    facing: latest.facing,
     sessionSync: {
-      ...profile.sessionSync,
+      ...latest.sessionSync,
       worldVitals: healResult.vitals,
     },
   });
 
-  return { ok: true };
+  return {
+    ok: true,
+    vitals: healResult.vitals,
+    message: healResult.message,
+    voltsCost: healResult.voltsCost,
+  };
 }

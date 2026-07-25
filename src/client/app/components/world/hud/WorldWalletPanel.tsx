@@ -2,6 +2,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { CurrencyService } from '../../../../services/index.js';
 import { subscribeGameStore } from '../../../../state/GameStore.js';
 import { tweenVoltsCounter } from '../../../../ui/wallet/voltsCounterTween.js';
+import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 
 export function WorldWalletPanel() {
   const voltsRef = useRef<HTMLDivElement>(null);
@@ -10,7 +11,11 @@ export function WorldWalletPanel() {
   const spentFlashRef = useRef(false);
 
   const balanceKey = useSyncExternalStore(
-    (onChange) => subscribeGameStore('player', () => onChange()),
+    (onChange) =>
+      subscribeExternalStore(
+        (listener) => subscribeGameStore('player', () => listener()),
+        onChange,
+      ),
     () => {
       const payload = CurrencyService.getBalanceChangedPayload();
       return `${payload.dollarVolt}|${payload.alterCoins}|${payload.voltsFormatted}|${payload.alterFormatted}`;

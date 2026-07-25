@@ -16,7 +16,7 @@ import { drawPlayerSpriteSheetFrame } from './playerSheetRenderer.js';
 import { drawSpriteIntoEntityBounds } from './playerSpriteBoundsDraw.js';
 import { resolveTrimmedPlayerSourceRect } from './playerSpriteSourceTrim.js';
 import { PlayerSpriteLoader } from './PlayerSpriteLoader.js';
-import { USE_LAYER_COMPOSITOR } from './playerConstants.js';
+import { USE_LAYER_COMPOSITOR, PLAYER_FRAME_SIZE_DEFAULT } from './playerConstants.js';
 import type { PlayerSkinBundleId } from '../../../shared/character/playerSkinBundle.js';
 import { getActivePlayerSkinBundleId } from './activePlayerSkinBundle.js';
 import { snapToPixel } from '../../render/pixelSnap.js';
@@ -61,8 +61,10 @@ export class PlayerSprite {
   private readonly idleBreathing = new IdleBreathingAnimation();
   private appliedSkinKey: string | null = null;
   private lastRenderTimestampMs = 0;
+  readonly skinBundleId: PlayerSkinBundleId;
 
   constructor(skinBundleId: PlayerSkinBundleId = getActivePlayerSkinBundleId()) {
+    this.skinBundleId = skinBundleId;
     this.loadPromise = Promise.all([
       PlayerSpriteLoader.getTopDownCatalog(skinBundleId).then((catalog) => {
         this.catalog = catalog;
@@ -80,6 +82,16 @@ export class PlayerSprite {
 
   ready(): Promise<void> {
     return this.loadPromise;
+  }
+
+  /** Tamanho nativo do frame (1:1) — base correta para preview com visualOccupancy. */
+  getNativeDrawSize(): { readonly width: number; readonly height: number } {
+    const fw = this.catalog?.frameWidth ?? 0;
+    const fh = this.catalog?.frameHeight ?? 0;
+    if (fw > 0 && fh > 0) {
+      return { width: fw, height: fh };
+    }
+    return { width: PLAYER_FRAME_SIZE_DEFAULT, height: PLAYER_FRAME_SIZE_DEFAULT };
   }
 
   setSkin(skin: PlayerSkin): void {
@@ -260,9 +272,11 @@ function emptyCatalog(): PlayerSpriteCatalog {
 
 let sharedPlayerSprite: PlayerSprite | null = null;
 
+/** Singleton alinhado ao `skinBundleId` ativo (seleção de personagem → mundo). */
 export function getSharedPlayerSprite(): PlayerSprite {
-  if (!sharedPlayerSprite) {
-    sharedPlayerSprite = new PlayerSprite();
+  const activeId = getActivePlayerSkinBundleId();
+  if (!sharedPlayerSprite || sharedPlayerSprite.skinBundleId !== activeId) {
+    sharedPlayerSprite = new PlayerSprite(activeId);
   }
   return sharedPlayerSprite;
 }

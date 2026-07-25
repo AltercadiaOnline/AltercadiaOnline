@@ -7,10 +7,8 @@ import {
   isMarketplaceListableItem,
   isNpcVendorSellableItem,
 } from '../../../shared/economy/itemValorEconomy.js';
-import { NPC_HIGH_VALUE_MARKETPLACE_HINT } from '../../../shared/economy/npcSellRarityPolicy.js';
 import { isNpcVendorShopOpen } from '../vendor/npcVendorSession.js';
 import {
-  resolveInventoryItemAbbrev,
   resolveInventoryItemKindClass,
   resolveInventoryItemLabel,
 } from './inventoryItemDisplay.js';
@@ -19,6 +17,7 @@ import {
   resolveWalletCurrencySlotQtyLabel,
   type WalletCurrencyView,
 } from './inventoryCurrencyDisplay.js';
+import { renderItemIconHtml } from '../items/itemIconDisplay.js';
 
 export type InventorySlotRenderContext =
   | 'player-inventory'
@@ -83,8 +82,8 @@ export function renderInventorySlot(params: RenderInventorySlotParams): string {
   }
 
   const label = resolveInventoryItemLabel(slot.itemId);
-  const abbrev = resolveInventoryItemAbbrev(slot.itemId);
   const kindClass = resolveInventoryItemKindClass(slot.itemId);
+  const iconHtml = renderItemIconHtml(slot.itemId, { className: 'slot-item__sprite' });
 
   const npcHighValue =
     context === 'player-inventory'
@@ -93,10 +92,8 @@ export function renderInventorySlot(params: RenderInventorySlotParams): string {
     && !isNpcVendorSellableItem(slot.itemId);
 
   const highValueClass = npcHighValue ? ' slot-item--npc-high-value' : '';
-  const highValueTitle = npcHighValue ? ` title="${NPC_HIGH_VALUE_MARKETPLACE_HINT}"` : '';
   const locked = (slot.lockedQuantity ?? 0) > 0;
   const lockedClass = locked ? ' slot-item--locked' : '';
-  const lockedTitle = locked ? ' title="Item bloqueado — transação bancária em andamento"' : '';
 
   const qtyBadge = resolveQuantityBadge(slot, context, wallet);
 
@@ -122,9 +119,9 @@ export function renderInventorySlot(params: RenderInventorySlotParams): string {
         data-context-menu-target='${contextMenuTarget}'
         data-hud-fit-item
         data-hud-priority="5"
-        aria-label="${label}"${highValueTitle}${lockedTitle}${pendingAttrs}
+        aria-label="${label}"${pendingAttrs}
       >
-        <span class="slot-item__icon" aria-hidden="true">${abbrev}</span>
+        <span class="slot-item__icon" aria-hidden="true">${iconHtml}</span>
         ${pending ? '<span class="slot-item__pending" aria-hidden="true">⟳</span>' : ''}
         ${stackQtyBadge}
         ${chargesBadge}
@@ -148,7 +145,7 @@ export function renderInventorySlot(params: RenderInventorySlotParams): string {
       aria-label="${label}, quantidade ${slot.quantity}"
       aria-pressed="${selected ? 'true' : 'false'}"
     >
-      <span class="slot-item__icon" aria-hidden="true">${abbrev}</span>
+      <span class="slot-item__icon" aria-hidden="true">${iconHtml}</span>
       ${stackQtyBadge}
       ${chargesBadge}
     </button>

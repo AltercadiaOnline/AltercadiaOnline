@@ -4,7 +4,7 @@ import {
   resolveArenaTournamentBetPresets,
 } from '../../../shared/arena/arenaTournamentBetService.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
-import { usePlayerData } from '../store/gameStore.js';
+import { usePlayerGold } from '../store/gameStore.js';
 
 export type TournamentBetView = {
   readonly pulpitId: string;
@@ -21,13 +21,13 @@ export function resolveTournamentBetFromContext(
     };
   }
   return {
-    pulpitId: 'arena_pulpit_center',
-    pulpitName: 'Púlpito Central',
+    pulpitId: 'computador_arena',
+    pulpitName: 'Computador da Arena',
   };
 }
 
 export function useTournamentBetPanelState(pulpit: TournamentBetView) {
-  const { gold } = usePlayerData();
+  const gold = usePlayerGold();
   const [betVolts, setBetVolts] = useState(ARENA_TOURNAMENT_MIN_BET_VOLTS);
   const [awaitingMatch, setAwaitingMatch] = useState(false);
 

@@ -15,6 +15,7 @@ import {
   resolveZone1CreatureEntry,
   ZONE1_ID,
 } from '../../shared/world/zone1CreatureRegistry.js';
+import { resolveZone1BattleSpriteUrl } from '../../shared/assets/zone1BattleCreatureAssets.js';
 import { resolveZone1TopDownRotationUrl } from '../../shared/assets/zone1TopDownCreatureAssets.js';
 
 import { DEFAULT_PLAYER_SOUTH_ROTATION_URL } from '../entities/player/playerConstants.js';
@@ -34,11 +35,15 @@ function bundleFromManifest(
   folder: string,
   manifest: CreatureManifest,
 ): CreatureAssetBundle {
-  // Zona 1: assets top-down (rotations). Sem frame de ataque dedicado — reusa sul.
+  // Mundo: top-down. Batalha: side-view em zona1_tela_de_batalha (fallback → top-down sul).
   const topDownSouth =
     zoneId === ZONE1_ID ? resolveZone1TopDownRotationUrl(creatureId, 'south') : null;
+  const battleSprite =
+    zoneId === ZONE1_ID ? resolveZone1BattleSpriteUrl(creatureId) : null;
 
-  if (topDownSouth) {
+  if (topDownSouth || battleSprite) {
+    const idle = topDownSouth ?? battleSprite!;
+    const attack = battleSprite ?? topDownSouth!;
     return {
       id: manifest.id,
       displayName: manifest.displayName,
@@ -46,8 +51,8 @@ function bundleFromManifest(
       zoneId,
       folder,
       sprites: {
-        idle: topDownSouth,
-        attack: topDownSouth,
+        idle,
+        attack,
       },
     };
   }
@@ -95,7 +100,13 @@ export function getCreatureAssets(
 
 export function getCreatureBattleSpriteCandidates(creatureId: string): readonly string[] {
   const assets = getCreatureAssets(creatureId);
-  return [assets.sprites.idle, assets.sprites.attack, FALLBACK_BATTLE_SPRITE_SRC];
+  const battle = resolveZone1BattleSpriteUrl(creatureId);
+  return [
+    ...(battle ? [battle] : []),
+    assets.sprites.attack,
+    assets.sprites.idle,
+    FALLBACK_BATTLE_SPRITE_SRC,
+  ];
 }
 
 /** Verifica URLs via fetch (browser / produção). */
@@ -127,9 +138,8 @@ export function resolveZoneIdForMap(mapId: MapId): string | null {
 }
 
 /**
- * Valida manifests de criaturas da zona — chamar **somente** na PreloaderScene pós-atlas.
- * Não carrega texturas Phaser: o atlas `zone1-topdown-creatures` já está no cache.
- * Runtime (exploração) consome frames via `phaserWorldActorsController`.
+ * Atlas `zone1-topdown-creatures` gerado por generate-assets — overlay Construct
+ * consome PNGs top-down via `zone1TopDownCreatureAssets` (idle no mundo).
  */
 export async function startLoadingZone(zoneId: string = ZONE1_ID): Promise<void> {
   if (initializedZones.has(zoneId)) return;

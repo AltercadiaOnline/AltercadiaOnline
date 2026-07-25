@@ -24,14 +24,22 @@ export type CharSelectSnapshot = {
   readonly server: CharSelectServerUiState | null;
   readonly createOpen: boolean;
   readonly createSlotIndex: number;
+  readonly deleteOpen: boolean;
+  readonly deleteCharacterId: number | null;
+  readonly deleteCharacterName: string;
   readonly enterWorldDisabled: boolean;
   readonly enterWorldBusy: boolean;
+  readonly deleteDisabled: boolean;
 };
 
 type CharSelectListener = (snapshot: CharSelectSnapshot) => void;
 
 type CreateSubmitHandler = (
   payload: CharacterCreatePayload,
+) => Promise<{ ok: boolean; message: string }>;
+
+type DeleteSubmitHandler = (
+  characterId: number,
 ) => Promise<{ ok: boolean; message: string }>;
 
 class CharSelectBridge {
@@ -43,9 +51,15 @@ class CharSelectBridge {
 
   private createSubmitHandler: CreateSubmitHandler | null = null;
 
+  private deleteSubmitHandler: DeleteSubmitHandler | null = null;
+
   private createOpen = false;
 
   private createSlotIndex = 0;
+
+  private deleteOpen = false;
+
+  private deleteCharacterId: number | null = null;
 
   private enterWorldBusy = false;
 
@@ -75,6 +89,10 @@ class CharSelectBridge {
 
   bindCreateSubmit(handler: CreateSubmitHandler): void {
     this.createSubmitHandler = handler;
+  }
+
+  bindDeleteSubmit(handler: DeleteSubmitHandler): void {
+    this.deleteSubmitHandler = handler;
   }
 
   private serverState: CharSelectServerUiState | null = null;
@@ -131,17 +149,34 @@ class CharSelectBridge {
     this.emit();
   }
 
+  openDelete(characterId?: number): void {
+    const id = characterId ?? AppScreens.selectedCharacterId;
+    if (id === null) return;
+    this.deleteOpen = true;
+    this.deleteCharacterId = id;
+    this.emit();
+  }
+
+  closeDelete(): void {
+    this.deleteOpen = false;
+    this.deleteCharacterId = null;
+    this.emit();
+  }
+
   selectCharacter(characterId: number): void {
     AppScreens.selectCharacter(characterId);
     this.emit();
   }
 
   enterWorld(): void {
+    this.closeCreate();
+    this.closeDelete();
     this.enterWorldHandler?.();
   }
 
   returnToLogin(): void {
     this.closeCreate();
+    this.closeDelete();
     this.returnToLoginHandler?.();
   }
 
@@ -175,6 +210,19 @@ class CharSelectBridge {
     return result;
   }
 
+  async submitDelete(characterId: number): Promise<{ ok: boolean; message: string }> {
+    if (!this.deleteSubmitHandler) {
+      return { ok: false, message: 'Exclusão de personagem indisponível.' };
+    }
+    const result = await this.deleteSubmitHandler(characterId);
+    if (result.ok) {
+      this.closeDelete();
+      this.setHubStatus(result.message, false);
+      this.syncFromAppScreens();
+    }
+    return result;
+  }
+
   bindPreviewContainer(container: HTMLElement | null, hub: AccountCharacterHub | null): void {
     if (!container || !hub) return;
     getCharacterSelectPreviewManager().bindFromHub(container, hub);
@@ -194,19 +242,28 @@ class CharSelectBridge {
     }
 
     const email = AppScreens.currentSession?.email;
+    const selectedId = AppScreens.selectedCharacterId;
+    const deleteId = this.deleteCharacterId;
+    const deleteCharacter = deleteId !== null
+      ? hub?.slots.find((slot) => slot?.id === deleteId) ?? null
+      : null;
 
     return {
       accountEmail: email ? `Conta: ${email}` : '',
       statusMessage: this.statusMessage,
       statusIsError: this.statusIsError,
       hubLoading: this.hubLoading,
-      selectedCharacterId: AppScreens.selectedCharacterId,
+      selectedCharacterId: selectedId,
       slots,
       server: this.serverState ?? getCharSelectServerUiState(),
       createOpen: this.createOpen,
       createSlotIndex: this.createSlotIndex,
-      enterWorldDisabled: AppScreens.selectedCharacterId === null || this.enterWorldBusy,
+      deleteOpen: this.deleteOpen,
+      deleteCharacterId: deleteId,
+      deleteCharacterName: deleteCharacter?.name?.trim() || 'este personagem',
+      enterWorldDisabled: selectedId === null || this.enterWorldBusy,
       enterWorldBusy: this.enterWorldBusy,
+      deleteDisabled: selectedId === null || this.hubLoading || this.enterWorldBusy,
     };
   }
 

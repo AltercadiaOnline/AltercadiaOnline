@@ -1,5 +1,5 @@
 import { getGameUiBridge } from '../bridge/gameUiBridge.js';
-import { initPhaserReadyLayer } from '../phaser/initPhaserReadyLayer.js';
+import { initWorldRenderLayer } from '../../worldRender/initWorldRenderLayer.js';
 import {
   initWorldPanelsBridge,
   resetWorldPanelsBridgeSession,
@@ -28,13 +28,13 @@ export function initClientApp(root: ParentNode = document): boolean {
   return true;
 }
 
-/** Bridges pesados + Phaser — só após entrar no mundo (lazy via ensureGameHudRuntime). */
+/** Bridges pesados + motor de cena Construct — só após entrar no mundo. */
 export function initClientAppGameLayer(): boolean {
   if (clientAppGameLayerInitialized) return false;
 
   initGameStoreBridge();
   initWorldPanelsBridge();
-  initPhaserReadyLayer();
+  initWorldRenderLayer();
 
   clientAppGameLayerInitialized = true;
   return true;

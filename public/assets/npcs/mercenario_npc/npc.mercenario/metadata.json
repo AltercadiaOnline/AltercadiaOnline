@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "a46044c2-23c2-4017-b2e0-0ec24402ca5c",
+        "name": "\"Pixel art chibi male mercenary NPC sprite, top-down perspective, 90s retro anime style. Muscular bald character with a stern, aggressive expression, arms crossed. Outfit: open black-and-white vertical striped referee-style jacket with high collar and badges, dark red inner t-shirt, gray cargo pants with side pockets, and heavy black combat boots with orange laces. Exaggerated head-to-body ratio, bold dark outlines, flat color blocks, high contrast, intimidating posture, isolated on transparent background, 32x32px clean game asset.\"",
+        "prompt": "\"Pixel art chibi male mercenary NPC sprite, top-down perspective, 90s retro anime style. Muscular bald character with a stern, aggressive expression, arms crossed. Outfit: open black-and-white vertical striped referee-style jacket with high collar and badges, dark red inner t-shirt, gray cargo pants with side pockets, and heavy black combat boots with orange laces. Exaggerated head-to-body ratio, bold dark outlines, flat color blocks, high contrast, intimidating posture, isolated on transparent background, 32x32px clean game asset.\"",
+        "size": {
+          "width": 80,
+          "height": 80
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-07-24T03:28:36.524825+00:00"
+      },
+      "folder": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down",
+      "frames": {
+        "rotations": {
+          "south": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/south.png",
+          "south-east": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/south-east.png",
+          "east": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/east.png",
+          "north-east": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/north-east.png",
+          "north": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/north.png",
+          "north-west": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/north-west.png",
+          "west": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/west.png",
+          "south-west": "Pixel_art_chibi_male_mercenary_NPC_sprite_top-down/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-07-24T03:30:28.227242"
+}

@@ -1,9 +1,10 @@
-import { useCallback, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { ACTIVE_MOVESET_SLOT_COUNT } from '../../../../../shared/combat/moveTypes.js';
 import { resolveMoveDefinitionForUi } from '../../../../../shared/combat/movesetLoadout.js';
 import { formatCombatClassLabel } from '../../../../../shared/character/combatClassDisplay.js';
 import { getGlobalPlayerStore } from '../../../../ui/moveset/globalPlayerStore.js';
-import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
+import { alertSystem } from '../../../../ui/alertSystem.js';
+import { hideMoveTooltip, showMoveTooltipAt } from '../../../../ui/tooltip/showMoveTooltip.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
 import { useMovesetPanelState } from '../../../panels/useMovesetPanelState.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
@@ -15,19 +16,8 @@ type WorldMovesetPanelProps = {
 };
 
 function showMoveTooltip(event: MouseEvent<HTMLElement>, moveId: string): void {
-  const move = resolveMoveDefinitionForUi(moveId);
-  if (!move) return;
   const rect = event.currentTarget.getBoundingClientRect();
-  uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
-    data: { kind: 'move', data: move },
-    x: rect.left + rect.width / 2,
-    y: rect.top,
-    placement: 'above',
-  });
-}
-
-function hideMoveTooltip(): void {
-  uiEvents.emit(UIEventType.HIDE_TOOLTIP, {});
+  showMoveTooltipAt(moveId, rect.left + rect.width / 2, rect.top, 'above');
 }
 
 export function WorldMovesetPanel({ zIndex, focused }: WorldMovesetPanelProps) {
@@ -42,19 +32,32 @@ export function WorldMovesetPanel({ zIndex, focused }: WorldMovesetPanelProps) {
 
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmSuccess, setConfirmSuccess] = useState(false);
+  const [confirmedFingerprint, setConfirmedFingerprint] = useState<string | null>(null);
+
+  const loadoutFingerprint = snapshot.activeMovesets.join('\0');
+
+  // Mantém "LOADOUT CONFIRMADO" enquanto o rascunho for o mesmo; some se o jogador editar.
+  useEffect(() => {
+    if (confirmedFingerprint === null) return;
+    if (loadoutFingerprint !== confirmedFingerprint) {
+      setConfirmSuccess(false);
+      setConfirmedFingerprint(null);
+    }
+  }, [loadoutFingerprint, confirmedFingerprint]);
 
   const handleConfirm = useCallback(async (): Promise<void> => {
     if (confirmBusy || confirmSuccess || !canConfirm) return;
     setConfirmBusy(true);
     const confirmed = await getGlobalPlayerStore().confirmLoadout();
     setConfirmBusy(false);
-    if (!confirmed) return;
+    if (!confirmed) {
+      alertSystem('Não foi possível salvar o loadout. Verifique a conexão com o servidor.');
+      return;
+    }
 
+    const fingerprint = getGlobalPlayerStore().getSnapshot().activeMovesets.join('\0');
+    setConfirmedFingerprint(fingerprint);
     setConfirmSuccess(true);
-    window.setTimeout(() => {
-      setConfirmSuccess(false);
-      tryCloseReactWorldPanel('moveset');
-    }, 1500);
   }, [canConfirm, confirmBusy, confirmSuccess]);
 
   const classLabel = formatCombatClassLabel(classId);
@@ -100,7 +103,7 @@ export function WorldMovesetPanel({ zIndex, focused }: WorldMovesetPanelProps) {
                   role="listitem"
                   aria-label={`${label}${isActive ? ' — equipado' : ''}`}
                   aria-pressed={isActive}
-                  disabled={confirmBusy || confirmSuccess}
+                  disabled={confirmBusy}
                   onClick={() => getGlobalPlayerStore().toggleActiveMove(moveId)}
                   onMouseEnter={(event) => showMoveTooltip(event, moveId)}
                   onMouseLeave={hideMoveTooltip}
@@ -150,7 +153,7 @@ export function WorldMovesetPanel({ zIndex, focused }: WorldMovesetPanelProps) {
                   className="loadout-active-slot loadout-active-slot--filled loadout-active-slot--glow"
                   role="listitem"
                   aria-label={`${label} — remover do loadout`}
-                  disabled={confirmBusy || confirmSuccess}
+                  disabled={confirmBusy}
                   onClick={() => getGlobalPlayerStore().removeActiveMove(moveId)}
                   onMouseEnter={(event) => showMoveTooltip(event, moveId)}
                   onMouseLeave={hideMoveTooltip}
@@ -182,7 +185,7 @@ export function WorldMovesetPanel({ zIndex, focused }: WorldMovesetPanelProps) {
             onClick={() => { void handleConfirm(); }}
           >
             <span className="loadout-confirm-btn__label">
-              {confirmSuccess ? 'LOADOUT CONFIRMADO!' : confirmBusy ? 'SALVANDO…' : 'CONFIRMAR LOADOUT'}
+              {confirmSuccess ? 'LOADOUT CONFIRMADO' : confirmBusy ? 'SALVANDO…' : 'CONFIRMAR LOADOUT'}
             </span>
           </button>
         </footer>

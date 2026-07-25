@@ -10,14 +10,20 @@ export const GAME_STAGE_FRAME_ID = 'game-stage-frame';
 /** Container lógico 640×360 — recebe `transform: scale(n)` (spec: #game-container). */
 export const GAME_STAGE_SCALE_ID = 'game-stage-scale';
 
+/** Frame letterbox da arena de batalha (coluna sem sidebar). */
+export const BATTLE_STAGE_FRAME_ID = 'battle-stage-frame';
+/** Host 640×360 da arena — mesma escala contain do mundo. */
+export const BATTLE_STAGE_SCALE_ID = 'battle-stage-scale';
+export const SCENE_COMBAT_ID = 'scene-combat';
+
 /** @alias GAME_STAGE_SCALE_ID — nome do contrato de layout do Core. */
 export const GAME_DISPLAY_CONTAINER_ID = GAME_STAGE_SCALE_ID;
 export const GAME_UI_OVERLAY_ID = 'game-ui-overlay';
 export const GAME_STAGE_ID = 'game-stage';
 export const GAME_RENDER_HOST_ID = 'game-render-host';
 
-/** @deprecated Canvas legado removido — input/render no host Phaser. */
-export const GAME_CANVAS_ID = 'phaser-mount-root';
+/** @deprecated Canvas legado removido — input/render no host Construct. */
+export const GAME_CANVAS_ID = 'world-mount-root';
 export const NPC_NAMES_LAYER_ID = 'npc-names-layer';
 export const SPEECH_BUBBLES_LAYER_ID = 'speech-bubbles-layer';
 
@@ -46,8 +52,8 @@ export function readGameViewportSize(_fallback?: ViewportSize): ViewportSize {
 }
 
 /**
- * Escala máxima mantendo aspect ratio 16:9 (contain).
- * `Math.min(largura/640, altura/360)` — barras pretas no viewport, sem crop.
+ * Escala para caber a coluna do jogo (contain) — janela ou fullscreen.
+ * `Math.min(largura/640, altura/360)` — 640×360 sempre visível; faixas se aspect ≠ 16:9.
  */
 export function computeGameStageScale(containerWidth: number, containerHeight: number): number {
   if (containerWidth <= 0 || containerHeight <= 0) return 1;
@@ -71,21 +77,23 @@ function readLayoutViewportSize(): { readonly width: number; readonly height: nu
 /**
  * Aplica `transform: scale(n)` somente no container 640×360 (#game-stage-scale).
  * Canvas permanece 640×360 nativo — nunca recebe escala CSS.
+ * Em batalha, espelha a mesma escala em #battle-stage-scale (coluna sem sidebar).
  */
 export function updateScale(): number {
   const viewport = getGameViewportElement();
   const scaleHost = document.getElementById(GAME_DISPLAY_CONTAINER_ID);
   const overlay = document.getElementById(GAME_UI_OVERLAY_ID);
   const namesLayer = document.getElementById(NPC_NAMES_LAYER_ID);
-  if (!scaleHost) return 1;
 
   enforceFixedGameStagePixels();
 
   const { width, height } = readLayoutViewportSize();
   const scale = computeGameStageScale(width, height);
 
-  scaleHost.style.transform = `scale(${scale})`;
-  scaleHost.style.transformOrigin = 'center center';
+  if (scaleHost) {
+    scaleHost.style.transform = `scale(${scale})`;
+    scaleHost.style.transformOrigin = 'center center';
+  }
 
   for (const el of [overlay, namesLayer]) {
     if (!el) continue;
@@ -97,7 +105,32 @@ export function updateScale(): number {
     viewport.style.setProperty('--game-display-scale', String(scale));
     applyBaseViewportCssVars(viewport);
   }
+
+  updateBattleStageScale();
   return scale;
+}
+
+/** Letterbox 640×360 da arena dentro de #scene-combat (já sem sidebar). */
+export function updateBattleStageScale(): number {
+  const battleScaleHost = document.getElementById(BATTLE_STAGE_SCALE_ID);
+  if (!battleScaleHost) return 1;
+
+  battleScaleHost.style.width = `${GAME_RENDER_WIDTH}px`;
+  battleScaleHost.style.height = `${GAME_RENDER_HEIGHT}px`;
+
+  const combatScene = document.getElementById(SCENE_COMBAT_ID);
+  const frame = document.getElementById(BATTLE_STAGE_FRAME_ID);
+  const container = frame ?? combatScene;
+  if (!container || container.clientWidth <= 0 || container.clientHeight <= 0) {
+    battleScaleHost.style.transform = 'scale(1)';
+    battleScaleHost.style.transformOrigin = 'center center';
+    return 1;
+  }
+
+  const battleScale = computeGameStageScale(container.clientWidth, container.clientHeight);
+  battleScaleHost.style.transform = `scale(${battleScale})`;
+  battleScaleHost.style.transformOrigin = 'center center';
+  return battleScale;
 }
 
 /** Camada HUD — sempre no overlay, fora do canvas escalado. */
@@ -131,9 +164,15 @@ export function enforceFixedGameStagePixels(): void {
     scaleHost.style.width = `${GAME_RENDER_WIDTH}px`;
     scaleHost.style.height = `${GAME_RENDER_HEIGHT}px`;
   }
+
+  const battleScaleHost = document.getElementById(BATTLE_STAGE_SCALE_ID);
+  if (battleScaleHost) {
+    battleScaleHost.style.width = `${GAME_RENDER_WIDTH}px`;
+    battleScaleHost.style.height = `${GAME_RENDER_HEIGHT}px`;
+  }
 }
 
-/** ResizeObserver + window resize — executa updateScale ao carregar e ao redimensionar. */
+/** ResizeObserver + window/fullscreen — escala modular (janela ou F11). */
 export function initGameStageScale(onAfterScale?: () => void): () => void {
   const run = (): void => {
     updateScale();
@@ -148,9 +187,14 @@ export function initGameStageScale(onAfterScale?: () => void): () => void {
   }
 
   window.addEventListener('resize', run);
+  document.addEventListener('fullscreenchange', run);
+  window.visualViewport?.addEventListener('resize', run);
+
   return () => {
     disconnectViewport();
     window.removeEventListener('resize', run);
+    document.removeEventListener('fullscreenchange', run);
+    window.visualViewport?.removeEventListener('resize', run);
   };
 }
 

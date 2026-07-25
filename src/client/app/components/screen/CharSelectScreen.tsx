@@ -1,15 +1,59 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CHARACTER_SLOT_COUNT } from '../../../../shared/characterHub.js';
 import { CLASS_CATALOG } from '../../../../shared/types/classes.js';
 import {
   resolvePlayerSkinBundleId,
-  resolvePlayerSkinBundleSouthPreviewUrl,
+  type PlayerSkinBundleId,
 } from '../../../../shared/character/playerSkinBundle.js';
+import { resolveCharacterSkin } from '../../../../shared/character/characterAppearance.js';
+import type { PlayerSkin } from '../../../../shared/character/playerSkin.js';
+import { paintCharacterBundleSouthPreview } from '../../../ui/character/characterAvatarPreview.js';
 import {
   getCharSelectBridge,
   type CharSelectSnapshot,
 } from '../../bridge/charSelectBridge.js';
 import { CharacterCreateModal } from './CharacterCreateModal.js';
+import { CharacterDeleteModal } from './CharacterDeleteModal.js';
+
+/** Buffer do canvas de preview — proporção ~85×132 do slot, com resolução 2× para nitidez. */
+const SLOT_AVATAR_BUFFER_WIDTH = 170;
+const SLOT_AVATAR_BUFFER_HEIGHT = 264;
+
+/**
+ * Avatar do slot: canvas que recorta a margem transparente do PNG e escala o sprite
+ * VISÍVEL para uma altura única — todas as skins ficam do mesmo tamanho da male_01.
+ */
+function CharSlotAvatar({
+  bundleId,
+  skin,
+}: {
+  readonly bundleId: PlayerSkinBundleId;
+  readonly skin: PlayerSkin;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    void paintCharacterBundleSouthPreview(canvas, bundleId, {
+      skin,
+      facing: 'south',
+      backdropAlpha: 0,
+      visualOccupancy: 0.95,
+      showSkinAccentStrip: false,
+    });
+  }, [bundleId, skin]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="char-slot-preview__canvas"
+      width={SLOT_AVATAR_BUFFER_WIDTH}
+      height={SLOT_AVATAR_BUFFER_HEIGHT}
+      aria-hidden="true"
+    />
+  );
+}
 
 function useCharSelectScreen(): CharSelectSnapshot {
   const [snapshot, setSnapshot] = useState<CharSelectSnapshot>(
@@ -104,9 +148,8 @@ export function CharSelectScreen() {
           : state.slots.map(({ slotIndex, character }) => {
           if (character) {
             const selected = character.id === state.selectedCharacterId;
-            const skinPreviewUrl = resolvePlayerSkinBundleSouthPreviewUrl(
-              resolvePlayerSkinBundleId(character),
-            );
+            const skinBundleId = resolvePlayerSkinBundleId(character);
+            const characterSkin = resolveCharacterSkin(character);
             return (
               <div
                 key={`slot-${slotIndex}`}
@@ -124,15 +167,7 @@ export function CharSelectScreen() {
                 }}
               >
                 <div className="char-slot-preview" aria-hidden="true">
-                  <img
-                    className="char-slot-preview__img"
-                    src={skinPreviewUrl}
-                    alt=""
-                    width={85}
-                    height={132}
-                    loading="lazy"
-                    decoding="async"
-                  />
+                  <CharSlotAvatar bundleId={skinBundleId} skin={characterSkin} />
                 </div>
                 <div className="char-slot-body">
                   <strong className="char-name">{character.name}</strong>
@@ -177,6 +212,14 @@ export function CharSelectScreen() {
         </button>
         <button
           type="button"
+          className="char-select-delete"
+          disabled={state.deleteDisabled}
+          onClick={() => bridge.openDelete()}
+        >
+          EXCLUIR PERSONAGEM
+        </button>
+        <button
+          type="button"
           disabled={state.enterWorldDisabled}
           aria-busy={state.enterWorldBusy}
           onClick={() => bridge.enterWorld()}
@@ -189,6 +232,13 @@ export function CharSelectScreen() {
         open={state.createOpen}
         slotIndex={state.createSlotIndex}
         onClose={() => bridge.closeCreate()}
+      />
+
+      <CharacterDeleteModal
+        open={state.deleteOpen}
+        characterId={state.deleteCharacterId}
+        characterName={state.deleteCharacterName}
+        onClose={() => bridge.closeDelete()}
       />
     </div>
   );

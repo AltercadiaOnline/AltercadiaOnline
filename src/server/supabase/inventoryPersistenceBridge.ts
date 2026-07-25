@@ -6,12 +6,14 @@ import { buildCriticalCharacterDataFromRuntime } from './buildCriticalCharacterD
 import { recordCriticalPersistSample } from './criticalPersistMetrics.js';
 import { getPersistenceManager } from './persistenceManagerRegistry.js';
 
-/** Inventário, moeda e banco — sempre HIGH_PRIORITY (saveCritical). */
+/** Inventário, moeda, banco e pets — sempre HIGH_PRIORITY (saveCritical). */
 const CRITICAL_ECONOMY_EVENTS = [
   EconomyEventType.InventoryUpdated,
   EconomyEventType.UpdateBankSuccess,
   EconomyEventType.WalletUpdated,
   EconomyEventType.AlterExchangeCompleted,
+  EconomyEventType.PetRosterUpdated,
+  EconomyEventType.PetAffinityUpdated,
 ] as const;
 
 const CRITICAL_PERSIST_DEBOUNCE_MS = 400;
@@ -40,7 +42,7 @@ function playerIdFromEvent(event: EconomyEvent): string | undefined {
 }
 
 /**
- * Ponte EventBus → PersistenceManager para economia crítica (inventário + moeda).
+ * Ponte EventBus → PersistenceManager para economia crítica (inventário + moeda + pets).
  *
  * - Debounce por personagem (coalesce mutações rápidas).
  * - `revision` do evento como sequence — evita flush redundante e saves obsoletos.
@@ -191,6 +193,7 @@ export class InventoryPersistenceBridge {
         revision: latestRevision,
         eventType,
         stackCount: data.inventory?.stacks.length ?? 0,
+        petCount: data.pets?.roster.pets.length ?? 0,
         dollarVolt: data.currency?.dollarVolt,
         alterCoins: data.currency?.alterCoins,
         debounceMs: sample.debounceMs,

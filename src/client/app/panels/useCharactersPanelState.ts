@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  EQUIPMENT_UI_SLOT_LABELS,
-  EQUIPMENT_UI_SLOT_ORDER,
-  type EquipmentUiGridState,
-} from '../../../shared/character/equipmentUiSlots.js';
-import type { PlayerProfileSnapshot } from '../../../shared/character/playerProfile.js';
-import {
   calculateStatsBonusFromEquipment,
   type PlayerStatsBonus,
 } from '../../../shared/character/playerStatsBonus.js';
+import type { EquipmentUiGridState } from '../../../shared/character/equipmentUiSlots.js';
+import type { PlayerProfileSnapshot } from '../../../shared/character/playerProfile.js';
 import {
   getSkinOptionLabel,
   SKIN_SLOT_LABELS,
@@ -18,15 +14,17 @@ import {
 import type { PetSnapshot } from '../../../shared/pet/petModel.js';
 import type { PlayerPetRosterSnapshot } from '../../../shared/pet/petRoster.js';
 import type { WalletSnapshot } from '../../../shared/playerDataSnapshots.js';
+import { ACTIVE_MOVESET_SLOT_COUNT } from '../../../shared/combat/moveTypes.js';
+import { listAchievementDefinitions } from '../../../shared/achievements/achievementCatalog.js';
+import {
+  ACHIEVEMENT_CATEGORY_LABELS,
+  type AchievementProgressSnapshot,
+} from '../../../shared/achievements/achievementTypes.js';
 import { getDataStore } from '../../economy/economyLayer.js';
 import { getCarryCapacityStore } from '../../ui/capacity/carryCapacityStore.js';
 import { getPlayerProfileStore } from '../../ui/character/playerProfileStore.js';
 import { getPlayerSkinStore, type PlayerSkinState } from '../../ui/character/playerSkinStore.js';
 import { resolveEstiloName } from '../../ui/character/characterPanelEstilo.js';
-import {
-  buildOperativeEventLogLines,
-  type OperativeEventLogLine,
-} from '../../ui/character/characterPanelAchievementLog.js';
 import {
   resolveExplorationSpeedBonusFromAgility,
   type LevelProgressionSectionModel,
@@ -39,12 +37,8 @@ import { getPlayerEquipmentStore, type PlayerEquipmentSnapshot } from '../../ui/
 import { getPlayerItemStore } from '../../ui/items/playerItemStore.js';
 import { getGlobalPlayerStore } from '../../ui/moveset/globalPlayerStore.js';
 import { getPlayerPetStore } from '../../ui/pet/playerPetStore.js';
+import { getPlayerAchievementStore } from '../../ui/achievements/playerAchievementStore.js';
 import { uiEvents, UIEventType } from '../../ui/uiEvents.js';
-import { resolveWorldLoreCredentials } from '../../services/worldLoreCredentials.js';
-import {
-  fetchWorldChronicles,
-  resolveWorldLoreEntriesForClient,
-} from '../../services/worldLoreClient.js';
 import {
   getMinimapSnapshot,
   subscribeMinimapSnapshot,
@@ -57,6 +51,16 @@ const EMPTY_STATS: PlayerStatsBonus = {
   agilidade: 0,
   critico: 0,
   forca: 0,
+};
+
+export type CharacterAchievementRow = {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly categoryLabel: string;
+  readonly unlocked: boolean;
+  readonly unlockedAt: number | null;
+  readonly progressLabel: string | null;
 };
 
 function syncExplorationSpeedFromGrid(equipmentGrid: EquipmentUiGridState): {
@@ -72,15 +76,34 @@ function syncExplorationSpeedFromGrid(equipmentGrid: EquipmentUiGridState): {
   };
 }
 
+function buildAchievementRows(
+  progress: AchievementProgressSnapshot,
+): readonly CharacterAchievementRow[] {
+  return listAchievementDefinitions().map((def) => {
+    const unlock = progress.unlocked.find((row) => row.achievementId === def.id);
+    let progressLabel: string | null = null;
+    if (!unlock && def.targetCount && def.id === 'pve_victories_5') {
+      const current = progress.counters.pve_victories ?? 0;
+      progressLabel = `${Math.min(current, def.targetCount)}/${def.targetCount}`;
+    }
+    return {
+      id: def.id,
+      title: def.title,
+      description: def.description,
+      categoryLabel: ACHIEVEMENT_CATEGORY_LABELS[def.category],
+      unlocked: Boolean(unlock),
+      unlockedAt: unlock?.unlockedAt ?? null,
+      progressLabel,
+    };
+  });
+}
+
 export function useCharactersPanelState() {
   const dataStore = getDataStore();
 
   const [skinState, setSkinState] = useState<PlayerSkinState>(() => getPlayerSkinStore().getState());
   const [equipmentMeta, setEquipmentMeta] = useState<PlayerEquipmentSnapshot>(
     () => getPlayerEquipmentStore().getSnapshot(),
-  );
-  const [equipmentGrid, setEquipmentGrid] = useState<EquipmentUiGridState>(
-    () => getPlayerItemStore().toEquipmentGrid(),
   );
   const [profile, setProfile] = useState<PlayerProfileSnapshot>(
     () => getPlayerProfileStore().getSnapshot(),
@@ -99,9 +122,11 @@ export function useCharactersPanelState() {
   const [roster, setRoster] = useState<PlayerPetRosterSnapshot>(
     () => getPlayerPetStore().getRoster(),
   );
-  const [eventLogLines, setEventLogLines] = useState<readonly OperativeEventLogLine[]>([]);
   const [estiloName, setEstiloName] = useState('—');
   const [loadoutTick, setLoadoutTick] = useState(0);
+  const [achievementProgress, setAchievementProgress] = useState<AchievementProgressSnapshot>(
+    () => getPlayerAchievementStore().getSnapshot(),
+  );
 
   useEffect(() => {
     const initialEquipment = getPlayerEquipmentStore().getSnapshot();
@@ -127,7 +152,6 @@ export function useCharactersPanelState() {
 
     const unsubPlayerItems = getPlayerItemStore().subscribe(() => {
       const grid = getPlayerItemStore().toEquipmentGrid();
-      setEquipmentGrid(grid);
       const nextSpeed = syncExplorationSpeedFromGrid(grid);
       setStatsBonus(nextSpeed.statsBonus);
       setSpeedBonusTotal(nextSpeed.speedBonusTotal);
@@ -160,6 +184,8 @@ export function useCharactersPanelState() {
       setRoster(getPlayerPetStore().getRoster());
     });
 
+    const unsubAchievements = getPlayerAchievementStore().subscribe(setAchievementProgress);
+
     return () => {
       unsubSkin();
       unsubEquipment();
@@ -171,6 +197,7 @@ export function useCharactersPanelState() {
       unsubMinimap();
       unsubLoadout();
       unsubPet();
+      unsubAchievements();
     };
   }, [dataStore]);
 
@@ -181,31 +208,21 @@ export function useCharactersPanelState() {
     ));
   }, [dataStore, loadoutTick]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const confirmedLoadout = useMemo(() => {
+    void loadoutTick;
+    const loadout = getGlobalPlayerStore().getConfirmedLoadout();
+    return Array.from({ length: ACTIVE_MOVESET_SLOT_COUNT }, (_, index) => loadout[index] ?? null);
+  }, [loadoutTick]);
 
-    async function loadEventLog(): Promise<void> {
-      const creds = resolveWorldLoreCredentials();
-      try {
-        await fetchWorldChronicles({
-          playerId: creds.playerId,
-          characterId: creds.characterId,
-        });
-      } catch {
-        // Mock local ou timeout — usa entradas disponíveis offline.
-      }
+  const achievementRows = useMemo(
+    () => buildAchievementRows(achievementProgress),
+    [achievementProgress],
+  );
 
-      if (!cancelled) {
-        setEventLogLines(buildOperativeEventLogLines(resolveWorldLoreEntriesForClient()));
-      }
-    }
-
-    void loadEventLog();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const unlockedCount = useMemo(
+    () => achievementRows.filter((row) => row.unlocked).length,
+    [achievementRows],
+  );
 
   const levelProgressionModel = useMemo<LevelProgressionSectionModel>(() => ({
     profile,
@@ -228,33 +245,27 @@ export function useCharactersPanelState() {
     setOpenSkinMenu(null);
   }, []);
 
-  const resolveEquipmentName = useCallback((itemId: string | null): string => {
-    if (!itemId) return '—';
-    return getPlayerEquipmentStore().getItemDisplayName(itemId);
-  }, [equipmentGrid]);
-
   return {
     skinState,
     equipmentMeta,
-    equipmentGrid,
     profile,
     statsBonus,
     wallet,
     syncStatus,
     petSnapshot,
     roster,
-    eventLogLines,
     estiloName,
+    confirmedLoadout,
+    achievementRows,
+    unlockedCount,
+    achievementTotal: achievementRows.length,
     openSkinMenu,
     levelProgressionModel,
     toggleSkinMenu,
     selectSkinOption,
     closeSkinMenu,
-    resolveEquipmentName,
     skinSlotOrder: SKIN_SLOT_ORDER,
     skinSlotLabels: SKIN_SLOT_LABELS,
     getSkinOptionLabel,
-    equipmentSlotOrder: EQUIPMENT_UI_SLOT_ORDER,
-    equipmentSlotLabels: EQUIPMENT_UI_SLOT_LABELS,
   };
 }

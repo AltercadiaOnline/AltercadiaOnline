@@ -4,6 +4,7 @@ import { TILE_SIZE } from './mapConstants.js';
 import { tileCenterToWorldPixel } from './portals.js';
 import type { WorldExplorationSessionSync } from './zoneTransition.js';
 import type { PlayerLoadoutData } from './playerLoadout.js';
+import { resolveConstructPlayerSpawn } from './constructPlayerSpawnPlacements.js';
 
 export type WorldPosition = {
   readonly x: number;
@@ -46,6 +47,15 @@ export function createDefaultWorldProfile(mapId: MapId = DEFAULT_MAP_ID): Player
     return {
       currentMapId: DEFAULT_MAP_ID,
       lastPosition: { x: 0, y: 0 },
+      facing: 'south',
+    };
+  }
+
+  const constructSpawn = resolveConstructPlayerSpawn(mapId);
+  if (constructSpawn) {
+    return {
+      currentMapId: mapId,
+      lastPosition: { x: constructSpawn.worldX, y: constructSpawn.worldY },
       facing: 'south',
     };
   }

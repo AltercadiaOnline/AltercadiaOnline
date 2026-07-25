@@ -249,6 +249,10 @@ export type CreatureWorldRenderOptions = {
   readonly tileY: number;
   readonly adjacent: boolean;
   readonly alertPulse: number;
+  /** Pés em px (markers Construct) — se ausente, usa centro do tile. */
+  readonly worldX?: number;
+  readonly worldY?: number;
+  readonly facing?: import('../../shared/world/playerFacing.js').PlayerFacing;
 };
 
 /** Renderiza criatura no mapa — sprite 1:1 se disponível; senão silhueta pixel-aligned nos pés. */
@@ -257,14 +261,23 @@ export function renderCreatureOnWorldMap(
   options: CreatureWorldRenderOptions,
 ): void {
   const tileSize = getActiveMapTileSize();
-  const worldPoint = resolveCreatureTileWorldPoint(options.tileX, options.tileY, tileSize);
+  const worldPoint =
+    options.worldX !== undefined && options.worldY !== undefined
+      ? { x: options.worldX, y: options.worldY }
+      : resolveCreatureTileWorldPoint(options.tileX, options.tileY, tileSize);
   const feetX = worldPoint.x;
   const feetY = getEntityFeetWorldY(worldPoint, tileSize);
 
   ctx.save();
   disableCanvasImageSmoothing(ctx);
 
-  const drewSprite = drawCreatureIdleSpriteAtFeet(ctx, options.creatureId, feetX, feetY);
+  const drewSprite = drawCreatureIdleSpriteAtFeet(
+    ctx,
+    options.creatureId,
+    feetX,
+    feetY,
+    options.facing ?? 'south',
+  );
   if (!drewSprite) {
     drawProceduralCreature(
       ctx,

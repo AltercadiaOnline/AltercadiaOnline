@@ -2,8 +2,8 @@ import { NPC_HEAL_PROVIDER_ANCIAO_CAEL } from './npcHealService.js';
 import { getResolvedNpcRegistry } from './npcRegistry.js';
 import { TILE_SIZE } from './mapConstants.js';
 
-/** Alcance máximo (tiles) para cura no Ancião Cael — validação autoritativa. */
-export const HEAL_AT_NPC_MAX_RANGE_TILES = 5;
+/** Alcance máximo (tiles) para cura no Ancião Cael — sprites Construct grandes (~250px). */
+export const HEAL_AT_NPC_MAX_RANGE_TILES = 12;
 
 export type HealNpcAccessCheck = {
   readonly mapId: string;

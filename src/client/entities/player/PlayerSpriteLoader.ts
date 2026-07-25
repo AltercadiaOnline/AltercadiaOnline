@@ -8,11 +8,6 @@ import {
   resolvePlayerBundleRoot,
   resolvePlayerMetadataUrl,
 } from './playerConstants.js';
-import {
-  isValidPlayerSkinBundleId,
-  resolvePlayerSkinBundleSouthPreviewUrl,
-  type PlayerSkinBundleId,
-} from '../../../shared/character/playerSkinBundle.js';
 import type { PlayerAssetMetadata, PlayerLayerDescriptor, PlayerSpriteCatalog, SpriteFrame } from './types.js';
 import type { PlayerSkin } from '../../../shared/character/playerSkin.js';
 
@@ -141,41 +136,11 @@ export class PlayerSpriteLoader {
     return this.getCatalog(skinId);
   }
 
-  /** URLs candidatas — rotação sul canônica primeiro; sheet.png legado por último. */
-  static resolveTopDownSheetUrls(skinId: string = DEFAULT_PLAYER_SKIN_ID): string[] {
-    const bundleRoot = resolvePlayerBundleRoot(skinId);
-    const bundleId = skinId as PlayerSkinBundleId;
-    const canonicalSouth = isValidPlayerSkinBundleId(skinId)
-      ? resolvePlayerSkinBundleSouthPreviewUrl(bundleId)
-      : `${bundleRoot}/35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south.png`;
-    const legacy = [
-      `${bundleRoot}/${skinId}/${PLAYER_SHEET_FILENAME}`,
-      `${bundleRoot}/${PLAYER_SHEET_FILENAME}`,
-      resolvePlayerSheetUrl(skinId),
-      `${bundleRoot}/35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south.png`,
-      `${bundleRoot}/35x54_pixel_art_game_character/rotations/south.png`,
-      `${bundleRoot}/2D_game_sprite_asset_teenage/rotations/south.png`,
-      `${bundleRoot}/Pixel_art_character_sprite_front/rotations/south.png`,
-    ];
-    return [canonicalSouth, ...legacy.filter((url) => url !== canonicalSouth)];
-  }
-
   /**
-   * Spritesheet único (legado) ou rotação sul como fallback.
-   * Retorna null se ausente (fallback para PNGs do metadata).
+   * Spritesheet legado opcional — bundles Altercadia usam rotações PNG (metadata).
+   * Retorna null sem fetch de sheet.png (evita 404 no console).
    */
-  static async loadTopDownSpriteSheet(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<HTMLImageElement | null> {
-    const cacheKey = `top-down:spritesheet:${skinId}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached) return cached;
-
-    for (const src of this.resolveTopDownSheetUrls(skinId)) {
-      try {
-        return await this.loadImage(src, cacheKey);
-      } catch {
-        /* tenta próximo path */
-      }
-    }
+  static async loadTopDownSpriteSheet(_skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<HTMLImageElement | null> {
     return null;
   }
 
@@ -259,10 +224,41 @@ export class PlayerSpriteLoader {
       }
     }
 
+    const animations: PlayerSpriteCatalog['animations'] = {};
+    const animMeta = state.frames.animations;
+    if (animMeta) {
+      const loaded: NonNullable<PlayerSpriteCatalog['animations']> = {};
+      for (const [animState, byDir] of Object.entries(animMeta)) {
+        if (!byDir) continue;
+        const dirMap: Partial<Record<string, SpriteFrame[]>> = {};
+        for (const [direction, paths] of Object.entries(byDir)) {
+          if (!paths?.length) continue;
+          const frames: SpriteFrame[] = [];
+          for (const relativePath of paths) {
+            try {
+              frames.push(await this.loadFrame(skinId, relativePath));
+            } catch (error) {
+              console.warn('[PlayerSpriteLoader] Frame de animação ignorado:', animState, direction, error);
+            }
+          }
+          if (frames.length > 0) {
+            dirMap[direction] = frames;
+          }
+        }
+        if (Object.keys(dirMap).length > 0) {
+          (loaded as Record<string, typeof dirMap>)[animState] = dirMap;
+        }
+      }
+      if (Object.keys(loaded).length > 0) {
+        Object.assign(animations, loaded);
+      }
+    }
+
     return {
       frameWidth,
       frameHeight,
       rotations,
+      ...(Object.keys(animations).length > 0 ? { animations } : {}),
     };
   }
 

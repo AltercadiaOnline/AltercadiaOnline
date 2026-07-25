@@ -1,3 +1,5 @@
+import type { MapId } from '../shared/world/mapRegistry.js';
+import { ensureHuntZoneLoaded } from '../shared/world/worldMonsterInstances.js';
 import type { PlayerWorldVitals } from '../shared/character/equipmentState.js';
 import type { SkinSlotId } from '../shared/character/playerSkin.js';
 import type { BankCurrencyTypeId } from '../shared/bank/bankConstants.js';
@@ -43,10 +45,12 @@ import { resolveMarcoChooseBlockedMessage } from '../shared/progression/mileston
 import { formatVolts } from '../shared/economy/premiumCurrency.js';
 import { healPlayer } from '../shared/world/npcHealService.js';
 import { getPlayerEquipmentStore } from './ui/equipment/playerEquipmentStore.js';
+import { refreshHudPlayerHpMax } from './ui/equipment/playerHudHpMax.js';
 import { getGlobalPlayerStore } from './ui/moveset/globalPlayerStore.js';
 import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
 import { confirmTransaction, rejectTransaction } from './core/GameTransactionCoordinator.js';
 import { alertSystem } from './ui/alertSystem.js';
+import { uiEvents, UIEventType } from './ui/uiEvents.js';
 import { getPlayerSkinStore } from './ui/character/playerSkinStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
 import {
@@ -66,6 +70,8 @@ import { buildSyncLoadoutPayload } from './equipment/resolveSyncLoadoutPayload.j
 import type { MovePlayerIntentPayload } from '../shared/world/movementIntent.js';
 import { createIntentId } from '../shared/intent/clientIntent.js';
 import { resetUIIntentStore } from './ui/intent/uiIntentStore.js';
+import type { RefractionBoothCompletePayload } from '../shared/cityMinigames/refractionBoothTypes.js';
+import { getGlobalMessageBus } from './net/GlobalMessageBus.js';
 
 /** Intenções emitidas pela UI — formato único type + payload. */
 export type ClientAction =
@@ -133,6 +139,10 @@ export type ClientAction =
     }
   | { readonly type: 'CAEL_BUY_PET_RATION'; readonly payload: { readonly npcId: string } }
   | { readonly type: 'PET_FEED_SPECIAL_RATION'; readonly payload: { readonly slotIndex?: number } }
+  | { readonly type: 'PET_SELECT_SLOT'; readonly payload: { readonly slotIndex: number } }
+  | { readonly type: 'PET_ACTIVATE_SLOT'; readonly payload: { readonly slotIndex: number } }
+  | { readonly type: 'PET_DEACTIVATE'; readonly payload: Record<string, never> }
+  | { readonly type: 'PET_APPLY_AFFECTION'; readonly payload: { readonly slotIndex?: number } }
   | {
       readonly type: 'PURCHASE_PET';
       readonly payload: {
@@ -146,6 +156,24 @@ export type ClientAction =
   | { readonly type: 'STAGE_BATTLE_LOOT'; readonly payload: { readonly sourceId: string; readonly battleId: string; readonly defeatedLevel?: number } }
   | { readonly type: 'COLLECT_BATTLE_LOOT'; readonly payload: { readonly lootId: string; readonly battleId: string } }
   | { readonly type: 'DISMISS_BATTLE_LOOT'; readonly payload: { readonly lootId: string } }
+  | {
+      readonly type: 'GIFT_TRANSFER';
+      readonly payload: {
+        readonly itemId: string;
+        readonly targetPlayerId: string;
+        readonly quantity?: number;
+        readonly targetCharacterId?: number;
+      };
+    }
+  | { readonly type: 'REFRACTION_BOOTH_QUOTE'; readonly payload: Record<string, never> }
+  | {
+      readonly type: 'REFRACTION_BOOTH_START';
+      readonly payload: { readonly displayName: string };
+    }
+  | {
+      readonly type: 'REFRACTION_BOOTH_COMPLETE';
+      readonly payload: RefractionBoothCompletePayload;
+    }
   | {
       readonly type: 'CREATE_MARKET_LISTING';
       readonly payload: {
@@ -203,6 +231,34 @@ export type ClientAction =
         readonly quantity?: number;
         readonly slotIndex?: number;
       };
+    }
+  | {
+      readonly type: 'DEV_GRANT_ITEM';
+      readonly payload: { readonly itemId: string; readonly quantity?: number };
+    }
+  | {
+      readonly type: 'DEV_GRANT_CURRENCY';
+      readonly payload: { readonly volts?: number; readonly alterCoins?: number };
+    }
+  | {
+      readonly type: 'DEV_SET_LEVEL';
+      readonly payload: { readonly level: number };
+    }
+  | {
+      readonly type: 'DEV_SET_MOVESET_MASTERY';
+      readonly payload: { readonly moveId: string; readonly level: number };
+    }
+  | {
+      readonly type: 'DEV_RESET_PLAYER';
+      readonly payload: Record<string, never>;
+    }
+  | {
+      readonly type: 'CHAT_GLOBAL_SEND';
+      readonly payload: { readonly text: string };
+    }
+  | {
+      readonly type: 'ZONE_ENSURE';
+      readonly payload: { readonly mapId: MapId };
     };
 
 export type DispatchResult =
@@ -349,9 +405,73 @@ export class ActionDispatcher {
       return this.dispatchPending(action);
     }
 
+    if (this.mode === 'online' && this.isDevCheatAction(action)) {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && this.isBattleLootAction(action)) {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && this.isPetRosterAction(action)) {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && action.type === 'CHAT_GLOBAL_SEND') {
+      const preview = getGlobalMessageBus().previewGlobalChat(action.payload.text);
+      if (!preview.ok) {
+        return { ok: false, reason: preview.reason };
+      }
+      return this.dispatchPending(action, () => {
+        getGlobalMessageBus().applyLocalChat(action.payload.text);
+      });
+    }
+
+    if (this.mode === 'online' && action.type === 'ZONE_ENSURE') {
+      return this.dispatchPending(action);
+    }
+
+    // Local/mock: roster de pets aplica no espelho imediatamente (sem player-intent duplicado).
+    if (
+      (this.mode === 'mock' || this.mode === 'local')
+      && this.isPetRosterAction(action)
+      && canApplyLocalGameplayMutations(this.mode)
+    ) {
+      return this.dispatchLocal(action);
+    }
+
+    if (
+      (this.mode === 'mock' || this.mode === 'local')
+      && action.type === 'CHAT_GLOBAL_SEND'
+      && canApplyLocalGameplayMutations(this.mode)
+    ) {
+      return this.dispatchLocal(action);
+    }
+
+    if (
+      (this.mode === 'mock' || this.mode === 'local')
+      && action.type === 'ZONE_ENSURE'
+      && canApplyLocalGameplayMutations(this.mode)
+    ) {
+      return this.dispatchLocal(action);
+    }
+
+    if (this.mode === 'online' && action.type === 'GIFT_TRANSFER') {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && this.isRefractionAction(action)) {
+      return this.dispatchPending(action);
+    }
+
+    // Vendor/pet/cura: MockEconomyService é a fonte única (carteira + roster + localSave).
+    // Evita dispatchLocal que mutava pets sem gravar CharacterPersistenceRecord.
     if (this.mode === 'mock' && isClientAuthoritativeVendorAction(action, this.mode)) {
       if (!canApplyLocalGameplayMutations(this.mode)) {
         return { ok: false, reason: SERVER_AUTHORITY_REQUIRED_MESSAGE };
+      }
+      if (this.economyService) {
+        return this.dispatchViaEconomyService(action);
       }
       return this.dispatchLocal(action);
     }
@@ -455,6 +575,43 @@ export class ActionDispatcher {
     }
   }
 
+  private isBattleLootAction(action: ClientAction): boolean {
+    return action.type === 'COLLECT_BATTLE_LOOT' || action.type === 'DISMISS_BATTLE_LOOT';
+  }
+
+  private isPetRosterAction(action: ClientAction): boolean {
+    switch (action.type) {
+      case 'PET_SELECT_SLOT':
+      case 'PET_ACTIVATE_SLOT':
+      case 'PET_DEACTIVATE':
+      case 'PET_APPLY_AFFECTION':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private isRefractionAction(action: ClientAction): boolean {
+    switch (action.type) {
+      case 'REFRACTION_BOOTH_QUOTE':
+      case 'REFRACTION_BOOTH_START':
+      case 'REFRACTION_BOOTH_COMPLETE':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private isDevCheatAction(action: ClientAction): boolean {
+    return (
+      action.type === 'DEV_GRANT_ITEM'
+      || action.type === 'DEV_GRANT_CURRENCY'
+      || action.type === 'DEV_SET_LEVEL'
+      || action.type === 'DEV_SET_MOVESET_MASTERY'
+      || action.type === 'DEV_RESET_PLAYER'
+    );
+  }
+
   private isMarketplaceAction(action: ClientAction): boolean {
     switch (action.type) {
       case 'CREATE_MARKET_LISTING':
@@ -478,6 +635,8 @@ export class ActionDispatcher {
       || action.type === 'DELETE_ITEM'
       || this.isMarketplaceAction(action)
       || action.type === 'EXCHANGE_ALTER_FOR_VOLTS'
+      || this.isBattleLootAction(action)
+      || action.type === 'GIFT_TRANSFER'
     );
   }
 
@@ -566,7 +725,7 @@ export class ActionDispatcher {
       return localFailure;
     }
 
-    if (!isLocalItemMutation) {
+    if (!isLocalItemMutation && this.mode === 'online') {
       this.intentTransport?.(intent);
     }
 
@@ -584,7 +743,14 @@ export class ActionDispatcher {
     if (this.mode === 'online' && !this.intentTransport) {
       getGameStore().clearPendingAction(intent.intentId);
       registry.reject(intent.intentId);
-      return { ok: false, reason: 'Servidor indisponível. Reconecte e tente novamente.' };
+      const reason =
+        'WebSocket ainda não conectou. Aguarde “Conectado” no canto da tela e tente de novo (Ctrl+F5 se persistir).';
+      if (this.isBankAction(action)) {
+        uiEvents.emit(UIEventType.BANK_TRANSACTION_FAILED, {
+          message: reason,
+        });
+      }
+      return { ok: false, reason };
     }
 
     if (!this.usesDedicatedWsTransport(action)) {
@@ -608,6 +774,11 @@ export class ActionDispatcher {
         intentId,
         actionType: action.type,
       });
+      if (this.isBankAction(action)) {
+        uiEvents.emit(UIEventType.BANK_TRANSACTION_FAILED, {
+          message: PENDING_INTENT_TIMEOUT_MESSAGE,
+        });
+      }
       if (this.mode === 'online' && this.shouldResyncInventoryAfterTimeout(action)) {
         getGlobalStateSynchronizer().requestFullState();
       }
@@ -635,6 +806,16 @@ export class ActionDispatcher {
     // Banco e exchange seguem player-intent via intentTransport.
   }
 
+  /** Espelha carteira/pets no save local após mutação otimista (sem passar pelo mock handleIntent). */
+  private persistLocalEconomyMirror(): void {
+    const service = this.economyService as
+      | { syncWalletFromStore?: () => void; persistLocalSave?: () => boolean }
+      | null;
+    if (!service?.persistLocalSave) return;
+    service.syncWalletFromStore?.();
+    service.persistLocalSave();
+  }
+
   private dispatchLocal(action: ClientAction): DispatchResult {
     if (!canApplyLocalGameplayMutations(this.mode)) {
       console.warn('[ActionDispatcher] dispatchLocal bloqueado em modo online-first.', {
@@ -645,7 +826,24 @@ export class ActionDispatcher {
     }
 
     const dataStore = getMutableDataStore();
+    const result = this.applyLocalAction(action, dataStore);
+    if (
+      result.ok
+      && (this.isPetRosterAction(action)
+        || isVendorClientAction(action)
+        || action.type === 'PURCHASE_SKIN'
+        || action.type === 'CAEL_BUY_PET_RATION'
+        || action.type === 'PET_FEED_SPECIAL_RATION')
+    ) {
+      this.persistLocalEconomyMirror();
+    }
+    return result;
+  }
 
+  private applyLocalAction(
+    action: ClientAction,
+    dataStore: ReturnType<typeof getMutableDataStore>,
+  ): DispatchResult {
     switch (action.type) {
       case 'EXCHANGE_ALTER_FOR_VOLTS':
         requestAlterToVoltsExchangeLocal(action.payload.alterAmount);
@@ -766,6 +964,36 @@ export class ActionDispatcher {
         return { ok: true, status: 'applied' };
       }
 
+      case 'PET_SELECT_SLOT':
+        getPlayerPetStore().selectPetSlot(action.payload.slotIndex);
+        return { ok: true, status: 'applied' };
+
+      case 'PET_ACTIVATE_SLOT':
+        if (!getPlayerPetStore().activatePetSlot(action.payload.slotIndex)) {
+          return { ok: false, reason: 'Não foi possível convocar este companheiro.' };
+        }
+        return { ok: true, status: 'applied' };
+
+      case 'PET_DEACTIVATE':
+        getPlayerPetStore().deactivateAllPets();
+        return { ok: true, status: 'applied' };
+
+      case 'PET_APPLY_AFFECTION': {
+        const affection = getPlayerPetStore().applyPetAffection();
+        if (!affection.ok) {
+          return { ok: false, reason: affection.reason };
+        }
+        return { ok: true, status: 'applied' };
+      }
+
+      case 'GIFT_TRANSFER':
+        return { ok: false, reason: 'Presentes requerem servidor online.' };
+
+      case 'REFRACTION_BOOTH_QUOTE':
+      case 'REFRACTION_BOOTH_START':
+      case 'REFRACTION_BOOTH_COMPLETE':
+        return { ok: false, reason: 'Estande de Refração requer servidor online.' };
+
       case 'STAGE_BATTLE_LOOT':
       case 'COLLECT_BATTLE_LOOT':
       case 'DISMISS_BATTLE_LOOT':
@@ -805,6 +1033,25 @@ export class ActionDispatcher {
       case 'ACTIVATE_BOOK':
         return { ok: false, reason: 'Ativação de livro requer servidor online.' };
 
+      case 'DEV_GRANT_ITEM':
+      case 'DEV_GRANT_CURRENCY':
+      case 'DEV_SET_LEVEL':
+      case 'DEV_SET_MOVESET_MASTERY':
+      case 'DEV_RESET_PLAYER':
+        return { ok: false, reason: 'Cheats DEV requerem servidor online (localhost).' };
+
+      case 'CHAT_GLOBAL_SEND': {
+        if (!getGlobalMessageBus().applyLocalChat(action.payload.text)) {
+          return { ok: false, reason: 'Não foi possível enviar a mensagem.' };
+        }
+        return { ok: true, status: 'applied' };
+      }
+
+      case 'ZONE_ENSURE': {
+        ensureHuntZoneLoaded(action.payload.mapId);
+        return { ok: true, status: 'applied' };
+      }
+
       default: {
         const _exhaustive: never = action;
         return _exhaustive;
@@ -816,6 +1063,7 @@ export class ActionDispatcher {
     readonly npcId: string;
     readonly clientVitals?: PlayerWorldVitals;
   }): DispatchResult {
+    refreshHudPlayerHpMax();
     const equipment = getPlayerEquipmentStore().getSnapshot();
     const wallet = getPlayerWalletStore().getSnapshot();
     const clientVitals = payload.clientVitals ?? getGlobalPlayerStore().getWorldVitals();
@@ -824,7 +1072,11 @@ export class ActionDispatcher {
       npcId: payload.npcId,
       playerLevel: equipment.level,
       walletVolts: wallet.dollarVolt,
-      vitals: clientVitals,
+      vitals: {
+        ...clientVitals,
+        hpMax: equipment.vitals.hpMax,
+        mpMax: equipment.vitals.mpMax,
+      },
     });
 
     if (!result.ok) {
@@ -926,16 +1178,34 @@ export class ActionDispatcher {
 
 let activeDispatcher: ActionDispatcher | null = null;
 
+type GlobalWithActionDispatcher = typeof globalThis & {
+  __ALTERCADIA_ACTION_DISPATCHER__?: ActionDispatcher | null;
+};
+
+function getSharedDispatcherSlot(): GlobalWithActionDispatcher {
+  return globalThis as GlobalWithActionDispatcher;
+}
+
 export function initActionDispatcher(): void {
-  if (!activeDispatcher) activeDispatcher = new ActionDispatcher();
+  const g = getSharedDispatcherSlot();
+  if (!g.__ALTERCADIA_ACTION_DISPATCHER__) {
+    g.__ALTERCADIA_ACTION_DISPATCHER__ = new ActionDispatcher();
+  }
+  activeDispatcher = g.__ALTERCADIA_ACTION_DISPATCHER__;
 }
 
 export function getActionDispatcher(): ActionDispatcher {
-  if (!activeDispatcher) initActionDispatcher();
-  return activeDispatcher!;
+  const g = getSharedDispatcherSlot();
+  if (!g.__ALTERCADIA_ACTION_DISPATCHER__) {
+    g.__ALTERCADIA_ACTION_DISPATCHER__ = new ActionDispatcher();
+  }
+  activeDispatcher = g.__ALTERCADIA_ACTION_DISPATCHER__;
+  return activeDispatcher;
 }
 
 export function resetActionDispatcher(): void {
+  const g = getSharedDispatcherSlot();
+  g.__ALTERCADIA_ACTION_DISPATCHER__ = null;
   activeDispatcher = null;
   resetPendingIntentRegistry();
   resetPendingActionsStore();

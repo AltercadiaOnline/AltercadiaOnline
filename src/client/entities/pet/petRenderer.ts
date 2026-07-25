@@ -261,7 +261,7 @@ export function renderPetSprite(
   ctx.restore();
 }
 
-/** Preview estático para cards da loja do Treinador Zeno. */
+/** Preview estático para cards da loja da Treinadora Zena. */
 export function renderPetShopPreview(
   ctx: CanvasRenderingContext2D,
   kindId: PetKindId,
@@ -279,6 +279,20 @@ export function renderPetShopPreview(
   ctx.restore();
 }
 
+/** Carrega PNG do catálogo e pinta o preview (HUD loja). */
+export async function paintPetShopPreview(
+  ctx: CanvasRenderingContext2D,
+  kindId: PetKindId,
+  x: number,
+  y: number,
+  size: number,
+  colorId?: PetColorId,
+  gender?: PetGenderId,
+): Promise<void> {
+  await PetSpriteLoader.loadCatalog(kindId);
+  renderPetShopPreview(ctx, kindId, x, y, size, colorId, gender);
+}
+
 /** Render compacto para HUD de batalha e ficha do personagem. */
 export function renderPetPortrait(
   ctx: CanvasRenderingContext2D,
@@ -293,4 +307,17 @@ export function renderPetPortrait(
   ctx.translate(size / 2, size / 2);
   renderPetBody(ctx, kindId, colorId, size * 0.72, size * 0.62, animPhase, gender, 'south');
   ctx.restore();
+}
+
+/** Carrega PNG do catálogo e pinta o portrait (HUD personagem). */
+export async function paintPetPortrait(
+  ctx: CanvasRenderingContext2D,
+  kindId: PetKindId,
+  colorId: PetColorId,
+  size: number,
+  animPhase = 0,
+  gender: PetGenderId = getDefaultPetGenderId(),
+): Promise<void> {
+  await PetSpriteLoader.loadCatalog(kindId);
+  renderPetPortrait(ctx, kindId, colorId, size, animPhase, gender);
 }

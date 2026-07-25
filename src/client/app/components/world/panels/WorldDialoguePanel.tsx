@@ -1,20 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
 import { formatVolts } from '../../../../../shared/economy/premiumCurrency.js';
-import { getPlayerPetStore } from '../../../../ui/pet/playerPetStore.js';
 import { hideInteractionCard } from '../../../../world/interactionCardController.js';
-import { endWorldHudInteractionSession } from '../../../../world/worldHudInteractionSession.js';
 import { closeAllNpcModals } from '../../../../ui/npcModalController.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
 import { setPlayerAtMarcosResetNpc } from '../../../../ui/marcos/marcosTrailResetGate.js';
 import { openSurvivalGuideCard } from '../../../../ui/components/SurvivalGuideCard.js';
-import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { useWorldPanelsStore } from '../../../store/worldPanelsStore.js';
 import { registerReactDialogueHandle } from '../../../panels/dialogueReactBridge.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
 import { requestReactRefractionNpcStart } from '../../../panels/refractionBoothBridge.js';
 import { useActionGatewaySubmit } from '../../../panels/useActionGatewaySubmit.js';
+import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
 import {
   resolveChroniclePriority,
   resolveDialogueFromContext,
@@ -40,8 +38,16 @@ export function WorldDialoguePanel({
   const preserveWorldHudRef = useRef(false);
   const suppressWorldHudReleaseRef = useRef(false);
 
+  useReleaseWorldHudOnPanelClose('dialogue', () => (
+    !preserveWorldHudRef.current && !suppressWorldHudReleaseRef.current
+  ));
+
   useEffect(() => {
     hideInteractionCard();
+  }, []);
+
+  useEffect(() => () => {
+    setPlayerAtMarcosResetNpc(false);
   }, []);
 
   useEffect(() => {
@@ -55,18 +61,6 @@ export function WorldDialoguePanel({
       },
     });
     return () => registerReactDialogueHandle(null);
-  }, []);
-
-  useEffect(() => () => {
-    if (!preserveWorldHudRef.current && !suppressWorldHudReleaseRef.current) {
-      const snapshot = endWorldHudInteractionSession();
-      if (snapshot) {
-        uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
-      }
-    }
-    setPlayerAtMarcosResetNpc(false);
-    preserveWorldHudRef.current = false;
-    suppressWorldHudReleaseRef.current = false;
   }, []);
 
   const handleClose = useCallback(() => {
@@ -98,15 +92,7 @@ export function WorldDialoguePanel({
   }, [dialogue.npcId]);
 
   const healGateway = useActionGatewaySubmit({ onClick: handleHeal });
-  const rationGateway = useActionGatewaySubmit({
-    onClick: handleRation,
-    onResolved: () => {
-      const total = getPlayerPetStore().getRationCharges();
-      alertSystem(
-        `Ração Especial adquirida. ${total} carga${total === 1 ? '' : 's'} na HUD Pet Love.`,
-      );
-    },
-  });
+  const rationGateway = useActionGatewaySubmit({ onClick: handleRation });
 
   const handleResetMarcosTrail = useCallback(() => {
     return getActionDispatcher().dispatch({

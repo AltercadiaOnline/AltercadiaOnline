@@ -35,6 +35,7 @@ export type MarketOfferTableView = {
 export function getMarketBrowseCategoryLabels(): ReadonlyArray<{
   readonly id: MarketBrowseCategoryId;
   readonly label: string;
+  readonly count: number;
 }> {
   return ItemRegistry.getMarketBrowseCategoryLabels();
 }

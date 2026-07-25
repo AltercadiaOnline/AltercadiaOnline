@@ -8,6 +8,7 @@ import type { MarcosNodeProgressionData } from './progression/marcoProgression.j
 import type { MovesProgressionData } from './progression/moveProgression.js';
 import type { PlayerFacing } from './world/playerFacing.js';
 import type { WithRevision } from './snapshotRevision.js';
+import type { ClassType } from './types/classes.js';
 
 /** Snapshot de carteira exposto ao front-end (com revision anti-replay). */
 export type WalletSnapshot = WithRevision<{
@@ -105,6 +106,10 @@ export type AuthoritativePlayerSnapshot = {
   readonly bankStorage?: Omit<BankStorageDataSnapshot, 'revision'> & { readonly revision?: number };
   readonly marcosState: Omit<MarcosStateSnapshot, 'revision'> & { readonly revision?: number };
   readonly movesProgression?: MovesProgressionData & { readonly revision?: number };
+  /** Classe autoritativa — espelho player → classe → moveset no cliente. */
+  readonly classId?: ClassType;
+  /** Loadout de combate confirmado (sessionSync.activeMovesets). */
+  readonly activeMovesets?: readonly string[];
   readonly petRoster?: Omit<PetRosterDataSnapshot, 'revision'> & { readonly revision?: number };
   readonly petAffinity?: Omit<PetAffinityStateSnapshot, 'revision'> & { readonly revision?: number };
   readonly ownedSkins?: Record<

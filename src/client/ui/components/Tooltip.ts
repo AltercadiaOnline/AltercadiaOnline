@@ -4,18 +4,24 @@ import {
   resolveTooltipPosition,
   type TooltipPlacement,
 } from '../tooltip/tooltipPlacement.js';
+import { cancelPendingItemTooltipEnrichment } from '../tooltip/itemTooltipEpoch.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import {
   initProgressionTooltipDelegation,
   teardownProgressionTooltipDelegation,
 } from '../tooltip/initProgressionTooltip.js';
-const SHOW_DELAY_MS = 200;
+
+const SHOW_DELAY_MS = 80;
 const CURSOR_OFFSET = 14;
 const VIEWPORT_PADDING = 8;
 
+type GlobalWithTooltip = typeof globalThis & {
+  __ALTERCADIA_TOOLTIP__?: Tooltip;
+};
+
 /**
  * Tooltip global reutilizável — escuta SHOW_TOOLTIP / HIDE_TOOLTIP via uiEvents.
- * Montado uma vez no DOM (singleton via `getTooltip()`).
+ * Singleton cross-bundle (main.js + ui-runtime) via `globalThis.__ALTERCADIA_TOOLTIP__`.
  */
 export class Tooltip {
   private root: HTMLElement | null = null;
@@ -25,7 +31,9 @@ export class Tooltip {
   private anchorX = 0;
   private anchorY = 0;
   private placement: TooltipPlacement = 'auto';
-  private unsubscribers: Array<() => void> = [];  private readonly onDocumentMouseMove = (event: MouseEvent): void => {
+  private unsubscribers: Array<() => void> = [];
+
+  private readonly onDocumentMouseMove = (event: MouseEvent): void => {
     if (!this.visible) return;
     this.position(event.clientX, event.clientY);
   };
@@ -43,8 +51,9 @@ export class Tooltip {
 
     this.unsubscribers.push(
       uiEvents.on(UIEventType.SHOW_TOOLTIP, (payload) => {
-        this.show(payload.data, payload.x, payload.y, payload.placement);
-      }),      uiEvents.on(UIEventType.HIDE_TOOLTIP, () => {
+        this.show(payload.data, payload.x, payload.y, payload.placement ?? 'auto');
+      }),
+      uiEvents.on(UIEventType.HIDE_TOOLTIP, () => {
         this.hide();
       }),
     );
@@ -63,23 +72,35 @@ export class Tooltip {
     this.placement = placement;
 
     this.clearShowTimer();
-    this.showTimer = setTimeout(() => {
+
+    const reveal = (): void => {
       const model = buildTooltipRenderModel(data);
       if (!model || !this.root) return;
 
       this.render(model);
+      // Medir só depois de sair de [hidden] — senão getBoundingClientRect é 0×0.
+      this.root.removeAttribute('hidden');
       this.position(this.anchorX, this.anchorY);
       this.visible = true;
-      this.root.removeAttribute('hidden');
       this.root.classList.add('game-tooltip--visible');
       if (this.placement === 'auto') {
         document.addEventListener('mousemove', this.onDocumentMouseMove);
       } else {
         document.removeEventListener('mousemove', this.onDocumentMouseMove);
       }
-    }, SHOW_DELAY_MS);
+    };
+
+    // Atualização enquanto já visível (ex.: enrich async do item) — sem delay.
+    if (this.visible) {
+      reveal();
+      return;
+    }
+
+    this.showTimer = setTimeout(reveal, SHOW_DELAY_MS);
   }
+
   hide(): void {
+    cancelPendingItemTooltipEnrichment();
     this.clearShowTimer();
     document.removeEventListener('mousemove', this.onDocumentMouseMove);
     this.visible = false;
@@ -141,28 +162,43 @@ export class Tooltip {
     this.root.style.left = `${left}px`;
     this.root.style.top = `${top}px`;
     this.root.style.visibility = '';
-  }}
+  }
+}
 
-let activeTooltip: Tooltip | null = null;
+function getSharedTooltip(): Tooltip {
+  const g = globalThis as GlobalWithTooltip;
+  if (!g.__ALTERCADIA_TOOLTIP__) {
+    g.__ALTERCADIA_TOOLTIP__ = new Tooltip();
+  }
+  return g.__ALTERCADIA_TOOLTIP__;
+}
 
 export function getTooltip(): Tooltip {
-  if (!activeTooltip) {
-    activeTooltip = new Tooltip();
-  }
-  return activeTooltip;
+  return getSharedTooltip();
 }
 
 export function initTooltip(parent: ParentNode = document.body): Tooltip {
-  const tooltip = getTooltip();
+  const tooltip = getSharedTooltip();
   tooltip.mount(parent);
   initProgressionTooltipDelegation(document);
   return tooltip;
 }
 
+/**
+ * Não destrói o singleton — vive no `document.body` cross-session (app-ui + client).
+ * `destroyUiLayer` / logout não podem matar o listener de SHOW_TOOLTIP (React HUD
+ * só chama `initTooltip` no boot da página).
+ */
 export function destroyTooltip(): void {
+  getSharedTooltip().hide();
+}
+
+/** Tear-down total (tests / hard reset de página). */
+export function forceDestroyTooltip(): void {
   teardownProgressionTooltipDelegation();
-  activeTooltip?.destroy();
-  activeTooltip = null;
+  const g = globalThis as GlobalWithTooltip;
+  g.__ALTERCADIA_TOOLTIP__?.destroy();
+  delete g.__ALTERCADIA_TOOLTIP__;
 }
 
 function escapeHtml(value: string): string {

@@ -12,6 +12,10 @@ import type { WorldGameState } from './WorldGameState.js';
 import { getWorldProfile } from './worldProfileStore.js';
 import type { ServerSyncAuthority } from '../sync/ServerSyncAuthority.js';
 import type { TimeManager } from '../TimeManager.js';
+import {
+  buildCreatureAoiSignature,
+  shouldSendCreatureAoi,
+} from './creatureSyncDirty.js';
 
 export type GameLoopWorldSession = {
   readonly connectionId: string;
@@ -31,7 +35,12 @@ export type GameLoopDeps = {
     envelope: import('../../shared/sync/syncProtocol.js').SyncEnvelope,
     body: StateSyncBody,
   ) => void;
-  readonly buildCreaturesForMap: (mapId: string) => readonly WorldCreatureSnapshot[];
+  /** AOI: criaturas perto do observador (câmera do player). */
+  readonly buildCreaturesNearObserver: (
+    mapId: string,
+    worldX: number,
+    worldY: number,
+  ) => readonly WorldCreatureSnapshot[];
   readonly onTickStart?: () => void;
 };
 
@@ -87,9 +96,15 @@ export class GameLoop {
         ...(moveResult ? { moveSeq: moveResult.seq } : {}),
       };
 
-      const creatures = isMapId(profile.currentMapId)
-        ? deps.buildCreaturesForMap(profile.currentMapId)
+      const aoiCreatures = isMapId(profile.currentMapId)
+        ? deps.buildCreaturesNearObserver(
+          profile.currentMapId,
+          profile.lastPosition.x,
+          profile.lastPosition.y,
+        )
         : [];
+      const creatureSig = buildCreatureAoiSignature(aoiCreatures);
+      const sendCreatures = shouldSendCreatureAoi(session.connectionId, creatureSig);
 
       const observer = deps.gameState.getByConnection(session.connectionId);
       const peersOnMap = deps.gameState.listExploringOnMap(profile.currentMapId);
@@ -113,7 +128,7 @@ export class GameLoop {
         delta: {
           ...deltaBase,
           position,
-          creatures,
+          ...(sendCreatures ? { creatures: aoiCreatures } : {}),
           nearbyPlayers,
         },
       });

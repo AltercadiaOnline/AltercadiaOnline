@@ -21,6 +21,7 @@ function escapeHtml(value: string): string {
 export function resolveItemIconSrc(itemId: string): string {
   const item = getItemById(itemId);
   if (!item) return UNKNOWN_ITEM_ICON_PATH;
+  // Convenção: /assets/items/{itemId}.png — iconPath explícito sobrescreve (ex.: .svg).
   return getItemIconPath(itemId, item.iconPath);
 }
 
@@ -40,7 +41,6 @@ export function renderItemIconHtml(
   const unknownClassName = options.unknownClassName ?? 'item-icon--unknown';
   const src = resolveItemIconSrc(itemId);
   const isCatalogMiss = !getItemById(itemId);
-  const itemName = getItemById(itemId)?.name ?? itemId;
 
   return `
     <img
@@ -54,7 +54,6 @@ export function renderItemIconHtml(
       data-item-icon="true"
       data-item-id="${escapeHtml(itemId)}"
       aria-hidden="true"
-      title="${escapeHtml(itemName)}"
     />
   `;
 }

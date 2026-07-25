@@ -1,16 +1,14 @@
-import type { BattleHudTurnTimerSnapshot } from '../../battle/battleHudTypes.js';
+import { useBattleHudStore } from '../../battle/battleHudStore.js';
 
-type BattleTurnHubHudProps = {
-  turnPhase: string;
-  turnPhaseActive: boolean;
-  turnTimer: BattleHudTurnTimerSnapshot;
-};
+/**
+ * Timer + fase do turno — único nó que re-renderiza no tick ~100ms.
+ * Não passa turnTimer por props do BattleHUD pai.
+ */
+export function BattleTurnHubHud() {
+  const turnPhase = useBattleHudStore((state) => state.turnPhase);
+  const turnPhaseActive = useBattleHudStore((state) => state.turnPhaseActive);
+  const turnTimer = useBattleHudStore((state) => state.turnTimer);
 
-export function BattleTurnHubHud({
-  turnPhase,
-  turnPhaseActive,
-  turnTimer,
-}: BattleTurnHubHudProps) {
   const fillClass = [
     'battle-turn-timer-bar__fill',
     turnTimer.barRatio <= 0 ? 'is-empty' : '',

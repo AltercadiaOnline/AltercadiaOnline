@@ -5,13 +5,13 @@ import {
   type WorldCreatureSnapshot,
 } from '../../shared/world/worldCreatureSync.js';
 import {
-  ensureWorldMonsterInstances,
   getActiveMonstersForMap,
   syncServerWorldCreatures,
 } from '../../shared/world/worldMonsterInstances.js';
 import type { MonsterRegistryEntry } from '../../shared/world/monsterRegistry.js';
 import { isVisualDebugModeEnabled } from '../debug/visualDebugMode.js';
 import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
+import { pushCreatureDisplaySnapshots, clearCreatureDisplay } from './creatureDisplayBridge.js';
 
 type WorldCreatureSyncListener = (mapId: MapId) => void;
 
@@ -38,13 +38,12 @@ export function resolveMapIdFromCreatureSnapshots(
   return first ? (first.mapId as MapId) : null;
 }
 
-/** Lista para render — prioriza snapshots autoritativos; offline usa seed local. */
+/** Lista para render — prioriza snapshots autoritativos; offline usa seed local se já ensure. */
 export function resolveCreaturesForMapRender(mapId: MapId): readonly MonsterRegistryEntry[] {
   const authoritative = getAuthoritativeCreatureSnapshots(mapId);
   if (authoritative.length > 0) {
     return authoritative.map(creatureSnapshotToMonsterEntry);
   }
-  ensureWorldMonsterInstances();
   return getActiveMonstersForMap(mapId);
 }
 
@@ -77,10 +76,22 @@ export function applyServerWorldCreatureSnapshots(
   snapshots: readonly WorldCreatureSnapshot[],
 ): void {
   const resolvedMapId = (resolveMapIdFromCreatureSnapshots(snapshots) ?? mapId) as MapId;
+
+  // AOI vazia = nada perto do jogador — NÃO apagar o seed/instâncias do mapa.
+  // Senão `syncServerWorldCreatures([], …)` zera activeById e o fallback local fica vazio.
+  if (snapshots.length === 0) {
+    authoritativeByMap.set(resolvedMapId, []);
+    pushCreatureDisplaySnapshots([]);
+    logCreatureIntegrityAudit(resolvedMapId, snapshots);
+    listener?.(resolvedMapId);
+    return;
+  }
+
   authoritativeByMap.set(resolvedMapId, [...snapshots]);
 
   const entries = snapshots.map(creatureSnapshotToMonsterEntry);
   syncServerWorldCreatures(resolvedMapId, entries);
+  pushCreatureDisplaySnapshots(snapshots);
 
   logCreatureIntegrityAudit(resolvedMapId, snapshots);
   listener?.(resolvedMapId);
@@ -98,4 +109,5 @@ export function parseWorldCreatureSnapshots(raw: unknown): WorldCreatureSnapshot
 
 export function clearAuthoritativeCreatureSnapshots(): void {
   authoritativeByMap.clear();
+  clearCreatureDisplay();
 }

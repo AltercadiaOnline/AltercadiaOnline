@@ -13,11 +13,14 @@ import {
 } from '../../shared/world/zoneTransition.js';
 
 import type { MapId } from '../../shared/world/mapRegistry.js';
+import { getMapDefinition } from '../../shared/world/mapRegistry.js';
+import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
+import { ensureClientZone } from './zoneLoad/zoneLoadClient.js';
 
 import { postGameChatMessage } from '../ui/gameChat.js';
 
 import { applyExplorationMapTransition, type ExplorationMapTransitionDeps } from '../scenes/explorationMapTransition.js';
-import { applyPhaserMapInstanceSwap } from '../phaser/MapInstanceTransitionCoordinator.js';
+import { applyConstructMapLoad } from '../worldRender/applyConstructMapLoad.js';
 
 import type { ZoneMapPreloader } from './zoneMapPreloader.js';
 
@@ -70,6 +73,8 @@ type PendingTransition = {
   readonly portalId: string;
 
   readonly requestId: string;
+
+  readonly targetMapId: MapId | null;
 
   readonly timeoutHandle: ReturnType<typeof setTimeout>;
 
@@ -171,6 +176,9 @@ export class ZoneTransitionController {
 
     };
 
+    const portal = getMapDefinition(bundle.currentMapId as MapId)?.portals.find((entry) => entry.id === portalId);
+    const targetMapId = (portal?.targetMapId as MapId | undefined) ?? null;
+
 
 
     this.transitioning = true;
@@ -189,7 +197,7 @@ export class ZoneTransitionController {
 
 
 
-    this.pending = { portalId, requestId, timeoutHandle };
+    this.pending = { portalId, requestId, targetMapId, timeoutHandle };
 
 
 
@@ -223,6 +231,17 @@ export class ZoneTransitionController {
   handleServerFailed(payload: PortalTransitionFailedPayload): void {
 
     if (!this.pending || payload.requestId !== this.pending.requestId) return;
+
+    // Zona ainda aquecendo — pede ensure e deixa o jogador tentar o portal de novo.
+    if (payload.code === 'ZONE_NOT_READY') {
+      const targetMapId = this.pending.targetMapId ?? FARM_ZONE_01_ID;
+      this.clearPending();
+      forceHideZoneTransitionOverlay();
+      ensureClientZone(targetMapId);
+      postGameChatMessage(payload.reason);
+      this.finishTransition();
+      return;
+    }
 
     this.clearPending();
 
@@ -264,6 +283,8 @@ export class ZoneTransitionController {
 
 
 
+  /** Fallback sem socket — mesma autoridade compartilhada do gateway (local/online). */
+
   private resolveLocally(request: PortalTransitionRequestPayload): void {
 
     const resolved = resolvePortalTransition(request);
@@ -282,7 +303,7 @@ export class ZoneTransitionController {
 
     }
 
-
+    ensureClientZone(resolved.ready.mapId as MapId);
 
     this.handleServerReady(resolved.ready);
 
@@ -372,12 +393,10 @@ export class ZoneTransitionController {
 
     applyExplorationMapTransition(this.deps, payload, zoneLink);
 
+    this.deps.flushPositionToServer?.();
     this.deps.applyPlayerPosition(payload);
 
-    applyPhaserMapInstanceSwap(payload, {
-      beforeTransition: () => this.deps.flushPositionToServer?.(),
-    });
-
+    applyConstructMapLoad(payload);
   }
 
 

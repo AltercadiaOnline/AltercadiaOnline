@@ -25,7 +25,7 @@ export type SceneConfig = {
   readonly visibleTilesHigh: number;
 };
 
-/** Beco dos Fundos — corredor vertical (20×60 tiles @ 32px). */
+/** Beco dos Fundos — bounds Construct 860×2400 (grade lógica ceil @ 32px). */
 export const BECO_DOS_FUNDOS_SCENE: SceneConfig = {
   id: 'beco_dos_fundos',
   mapId: FARM_ZONE_01_ID,

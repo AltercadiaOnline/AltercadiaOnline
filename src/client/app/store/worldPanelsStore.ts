@@ -1,5 +1,5 @@
 import type { UiWindowId } from '../../ui/uiEvents.js';
-import { create } from 'zustand';
+import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import {
   EMPTY_WORLD_PANEL_CONTEXT,
   type OpenWorldPanelEntry,
@@ -33,7 +33,14 @@ function nextZIndex(panels: readonly OpenWorldPanelEntry[]): number {
   return Math.max(...panels.map((panel) => panel.zIndex)) + 1;
 }
 
-export const useWorldPanelsStore = create<WorldPanelsStore>((set, get) => ({
+type WorldPanelsStoreHook = UseBoundStore<StoreApi<WorldPanelsStore>>;
+
+type GlobalWithWorldPanelsStore = typeof globalThis & {
+  __ALTERCADIA_USE_WORLD_PANELS_STORE__?: WorldPanelsStoreHook;
+};
+
+function createWorldPanelsStore(): WorldPanelsStoreHook {
+  return create<WorldPanelsStore>((set, get) => ({
   openPanels: [],
   focusedWindowId: null,
   hubOpen: false,
@@ -159,7 +166,17 @@ export const useWorldPanelsStore = create<WorldPanelsStore>((set, get) => ({
     get().closePanel(top.windowId);
     return top.windowId;
   },
-}));
+  }));
+}
+
+/** Singleton — compartilhado entre main.js (tsc) e ui-runtime (esbuild). */
+export const useWorldPanelsStore: WorldPanelsStoreHook = (() => {
+  const g = globalThis as GlobalWithWorldPanelsStore;
+  if (!g.__ALTERCADIA_USE_WORLD_PANELS_STORE__) {
+    g.__ALTERCADIA_USE_WORLD_PANELS_STORE__ = createWorldPanelsStore();
+  }
+  return g.__ALTERCADIA_USE_WORLD_PANELS_STORE__;
+})();
 
 export function isWorldPanelOpen(windowId: UiWindowId): boolean {
   const state = useWorldPanelsStore.getState();

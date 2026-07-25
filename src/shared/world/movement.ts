@@ -2,18 +2,40 @@ import { getActiveMapTileSize } from './activeMapTileSize.js';
 import { TILE_SIZE } from './mapConstants.js';
 import type { MoveVector } from './movementInput.js';
 import type { MoveDirection } from './protocol.js';
+import { getMapDefinition } from './mapRegistry.js';
 import { isNpcOccupiedTile } from './npcTileOccupancy.js';
 import {
   isPlayerBlockedByObstacles,
+  depenetratePlayerMovementCircle,
   resolvePlayerWalkabilitySamplePoints,
 } from './playerCollision.js';
 import { tileToWorldPixel, worldPixelToTile } from './portals.js';
+import { getActiveWorldCollisionMapId } from './worldCollisionRegistry.js';
 import { canWalkAt } from './worldMap.js';
+import { WORLD_LEGACY_COLLISION_ENABLED } from './worldCollisionPolicy.js';
 
 export type WorldPosition = {
   x: number;
   y: number;
 };
+
+function isInsideMapPixelBounds(mapData: number[][], position: WorldPosition): boolean {
+  const mapId = getActiveWorldCollisionMapId();
+  const def = mapId ? getMapDefinition(mapId) : null;
+  if (def) {
+    const maxX = def.pixelWidth();
+    const maxY = def.pixelHeight();
+    return position.x >= 0 && position.y >= 0 && position.x < maxX && position.y < maxY;
+  }
+
+  const tileSize = getActiveMapTileSize();
+  const mapHeight = mapData.length;
+  const mapWidth = mapData[0]?.length ?? 0;
+  if (mapWidth <= 0 || mapHeight <= 0) return false;
+  const maxX = mapWidth * tileSize;
+  const maxY = mapHeight * tileSize;
+  return position.x >= 0 && position.y >= 0 && position.x < maxX && position.y < maxY;
+}
 
 /** Multiplicador da velocidade base de locomoção (+25% sobre o tuning atual). */
 export const PLAYER_BASE_MOVE_SPEED_MULTIPLIER = 1.3 * 1.35 * 1.25;
@@ -68,11 +90,27 @@ export function resolvePlayerWalkabilitySample(
   };
 }
 
-/** Colisão do jogador — tiles bloqueantes, NPCs e props Tiled colidíveis. */
+/**
+ * Colisão do jogador.
+ * Construct-first: bounds do mapa + obstáculos (NPCs/props por tamanho de asset).
+ * Com WORLD_LEGACY_COLLISION_ENABLED: também valida tiles pintados.
+ */
 export function canPlayerWalkAt(
   mapData: number[][],
   position: WorldPosition,
 ): boolean {
+  if (!isInsideMapPixelBounds(mapData, position)) {
+    return false;
+  }
+
+  if (isPlayerBlockedByObstacles(position)) {
+    return false;
+  }
+
+  if (!WORLD_LEGACY_COLLISION_ENABLED) {
+    return true;
+  }
+
   const tileSize = getActiveMapTileSize();
   const samples = resolvePlayerWalkabilitySamplePoints(position, tileSize);
   for (const sample of samples) {
@@ -81,8 +119,6 @@ export function canPlayerWalkAt(
 
   const tile = worldPixelToTile(position.x, position.y, tileSize);
   if (isNpcOccupiedTile(tile.tileX, tile.tileY)) return false;
-
-  if (isPlayerBlockedByObstacles(position)) return false;
 
   return true;
 }
@@ -158,7 +194,11 @@ export function moveByDelta(
     break;
   }
 
-  return { x, y };
+  const result = { x, y };
+  if (isPlayerBlockedByObstacles(result)) {
+    return depenetratePlayerMovementCircle(result);
+  }
+  return result;
 }
 
 export function moveByVectorDelta(

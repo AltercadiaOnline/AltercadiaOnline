@@ -19,12 +19,16 @@ function ensureWsInboundRoutesRegistered(): void {
   registerWsInboundRoute('combat-join', (host, ws, connectionId, message) => {
     if (message.type !== 'combat-join') return;
     const world = host.worldConnections.get(connectionId);
+    if (!world || !Number.isInteger(world.characterId) || world.characterId < 1) {
+      host.send(ws, { type: 'combat-error', payload: { reason: 'WORLD_LOGIN_REQUIRED' } });
+      return;
+    }
     host.handleJoin(
       ws,
       connectionId,
       message.payload,
-      world?.characterId ?? 1,
-      world?.playerId,
+      world.characterId,
+      world.playerId,
     );
   });
 
@@ -99,6 +103,21 @@ function ensureWsInboundRoutesRegistered(): void {
   registerWsInboundRoute('player-honor-given', (host, ws, connectionId, message) => {
     if (message.type !== 'player-honor-given') return;
     host.handlePlayerHonorGiven(ws, connectionId, message.payload);
+  });
+
+  registerWsInboundRoute('pve-encounter-accept', (host, ws, connectionId, message) => {
+    if (message.type !== 'pve-encounter-accept') return;
+    host.handlePveEncounterAccept(ws, connectionId, message.payload);
+  });
+
+  registerWsInboundRoute('pve-encounter-request', (host, ws, connectionId, message) => {
+    if (message.type !== 'pve-encounter-request') return;
+    host.handlePveEncounterRequest(ws, connectionId, message.payload);
+  });
+
+  registerWsInboundRoute('pve-encounter-flee', (host, ws, connectionId, message) => {
+    if (message.type !== 'pve-encounter-flee') return;
+    host.handlePveEncounterFlee(ws, connectionId, message.payload);
   });
 
   registerWsInboundRoute('combat-forfeit', async (host, ws, connectionId, message) => {

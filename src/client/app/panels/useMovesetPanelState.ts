@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ACTIVE_MOVESET_SLOT_COUNT } from '../../../shared/combat/moveTypes.js';
+import type { ClassType } from '../../../shared/types/classes.js';
+import type { MovesProgressionSnapshot } from '../../../shared/playerDataSnapshots.js';
 import { getDataStore } from '../../economy/economyLayer.js';
+import { getBattleStore } from '../../combat/client/battleStore.js';
 import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
 import {
   getGlobalPlayerStore,
   type GlobalPlayerSnapshot,
 } from '../../ui/moveset/globalPlayerStore.js';
-import type { ClassType } from '../../../shared/types/classes.js';
-import type { MovesProgressionSnapshot } from '../../../shared/playerDataSnapshots.js';
 
 export type MovesetPanelState = {
   readonly snapshot: GlobalPlayerSnapshot;
@@ -17,6 +18,12 @@ export type MovesetPanelState = {
   readonly activeSlotCount: number;
   readonly canConfirm: boolean;
 };
+
+/** Ao abrir/trocar classe: pool + loadout da classe no store compartilhado. */
+function syncMovesetHudToClass(classId: ClassType): void {
+  getGlobalPlayerStore().ensureClassMovePool(classId);
+  getBattleStore().resyncLoadout();
+}
 
 export function useMovesetPanelState(): MovesetPanelState {
   const [snapshot, setSnapshot] = useState<GlobalPlayerSnapshot>(
@@ -33,12 +40,17 @@ export function useMovesetPanelState(): MovesetPanelState {
   );
 
   useEffect(() => {
+    const resolved = getPlayerEquipmentStore().getSnapshot().classId;
+    syncMovesetHudToClass(resolved);
     getGlobalPlayerStore().beginLoadoutEdit();
+    setClassId(resolved);
     setSnapshot(getGlobalPlayerStore().getSnapshot());
 
     const unsubStore = getGlobalPlayerStore().subscribe(setSnapshot);
     const unsubEquipment = getPlayerEquipmentStore().subscribe((next) => {
       setClassId(next.classId);
+      syncMovesetHudToClass(next.classId);
+      getGlobalPlayerStore().beginLoadoutEdit();
     });
     const unsubProgression = getDataStore().subscribe('movesProgression', setMovesProgression);
     const unsubLevel = getDataStore().subscribe('characterLevel', (next) => {

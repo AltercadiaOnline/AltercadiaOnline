@@ -32,7 +32,7 @@ function requireElement(root: ParentNode, id: string): HTMLElement {
   return element;
 }
 
-/** Prepara pontos de montagem React + render host (canvas/Phaser). */
+/** Prepara pontos de montagem React + render host (Construct). */
 export function ensureClientArchitectureRoots(root: ParentNode = document): ClientArchitectureRoots {
   const body = document.body;
   body.dataset.uiArchitecture = CLIENT_ARCHITECTURE_VERSION;
@@ -73,29 +73,31 @@ function isSceneCombatVisible(): boolean {
   return combatScene !== null && !combatScene.classList.contains('hidden');
 }
 
-function isSceneExplorationVisible(): boolean {
-  const explorationScene = document.getElementById('scene-exploration');
-  return explorationScene !== null && !explorationScene.classList.contains('hidden');
-}
-
 export function syncReactHudVisibility(activeScreen: string): void {
   const hudRoot = document.getElementById(CLIENT_ROOT_IDS.hudRoot);
   if (!hudRoot) return;
 
   const inGame = activeScreen === 'game-container';
-  const hudMounted = getGameUiBridge().isSurfaceMounted('hud');
-  const visible = inGame && hudMounted && isSceneExplorationVisible();
+  // Superfície 'hud' é marcada no boot (initClientApp); se App já montou no root, trata como montada.
+  const hudMounted =
+    getGameUiBridge().isSurfaceMounted('hud') || hudRoot.childElementCount > 0;
+  if (hudMounted && !getGameUiBridge().isSurfaceMounted('hud')) {
+    getGameUiBridge().mountSurface('hud');
+  }
+  const explorationHud = inGame && !isSceneCombatVisible();
 
   hudRoot.classList.toggle('hidden', !inGame);
-  hudRoot.classList.toggle('game-react-hud-root--active', inGame && hudMounted);
+  hudRoot.classList.toggle('game-react-hud-root--active', inGame);
   hudRoot.toggleAttribute('aria-hidden', !inGame);
 
-  if (hudMounted) {
+  if (inGame) {
     document.body.dataset.reactGameHudUi = '1';
-    getHudBridge().setGameHudActive(visible);
-    getPanelsBridge().setGamePanelsActive(visible);
+    getHudBridge().setGameHudActive(explorationHud);
+    getPanelsBridge().setGamePanelsActive(explorationHud);
   } else {
     delete document.body.dataset.reactGameHudUi;
+    getHudBridge().setGameHudActive(false);
+    getPanelsBridge().setGamePanelsActive(false);
   }
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -7,11 +7,15 @@ import { build } from 'esbuild';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'public', 'app-ui');
+const chunksDir = path.join(outDir, 'chunks');
 const entryCss = path.join(root, 'src', 'client', 'app', 'styles', 'ui.tailwind.css');
 const outCss = path.join(outDir, 'ui-runtime.css');
 const entryTsx = path.join(root, 'src', 'client', 'app', 'runtime', 'uiRuntime.tsx');
 
 mkdirSync(outDir, { recursive: true });
+// Chunks hasheados antigos quebram lazy import (HUD some; Construct segue).
+rmSync(chunksDir, { recursive: true, force: true });
+mkdirSync(chunksDir, { recursive: true });
 
 if (process.platform === 'win32') {
   execSync(

@@ -1,6 +1,6 @@
 /**
  * Integer snap — evita subpixels que geram blur em pixel art.
- * Integer snap para drawImage 1:1 (minimapa, painéis React, texturas Phaser offscreen).
+ * Integer snap para drawImage 1:1 (minimapa, painéis React, overlay Construct).
  */
 export function snapToPixel(value: number): number {
   return Math.floor(value);

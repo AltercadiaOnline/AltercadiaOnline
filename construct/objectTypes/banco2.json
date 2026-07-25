@@ -1,0 +1,60 @@
+{
+	"name": "banco2",
+	"plugin-id": "Sprite",
+	"sid": 771956978451514,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 47,
+						"height": 37,
+						"originX": 0.5319148936170213,
+						"originY": 0.4864864864864865,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 2263496,
+						"collisionPoly": {
+							"points": [
+								0.9574468085106383,
+								0.10810810810810811,
+								0.9787234042553191,
+								0.8378378378378378,
+								0.851063829787234,
+								0.972972972972973,
+								0.08510638297872342,
+								0.972972972972973,
+								0.021276595744680882,
+								0.8648648648648649,
+								0.021276595744680882,
+								0.10810810810810811,
+								0.08510638297872342,
+								0.027027027027026973,
+								0.851063829787234,
+								0.027027027027026973
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 626127318795184,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

@@ -7,15 +7,15 @@ import {
   canShowInventoryDeleteButton,
   validateInventoryDeleteIntent,
 } from '../../../../../shared/economy/inventoryPolicy.js';
-import { DIARIO_MEMORIAS_ITEM_ID } from '../../../../../shared/items/soulboundItems.js';
 import { getActionDispatcher, type DispatchResult } from '../../../../ActionDispatcher.js';
 import { selectInventorySlotTooltipLabel } from '../../../../core/gameStoreSelectors.js';
 import * as InventoryService from '../../../../services/inventory/InventoryService.js';
 import { getContextMenuService } from '../../../../ui/contextMenu/ContextMenuService.js';
-import { dispatchEquipFromInventory } from '../../../../ui/equipment/equipItemAction.js';
-import { openDiaryPanel } from '../../../../ui/diary/openDiaryPanel.js';
 import {
-  resolveInventoryItemAbbrev,
+  equipFromInventoryFailureMessage,
+  validateEquipInventoryItemToSet,
+} from '../../../../ui/equipment/equipFromInventory.js';
+import {
   resolveInventoryItemKindClass,
   resolveInventoryItemLabel,
 } from '../../../../ui/inventory/inventoryItemDisplay.js';
@@ -26,11 +26,22 @@ import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panel
 import { useInventoryPanelState } from '../../../panels/useInventoryPanelState.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 import { InventorySlotCell } from './InventorySlotCell.js';
+import { ItemSlotIcon } from './ItemSlotIcon.js';
 
 type WorldInventoryPanelProps = {
   zIndex: number;
   focused: boolean;
 };
+
+function toEquipDispatchResult(result: InventoryService.InventoryActionResult): DispatchResult {
+  if (!result.ok) {
+    return { ok: false, reason: result.reason ?? 'Não foi possível equipar o item.' };
+  }
+  if (result.intentId) {
+    return { ok: true, status: 'pending', intentId: result.intentId };
+  }
+  return { ok: true, status: 'applied' };
+}
 
 export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProps) {
   const { inventory, gold, syncPending, vendorOpen } = useInventoryPanelState();
@@ -55,6 +66,12 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
     });
   }, [selectedSlot]);
 
+  const canEquipSelected = useMemo(() => {
+    if (!selectedItemId) return false;
+    if ((selectedSlot?.lockedQuantity ?? 0) > 0) return false;
+    return InventoryService.canEquipItem(selectedItemId);
+  }, [selectedItemId, selectedSlot?.lockedQuantity]);
+
   const handleTooltipShow = useCallback((event: MouseEvent, itemId: string) => {
     const heldAmountLabel = selectInventorySlotTooltipLabel(itemId);
     emitItemTooltip(itemId, event.clientX, event.clientY, {
@@ -68,17 +85,7 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
   }, []);
 
   const handleSlotClick = useCallback((itemId: string, slotIndex: number) => {
-    if (itemId === DIARIO_MEMORIAS_ITEM_ID) {
-      openDiaryPanel();
-      return;
-    }
     setSelectedSlotIndex((current) => (current === slotIndex ? null : slotIndex));
-  }, []);
-
-  const handleSlotDoubleClick = useCallback((itemId: string) => {
-    if (InventoryService.isInventoryMutationPending()) return;
-    if (!InventoryService.canEquipItem(itemId)) return;
-    dispatchEquipFromInventory(itemId);
   }, []);
 
   const handleSlotContextMenu = useCallback((
@@ -99,6 +106,24 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
   const handlePanelMouseDown = useCallback(() => {
     getContextMenuService().close();
   }, []);
+
+  const requestEquipSelected = useCallback((): DispatchResult => {
+    if (!selectedItemId) {
+      return { ok: false, reason: 'Nenhum item selecionado.' };
+    }
+    if (InventoryService.isInventoryMutationPending()) {
+      return { ok: false, reason: 'Aguarde a sincronização do inventário.' };
+    }
+
+    const validation = validateEquipInventoryItemToSet(selectedItemId);
+    if (!validation.ok) {
+      return { ok: false, reason: equipFromInventoryFailureMessage(validation.reason) };
+    }
+
+    return toEquipDispatchResult(
+      InventoryService.equipFromInventory(selectedItemId, validation.uiSlotId),
+    );
+  }, [selectedItemId]);
 
   const requestDeleteSelected = useCallback((): DispatchResult => {
     if (selectedSlotIndex === null || !selectedSlot?.itemId) {
@@ -131,6 +156,14 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
     });
   }, [selectedSlot, selectedSlotIndex]);
 
+  const { submit: submitEquip, pending: equipPending, buttonLabel: equipButtonLabel } =
+    useActionGatewaySubmit({
+      onClick: requestEquipSelected,
+      onResolved: () => setSelectedSlotIndex(null),
+      idleLabel: 'Equipar',
+      pendingLabel: 'Equipando…',
+    });
+
   const { submit: submitDelete, pending: deletePending, buttonLabel: deleteButtonLabel } =
     useActionGatewaySubmit({
       onClick: requestDeleteSelected,
@@ -138,6 +171,8 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
       idleLabel: 'Deletar',
       pendingLabel: 'Descartando…',
     });
+
+  const actionsBusy = deletePending || equipPending || syncPending;
 
   return (
     <MovablePanelFrame
@@ -165,27 +200,41 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
                 className={`inventory-panel__selection-abbrev ${resolveInventoryItemKindClass(selectedItemId)}`}
                 aria-hidden="true"
               >
-                {resolveInventoryItemAbbrev(selectedItemId)}
+                <ItemSlotIcon itemId={selectedItemId} className="slot-item__sprite slot-item__sprite--lg" />
               </span>
               <p className="inventory-panel__selection-label">
                 {resolveInventoryItemLabel(selectedItemId)}
                 {selectedSlot.quantity > 1 ? ` ×${selectedSlot.quantity}` : ''}
               </p>
             </div>
-            {canDeleteSelected ? (
-              <button
-                type="button"
-                className="inventory-panel__delete-btn"
-                aria-label={`Deletar ${resolveInventoryItemLabel(selectedItemId)}`}
-                title="Descartar item"
-                disabled={deletePending || syncPending}
-                aria-busy={deletePending || undefined}
-                onClick={submitDelete}
-              >
-                <span className="inventory-panel__delete-icon" aria-hidden="true">🗑</span>
-                <span>{deleteButtonLabel}</span>
-              </button>
-            ) : null}
+            <div className="inventory-panel__selection-actions">
+              {canEquipSelected ? (
+                <button
+                  type="button"
+                  className="inventory-panel__confirm-btn"
+                  aria-label={`Equipar ${resolveInventoryItemLabel(selectedItemId)} no SET`}
+                  disabled={actionsBusy}
+                  aria-busy={equipPending || undefined}
+                  onClick={submitEquip}
+                >
+                  <span className="inventory-panel__confirm-icon" aria-hidden="true">✓</span>
+                  <span>{equipButtonLabel}</span>
+                </button>
+              ) : null}
+              {canDeleteSelected ? (
+                <button
+                  type="button"
+                  className="inventory-panel__delete-btn"
+                  aria-label={`Deletar ${resolveInventoryItemLabel(selectedItemId)}`}
+                  disabled={actionsBusy}
+                  aria-busy={deletePending || undefined}
+                  onClick={submitDelete}
+                >
+                  <span className="inventory-panel__delete-icon" aria-hidden="true">🗑</span>
+                  <span>{deleteButtonLabel}</span>
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -209,7 +258,6 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
                 vendorOpen={vendorOpen}
                 selected={selectedSlotIndex === index}
                 onClick={handleSlotClick}
-                onDoubleClick={handleSlotDoubleClick}
                 onContextMenu={(event, itemId) => handleSlotContextMenu(event, itemId, index)}
                 onTooltipShow={handleTooltipShow}
                 onTooltipHide={handleTooltipHide}

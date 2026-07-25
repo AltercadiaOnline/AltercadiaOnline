@@ -31,6 +31,7 @@ import {
 } from '../../../shared/pet/petRoster.js';
 import type { PetAffinityStateSnapshot, PetRosterDataSnapshot } from '../../../shared/playerDataSnapshots.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
+import { isOnlineGameMode } from '../../runtime/gameMode.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { getPetStateStore, resetPetStateStore } from './PetStateStore.js';
 import {
@@ -68,21 +69,56 @@ function blockLocalPetMutation(): boolean {
 function shouldPersistPetLocally(): boolean {
   return !isOnlinePetMode();
 }
-function saveRosterToStorage(roster: PlayerPetRosterSnapshot): void {
-  if (!shouldPersistPetLocally()) return;
+
+function clearPetMirrorStorage(): void {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify(roster));
+    localStorage.removeItem(ROSTER_STORAGE_KEY);
     localStorage.removeItem(LEGACY_PET_STORAGE_KEY);
+    localStorage.removeItem(RATION_CHARGES_STORAGE_KEY);
+    localStorage.removeItem(AFFECTION_COOLDOWN_KEY);
+    localStorage.removeItem(RATION_FEED_COOLDOWN_KEY);
   } catch {
     /* quota / private mode */
   }
 }
 
-function readLastPetAffectionAtFromStorage(): number | null {
+function saveRosterToStorage(roster: PlayerPetRosterSnapshot): void {
+  // Roster canônico = CharacterPersistenceRecord (MockEconomyService.persistLocalSave).
+  // Espelho global legado desativado — evita dual-write que sumia no reload do personagem.
+  void roster;
+}
+
+/**
+ * Lê e remove o espelho global legado (pré-unificação).
+ * Usado uma vez ao ligar personagem cujo save ainda não tem pets.
+ */
+export function consumeLegacyPetRosterMirror(): PlayerPetRosterSnapshot | null {
   if (typeof localStorage === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(AFFECTION_COOLDOWN_KEY);
+    const rawRoster = localStorage.getItem(ROSTER_STORAGE_KEY);
+    const legacyRaw = !rawRoster ? localStorage.getItem(LEGACY_PET_STORAGE_KEY) : null;
+    if (!rawRoster && !legacyRaw) return null;
+
+    const roster = restoreRosterFromStorage();
+    localStorage.removeItem(ROSTER_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_PET_STORAGE_KEY);
+    return roster.pets.length > 0 ? roster : null;
+  } catch {
+    return null;
+  }
+}
+
+type LegacyPetAffinityMirror = {
+  readonly rationCharges: number;
+  readonly lastPetRationFeedAtMs: number | null;
+  readonly lastPetAffectionAtMs: number | null;
+};
+
+function readOptionalPositiveMs(key: string): number | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = Number(raw);
     return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
@@ -91,62 +127,10 @@ function readLastPetAffectionAtFromStorage(): number | null {
   }
 }
 
-function saveLastPetAffectionAtToStorage(timestampMs: number): void {
-  if (!shouldPersistPetLocally()) return;
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(AFFECTION_COOLDOWN_KEY, String(Math.floor(timestampMs)));
-  } catch {
-    /* quota */
-  }
-}
-
-function clearLastPetAffectionAtFromStorage(): void {
-  if (!shouldPersistPetLocally()) return;
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.removeItem(AFFECTION_COOLDOWN_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
-function readLastPetRationFeedAtFromStorage(): number | null {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(RATION_FEED_COOLDOWN_KEY);
-    if (!raw) return null;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveLastPetRationFeedAtToStorage(timestampMs: number): void {
-  if (!shouldPersistPetLocally()) return;
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(RATION_FEED_COOLDOWN_KEY, String(Math.floor(timestampMs)));
-  } catch {
-    /* quota */
-  }
-}
-
-function clearLastPetRationFeedAtFromStorage(): void {
-  if (!shouldPersistPetLocally()) return;
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.removeItem(RATION_FEED_COOLDOWN_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
-function readRationChargesFromStorage(): number {
+function readOptionalNonNegInt(key: string): number {
   if (typeof localStorage === 'undefined') return 0;
   try {
-    const raw = localStorage.getItem(RATION_CHARGES_STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return 0;
     const parsed = Number(raw);
     return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
@@ -155,29 +139,23 @@ function readRationChargesFromStorage(): number {
   }
 }
 
-function saveRationChargesToStorage(charges: number): void {
-  if (!shouldPersistPetLocally()) return;
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const normalized = Math.max(0, Math.floor(charges));
-    if (normalized <= 0) {
-      localStorage.removeItem(RATION_CHARGES_STORAGE_KEY);
-      return;
-    }
-    localStorage.setItem(RATION_CHARGES_STORAGE_KEY, String(normalized));
-  } catch {
-    /* quota */
-  }
-}
-
-function clearRationChargesFromStorage(): void {
-  if (!shouldPersistPetLocally()) return;
-  if (typeof localStorage === 'undefined') return;
+/** One-shot: afinidade global → CharacterPersistenceRecord.petAffinity. */
+export function consumeLegacyPetAffinityMirror(): LegacyPetAffinityMirror | null {
+  if (typeof localStorage === 'undefined') return null;
+  const rationCharges = readOptionalNonNegInt(RATION_CHARGES_STORAGE_KEY);
+  const lastPetRationFeedAtMs = readOptionalPositiveMs(RATION_FEED_COOLDOWN_KEY);
+  const lastPetAffectionAtMs = readOptionalPositiveMs(AFFECTION_COOLDOWN_KEY);
+  const hasAny =
+    rationCharges > 0 || lastPetRationFeedAtMs !== null || lastPetAffectionAtMs !== null;
+  if (!hasAny) return null;
   try {
     localStorage.removeItem(RATION_CHARGES_STORAGE_KEY);
+    localStorage.removeItem(RATION_FEED_COOLDOWN_KEY);
+    localStorage.removeItem(AFFECTION_COOLDOWN_KEY);
   } catch {
     /* ignore */
   }
+  return { rationCharges, lastPetRationFeedAtMs, lastPetAffectionAtMs };
 }
 
 function hydratePetFromPartial(parsed: Partial<PetSnapshot>, kindId: PetKindId): PetSnapshot {
@@ -218,6 +196,7 @@ function hydratePetFromPartial(parsed: Partial<PetSnapshot>, kindId: PetKindId):
 }
 
 function restoreRosterFromStorage(): PlayerPetRosterSnapshot {
+  if (isOnlineGameMode()) return createEmptyPetRoster();
   if (typeof localStorage === 'undefined') return createEmptyPetRoster();
 
   try {
@@ -269,11 +248,30 @@ class PlayerPetStore {
   private readonly rationChargeListeners = new Set<RationChargesListener>();
   private battlePetParticipated = false;
   private explorationAffinityMs = 0;
-  private rationCharges = readRationChargesFromStorage();
-  private lastPetAffectionAtMs: number | null = readLastPetAffectionAtFromStorage();
-  private lastPetRationFeedAtMs: number | null = readLastPetRationFeedAtFromStorage();
+  /** Afinidade só vive no CharacterPersistenceRecord (bindLocalCharacter). */
+  private rationCharges = 0;
+  private lastPetAffectionAtMs: number | null = null;
+  private lastPetRationFeedAtMs: number | null = null;
   private rosterPersistTimer: ReturnType<typeof setTimeout> | null = null;
   private applyingFromServer = false;
+  private readonly characterPersistHandlers = new Set<() => void>();
+
+  /**
+   * MockEconomyService registra aqui — grava petRoster + petAffinity no save
+   * `altercadia.localSave.v2:{playerId}:{characterId}`.
+   */
+  registerCharacterPersistHandler(handler: () => void): () => void {
+    this.characterPersistHandlers.add(handler);
+    return () => this.characterPersistHandlers.delete(handler);
+  }
+
+  private requestCharacterPersist(): void {
+    if (this.applyingFromServer) return;
+    if (!shouldPersistPetLocally()) return;
+    for (const handler of this.characterPersistHandlers) {
+      handler();
+    }
+  }
 
   /** Aplica snapshot autoritativo — único writer permitido em modo online. */
   applyPetStateFromServer(payload: AuthoritativePetStatePayload): void {
@@ -289,6 +287,7 @@ class PlayerPetStore {
       this.lastPetRationFeedAtMs = payload.affinity.lastPetRationFeedAtMs;
       this.battlePetParticipated = false;
       this.explorationAffinityMs = 0;
+      clearPetMirrorStorage();
       this.publish();
       this.publishRationChargeListeners();
     } finally {
@@ -335,6 +334,7 @@ class PlayerPetStore {
         activeSlotIndex: roster.activeSlotIndex,
         selectedSlotIndex: roster.selectedSlotIndex,
       };
+      clearPetMirrorStorage();
       this.flushRosterPersist();
       this.publish();
       this.publishRosterListeners();
@@ -343,7 +343,15 @@ class PlayerPetStore {
     }
   }
 
-  /** Atualiza cargas/cooldowns vindos do servidor (economy-event). */
+  /** Feedback imediato de aba na HUD — não altera convocação; servidor sobrescreve no ack. */
+  previewSelectedPetSlot(slotIndex: number): void {
+    const next = selectPetSlot(this.roster, slotIndex);
+    if (next.selectedSlotIndex === this.roster.selectedSlotIndex) return;
+    this.roster = next;
+    this.publishRosterListeners();
+  }
+
+  /** Atualiza cargas/cooldowns vindos do servidor ou do CharacterPersistenceRecord. */
   applyPetAffinityFromServer(payload: {
     readonly rationCharges: number;
     readonly lastPetRationFeedAtMs: number | null;
@@ -354,17 +362,8 @@ class PlayerPetStore {
       this.rationCharges = Math.max(0, Math.floor(payload.rationCharges));
       this.lastPetRationFeedAtMs = payload.lastPetRationFeedAtMs;
       this.lastPetAffectionAtMs = payload.lastPetAffectionAtMs;
-      saveRationChargesToStorage(this.rationCharges);
-      if (this.lastPetRationFeedAtMs !== null) {
-        saveLastPetRationFeedAtToStorage(this.lastPetRationFeedAtMs);
-      } else {
-        clearLastPetRationFeedAtFromStorage();
-      }
-      if (this.lastPetAffectionAtMs !== null) {
-        saveLastPetAffectionAtToStorage(this.lastPetAffectionAtMs);
-      } else {
-        clearLastPetAffectionAtFromStorage();
-      }
+      // Sem dual-write em chaves globais — canônico é o save por personagem.
+      clearPetMirrorStorage();
       this.publishRationChargeListeners();
     } finally {
       this.applyingFromServer = false;
@@ -376,16 +375,16 @@ class PlayerPetStore {
     const delta = Math.max(0, Math.floor(amount));
     if (delta <= 0) return;
     this.rationCharges += delta;
-    saveRationChargesToStorage(this.rationCharges);
     this.publishRationChargeListeners();
+    this.requestCharacterPersist();
   }
 
   consumeRationCharge(): boolean {
     if (blockLocalPetMutation()) return false;
     if (this.rationCharges <= 0) return false;
     this.rationCharges -= 1;
-    saveRationChargesToStorage(this.rationCharges);
     this.publishRationChargeListeners();
+    this.requestCharacterPersist();
     return true;
   }
 
@@ -452,7 +451,14 @@ class PlayerPetStore {
     if (blockLocalPetMutation()) return false;
     const before = this.roster.activeSlotIndex;
     this.roster = activatePetSlot(this.roster, slotIndex);
-    if (this.roster.activeSlotIndex === before) return false;
+    if (this.roster.activeSlotIndex === before) {
+      if (before === slotIndex) {
+        this.flushRosterPersist();
+        this.publish();
+        return true;
+      }
+      return false;
+    }
     this.flushRosterPersist();
     this.publish();
     return true;
@@ -579,7 +585,7 @@ class PlayerPetStore {
   recordPetRationFeedAt(now = Date.now()): void {
     if (blockLocalPetMutation()) return;
     this.lastPetRationFeedAtMs = Math.floor(now);
-    saveLastPetRationFeedAtToStorage(this.lastPetRationFeedAtMs);
+    this.requestCharacterPersist();
   }
 
   applyPetAffection(now = Date.now()):
@@ -609,7 +615,6 @@ class PlayerPetStore {
       applyPetCare(applyPetAffinityXp(pet, PET_AFFECTION_CONFIG.affinityReward), now),
     );
     this.lastPetAffectionAtMs = Math.floor(now);
-    saveLastPetAffectionAtToStorage(this.lastPetAffectionAtMs);
     this.flushRosterPersist();
     this.publish();
     return { ok: true, xpGained: PET_AFFECTION_CONFIG.affinityReward };
@@ -646,10 +651,8 @@ class PlayerPetStore {
     this.explorationAffinityMs = 0;
     this.lastPetAffectionAtMs = null;
     this.lastPetRationFeedAtMs = null;
-    clearLastPetAffectionAtFromStorage();
-    clearLastPetRationFeedAtFromStorage();
     this.rationCharges = 0;
-    clearRationChargesFromStorage();
+    clearPetMirrorStorage();
     this.flushRosterPersist();
     this.publish();
     this.publishRationChargeListeners();
@@ -661,6 +664,20 @@ class PlayerPetStore {
       activeSlotIndex: roster.activeSlotIndex,
       selectedSlotIndex: roster.selectedSlotIndex,
     };
+  }
+
+  /** Após hidratar do save — atualiza HUD sem forçar novo write. */
+  notifyHydrated(): void {
+    this.publish();
+  }
+
+  /** Migração one-shot do localStorage global → save por personagem. */
+  consumeLegacyRosterMirror(): PlayerPetRosterSnapshot | null {
+    return consumeLegacyPetRosterMirror();
+  }
+
+  consumeLegacyAffinityMirror(): LegacyPetAffinityMirror | null {
+    return consumeLegacyPetAffinityMirror();
   }
 
   private publish(): void {
@@ -703,6 +720,7 @@ class PlayerPetStore {
       this.rosterPersistTimer = null;
     }
     saveRosterToStorage(this.roster);
+    this.requestCharacterPersist();
   }
 
   private getSnapshotWithoutLifeSync(): PetSnapshot | null {
@@ -715,25 +733,38 @@ class PlayerPetStore {
   }
 }
 
-let store: PlayerPetStore | null = null;
 let petLifeBridgesInitialized = false;
 
+type GlobalWithPlayerPetStore = typeof globalThis & {
+  __ALTERCADIA_PLAYER_PET_STORE__?: PlayerPetStore | null;
+  __ALTERCADIA_PET_LIFE_BRIDGES_INIT__?: boolean;
+};
+
+function getPetStoreGlobal(): GlobalWithPlayerPetStore {
+  return globalThis as GlobalWithPlayerPetStore;
+}
+
 function initPetLifeBridges(): void {
-  if (petLifeBridgesInitialized) return;
+  const g = getPetStoreGlobal();
+  if (g.__ALTERCADIA_PET_LIFE_BRIDGES_INIT__ || petLifeBridgesInitialized) return;
   petLifeBridgesInitialized = true;
+  g.__ALTERCADIA_PET_LIFE_BRIDGES_INIT__ = true;
   initPetInheritanceBridge();
   initPetMemorialNotificationBridge();
 }
 
+/** Singleton cross-bundle (main.js + ui-runtime.js) — evita Pet Love dessincronizado da compra. */
 export function getPlayerPetStore(): PlayerPetStore {
-  if (!store) {
-    store = new PlayerPetStore();
-    store.hydrateFromStorage(restoreRosterFromStorage());
-    getPetStateStore().bindRosterPersistence(store);
+  const g = getPetStoreGlobal();
+  if (!g.__ALTERCADIA_PLAYER_PET_STORE__) {
+    const created = new PlayerPetStore();
+    // Não hidratar do localStorage global — bindLocalCharacter / full-state-sync são a fonte.
+    g.__ALTERCADIA_PLAYER_PET_STORE__ = created;
+    getPetStateStore().bindRosterPersistence(created);
     getPetStateStore().syncLifeExpiration();
     initPetLifeBridges();
   }
-  return store;
+  return g.__ALTERCADIA_PLAYER_PET_STORE__;
 }
 
 export function initPlayerPetStore(): PlayerPetStore {
@@ -741,7 +772,9 @@ export function initPlayerPetStore(): PlayerPetStore {
 }
 
 export function resetPlayerPetStore(): void {
-  store = null;
+  const g = getPetStoreGlobal();
+  g.__ALTERCADIA_PLAYER_PET_STORE__ = null;
+  g.__ALTERCADIA_PET_LIFE_BRIDGES_INIT__ = false;
   petLifeBridgesInitialized = false;
   resetPetStateStore();
 }

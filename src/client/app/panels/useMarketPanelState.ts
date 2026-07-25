@@ -26,6 +26,8 @@ import {
 } from '../../ui/market/marketplaceOrderBookClient.js';
 import { listMarketSellInventoryRows } from '../../ui/market/marketSellForm.js';
 
+export type MarketSidebarSource = 'catalog' | 'inventory';
+
 export function useMarketPanelState() {
   const dataStore = getDataStore();
   const dispatcher = getActionDispatcher();
@@ -34,6 +36,7 @@ export function useMarketPanelState() {
   const [wallet, setWallet] = useState<WalletSnapshot>(() => dataStore.getWallet());
   const [orderBookTick, setOrderBookTick] = useState(0);
   const [browseCategory, setBrowseCategory] = useState<MarketBrowseCategoryId>('all');
+  const [browseSource, setBrowseSource] = useState<MarketSidebarSource>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [offerForm, setOfferForm] = useState<MarketOfferFormState>(() =>
     buildDefaultMarketOfferFormState(dataStore.getInventory()),
@@ -72,20 +75,37 @@ export function useMarketPanelState() {
     [browseCategory, searchQuery],
   );
 
+  const sellRows = useMemo(() => listMarketSellInventoryRows(inventory), [inventory]);
+
+  const sidebarItems = useMemo(() => {
+    if (browseSource !== 'inventory') {
+      return browseItems;
+    }
+
+    const query = searchQuery.trim().toLocaleLowerCase('pt-BR');
+    return sellRows
+      .filter((row) => !query || row.label.toLocaleLowerCase('pt-BR').includes(query))
+      .map((row) => ({
+        itemId: row.itemId,
+        label: `${row.label} ×${row.quantity}`,
+        categoryId: browseCategory,
+      }));
+  }, [browseCategory, browseItems, browseSource, searchQuery, sellRows]);
+
   useEffect(() => {
     setOfferForm((prev) => {
-      if (browseItems.length === 0) {
+      if (sidebarItems.length === 0) {
         if (prev.selectedItemId === null) return prev;
         return { ...prev, selectedItemId: null };
       }
 
       const stillVisible = prev.selectedItemId
-        && browseItems.some((item) => item.itemId === prev.selectedItemId);
+        && sidebarItems.some((item) => item.itemId === prev.selectedItemId);
       if (stillVisible) return prev;
 
-      return { ...prev, selectedItemId: browseItems[0]!.itemId };
+      return { ...prev, selectedItemId: sidebarItems[0]!.itemId };
     });
-  }, [browseItems]);
+  }, [sidebarItems]);
 
   const orderBook = useMemo(
     () => getMarketplaceOrderBookSnapshot(),
@@ -107,8 +127,6 @@ export function useMarketPanelState() {
       : null),
     [orderBook, selectedItemId],
   );
-
-  const sellRows = useMemo(() => listMarketSellInventoryRows(inventory), [inventory]);
 
   const quantity = selectedItemId
     ? clampMarketOfferQuantity(
@@ -149,7 +167,14 @@ export function useMarketPanelState() {
   }, []);
 
   const setOfferSide = useCallback((side: MarketOfferSide) => {
+    if (side === 'sell') {
+      setBrowseSource('inventory');
+    }
     setOfferForm((prev) => ({ ...prev, offerSide: side }));
+  }, []);
+
+  const setBrowseSourceMode = useCallback((source: MarketSidebarSource) => {
+    setBrowseSource(source);
   }, []);
 
   const updateQuantity = useCallback((nextQuantity: number) => {
@@ -261,8 +286,11 @@ export function useMarketPanelState() {
   return {
     wallet,
     browseCategory,
+    browseSource,
     searchQuery,
     browseItems,
+    sidebarItems,
+    sellRowCount: sellRows.length,
     offerForm,
     selectedItemId,
     sellView,
@@ -274,6 +302,7 @@ export function useMarketPanelState() {
     maxSellQty,
     submitDisabled,
     selectCategory,
+    setBrowseSourceMode,
     updateSearchQuery,
     selectBrowseItem,
     setOfferSide,

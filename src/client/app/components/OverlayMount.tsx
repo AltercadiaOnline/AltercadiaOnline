@@ -37,10 +37,16 @@ export function OverlayMount() {
       <BattleStatisticsMount active={battleStats.active} report={battleStats.report} />
       <BattleSurrenderConfirmPanel />
       {overlay.initLoadingVisible ? (
-        <div className="pointer-events-auto fixed inset-0 z-[10000] flex items-center justify-center bg-[rgba(5,10,13,0.92)] backdrop-blur-sm">
-          <div className="flex max-w-[320px] flex-col items-center gap-4 rounded-lg border border-white/15 bg-[#161b22] px-10 py-8 text-center shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-            <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[rgba(88,166,255,0.2)] border-t-[#58a6ff]" aria-hidden="true" />
-            <p className="font-mono text-[0.95rem] text-[#e6edf3]">
+        <div
+          className="player-init-loading pointer-events-auto fixed inset-0 z-[10000] flex items-center justify-center"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="player-init-loading__panel">
+            <p className="player-init-loading__title">ALTERCADIA</p>
+            <div className="player-init-loading__spinner" aria-hidden="true" />
+            <p className="player-init-loading__message">
               {overlay.initLoadingMessage}
             </p>
           </div>

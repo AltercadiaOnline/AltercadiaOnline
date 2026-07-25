@@ -56,9 +56,13 @@ function resolveContextDescription(context: WorldPanelContext): string {
 
     case 'tournamentBet':
 
-      return `Púlpito: ${context.pulpitName}`;
+      return `Terminal: ${context.pulpitName}`;
 
     case 'rankingMonitor':
+
+      return context.label;
+
+    case 'pvpQueue':
 
       return context.label;
 
@@ -162,7 +166,7 @@ function renderPanelEntry(entry: OpenWorldPanelEntry, focusedWindowId: UiWindowI
 
 
 
-/** Camada de painéis móveis — acima do render (canvas/Phaser), abaixo de overlays globais. */
+/** Camada de painéis móveis — acima do Construct, abaixo de overlays globais. */
 
 export function WorldPanelsLayer() {
 

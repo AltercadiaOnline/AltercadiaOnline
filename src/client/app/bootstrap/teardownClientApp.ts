@@ -1,4 +1,4 @@
-import { teardownPhaserReadyLayer } from '../phaser/initPhaserReadyLayer.js';
+import { teardownWorldRenderLayer } from '../../worldRender/initWorldRenderLayer.js';
 import { teardownWorldPanelsBridge } from '../panels/initWorldPanelsBridge.js';
 import { teardownGameStoreBridge } from '../store/gameStoreBridge.js';
 import { resetClientAppInitializedFlag } from './initClientApp.js';
@@ -7,6 +7,6 @@ import { resetClientAppInitializedFlag } from './initClientApp.js';
 export function teardownClientApp(): void {
   teardownGameStoreBridge();
   teardownWorldPanelsBridge();
-  teardownPhaserReadyLayer();
+  teardownWorldRenderLayer();
   resetClientAppInitializedFlag();
 }

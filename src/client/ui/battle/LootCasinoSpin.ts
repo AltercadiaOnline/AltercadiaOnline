@@ -146,56 +146,40 @@ export function resolveFeaturedLootSlotIndex(slots: readonly LootRevealSlot[]): 
 
 
 
-function buildSlotFace(slot: LootRevealSlot): { html: string; classes: string[]; label: string } {
-
+function buildSlotFace(slot: LootRevealSlot): {
+  html: string;
+  classes: string[];
+  label: string;
+  itemId?: string;
+} {
   if (slot.kind === 'EMPTY') {
-
     return {
-
       html: '<span class="loot-casino__icon loot-casino__icon--empty">—</span><span class="loot-casino__label">Vazio</span>',
-
       classes: ['loot-casino__cell--empty'],
-
       label: 'Vazio',
-
     };
-
   }
 
   if (slot.kind === 'GOLD') {
-
     const amount = slot.voltAmount ?? 0;
-
     return {
-
       html: `<span class="loot-casino__icon loot-casino__icon--gold">⚡</span><span class="loot-casino__label">${formatVolts(amount)} V</span>`,
-
       classes: ['loot-casino__cell--gold'],
-
       label: `${formatVolts(amount)} Volts`,
-
     };
-
   }
 
   const itemId = slot.itemId ?? 'unknown';
-
   const abbrev = resolveInventoryItemAbbrev(itemId);
-
   const name = resolveInventoryItemLabel(itemId);
-
   const rarity = slot.rarity ?? 'common';
 
   return {
-
     html: `<span class="loot-casino__icon loot-casino__icon--item">${abbrev}</span><span class="loot-casino__label">${name}</span>`,
-
     classes: ['loot-casino__cell--item', `loot-casino__cell--rarity-${rarity}`],
-
     label: name,
-
+    itemId,
   };
-
 }
 
 
@@ -544,11 +528,17 @@ export function mountLootCasinoSpin(options: LootCasinoSpinOptions): LootCasinoS
 
     const slot = authoritative[index] ?? { kind: 'EMPTY' as const };
 
-    const { html, classes, label } = buildSlotFace(slot);
+    const { html, classes, label, itemId } = buildSlotFace(slot);
 
     const finalFace = strip.querySelector<HTMLElement>('.loot-casino__face--final');
 
     if (finalFace) finalFace.innerHTML = html;
+
+    if (itemId) {
+      cell.dataset.itemId = itemId;
+    } else {
+      delete cell.dataset.itemId;
+    }
 
 
 

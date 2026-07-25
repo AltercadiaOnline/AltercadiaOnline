@@ -25,15 +25,9 @@ import { BattleType } from '../../shared/combat/battleType.js';
 function moveToSkill(moveId: string): SkillData {
   try {
     return monsterSkillToSkillData(moveId);
-  } catch {
-    return {
-      id: moveId,
-      name: moveId,
-      damage: 12,
-      cooldown: 1,
-      ppMax: 20,
-      ppCurrent: 20,
-    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`[buildPveBattle] Skill de monstro obrigatória ausente: ${moveId}. ${message}`);
   }
 }
 

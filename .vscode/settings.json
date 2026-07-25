@@ -1,0 +1,8 @@
+{
+    "files.exclude": {
+        "/.railway": true,
+        "/.supabase": true,
+        "/dist": true,
+        "/node_modules": true
+    }
+}

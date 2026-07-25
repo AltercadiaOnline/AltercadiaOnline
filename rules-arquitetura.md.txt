@@ -1,0 +1,21 @@
+# Guia de Arquitetura e Design - Altercadia V2
+
+## Regras de Ouro (Mecânica)
+- Event-driven; gateway autoritativo; cliente não calcula dano nem valida turno.
+- WorldMap e BattleScreen são componentes visuais independentes.
+- O Model é único, persistente e agnóstico à View.
+- Comunicação de estados via EventBus / WebSocket (proibido acoplar views).
+
+## Recompensas PVE
+- XP/Progressão: Automático na vitória.
+- Loot (Cassino): Requer ação de Coletar; 'dismiss' em vazio.
+- Módulo canônico: `src/shared/progression/battleProgressionGrant.ts`.
+
+## Design (Fonte da Verdade: src/config/designConstants.ts)
+- Resolução: 640x360.
+- Tile: 32x32. Player: 35x54 (âncora base).
+- Migração de legado: Ao tocar em arquivos antigos, refatore o escopo alterado para usar `DESIGN_CONFIG`. Não refatore o arquivo todo.
+
+## Regra de Economia e Tempo
+- Preços: Apenas cálculo no servidor. Proibido qualquer cálculo de trade no cliente.
+- Tempo: Ciclo dia/noite derivado exclusivamente de `gameTime` enviado pelo servidor.

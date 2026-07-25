@@ -1,10 +1,15 @@
+/**
+ * Cabine de Refração — intents via ActionDispatcher (Local = Online).
+ * Listeners recebem o mesmo shape dos antigos eventos WS.
+ */
+
 import type {
   RefractionBoothCompletePayload,
   RefractionBoothCompleteSuccess,
   RefractionBoothQuoteResult,
   RefractionBoothStarted,
 } from '../../shared/cityMinigames/refractionBoothTypes.js';
-import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
+import { getActionDispatcher } from '../ActionDispatcher.js';
 
 export type RefractionBoothCredentials = {
   readonly playerId: string;
@@ -24,42 +29,18 @@ export type RefractionBoothCompleteListener = (
   payload: RefractionBoothCompleteSuccess | { readonly ok: false; readonly reason: string },
 ) => void;
 
-const WS_OPEN = 1;
-
-let activeSocket: BrowserCombatSocket | null = null;
 let credentials: RefractionBoothCredentials | null = null;
 let quoteListener: RefractionBoothQuoteListener | null = null;
 let startedListener: RefractionBoothStartedListener | null = null;
 let completeListener: RefractionBoothCompleteListener | null = null;
-let bound = false;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object';
-}
 
 export function setRefractionBoothCredentials(next: RefractionBoothCredentials | null): void {
   credentials = next;
 }
 
-export function bindRefractionBoothSocket(socket: BrowserCombatSocket): void {
-  activeSocket = socket;
-  if (bound) return;
-  bound = true;
-
-  socket.on('refraction-booth-quote-result', (raw) => {
-    if (!isRecord(raw)) return;
-    quoteListener?.(raw as RefractionBoothQuoteResult | { ok: false; reason: string });
-  });
-
-  socket.on('refraction-booth-started', (raw) => {
-    if (!isRecord(raw)) return;
-    startedListener?.(raw as RefractionBoothStarted | { ok: false; reason: string });
-  });
-
-  socket.on('refraction-booth-complete-result', (raw) => {
-    if (!isRecord(raw)) return;
-    completeListener?.(raw as RefractionBoothCompleteSuccess | { ok: false; reason: string });
-  });
+/** @deprecated Compat — socket dedicado removido; usa player-intent. */
+export function bindRefractionBoothSocket(_socket: unknown): void {
+  /* no-op */
 }
 
 export function onRefractionBoothQuote(listener: RefractionBoothQuoteListener | null): void {
@@ -74,31 +55,47 @@ export function onRefractionBoothComplete(listener: RefractionBoothCompleteListe
   completeListener = listener;
 }
 
+export function notifyRefractionBoothQuoteResult(
+  payload: RefractionBoothQuoteResult | { readonly ok: false; readonly reason: string },
+): void {
+  quoteListener?.(payload);
+}
+
+export function notifyRefractionBoothStartedResult(
+  payload: RefractionBoothStarted | { readonly ok: false; readonly reason: string },
+): void {
+  startedListener?.(payload);
+}
+
+export function notifyRefractionBoothCompleteResult(
+  payload: RefractionBoothCompleteSuccess | { readonly ok: false; readonly reason: string },
+): void {
+  completeListener?.(payload);
+}
+
 export function requestRefractionBoothQuote(): boolean {
-  if (!activeSocket || activeSocket.readyState !== WS_OPEN || !credentials) return false;
-  activeSocket.send('refraction-booth-quote', {
-    playerId: credentials.playerId,
-    characterId: credentials.characterId,
+  if (!credentials) return false;
+  const result = getActionDispatcher().dispatch({
+    type: 'REFRACTION_BOOTH_QUOTE',
+    payload: {},
   });
-  return true;
+  return result.ok;
 }
 
 export function requestRefractionBoothStart(): boolean {
-  if (!activeSocket || activeSocket.readyState !== WS_OPEN || !credentials) return false;
-  activeSocket.send('refraction-booth-start', {
-    playerId: credentials.playerId,
-    characterId: credentials.characterId,
-    displayName: credentials.displayName,
+  if (!credentials) return false;
+  const result = getActionDispatcher().dispatch({
+    type: 'REFRACTION_BOOTH_START',
+    payload: { displayName: credentials.displayName },
   });
-  return true;
+  return result.ok;
 }
 
 export function requestRefractionBoothComplete(payload: RefractionBoothCompletePayload): boolean {
-  if (!activeSocket || activeSocket.readyState !== WS_OPEN || !credentials) return false;
-  activeSocket.send('refraction-booth-complete', {
-    playerId: credentials.playerId,
-    characterId: credentials.characterId,
-    ...payload,
+  if (!credentials) return false;
+  const result = getActionDispatcher().dispatch({
+    type: 'REFRACTION_BOOTH_COMPLETE',
+    payload,
   });
-  return true;
+  return result.ok;
 }

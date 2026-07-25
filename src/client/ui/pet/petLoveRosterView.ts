@@ -40,7 +40,7 @@ export function renderPetLoveActivateControl(
   if (!pet) {
     return `
       <p class="pet-love-roster__activate-hint" data-hud-fit-secondary>
-        Slot vazio — adote até ${MAX_PETS_PER_CHARACTER} pets com o Treinador Zeno.
+        Slot vazio — adote até ${MAX_PETS_PER_CHARACTER} pets com a Treinadora Zena.
       </p>
     `;
   }

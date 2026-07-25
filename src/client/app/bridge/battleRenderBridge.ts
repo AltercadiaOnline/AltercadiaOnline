@@ -40,7 +40,7 @@ export type BattlePetRenderSnapshot = {
   readonly hpRatio: number;
 };
 
-/** Frame de combate publicado pelo fluxo legado — espelhado pela cena Phaser. */
+/** Frame de combate publicado pelo fluxo autoritativo — espelhado pela cena Construct. */
 export type BattleRenderFrame = {
   readonly battleId: string | null;
   readonly phase: string | null;
@@ -149,7 +149,7 @@ export function publishBattleRenderFrame(frame: BattleRenderFrame): void {
   }
 }
 
-/** Espelha snapshot autoritativo do servidor na camada Phaser. */
+/** Espelha snapshot autoritativo do servidor na camada Construct. */
 export function publishBattleRenderFromCombatState(
   state: CombatState,
   ui: CombatUiHints,
@@ -159,7 +159,7 @@ export function publishBattleRenderFromCombatState(
   republishBattleRenderFrame();
 }
 
-/** Atualiza barras HP na arena Phaser durante animações locais (entre dispatches). */
+/** Atualiza barras HP na arena de combate durante animações locais (entre dispatches). */
 export function patchBattleRenderFighterHp(
   side: 'ally' | 'foe',
   hp: number,

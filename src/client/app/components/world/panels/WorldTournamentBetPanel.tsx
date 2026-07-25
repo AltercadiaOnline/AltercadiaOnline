@@ -1,15 +1,14 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   ARENA_TOURNAMENT_MIN_BET_VOLTS,
   describeArenaTournamentRules,
   validateArenaTournamentBet,
 } from '../../../../../shared/arena/arenaTournamentBetService.js';
 import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.js';
-import { endWorldHudInteractionSession } from '../../../../world/worldHudInteractionSession.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
-import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
+import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
 import {
   resolveTournamentBetFromContext,
   useTournamentBetPanelState,
@@ -31,12 +30,7 @@ export function WorldTournamentBetPanel({
   const state = useTournamentBetPanelState(pulpit);
   const rules = useMemo(() => describeArenaTournamentRules(), []);
 
-  useEffect(() => () => {
-    const snapshot = endWorldHudInteractionSession();
-    if (snapshot) {
-      uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
-    }
-  }, []);
+  useReleaseWorldHudOnPanelClose('tournamentBet');
 
   const handleConfirm = () => {
     const validation = validateArenaTournamentBet({

@@ -81,14 +81,13 @@ export function portalZoneContains(
   );
 }
 
-/** Gatilho de interação — apenas o tile central do portal. */
+/** Gatilho de interação — footprint do portal (alinhado ao marker Construct). */
 export function portalInteractionContains(
   portal: Portal,
   tileX: number,
   tileY: number,
 ): boolean {
-  const center = portalCenterTile(portal);
-  return center.x === tileX && center.y === tileY;
+  return portalZoneContains(portal, tileX, tileY);
 }
 
 /** Origem do tile na grade — (tileX × tileSize, tileY × tileSize). */

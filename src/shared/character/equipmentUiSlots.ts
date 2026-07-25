@@ -35,7 +35,7 @@ export const EQUIPMENT_UI_SLOT_ORDER: readonly EquipmentUiSlotId[] = [
 export const EQUIPMENT_UI_SLOT_LABELS: Record<EquipmentUiSlotId, string> = {
   [EquipmentUiSlotId.Amulet]: 'Amuleto',
   [EquipmentUiSlotId.Helmet]: 'Elmo',
-  [EquipmentUiSlotId.Card]: 'Card',
+  [EquipmentUiSlotId.Card]: 'Amuleto 2',
   [EquipmentUiSlotId.Books]: 'Livros',
   [EquipmentUiSlotId.Armor]: 'Armadura',
   [EquipmentUiSlotId.Runes]: 'Runas',
@@ -48,6 +48,8 @@ export const EQUIPMENT_UI_SLOT_LABELS: Record<EquipmentUiSlotId, string> = {
 /** Mapeamento slot UI → slot econômico (quando aplicável). */
 export const UI_SLOT_TO_EQUIPMENT_SLOT: Partial<Record<EquipmentUiSlotId, EquipmentSlotId>> = {
   [EquipmentUiSlotId.Amulet]: EquipmentSlot.Amulet,
+  /** Temporário: slot Card reaproveitado como 2º amuleto (mesmo campo econômico). */
+  [EquipmentUiSlotId.Card]: EquipmentSlot.Amulet,
   [EquipmentUiSlotId.Helmet]: EquipmentSlot.Head,
   [EquipmentUiSlotId.Books]: EquipmentSlot.Book,
   [EquipmentUiSlotId.Armor]: EquipmentSlot.Top,
@@ -85,7 +87,7 @@ export function equipmentUiGridToEquipped(slots: EquipmentUiGridState): Equipped
     top: slots.armor,
     bottom,
     ring,
-    amulet: slots.amulet,
+    amulet: slots.amulet ?? slots.card ?? null,
     book: slots.books,
     rune: slots.runes,
   };

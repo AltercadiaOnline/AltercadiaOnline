@@ -4,6 +4,7 @@ import { getPanelsBridge } from '../bridge/panelsBridge.js';
 import { isReactManagedWorldPanel } from './worldPanelRegistry.js';
 import { useWorldPanelsStore } from '../store/worldPanelsStore.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
+import { releaseWorldHudInteractionIfIdle } from '../../world/worldHudInteractionSession.js';
 
 function canOpenMarket(windowId: UiWindowId): boolean {
   if (windowId !== 'market') return true;
@@ -37,6 +38,7 @@ export function closeWorldWindow(windowId: UiWindowId): boolean {
 
   useWorldPanelsStore.getState().closePanel(windowId);
   getPanelsBridge().notifyPanelClosed(windowId);
+  releaseWorldHudInteractionIfIdle();
   return true;
 }
 
@@ -67,6 +69,7 @@ export function closeTopmostWorldWindow(): boolean {
   if (!closed) return false;
 
   getPanelsBridge().notifyPanelClosed(closed);
+  releaseWorldHudInteractionIfIdle();
   return true;
 }
 

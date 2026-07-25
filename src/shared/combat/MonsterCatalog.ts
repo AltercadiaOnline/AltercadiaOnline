@@ -2,6 +2,7 @@ import type { CombatClassId } from '../types.js';
 import { CREATURE_DROP_TABLE, getCreatureDropEntry } from '../items/creatureDrops.js';
 import { MonsterBehaviorType } from './monsterBehaviorTypes.js';
 import type { MonsterBehaviorType as MonsterBehaviorTypeId } from './monsterBehaviorTypes.js';
+import { resolveMonsterCombatSkillIds } from './monsterDebuffCatalog.js';
 import { resolveMonsterZoneStats } from './monsterZoneStats.js';
 import { CreatureArchetypeId, CREATURE_ARCHETYPE_MAP } from '../loot/archetypeLootTables.js';
 
@@ -66,7 +67,7 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     maxHp: 70,
     flowSpeedBase: 28,
     classId: 'DISSOLUTUS',
-    skillIds: ['rat_bite'],
+    skillIds: resolveMonsterCombatSkillIds('rat'),
   },
   specter: {
     creatureId: 'specter',
@@ -75,7 +76,8 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     maxHp: 120,
     flowSpeedBase: 32,
     classId: 'DISSOLUTUS',
-    skillIds: ['specter_wail', 'specter_phase'],
+    // Elite: skills especiais + debuffs ativos da zona (perfil Z2 = 2 slots).
+    skillIds: ['specter_wail', 'specter_phase', 'specter_chill'],
     specialAbility: {
       id: MonsterSpecialAbilityId.PhaseShift,
       description: 'Turnos ímpares: imune a dano físico.',
@@ -88,7 +90,8 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     maxHp: 220,
     flowSpeedBase: 24,
     classId: 'IMPETUS',
-    skillIds: ['minotaur_charge', 'minotaur_gore'],
+    // Elite: charge/gore + debuffs do perfil Z3.
+    skillIds: ['minotaur_charge', 'minotaur_gore', 'minotaur_roar', 'minotaur_stomp'],
     specialAbility: {
       id: MonsterSpecialAbilityId.ChargeGore,
       description: 'Acumula carga por 3 turnos e desfere investida.',
@@ -97,11 +100,11 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
   wild_dog: {
     creatureId: 'wild_dog',
     name: 'Cão Selvagem',
-    behavior: MonsterBehaviorType.Patrol,
+    behavior: MonsterBehaviorType.Aggressive,
     maxHp: 90,
     flowSpeedBase: 30,
     classId: 'IMPETUS',
-    skillIds: ['wild_dog_bite'],
+    skillIds: resolveMonsterCombatSkillIds('wild_dog'),
     patrolZone: { minX: 3, maxX: 7, minY: 1, maxY: 4 },
   },
   crow: {
@@ -111,7 +114,7 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     maxHp: 65,
     flowSpeedBase: 34,
     classId: 'DISSOLUTUS',
-    skillIds: ['crow_peck'],
+    skillIds: resolveMonsterCombatSkillIds('crow'),
   },
   bat: {
     creatureId: 'bat',
@@ -120,7 +123,7 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     maxHp: 55,
     flowSpeedBase: 36,
     classId: 'DISSOLUTUS',
-    skillIds: ['bat_screech'],
+    skillIds: resolveMonsterCombatSkillIds('bat'),
   },
   spider: {
     creatureId: 'spider',
@@ -129,7 +132,7 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     maxHp: 75,
     flowSpeedBase: 26,
     classId: 'DISSOLUTUS',
-    skillIds: ['spider_bite'],
+    skillIds: resolveMonsterCombatSkillIds('spider'),
   },
 };
 
@@ -157,7 +160,7 @@ function buildCatalogEntryFromDrop(creatureId: string): MonsterCatalogEntry | nu
     maxHp: stats.maxHp,
     flowSpeedBase: stats.flowSpeedBase,
     classId: stats.classId,
-    skillIds: ['rat_bite'],
+    skillIds: resolveMonsterCombatSkillIds(creatureId),
   };
 }
 

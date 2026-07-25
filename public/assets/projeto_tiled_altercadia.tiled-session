@@ -1,16 +1,16 @@
 {
-    "activeFile": "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+    "activeFile": "map_mund/city_01_test.tmx",
     "expandedProjectPaths": [
-        "player",
-        "terrain",
-        "npcs",
-        "creatures",
-        "combat",
-        ".",
-        "props",
         "map_mund",
+        "player",
+        "props",
+        "maps",
+        ".",
+        "creatures",
         "urban",
-        "maps"
+        "terrain",
+        "combat",
+        "npcs"
     ],
     "file.lastUsedOpenFilter": "Todos os Ficheiros (*)",
     "fileStates": {
@@ -22,9 +22,15 @@
             "scale": 0.586328125,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 639.5736175882745,
-                "y": 639.5736175882745
+                "x": 639.5736175882746,
+                "y": 639.5736175882744
             }
+        },
+        "map_mund/city_01_test.tmj#Living gazebo1": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#abusto_outono_test": {
+            "scaleInDock": 1
         },
         "map_mund/city_01_test.tmj#alquimia_estrutura_Test1": {
             "scaleInDock": 1
@@ -38,10 +44,19 @@
         "map_mund/city_01_test.tmj#area_pet_2": {
             "scaleInDock": 1
         },
+        "map_mund/city_01_test.tmj#arvore_rosa_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#arvore_verde_1": {
+            "scaleInDock": 1
+        },
         "map_mund/city_01_test.tmj#banco_madeira_2_Test": {
             "scaleInDock": 1
         },
         "map_mund/city_01_test.tmj#banco_madeira_test": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#casinha_1_test": {
             "scaleInDock": 1
         },
         "map_mund/city_01_test.tmj#casinha_2_Test": {
@@ -83,6 +98,9 @@
         "map_mund/city_01_test.tmj#geladeira_props_test": {
             "scaleInDock": 1
         },
+        "map_mund/city_01_test.tmj#lixeira_props_test": {
+            "scaleInDock": 1
+        },
         "map_mund/city_01_test.tmj#lixeira_test_props": {
             "scaleInDock": 1
         },
@@ -90,6 +108,9 @@
             "scaleInDock": 1
         },
         "map_mund/city_01_test.tmj#mercado_test_props": {
+            "scaleInDock": 1
+        },
+        "map_mund/city_01_test.tmj#poste_props_test": {
             "scaleInDock": 1
         },
         "map_mund/city_01_test.tmj#poste_test_prop": {
@@ -109,18 +130,18 @@
         },
         "map_mund/city_01_test.tmx": {
             "expandedObjectLayers": [
+                18,
+                11,
+                17,
                 19,
                 12,
-                18,
-                17,
-                20,
-                11
+                20
             ],
-            "scale": 0.5,
+            "scale": 0.75,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 672,
-                "y": 618
+                "x": 406.6666666666667,
+                "y": 1070.6666666666665
             }
         },
         "map_mund/city_01_test.tmx#alquimia_estrutura_Test1": {
@@ -225,8 +246,8 @@
             "scale": 0.5,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 104,
-                "y": 1402
+                "x": 320,
+                "y": 960
             }
         },
         "map_mund/sem zona_beco_dos_fundos_tilemap.tmx#arvore_rosa_test": {
@@ -538,9 +559,9 @@
     "project": "projeto_tiled_altercadia.tiled-project",
     "property.type": "bool",
     "recentFiles": [
-        "map_mund/city_01_test.tmx",
         "map_mund/city_01_test.tmj",
         "map_mund/sem zona_beco_dos_fundos_tilemap.tmx",
+        "map_mund/city_01_test.tmx",
         "map_mund/zona_beco_dos_fundos_tilemap.tmj",
         "map_mund/sem zona_beco_dos_fundos_tilemap.tmj",
         "props/Living gazebo1.tsx",

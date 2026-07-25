@@ -57,8 +57,13 @@ export function createAuthoritativeWorldSocket(
   const authority = getWorldMovementAuthority();
   let authorityUnsub = authority.subscribe((payload) => {
     const tile = worldPixelToTile(payload.x, payload.y);
-    predictedTileX = tile.tileX;
-    predictedTileY = tile.tileY;
+    // Enquanto há predição local, não puxar o cursor de tile para trás —
+    // isso gerava MOVE_INTENT repetindo o mesmo tile e rubber-band no sync.
+    const sameTile = tile.tileX === predictedTileX && tile.tileY === predictedTileY;
+    if (sameTile || !authority.isPredictionLockActive()) {
+      predictedTileX = tile.tileX;
+      predictedTileY = tile.tileY;
+    }
     for (const handler of updateHandlers) {
       handler(payload);
     }
@@ -100,6 +105,9 @@ export function createAuthoritativeWorldSocket(
       const targetY = predictedTileY + stepY;
       const seq = ++localSeq;
 
+      // Avanço otimista — cada tile cruzado envia o próximo alvo adjacente.
+      predictedTileX = targetX;
+      predictedTileY = targetY;
       transport.onMove({ targetX, targetY, seq });
       return;
     }

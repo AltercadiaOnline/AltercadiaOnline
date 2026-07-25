@@ -30,12 +30,13 @@ import { BattleType } from '../../../shared/combat/battleType.js';
 import { openPostBattleHonorCard } from './postBattleHonorOpener.js';
 import type { CombatDispatchPayload } from '../../../shared/combatWire.js';
 import type { BattleLootSourceContext } from '../../game/battleLootStageClient.js';
-import { resolveBattleLootStageStatus, hasValidPendingBattleLoot } from '../../game/battleLootStageClient.js';
+import { resolveBattleLootStageStatus } from '../../game/battleLootStageClient.js';
 
 export type PostBattleHubBridgeDeps = {
   readonly isBlocked: () => boolean;
   readonly onPresenting: (battleId: string) => void;
-  readonly onExit: (payload: BattleVictoryUiReadyPayload) => Promise<void>;
+  /** true = voltou ao mundo; false = manter hub para tentar de novo */
+  readonly onExit: (payload: BattleVictoryUiReadyPayload) => Promise<boolean>;
   readonly clearSafety: () => void;
   readonly releaseInput: () => void;
   readonly removeHubUi: () => void;
@@ -51,9 +52,12 @@ function mapLootStageToHubStatus(
   battleId: string,
   victory: boolean,
   isPvp: boolean,
+  hasLoot?: boolean,
 ): PostBattleRewardsLootStatus {
   if (!victory || isPvp) return 'unavailable';
-  const stage = resolveBattleLootStageStatus(battleId);
+  const stage = resolveBattleLootStageStatus(battleId, {
+    expectServerPackage: hasLoot !== false,
+  });
   if (stage === 'READY') return 'ready';
   if (stage === 'WAITING_FOR_SERVER') return 'waiting_for_server';
   return 'unavailable';
@@ -85,7 +89,12 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
 
   try {
     const isPvp = payload.battleType === BattleType.PVP;
-    const rewardsLootStatus = mapLootStageToHubStatus(payload.battleId, payload.victory, isPvp);
+    const rewardsLootStatus = mapLootStageToHubStatus(
+      payload.battleId,
+      payload.victory,
+      isPvp,
+      payload.hasLoot,
+    );
 
     registerPostBattleHubHandlers({
       onStatistics: () => {
@@ -99,10 +108,7 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
         showBattleStatisticsPanel(report);
       },
       onRewards: () => {
-        if (!hasValidPendingBattleLoot(payload.battleId)) {
-          postSystemNotification('Recompensas ainda não disponíveis.', 'normal');
-          return;
-        }
+        // Vitória PVE: cassino espera BATTLE_LOOT_PACKAGE (mesmo se ainda não chegou).
         const lootContext = bridgeDeps?.getBattleLootContext(payload.battleId) ?? {};
         return openBattleLootCasinoOnDemand({
           battleId: payload.battleId,
@@ -115,14 +121,22 @@ function mountHubForPayload(payload: BattleVictoryUiReadyPayload, skipRemove = f
       onExit: async () => {
         if (isLootCasinoSpinning()) {
           postSystemNotification('Esperando animação…', 'normal');
-          getPostBattleHudBridge().setExitPending(false);
           return;
         }
         closeBattleStatisticsPanel();
         teardownBattleLootCasinoState(payload.battleId);
-        await bridgeDeps!.onExit(payload);
-        lastPresentedBattleId = null;
-        dismissPostBattleHubUi();
+        try {
+          const exited = await bridgeDeps!.onExit(payload);
+          if (!exited) {
+            postSystemNotification('Não foi possível voltar ao mapa. Tente Saída de novo.', 'high');
+            return;
+          }
+          lastPresentedBattleId = null;
+          dismissPostBattleHubUi();
+        } catch (error) {
+          console.error('[PostBattleHubBridge] Falha na Saída:', error);
+          postSystemNotification('Falha ao sair da batalha. Tente Saída de novo.', 'high');
+        }
       },
     });
 

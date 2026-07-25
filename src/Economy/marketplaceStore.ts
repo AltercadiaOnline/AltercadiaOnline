@@ -245,6 +245,17 @@ export function resetMarketplaceStore(): void {
   marketByCharacter.clear();
 }
 
+export function clearMarketplaceForCharacter(playerId: string, characterId: number): void {
+  const key = profileKey(playerId, characterId);
+  for (const [timerKey, timer] of sellTimers.entries()) {
+    if (timerKey.startsWith(`${key}:`)) {
+      clearTimeout(timer);
+      sellTimers.delete(timerKey);
+    }
+  }
+  marketByCharacter.delete(key);
+}
+
 export function exportMarketplacePersistence(
   playerId: string,
   characterId: number,
