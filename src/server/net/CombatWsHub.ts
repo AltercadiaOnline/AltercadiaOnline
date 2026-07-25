@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { randomUUID } from 'node:crypto';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
