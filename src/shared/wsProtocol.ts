@@ -322,7 +322,11 @@ export type WsInboundMessage =
     }
   | {
       readonly type: 'pve-encounter-accept';
-      readonly payload: { readonly monsterInstanceId: string };
+      readonly payload: {
+        readonly monsterInstanceId: string;
+        /** Loadout confirmado (slots 1–4) — defesa se sessionSync sumir no perfil. */
+        readonly activeMovesets?: readonly string[];
+      };
     }
   | {
       readonly type: 'pve-encounter-request';
@@ -826,8 +830,23 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
     ) {
       const payload = record.payload;
       if (typeof payload !== 'object' || payload === null) return null;
-      const monsterInstanceId = (payload as Record<string, unknown>).monsterInstanceId;
+      const p = payload as Record<string, unknown>;
+      const monsterInstanceId = p.monsterInstanceId;
       if (typeof monsterInstanceId !== 'string' || monsterInstanceId.length === 0) return null;
+      if (type === 'pve-encounter-accept') {
+        const activeMovesets = Array.isArray(p.activeMovesets)
+          ? p.activeMovesets.filter((id): id is string => typeof id === 'string')
+          : undefined;
+        return {
+          type,
+          payload: {
+            monsterInstanceId,
+            ...(activeMovesets !== undefined && activeMovesets.length > 0
+              ? { activeMovesets }
+              : {}),
+          },
+        };
+      }
       return { type, payload: { monsterInstanceId } };
     }
 
