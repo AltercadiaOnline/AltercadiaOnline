@@ -44,9 +44,21 @@ export function isMarketplaceListableItem(itemId: string): boolean {
   return resolveItemValorBase(itemId) !== null;
 }
 
-/** Item revendável ao NPC — apenas Common/Uncommon com valorBase. */
+/**
+ * Drop/material revendável ao NPC local — só Generic (escamas, ossos, etc.).
+ * Exclui set (equipável), poções, runas, livros e moeda.
+ */
+export function isNpcVendorDropMaterial(itemId: string): boolean {
+  const item = getItemMechanicalById(itemId);
+  if (!item) return false;
+  if (item.category !== ItemCategory.Generic) return false;
+  if (item.isTradable === false) return false;
+  return resolveItemValorBase(itemId) !== null;
+}
+
+/** Item revendável ao NPC — Generic Common/Uncommon com valorBase. */
 export function isNpcVendorSellableItem(itemId: string): boolean {
-  if (!isMarketplaceListableItem(itemId)) return false;
+  if (!isNpcVendorDropMaterial(itemId)) return false;
   return isNpcVendorSellableByRarity(itemId);
 }
 

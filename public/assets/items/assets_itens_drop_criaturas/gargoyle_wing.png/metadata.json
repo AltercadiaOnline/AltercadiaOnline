@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "2304727d-73ca-44b8-a0fd-3bb33ad6e36b",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a stone-grey leathery wing, rigid edges, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:25:40.477315"
+}

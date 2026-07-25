@@ -22,8 +22,6 @@ export type KeysPressed = {
   a: boolean;
   s: boolean;
   d: boolean;
-  diagNw: boolean;
-  diagNe: boolean;
   up: boolean;
   down: boolean;
   left: boolean;
@@ -67,8 +65,6 @@ function createEmptyKeysPressed(): KeysPressed {
     a: false,
     s: false,
     d: false,
-    diagNw: false,
-    diagNe: false,
     up: false,
     down: false,
     left: false,
@@ -331,14 +327,6 @@ export class PlayerController {
         this.keysPressed.d = pressed;
         this.syncMovementKeys();
         return;
-      case 'KeyQ':
-        this.keysPressed.diagNw = pressed;
-        this.syncMovementKeys();
-        return;
-      case 'KeyE':
-        this.keysPressed.diagNe = pressed;
-        this.syncMovementKeys();
-        return;
       case 'ArrowUp':
         this.keysPressed.up = pressed;
         this.syncMovementKeys();
@@ -416,13 +404,10 @@ export class PlayerController {
   }
 
   syncMovementKeys(): void {
-    this.keys.up = this.keysPressed.w || this.keysPressed.up || this.numpadAxis.up > 0
-      || this.keysPressed.diagNw || this.keysPressed.diagNe;
+    this.keys.up = this.keysPressed.w || this.keysPressed.up || this.numpadAxis.up > 0;
     this.keys.down = this.keysPressed.s || this.keysPressed.down || this.numpadAxis.down > 0;
-    this.keys.left = this.keysPressed.a || this.keysPressed.left || this.numpadAxis.left > 0
-      || this.keysPressed.diagNw;
-    this.keys.right = this.keysPressed.d || this.keysPressed.right || this.numpadAxis.right > 0
-      || this.keysPressed.diagNe;
+    this.keys.left = this.keysPressed.a || this.keysPressed.left || this.numpadAxis.left > 0;
+    this.keys.right = this.keysPressed.d || this.keysPressed.right || this.numpadAxis.right > 0;
     this.keys.control = this.keysPressed.control;
   }
 

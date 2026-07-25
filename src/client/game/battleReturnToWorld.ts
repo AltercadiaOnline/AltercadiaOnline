@@ -40,7 +40,8 @@ function buildFallbackEncounter(monsterId: string): BattleEncounterData {
     mapId: snap?.mapId ?? CITY_01_ID,
     tileX: 0,
     tileY: 0,
-    creatureId: 'rat',
+    // Encontro reconstruído sem registry — criatura desconhecida, não inventar.
+    creatureId: '',
   };
 }
 

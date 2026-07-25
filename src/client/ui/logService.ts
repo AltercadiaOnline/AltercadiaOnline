@@ -22,8 +22,8 @@ function showImportantToast(message: string, variant: 'default' | 'error' = 'def
     toast.className = 'log-service-toast';
     toast.setAttribute('role', 'status');
     toast.setAttribute('aria-live', 'assertive');
-    document.getElementById('game-stage')?.appendChild(toast)
-      ?? document.body.appendChild(toast);
+    // HUD React cobre o playfield — toast no body com z alto, não dentro de #game-stage.
+    document.body.appendChild(toast);
   }
 
   toast.textContent = message;

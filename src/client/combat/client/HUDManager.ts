@@ -580,16 +580,12 @@ export class HUDManager {
 
     const serverSkills = player?.skills ?? [];
 
-    const loadoutSkills = getBattleStore().getPlayerBattleSkills();
-    const filteredLoadout = loadoutSkills.filter((skill) =>
-      serverSkills.some((entry) => entry.id === skill.id),
-    );
+    // Cliente hostil: os 4 slots ativos vêm do combatant do servidor.
+    // Não cruzar com defaults locais — interseção parcial (ex.: 2/4) sumia moves salvos.
     const skills =
       serverSkills.length > 0
-        ? (filteredLoadout.length > 0
-            ? mergeLoadoutSkillsWithRuntime(filteredLoadout, serverSkills)
-            : [...serverSkills])
-        : mergeLoadoutSkillsWithRuntime(loadoutSkills, serverSkills);
+        ? [...serverSkills]
+        : mergeLoadoutSkillsWithRuntime(getBattleStore().getPlayerBattleSkills(), serverSkills);
 
     const enabled = ui.actionsEnabled && state.phase === 'CHOOSING';
 

@@ -71,7 +71,7 @@ function renderVitalRows(model: LevelProgressionSectionModel): string {
   const moveSpeedText = formatWorldExplorationMoveSpeedDisplay(moveSpeed);
 
   const rows = [
-    { id: 'hp', label: 'HP', value: `${vitals.hpCurrent} / ${vitals.hpMax}`, aria: 'Pontos de vida' },
+    { id: 'hp', label: 'HP', value: `${vitals.hpCurrent} / ${vitals.hpMax}`, aria: 'Pontos de vida — passe o mouse para ver bônus %' },
     { id: 'pp', label: 'PP', value: resolveLoadoutPpDisplayText(), aria: 'Pontos de poder (soma do loadout de 4 moves)' },
     {
       id: 'move-speed',

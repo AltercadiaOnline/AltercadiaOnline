@@ -84,6 +84,13 @@ export function initWorldPanelsBridge(): void {
         label: payload.label,
       });
     }),
+    uiEvents.on(UIEventType.SHOW_PVP_QUEUE, (payload) => {
+      openWorldWindow('pvpQueue', {
+        kind: 'pvpQueue',
+        objectId: payload.objectId,
+        label: payload.label,
+      });
+    }),
     uiEvents.on(UIEventType.SHOW_REFRACTION_BOOTH, (payload) => {
       openWorldWindow('refractionBooth', {
         kind: 'refractionBooth',

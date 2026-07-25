@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { GameShell } from './GameShell.js';
 import { GameHudSidebar } from './hud/GameHudSidebar.js';
-import { useGameStore } from '../store/gameStore.js';
+import { HudErrorBoundary } from './HudErrorBoundary.js';
+import { useHudViewMode, useIsInGame } from '../hooks/useAppUiSurface.js';
 
 const WorldSceneShell = lazy(async () => {
   const module = await import('./world/WorldSceneShell.js');
@@ -13,24 +14,46 @@ const BattleHUD = lazy(async () => {
   return { default: module.BattleHUD };
 });
 
-/** HUD in-game — alterna World / Battle via viewMode (Zustand). */
+/**
+ * HUD in-game — ownership limpo:
+ * - Visível quando `appScreenBridge.activeScreen === 'game-container'`
+ * - World vs Battle via `GameStateManager`
+ * - Sidebar fixa: sempre montada (mundo e batalha); playfield não a cobre.
+ */
 export function App() {
-  const viewMode = useGameStore((state) => state.viewMode);
-  const inGame = useGameStore((state) => state.inGame);
+  const inGame = useIsInGame();
+  const viewMode = useHudViewMode();
+
+  if (!inGame) {
+    return <GameShell>{null}</GameShell>;
+  }
 
   return (
     <GameShell>
-      {inGame ? <GameHudSidebar /> : null}
+      <HudErrorBoundary
+        fallback={
+          <aside className="game-hud-sidebar--persistent" data-ui-widget="game-sidebar" aria-label="HUD lateral">
+            <div className="p-3 text-[10px] text-white/50">HUD indisponível</div>
+          </aside>
+        }
+      >
+        <GameHudSidebar />
+      </HudErrorBoundary>
 
-      {inGame && viewMode === 'world' ? (
-        <Suspense fallback={null}>
-          <WorldSceneShell />
-        </Suspense>
+      {viewMode === 'world' ? (
+        <HudErrorBoundary>
+          <Suspense fallback={null}>
+            <WorldSceneShell />
+          </Suspense>
+        </HudErrorBoundary>
       ) : null}
-      {inGame && viewMode === 'battle' ? (
-        <Suspense fallback={null}>
-          <BattleHUD />
-        </Suspense>
+
+      {viewMode === 'battle' ? (
+        <HudErrorBoundary>
+          <Suspense fallback={null}>
+            <BattleHUD />
+          </Suspense>
+        </HudErrorBoundary>
       ) : null}
     </GameShell>
   );

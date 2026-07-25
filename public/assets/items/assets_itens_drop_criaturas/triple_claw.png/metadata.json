@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "9fac796a-d6f9-4dfb-a2b9-63146ac296bc",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a serrated curved green-tinted tooth, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:41:28.154888"
+}

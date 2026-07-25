@@ -78,6 +78,8 @@ export class EquipFromInventoryHandler extends BaseIntentHandler<EquipPayload> {
       this.sendResponse(playerId, intentId, false, resolveLoadoutIntentError(mirrored.message));
       return;
     }
+    const { syncWorldVitalsHpMaxFromLoadout } = await import('../../world/syncWorldVitalsHpMaxFromLoadout.js');
+    syncWorldVitalsHpMaxFromLoadout(playerId, this.characterId);
     this.sendResponse(playerId, intentId, true);
   }
 }
@@ -107,6 +109,8 @@ export class UnequipToInventoryHandler extends BaseIntentHandler<UnequipPayload>
       this.sendResponse(playerId, intentId, false, resolveLoadoutIntentError(mirrored.message));
       return;
     }
+    const { syncWorldVitalsHpMaxFromLoadout } = await import('../../world/syncWorldVitalsHpMaxFromLoadout.js');
+    syncWorldVitalsHpMaxFromLoadout(playerId, this.characterId);
     this.sendResponse(playerId, intentId, true);
   }
 }

@@ -1,6 +1,8 @@
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { resolvePlayerVisualBounds } from '../../shared/world/playerVisualContract.js';
+import { resolvePlayerMovementCircle } from '../../shared/world/playerCollision.js';
+import { getActiveWorldCollisionObstacles } from '../../shared/world/worldCollisionRegistry.js';
 import type { Portal } from '../../shared/world/portals.js';
 import {
   portalCenterTile,
@@ -28,6 +30,9 @@ const BLOCKED_FILL = 'rgba(255, 60, 60, 0.18)';
 const BLOCKED_STROKE = 'rgba(255, 60, 60, 0.55)';
 const WALKABLE_STROKE = 'rgba(80, 220, 120, 0.35)';
 const PLAYER_COLLISION_STROKE = '#44ff88';
+const PLAYER_FEET_CIRCLE_STROKE = '#66ccff';
+const OBSTACLE_STROKE = 'rgba(255, 120, 60, 0.75)';
+const OBSTACLE_FILL = 'rgba(255, 120, 60, 0.12)';
 const PLAYER_SAMPLE_FILL = '#ffcc00';
 const PORTAL_FILL = 'rgba(0, 232, 200, 0.35)';
 const PORTAL_STROKE = '#00e8c8';
@@ -107,6 +112,34 @@ export function drawCollisionDebugOverlay(
     ctx.strokeRect(origin.x + 0.5, origin.y + 0.5, tileSize - 1, tileSize - 1);
   }
 
+  for (const obstacle of getActiveWorldCollisionObstacles()) {
+    const { hitbox } = obstacle;
+    if (
+      hitbox.x + hitbox.width < cameraX - tileSize
+      || hitbox.x > cameraX + viewWidth + tileSize
+      || hitbox.y + hitbox.height < cameraY - tileSize
+      || hitbox.y > cameraY + viewHeight + tileSize
+    ) {
+      continue;
+    }
+    ctx.fillStyle = OBSTACLE_FILL;
+    ctx.strokeStyle = OBSTACLE_STROKE;
+    const poly = obstacle.polygon;
+    if (poly && poly.length >= 3) {
+      ctx.beginPath();
+      ctx.moveTo(poly[0]!.x, poly[0]!.y);
+      for (let i = 1; i < poly.length; i += 1) {
+        ctx.lineTo(poly[i]!.x, poly[i]!.y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height);
+      ctx.strokeRect(hitbox.x + 0.5, hitbox.y + 0.5, hitbox.width - 1, hitbox.height - 1);
+    }
+  }
+
   const sample = resolvePlayerWalkabilitySample({ x: playerX, y: playerY }, tileSize);
   ctx.fillStyle = PLAYER_SAMPLE_FILL;
   ctx.beginPath();
@@ -114,21 +147,30 @@ export function drawCollisionDebugOverlay(
   ctx.fill();
 
   const bounds = resolvePlayerVisualBounds({ x: playerX, y: playerY });
-  ctx.strokeStyle = PLAYER_COLLISION_STROKE;
+  const feetCircle = resolvePlayerMovementCircle({ x: playerX, y: playerY });
+  ctx.strokeStyle = PLAYER_FEET_CIRCLE_STROKE;
   ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(feetCircle.cx, feetCircle.cy, feetCircle.radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = PLAYER_COLLISION_STROKE;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 2]);
   ctx.strokeRect(
     bounds.x + 0.5,
     bounds.y + 0.5,
     bounds.width - 1,
     bounds.height - 1,
   );
+  ctx.setLineDash([]);
 
   ctx.font = '9px Consolas, monospace';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(
-    `collider ${DESIGN_CONFIG.PLAYER.WIDTH}×${DESIGN_CONFIG.PLAYER.HEIGHT} sample●`,
+    `feet● r${feetCircle.radius} visual ${DESIGN_CONFIG.PLAYER.WIDTH}×${DESIGN_CONFIG.PLAYER.HEIGHT}`,
     bounds.x,
     bounds.y - 10,
   );

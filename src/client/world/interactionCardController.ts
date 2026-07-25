@@ -33,6 +33,10 @@ export class InteractionCardController implements Disposable {
         const npc = this.npcManager.getNpcById(targetId);
         return npc ? this.npcManager.supportsShop(npc) : false;
       },
+      npcShopActionLabel: (targetId) => {
+        const npc = this.npcManager.getNpcById(targetId);
+        return npc ? this.npcManager.resolveShopActionLabel(npc) : 'Comprar';
+      },
       onAction: (target, payload) => this.handleAction(target, payload),
     });
   }

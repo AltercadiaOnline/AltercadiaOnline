@@ -1,0 +1,68 @@
+{
+	"name": "telao_pvp",
+	"plugin-id": "Sprite",
+	"sid": 400381848987975,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 655825960601008
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 144,
+						"height": 144,
+						"originX": 0.5,
+						"originY": 0.5,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 4344298,
+						"collisionPoly": {
+							"points": [
+								0.1527777777777778,
+								0.05555555555555555,
+								0.8541666666666666,
+								0.06944444444444445,
+								0.9375,
+								0.2152777777777778,
+								0.9583333333333334,
+								0.875,
+								0.8680555555555556,
+								0.9375,
+								0.7916666666666666,
+								0.9791666666666666,
+								0.20833333333333334,
+								0.9791666666666666,
+								0.041666666666666664,
+								0.875,
+								0.05555555555555555,
+								0.2222222222222222
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 902357333498881,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

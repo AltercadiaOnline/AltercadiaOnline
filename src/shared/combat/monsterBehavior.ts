@@ -108,7 +108,6 @@ const patrolBehavior: MonsterBehavior = {
 const CREATURE_BEHAVIORS: Record<string, MonsterBehavior> = {
   specter: specterBehavior,
   minotaur: minotaurBehavior,
-  wild_dog: patrolBehavior,
 };
 
 export function resolveMonsterBehavior(monster: MonsterCatalogEntry): MonsterBehavior {

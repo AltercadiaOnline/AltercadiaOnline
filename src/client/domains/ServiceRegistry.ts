@@ -7,9 +7,8 @@ import { isGameDomainActive } from './executionDomain.js';
 export type CreatureAssetLoaderModule = typeof import('../loaders/CreatureAssetLoader.js');
 export type BattleSpriteCatalogModule = typeof import('../ui/battle/battleSpriteCatalog.js');
 export type CombatClientModule = typeof import('../combat/index.js');
-export type MapLoaderModule = typeof import('../phaser/tiled/MapLoader.js');
-export type PhaserRuntimeModule = typeof import('../phaser/PhaserRuntime.js');
 export type GameSessionModule = typeof import('../browser/gameSession.js');
+export type WorldRenderModule = typeof import('../worldRender/index.js');
 
 const moduleCache = new Map<string, Promise<unknown>>();
 
@@ -44,14 +43,9 @@ export function loadCombatClient(): Promise<CombatClientModule> {
   return loadOnce('combat', () => import('../combat/index.js'));
 }
 
-export function loadMapLoader(): Promise<MapLoaderModule> {
-  assertGameDomain('MapLoader');
-  return loadOnce('mapLoader', () => import('../phaser/tiled/MapLoader.js'));
-}
-
-export function loadPhaserRuntime(): Promise<PhaserRuntimeModule> {
-  assertGameDomain('PhaserRuntime');
-  return loadOnce('phaserRuntime', () => import('../phaser/PhaserRuntime.js'));
+export function loadWorldRender(): Promise<WorldRenderModule> {
+  assertGameDomain('WorldRender');
+  return loadOnce('worldRender', () => import('../worldRender/index.js'));
 }
 
 export function loadGameSession(): Promise<GameSessionModule> {

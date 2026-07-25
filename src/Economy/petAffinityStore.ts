@@ -62,6 +62,15 @@ export function recordPetRationFeedAt(
   record.lastPetRationFeedAtMs = now;
 }
 
+export function recordPetAffectionAt(
+  playerId: string,
+  characterId: number,
+  now = Date.now(),
+): void {
+  const record = getPetAffinityRecord(playerId, characterId);
+  record.lastPetAffectionAtMs = now;
+}
+
 export function resetPetAffinityStore(): void {
   records.clear();
 }
@@ -89,4 +98,8 @@ export function hydratePetAffinityPersistence(
     lastPetRationFeedAtMs: slice.lastPetRationFeedAtMs,
     lastPetAffectionAtMs: slice.lastPetAffectionAtMs,
   });
+}
+
+export function clearPetAffinityForCharacter(playerId: string, characterId: number): void {
+  records.delete(profileKey(playerId, characterId));
 }

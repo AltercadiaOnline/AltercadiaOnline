@@ -1,14 +1,16 @@
 import type { MouseEvent } from 'react';
 import type { InventorySlotState } from '../../../../../shared/character/inventorySlots.js';
+import { resolveAvailableStackQuantity } from '../../../../../shared/bank/inventoryLockOps.js';
 import {
   isChargedInventoryStackItemId,
   resolveStackDurabilityCharges,
 } from '../../../../../shared/items/chargedEquipment.js';
 import {
-  resolveInventoryItemAbbrev,
   resolveInventoryItemKindClass,
   resolveInventoryItemLabel,
 } from '../../../../ui/inventory/inventoryItemDisplay.js';
+import { hideGameTooltip, showHintTooltip } from '../../../../ui/tooltip/showGameTooltip.js';
+import { ItemSlotIcon } from './ItemSlotIcon.js';
 
 type BankSlotCellProps = {
   readonly index: number;
@@ -46,9 +48,13 @@ export function BankSlotCell({
 
   const itemId = slot.itemId;
   const label = resolveInventoryItemLabel(itemId);
-  const abbrev = resolveInventoryItemAbbrev(itemId);
   const kindClass = resolveInventoryItemKindClass(itemId);
-  const locked = (slot.lockedQuantity ?? 0) > 0;
+  const available = resolveAvailableStackQuantity({
+    itemId,
+    quantity: slot.quantity,
+    ...(slot.lockedQuantity !== undefined ? { lockedQuantity: slot.lockedQuantity } : {}),
+  });
+  const fullyLocked = source === 'inventory' && available <= 0;
   const showCharges = isChargedInventoryStackItemId(itemId);
   const charges = slot.charges ?? resolveStackDurabilityCharges({ itemId, quantity: slot.quantity });
 
@@ -59,7 +65,7 @@ export function BankSlotCell({
         'slot-item slot-item--filled slot-item--bank-select',
         kindClass,
         selected ? 'slot-item--selected' : '',
-        locked ? 'slot-item--locked' : '',
+        fullyLocked ? 'slot-item--locked' : '',
       ].filter(Boolean).join(' ')}
       role="gridcell"
       data-inventory-slot={index}
@@ -70,17 +76,29 @@ export function BankSlotCell({
       data-hud-priority="5"
       aria-label={`${label}, quantidade ${slot.quantity}`}
       aria-pressed={selected}
-      aria-disabled={disabled || locked || undefined}
+      aria-disabled={disabled || fullyLocked || undefined}
       disabled={disabled}
-      title={locked ? 'Item bloqueado — transação bancária em andamento' : undefined}
       onClick={() => {
-        if (disabled || locked) return;
+        if (disabled || fullyLocked) return;
         onSelect(source, index);
       }}
-      onMouseEnter={(event) => onTooltipShow?.(event, itemId)}
-      onMouseLeave={() => onTooltipHide?.()}
+      onMouseEnter={(event) => {
+        if (fullyLocked) {
+          showHintTooltip(label, event.clientX, event.clientY, {
+            lines: ['Item bloqueado — transação bancária em andamento'],
+          });
+          return;
+        }
+        onTooltipShow?.(event, itemId);
+      }}
+      onMouseLeave={() => {
+        hideGameTooltip();
+        onTooltipHide?.();
+      }}
     >
-      <span className="slot-item__icon" aria-hidden="true">{abbrev}</span>
+      <span className="slot-item__icon" aria-hidden="true">
+        <ItemSlotIcon itemId={itemId} />
+      </span>
       {!showCharges && slot.quantity > 1 ? (
         <span className="slot-item__meta slot-item__meta--qty">{slot.quantity}</span>
       ) : null}

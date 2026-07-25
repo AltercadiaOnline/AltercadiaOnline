@@ -12,6 +12,16 @@ export type MonsterRegistryEntry = {
   readonly tileY: number;
   /** Criatura do catálogo de combate / drops. */
   readonly creatureId: string;
+  /** Opcional — pés em px (markers Construct); overlay prefere estes sobre o centro do tile. */
+  readonly worldX?: number;
+  readonly worldY?: number;
+  /** Spawn / âncora de leash (tiles). Ausente = tileX/tileY atuais. */
+  readonly homeTileX?: number;
+  readonly homeTileY?: number;
+  /** Facing visual (movimento). */
+  readonly facing?: 'south' | 'north' | 'east' | 'west';
+  /** Hitbox de interação em px — calibrável via creatureWanderConfig. */
+  readonly hitboxPx?: number;
 };
 
 /** Monstros estáticos de exploração (fora do spawn dinâmico da Zona 1). */

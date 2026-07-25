@@ -97,25 +97,44 @@ function pickReplaceIndexForEquip(slots: readonly LootRevealSlot[]): number {
   return bestIndex;
 }
 
-function slotsAlreadyContainEquip(
+function slotsAlreadyContainAnyEquip(
   slots: readonly LootRevealSlot[],
-  equipableItemId: string,
+  equipableItemIds: readonly string[],
 ): boolean {
-  return slots.some((slot) => slot.kind === 'ITEM' && slot.itemId === equipableItemId);
+  const set = new Set(equipableItemIds);
+  return slots.some((slot) => slot.kind === 'ITEM' && slot.itemId !== undefined && set.has(slot.itemId));
+}
+
+function pickEquipableFromPool(
+  equipableItemIds: readonly string[],
+  rng: () => number,
+): string | null {
+  if (equipableItemIds.length === 0) return null;
+  if (equipableItemIds.length === 1) return equipableItemIds[0] ?? null;
+  const index = Math.min(
+    equipableItemIds.length - 1,
+    Math.floor(rng() * equipableItemIds.length),
+  );
+  return equipableItemIds[index] ?? null;
 }
 
 /**
- * Um roll por batalha — substitui o slot de menor valor pelo equipável exclusivo.
+ * Um roll por batalha — substitui o slot de menor valor por um equipável do pool exclusivo.
  */
 export function applyEquipDropPass(
   slots: LootRevealSlot[],
   config: ResolvedCreatureLootConfig,
   rng: () => number,
 ): boolean {
-  const equipId = config.equipableItemId;
-  if (!equipId || config.equipDropChance <= 0) return false;
-  if (slotsAlreadyContainEquip(slots, equipId)) return false;
+  const pool = config.equipableItemIds.length > 0
+    ? config.equipableItemIds
+    : (config.equipableItemId ? [config.equipableItemId] : []);
+  if (pool.length === 0 || config.equipDropChance <= 0) return false;
+  if (slotsAlreadyContainAnyEquip(slots, pool)) return false;
   if (rng() >= config.equipDropChance) return false;
+
+  const equipId = pickEquipableFromPool(pool, rng);
+  if (!equipId) return false;
 
   const replaceIndex = pickReplaceIndexForEquip(slots);
   slots[replaceIndex] = {
@@ -128,10 +147,10 @@ export function applyEquipDropPass(
 
 export function listAllowedItemIds(config: ResolvedCreatureLootConfig): readonly string[] {
   const ids = config.genericItems.map((candidate) => candidate.itemId);
-  if (config.equipableItemId) {
-    return [...ids, config.equipableItemId];
-  }
-  return ids;
+  const pool = config.equipableItemIds.length > 0
+    ? config.equipableItemIds
+    : (config.equipableItemId ? [config.equipableItemId] : []);
+  return pool.length > 0 ? [...ids, ...pool] : ids;
 }
 
 export function assertLootUsesOnlyCreatureItems(

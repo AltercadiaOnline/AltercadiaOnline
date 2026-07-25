@@ -24,7 +24,7 @@ function validateRemoval(itemId: string): InventoryServiceResult {
   return { ok: true };
 }
 
-/** Bloqueia descarte/destruição de itens soulbound (ex.: diario_memorias). */
+/** Bloqueia descarte/destruição de itens soulbound (únicos + indestrutíveis). */
 export function validateDeleteItem(itemId: string): InventoryServiceResult {
   return validateRemoval(itemId);
 }

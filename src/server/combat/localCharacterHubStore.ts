@@ -4,7 +4,7 @@ import { getDefaultClassActiveLoadout } from '../../shared/combat/movesetLoadout
 import { emptyMarcosNodeProgression } from '../../shared/progression/marcoProgression.js';
 import {
   getCharacterProfile,
-  seedDemoProfileIfEmpty,
+  ensureAuthoritativePlayerEconomyEmpty,
 } from '../../Economy/economyStore.js';
 import { resolveEffectiveEquippedForCombat } from '../../shared/economy/chargedEquipmentBattle.js';
 
@@ -14,7 +14,7 @@ export function getOrCreateDemoLoadout(
   characterId = 1,
   classId: CombatClassId = 'IMPETUS',
 ): PlayerCombatLoadout {
-  seedDemoProfileIfEmpty(playerId, characterId);
+  ensureAuthoritativePlayerEconomyEmpty(playerId, characterId);
   const profile = getCharacterProfile(playerId, characterId);
   const effectiveEquipped = resolveEffectiveEquippedForCombat(profile.equipped, profile.inventory);
 

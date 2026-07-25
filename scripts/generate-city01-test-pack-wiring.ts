@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CITY_01_MAP_TILES, CITY_01_STRUCTURE_DEFS, isCity01RoadNetworkTile } from '../src/shared/world/maps/city01LayoutConstants.js';
 import { CITY_01_PLAZA_MAX, CITY_01_PLAZA_MIN } from '../src/shared/world/maps/city01LayoutConstants.js';
-import { CITY_01_URBAN_PROP_DEFS } from '../src/shared/world/maps/city01UrbanProps.js';
+/** Props urbanos canvas desligados — décor = Construct. */
+const CITY_01_URBAN_PROP_DEFS: readonly { tileX: number; tileY: number; tileW: number; tileH: number }[] = [];
 import { GENERATED_TEST_ASSETS, type GeneratedTestAsset } from '../src/game/generated/testAssetsRegistry.js';
 import { URBAN_PROP_SPECS } from '../src/assets/urban/urbanAssetManifest.js';
 import { STRUCTURE_ASSET_SPECS } from '../src/assets/structures/structureAssetManifest.js';

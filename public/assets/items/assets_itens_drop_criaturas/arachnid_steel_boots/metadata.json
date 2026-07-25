@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "26644892-9d2d-4e13-86f6-c7a591c8c44a",
+      "name": null,
+      "prompt": "\"Pixel art 16-bit, top-down isometric inventory icon of heavy combat boots named 'Arachnid Steel Boots'. The boots are crafted from dark, brushed industrial steel, segmented to resemble the exoskeleton of a spider. The toe cap is shaped like a menacing spider mandible. Along the sides and sole, thin, glowing neon-purple optic fibers trace patterns that look like spider silk webbing. Small hydraulic pistons and gears are visible at the ankle joint. The texture is gritty and brutalist. High contrast, clean pixel edges, isolated on a dark background.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-16T06:24:59.080919"
+}

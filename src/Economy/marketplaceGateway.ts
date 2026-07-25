@@ -403,7 +403,7 @@ export async function executeMarketPurchaseAuthoritative(
     return { ok: false, message: 'Não é possível comprar sua própria oferta.' };
   }
 
-  const buyerWallet = getPlayerWallet(buyerPlayerId);
+  const buyerWallet = getPlayerWallet(buyerPlayerId, buyerCharacterId);
   if (buyerWallet.dollarVolt < globalListing.totalPriceVolts) {
     return { ok: false, message: 'VOLTS insuficientes para esta compra.' };
   }

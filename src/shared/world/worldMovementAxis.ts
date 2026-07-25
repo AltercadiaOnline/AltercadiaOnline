@@ -15,17 +15,16 @@ export type CardinalInput = {
   readonly right: boolean;
 };
 
-const DIAGONAL_SPEED_NORMALIZER = 1 / Math.SQRT2;
-
+/** Política social: só N/S/L/O — sem diagonal. */
 function normalizeMoveVector(rawDx: number, rawDy: number): MoveVector {
   if (rawDx === 0 && rawDy === 0) {
     return { dx: 0, dy: 0 };
   }
   if (rawDx !== 0 && rawDy !== 0) {
-    return {
-      dx: rawDx * DIAGONAL_SPEED_NORMALIZER,
-      dy: rawDy * DIAGONAL_SPEED_NORMALIZER,
-    };
+    if (Math.abs(rawDy) >= Math.abs(rawDx)) {
+      return { dx: 0, dy: rawDy > 0 ? 1 : -1 };
+    }
+    return { dx: rawDx > 0 ? 1 : -1, dy: 0 };
   }
   return { dx: rawDx === 0 ? 0 : rawDx, dy: rawDy === 0 ? 0 : rawDy };
 }
@@ -76,6 +75,14 @@ function readCardinalScalars(input: CardinalInput): { forward: number; right: nu
   if (input.down) forward -= 1;
   if (input.left) right -= 1;
   if (input.right) right += 1;
+  // Duas teclas juntas → um eixo só (empate prioriza norte/sul).
+  if (forward !== 0 && right !== 0) {
+    if (Math.abs(forward) >= Math.abs(right)) {
+      right = 0;
+    } else {
+      forward = 0;
+    }
+  }
   return { forward, right };
 }
 

@@ -31,5 +31,9 @@ public/assets/**/._*
 .env.local
 .env.*.local
 
+# Construct 3 — exports locais do editor
+construct/**/Exports/
+construct/**/Backups/
+
 # Fonte oficial de credenciais Supabase/Postgres — JAMAIS commitar
 .env

@@ -51,7 +51,6 @@ export { ItemCategory } from './itemSchema.js';
 export { projectToNormalizedItem } from './itemSchemaProjection.js';
 export { resolveItemWeight, stackWeight } from './itemWeight.js';
 export { POTION_COMBAT_COOLDOWN } from './itemCatalogEntries.js';
-export { DIARIO_MEMORIAS_ITEM_ID } from './soulboundItems.js';
 export { getAuthoritativeItemById, getCatalogItem } from './itemCatalogAuthoritative.js';
 
 export const ZONE_DEFINITIONS: readonly ZoneDefinition[] = [

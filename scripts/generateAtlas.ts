@@ -1,5 +1,5 @@
 /**
- * Gera atlases Phaser (JSON + PNG) em public/assets/processed/.
+ * Gera atlases (JSON + PNG) em public/assets/processed/.
  *
  * Build offline — sharp só lê arquivos do repo; nenhuma entrada de jogador/rede.
  *

@@ -1,40 +1,25 @@
 import { getActiveMapTileSize } from './activeMapTileSize.js';
-import { FARM_ZONE_01_ID, FARM_ZONE_01_SOUTH_EXIT_ZONE } from './maps/farm_zone_01.js';
-import {
-  FARM_ZONE_01_ALLEY_MAX,
-  FARM_ZONE_01_ALLEY_MIN,
-} from './maps/farmZone01LayoutConstants.js';
+import { FARM_ZONE_01_ID } from './maps/farm_zone_01.js';
 import { canPlayerWalkAt, type WorldPosition } from './movement.js';
 import { tileCenterToWorldPixel, worldPixelToTile } from './portals.js';
 
-/** Tolerância ampliada em corredores estreitos (ex.: Beco dos Fundos). */
+/** Tolerância ampliada em mapas Construct alongados (ex.: Beco dos Fundos). */
 export const NARROW_CORRIDOR_SNAP_TOLERANCE_RATIO = 0.85;
 
 /** Limite de drift enquanto em movimento antes de correção forçada. */
 export const NARROW_CORRIDOR_MOVING_RECONCILE_RATIO = 1.5;
 
-function southExitZoneContains(tileX: number, tileY: number): boolean {
-  const zone = FARM_ZONE_01_SOUTH_EXIT_ZONE;
-  return (
-    tileX >= zone.tileX
-    && tileX < zone.tileX + zone.tileW
-    && tileY >= zone.tileY
-    && tileY < zone.tileY + zone.tileH
-  );
-}
-
 export function isNarrowCorridorMap(mapId: string | undefined): boolean {
   return mapId === FARM_ZONE_01_ID;
 }
 
+/** @deprecated Corredor Tiled removido — Construct governa o espaço; sempre false. */
 export function isNarrowCorridorTile(
-  mapId: string | undefined,
-  tileX: number,
-  tileY: number,
+  _mapId: string | undefined,
+  _tileX: number,
+  _tileY: number,
 ): boolean {
-  if (!isNarrowCorridorMap(mapId)) return false;
-  if (southExitZoneContains(tileX, tileY)) return true;
-  return tileX >= FARM_ZONE_01_ALLEY_MIN && tileX <= FARM_ZONE_01_ALLEY_MAX;
+  return false;
 }
 
 export function resolvePositionReconcileThresholds(mapId: string | undefined): {
@@ -50,13 +35,14 @@ export function resolvePositionReconcileThresholds(mapId: string | undefined): {
   }
   return {
     idleSnapPx: tileSize * 0.55,
-    movingReconcilePx: tileSize * 1.25,
+    // ~3 tiles: cobre lag de 1 intent/tick (50ms) sem forçar snap visual.
+    movingReconcilePx: tileSize * 3,
   };
 }
 
 /**
  * Snap-to-ground tolerante — alinha posição remota ao centro walkable mais próximo
- * quando o cliente/server divergem levemente em zonas estreitas.
+ * quando o cliente/server divergem levemente.
  */
 export function snapToWalkableGround(
   position: WorldPosition,
@@ -131,6 +117,10 @@ export function reconcileAuthoritativePosition(
   if (input.isMoving) {
     if (dist <= movingReconcilePx) {
       return { apply: false, force: false, position: remote };
+    }
+    // Mesmo tile: alinha sem reset brusco de velocidade (evita teleporte ao roçar props).
+    if (sameTile && dist <= tileSize * 1.05) {
+      return { apply: true, force: false, position: remote };
     }
     return { apply: true, force: true, position: remote };
   }

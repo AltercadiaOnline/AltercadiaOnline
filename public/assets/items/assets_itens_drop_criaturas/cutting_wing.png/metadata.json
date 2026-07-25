@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "7c28ed87-7eea-4f01-8db6-b2fc00de3320",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a glowing golden feather, translucent, ethereal, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:42:31.027635"
+}

@@ -1,18 +1,16 @@
 import { WorldCommsStack } from './hud/WorldCommsStack.js';
+import { WorldHubSocialCluster } from './hud/WorldHubSocialCluster.js';
 
 /**
- * Widgets dentro do frame 640×360 — chat/log no canto inferior direito.
- * Minimapa, carteira e SET ficam na coluna fixa `GameHudSidebar`.
+ * Widgets sobre o mapa (frame alinhado ao Construct, sem scale de câmera):
+ * - Hub + hora — canto superior direito
+ * - Chat/log — canto inferior esquerdo
  */
 export function WorldHUD() {
   return (
-    <div
-      className="pointer-events-none absolute inset-0 flex items-center justify-center"
-      data-ui-surface="world-hud"
-    >
-      <div className="world-hud-frame pointer-events-none">
-        <WorldCommsStack />
-      </div>
-    </div>
+    <>
+      <WorldHubSocialCluster />
+      <WorldCommsStack />
+    </>
   );
 }

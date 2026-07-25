@@ -94,37 +94,36 @@ export class GameStateManager {
   }
 
   /**
-   * EXPLORATION → TRANSITIONING (desmonta WorldMap) → delay → BATTLE.
+   * Prepara join de combate sem entrar em BATTLE.
+   * Fail-closed: a cena de batalha só sobe em `enterBattleFromServer` (START_COMBAT).
+   */
+  prepareCombatJoin(
+    encounter: BattleEncounterData,
+    hooks: GameStateTransitionHooks,
+  ): boolean {
+    if (this.transitionLock || this.state === GameStateValue.Battle) {
+      return false;
+    }
+
+    const snapshot = hooks.captureExplorationSnapshot();
+    hooks.persistence.saveExplorationSnapshot(snapshot);
+    hooks.persistence.setActiveEncounter(encounter);
+    hooks.requestCombatJoin(encounter);
+    return true;
+  }
+
+  /**
+   * @deprecated Prefer `prepareCombatJoin` + `enterBattleFromServer` (START_COMBAT).
+   * Mantém o nome para callers legados — não monta a tela de batalha.
    */
   async startBattle(
     encounter: BattleEncounterData,
     hooks: GameStateTransitionHooks,
   ): Promise<boolean> {
-    if (this.transitionLock || this.state === GameStateValue.Battle) {
-      return false;
-    }
-
-    this.transitionLock = true;
-    try {
-      await this.enterTransition(hooks, async () => {
-        const snapshot = hooks.captureExplorationSnapshot();
-        hooks.persistence.saveExplorationSnapshot(snapshot);
-        hooks.persistence.setActiveEncounter(encounter);
-        hooks.onPauseExploration();
-
-        await this.waitTransitionDelay(hooks);
-
-        await hooks.onEnterBattle();
-        hooks.requestCombatJoin(encounter);
-        this.commitState(GameStateValue.Battle);
-      });
-      return true;
-    } finally {
-      this.transitionLock = false;
-    }
+    return this.prepareCombatJoin(encounter, hooks);
   }
 
-  /** @deprecated Use startBattle */
+  /** @deprecated Use startBattle / prepareCombatJoin */
   async triggerBattle(
     encounter: BattleEncounterData,
     hooks: GameStateTransitionHooks,
@@ -169,7 +168,14 @@ export class GameStateManager {
     }
   }
 
-  async enterBattleFromServer(hooks: GameStateTransitionHooks): Promise<void> {
+  /**
+   * START_COMBAT autoritativo → TRANSITIONING → BATTLE.
+   * Opcionalmente grava/atualiza `activeEncounter` (monsterInstanceId do servidor).
+   */
+  async enterBattleFromServer(
+    hooks: GameStateTransitionHooks,
+    encounter?: BattleEncounterData | null,
+  ): Promise<void> {
     if (this.state === GameStateValue.Battle || this.transitionLock) return;
 
     this.transitionLock = true;
@@ -177,10 +183,47 @@ export class GameStateManager {
       await this.enterTransition(hooks, async () => {
         const snapshot = hooks.captureExplorationSnapshot();
         hooks.persistence.saveExplorationSnapshot(snapshot);
+        if (encounter) {
+          hooks.persistence.setActiveEncounter(encounter);
+        }
         hooks.onPauseExploration();
         await this.waitTransitionDelay(hooks);
         await hooks.onEnterBattle();
         this.commitState(GameStateValue.Battle);
+      });
+    } finally {
+      this.transitionLock = false;
+    }
+  }
+
+  /**
+   * Join falhou / combat-error — limpa encontro e volta à exploração se a UI já tiver saído do mapa.
+   */
+  async abortCombatJoin(hooks: GameStateTransitionHooks): Promise<void> {
+    hooks.persistence.clearActiveEncounter();
+
+    if (this.state === GameStateValue.Exploration && !this.transitionLock) {
+      return;
+    }
+
+    const lockAcquired = await this.waitForTransitionLock(2400);
+    if (!lockAcquired) {
+      await this.forceAbortToExploration(hooks);
+      return;
+    }
+
+    this.transitionLock = true;
+    try {
+      await this.enterTransition(hooks, async () => {
+        hooks.onClearBattleSession();
+        hooks.persistence.clearActiveEncounter();
+        await this.waitTransitionDelay(hooks);
+        hooks.onEnterExploration();
+        const snapshot = hooks.persistence.getExplorationSnapshot();
+        if (snapshot) {
+          hooks.onResumeExploration(snapshot);
+        }
+        this.commitState(GameStateValue.Exploration);
       });
     } finally {
       this.transitionLock = false;
@@ -238,6 +281,17 @@ export class GameStateManager {
     this.commitState(GameStateValue.Exploration);
   }
 
+  private async forceAbortToExploration(hooks: GameStateTransitionHooks): Promise<void> {
+    hooks.onClearBattleSession();
+    hooks.persistence.clearActiveEncounter();
+    hooks.onEnterExploration();
+    const snapshot = hooks.persistence.getExplorationSnapshot();
+    if (snapshot) {
+      hooks.onResumeExploration(snapshot);
+    }
+    this.commitState(GameStateValue.Exploration);
+  }
+
   private commitState(next: GameState): void {
     if (this.state === next) return;
     this.state = next;
@@ -247,16 +301,22 @@ export class GameStateManager {
   }
 }
 
-let singleton: GameStateManager | null = null;
+type GlobalWithGameStateManager = typeof globalThis & {
+  __ALTERCADIA_GAME_STATE_MANAGER__?: GameStateManager;
+};
 
 export function getGameStateManager(): GameStateManager {
-  if (!singleton) singleton = new GameStateManager();
-  return singleton;
+  const g = globalThis as GlobalWithGameStateManager;
+  if (!g.__ALTERCADIA_GAME_STATE_MANAGER__) {
+    g.__ALTERCADIA_GAME_STATE_MANAGER__ = new GameStateManager();
+  }
+  return g.__ALTERCADIA_GAME_STATE_MANAGER__;
 }
 
 export function resetGameStateManager(): void {
-  singleton?.reset();
-  singleton = null;
+  const g = globalThis as GlobalWithGameStateManager;
+  g.__ALTERCADIA_GAME_STATE_MANAGER__?.reset();
+  delete g.__ALTERCADIA_GAME_STATE_MANAGER__;
 }
 
 export { GAME_STATE_TRANSITION_MS };

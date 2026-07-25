@@ -9,7 +9,7 @@ import { WORLD_PERSIST_INTERVAL_MS } from '../../shared/world/worldGameLoopConfi
 import type { ServerEnv } from '../config/env.js';
 import { isSupabaseAdminConfigured } from './supabaseAdmin.js';
 import { getSupabaseAdminClient } from './supabaseAdmin.js';
-import { upsertPlayerCurrency, upsertPlayerInventory } from './playerGameDataRepository.js';
+import { upsertPlayerCurrency, upsertPlayerInventory, upsertPlayerPets } from './playerGameDataRepository.js';
 import type {
   CharacterPersistenceScope,
   CriticalCharacterData,
@@ -76,11 +76,25 @@ export class PersistenceManager {
 
     const key = scopeKey(scope);
     const existing = this.pendingPositions.get(key);
+    const nextMap = options?.currentMapId ?? existing?.currentMapId ?? 'city_01';
+    const nextFacing = options?.facing ?? existing?.facing ?? 'south';
+
+    // Skip enqueue se posição idêntica à pendente (movimento sem mudança efetiva).
+    if (
+      existing
+      && existing.x === x
+      && existing.y === y
+      && existing.currentMapId === nextMap
+      && existing.facing === nextFacing
+    ) {
+      return;
+    }
+
     this.pendingPositions.set(key, {
-      currentMapId: options?.currentMapId ?? existing?.currentMapId ?? 'city_01',
+      currentMapId: nextMap,
       x,
       y,
-      facing: options?.facing ?? existing?.facing ?? 'south',
+      facing: nextFacing,
       updatedAt: Date.now(),
     });
   }
@@ -102,6 +116,7 @@ export class PersistenceManager {
         const currencyResult = await upsertPlayerCurrency(
           client,
           scope.userId,
+          scope.characterId,
           serverId,
           data.currency.dollarVolt,
           data.currency.alterCoins,
@@ -122,6 +137,20 @@ export class PersistenceManager {
         );
         if (!inventoryResult.ok) {
           throw new Error(inventoryResult.message ?? 'Falha ao persistir inventário.');
+        }
+      }
+
+      if (data.pets) {
+        const petsResult = await upsertPlayerPets(
+          client,
+          scope.userId,
+          scope.characterId,
+          serverId,
+          data.pets.roster,
+          data.pets.affinity,
+        );
+        if (!petsResult.ok) {
+          throw new Error(petsResult.message ?? 'Falha ao persistir pets.');
         }
       }
 

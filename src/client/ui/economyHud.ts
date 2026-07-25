@@ -11,6 +11,7 @@ import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import { scheduleInventoryUpdatedPayload } from '../game/PlayerItemSession.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
+import { getGameStore } from '../state/GameStore.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
@@ -18,7 +19,6 @@ import { getPlayerSkinStore } from '../ui/character/playerSkinStore.js';
 import { getPlayerMarketStore } from '../ui/market/playerMarketStore.js';
 import { getMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
-
 export function formatDollarVolt(amount: number): string {
   return formatVolts(amount);
 }
@@ -57,7 +57,15 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
       event.payload.revision,
     );
     if (event.payload.intentId) {
-      dispatcher.confirmIntent(event.payload.intentId);
+      // Cura / ração: WalletUpdated chega antes de WorldVitals / PetAffinity —
+      // não confirme cedo ou a UI resolve com vitals/cargas ainda desatualizados.
+      const pending = getPendingIntentRegistry().get(event.payload.intentId);
+      const deferConfirm = pending
+        && (pending.action.type === 'HEAL_AT_NPC'
+          || pending.action.type === 'CAEL_BUY_PET_RATION');
+      if (!deferConfirm) {
+        dispatcher.confirmIntent(event.payload.intentId);
+      }
     }
     return;
   }
@@ -89,6 +97,7 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
 
   if (event.type === EconomyEventType.InventoryUpdated) {
     scheduleInventoryUpdatedPayload(event.payload);
+    getGameStore().syncPlayerFromDomain();
     if (event.payload.intentId) {
       dispatcher.confirmIntent(event.payload.intentId);
     }
@@ -136,7 +145,9 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
     if (event.payload.intentId) {
       dispatcher.confirmIntent(event.payload.intentId);
     }
-    alertSystem(event.payload.message);
+    if (event.payload.message.trim()) {
+      alertSystem(event.payload.message);
+    }
     return;
   }
 

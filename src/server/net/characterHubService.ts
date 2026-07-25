@@ -11,7 +11,6 @@ import type { ProfileRow } from '../../shared/supabase/gameDatabaseTypes.js';
 import type { ClassType } from '../../shared/types/classes.js';
 import {
   ensureMovesetMasteryForClass,
-  inferClassIdFromMovesetMastery,
 } from '../../shared/progression/movesetMasterySeed.js';
 import { createDefaultPlayerProgressionData } from '../../shared/progression/playerProgressionData.js';
 import { emptyMarcosNodeProgression } from '../../shared/progression/marcoProgression.js';
@@ -19,29 +18,37 @@ import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
 import { getSupabaseAdminClient } from '../supabase/supabaseAdmin.js';
 import { ensureServerPlayerBootstrap } from '../supabase/bootstrapPlayerOnServer.js';
 import {
+  allocateNextCharacterId,
   insertProfileForCharacter,
   listProfilesForUserOnServer,
-  profileExistsOnOtherServer,
-  profileExistsOnServer,
+  slotOccupiedOnServer,
+  deleteCharacterOnServer,
   resolveAccountEmail,
 } from '../supabase/characterHubRepository.js';
+import { upsertPlayerCurrency, upsertPlayerInventory } from '../supabase/playerGameDataRepository.js';
 import { hydrateCharacterSession, persistCharacterSession } from '../persistence/PersistenceGateway.js';
 import {
   getAuthoritativeProgression,
   loadAuthoritativeProgression,
   patchAuthoritativeProgression,
 } from '../progression/authoritativeProgressionStore.js';
+import { reconcileAuthoritativeCharacterClassLink } from '../progression/reconcileCharacterClassLink.js';
 import type { ServerEnv } from '../config/env.js';
+import {
+  purgeCharacterRuntimeState,
+  resetNewCharacterEconomy,
+} from './purgeCharacterRuntimeState.js';
 
-function slotIndexForCharacterId(characterId: number): number | null {
-  const slotIndex = characterId - 1;
-  if (slotIndex < 0 || slotIndex >= CHARACTER_SLOT_COUNT) return null;
-  return slotIndex;
-}
-
-function resolveCharacterClass(playerId: string, characterId: number): ClassType {
-  const progression = getAuthoritativeProgression(playerId, characterId);
-  return inferClassIdFromMovesetMastery(progression.progression.movesetMastery) ?? 'IMPETUS';
+function resolveSlotIndex(profile: ProfileRow): number | null {
+  const fromColumn = profile.slot_index;
+  if (typeof fromColumn === 'number' && Number.isInteger(fromColumn)
+    && fromColumn >= 0 && fromColumn < CHARACTER_SLOT_COUNT) {
+    return fromColumn;
+  }
+  // Compat transitória pré-migration 012 (character_id 1..5).
+  const legacy = profile.character_id - 1;
+  if (legacy >= 0 && legacy < CHARACTER_SLOT_COUNT) return legacy;
+  return null;
 }
 
 function mapProfileToCharacter(
@@ -49,6 +56,7 @@ function mapProfileToCharacter(
   profile: ProfileRow,
   slotIndex: number,
 ): AccountCharacter {
+  const classId = reconcileAuthoritativeCharacterClassLink(playerId, profile.character_id);
   const progression = getAuthoritativeProgression(playerId, profile.character_id);
   const displayName = profile.display_name?.trim()
     || progression.characterProfile.displayName?.trim()
@@ -57,8 +65,8 @@ function mapProfileToCharacter(
   return {
     id: profile.character_id,
     name: displayName,
-    class: resolveCharacterClass(playerId, profile.character_id),
-    level: progression.characterProfile.level ?? 1,
+    class: classId,
+    level: progression.characterProfile.level ?? profile.level ?? 1,
     slotIndex,
     serverId: profile.server_id,
     skin: createDefaultPlayerSkin(),
@@ -86,7 +94,7 @@ export async function buildAuthoritativeCharacterHub(
   );
 
   for (const profile of profiles) {
-    const slotIndex = slotIndexForCharacterId(profile.character_id);
+    const slotIndex = resolveSlotIndex(profile);
     if (slotIndex === null) continue;
 
     await hydrateCharacterSession(playerId, profile.character_id);
@@ -119,6 +127,7 @@ function seedClassProgression(
       level: 1,
       xpCurrent: 0,
       displayName,
+      classId,
     },
   });
 }
@@ -138,19 +147,13 @@ export async function createAuthoritativeCharacterInSlot(
     return { ok: false, message: validation.message };
   }
 
-  const characterId = validation.slotIndex + 1;
   const client = await getSupabaseAdminClient(env);
   const instance = getServerInstanceContext();
+  const slotIndex = validation.slotIndex;
 
-  if (await profileExistsOnServer(client, playerId, characterId, instance.id)) {
+  // Slot é por shard — não bloquear por character_id noutro servidor.
+  if (await slotOccupiedOnServer(client, playerId, slotIndex, instance.id)) {
     return { ok: false, message: 'Este slot já possui um personagem.' };
-  }
-
-  if (await profileExistsOnOtherServer(client, playerId, characterId, instance.id)) {
-    return {
-      ok: false,
-      message: 'Este slot já está vinculado a outro servidor. Criação bloqueada.',
-    };
   }
 
   const hub = await buildAuthoritativeCharacterHub(playerId, env);
@@ -161,15 +164,50 @@ export async function createAuthoritativeCharacterInSlot(
     return { ok: false, message: 'Já existe um personagem com este nome nesta conta.' };
   }
 
+  const characterId = await allocateNextCharacterId(client, playerId, instance.id);
   const email = await resolveAccountEmail(client, playerId, instance.id);
   await insertProfileForCharacter(
     client,
     playerId,
     characterId,
+    slotIndex,
     validation.name,
     email,
     instance.id,
   );
+
+  // Trigger bootstrap: força inventário + carteira vazios no Supabase (por personagem).
+  const emptyInventory = await upsertPlayerInventory(
+    client,
+    playerId,
+    characterId,
+    instance.id,
+    [],
+    {},
+  );
+  if (!emptyInventory.ok) {
+    return {
+      ok: false,
+      message: emptyInventory.message ?? 'Falha ao inicializar inventário do personagem.',
+    };
+  }
+
+  const emptyWallet = await upsertPlayerCurrency(
+    client,
+    playerId,
+    characterId,
+    instance.id,
+    0,
+    0,
+  );
+  if (!emptyWallet.ok) {
+    return {
+      ok: false,
+      message: emptyWallet.message ?? 'Falha ao inicializar carteira do personagem.',
+    };
+  }
+
+  resetNewCharacterEconomy(playerId, characterId);
 
   const bootstrap = await ensureServerPlayerBootstrap(playerId, characterId);
   if (!bootstrap.profileReady) {
@@ -181,12 +219,45 @@ export async function createAuthoritativeCharacterInSlot(
     characterProfile: {
       displayName: validation.name,
       skinBundleId: validation.skinBundleId,
+      classId: validation.class,
     },
   });
 
-  await persistCharacterSession(playerId, characterId).catch((error) => {
+  await persistCharacterSession(playerId, characterId, {
+    force: true,
+    reason: 'login',
+  }).catch((error) => {
     console.warn('[characterHub] persist after create failed:', error);
   });
+
+  const updatedHub = await buildAuthoritativeCharacterHub(playerId, env);
+  return { ok: true, hub: updatedHub };
+}
+
+export async function deleteAuthoritativeCharacter(
+  playerId: string,
+  env: ServerEnv,
+  characterId: number,
+): Promise<{ readonly ok: true; readonly hub: AccountCharacterHub } | { readonly ok: false; readonly message: string }> {
+  if (!Number.isInteger(characterId) || characterId < 1) {
+    return { ok: false, message: 'Personagem inválido.' };
+  }
+
+  const client = await getSupabaseAdminClient(env);
+  const instance = getServerInstanceContext();
+
+  const deleted = await deleteCharacterOnServer(
+    client,
+    playerId,
+    characterId,
+    instance.id,
+  );
+
+  if (!deleted) {
+    return { ok: false, message: 'Personagem não encontrado neste servidor.' };
+  }
+
+  purgeCharacterRuntimeState(playerId, characterId);
 
   const updatedHub = await buildAuthoritativeCharacterHub(playerId, env);
   return { ok: true, hub: updatedHub };

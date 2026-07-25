@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/marketplace-catalog-sync.mjs",
+        "matcher": "itemCatalogEntries|lootItemEconomyRegistry|marketplaceCatalogDefaults|itemCatalog\\.ts"
+      }
+    ]
+  }
+}

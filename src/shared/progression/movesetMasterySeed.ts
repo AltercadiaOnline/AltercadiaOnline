@@ -35,6 +35,10 @@ export function ensureMovesetMasteryForClass(
   return ensureMovesetMasteryForPool(mastery, getClassMovePool(classId));
 }
 
+export function isClassType(value: unknown): value is ClassType {
+  return typeof value === 'string' && (CLASS_IDS as readonly string[]).includes(value);
+}
+
 /** Infere a classe a partir dos moveIds presentes no domínio persistido. */
 export function inferClassIdFromMovesetMastery(
   mastery: Readonly<Record<string, number>>,
@@ -58,12 +62,50 @@ export function inferClassIdFromMovesetMastery(
   return bestScore > 0 ? best : null;
 }
 
-/** Pool de moves para snapshot/HUD — classe inferida ou chaves já persistidas. */
+/**
+ * Classe autoritativa do personagem.
+ * Ordem: perfil persistido → inferência do domínio → IMPETUS (legado vazio).
+ */
+export function resolveAuthoritativeClassId(
+  storedClassId: ClassType | string | null | undefined,
+  mastery: Readonly<Record<string, number>>,
+): ClassType {
+  if (isClassType(storedClassId)) return storedClassId;
+  return inferClassIdFromMovesetMastery(mastery) ?? 'IMPETUS';
+}
+
+export type ReconciledClassProgression = {
+  readonly classId: ClassType;
+  readonly movesetMastery: Record<string, number>;
+  /** True quando o perfil ainda não tinha `classId` gravado. */
+  readonly classIdWasMissing: boolean;
+  /** True quando o domínio recebeu seeds novos do pool da classe. */
+  readonly masteryWasPatched: boolean;
+};
+
+/**
+ * Garante o elo player → classe → moveset:
+ * resolve a classe, preenche domínio vazio do pool e reporta se precisa persistir.
+ */
+export function reconcileClassAndMovesetMastery(
+  storedClassId: ClassType | string | null | undefined,
+  mastery: Readonly<Record<string, number>>,
+): ReconciledClassProgression {
+  const classIdWasMissing = !isClassType(storedClassId);
+  const classId = resolveAuthoritativeClassId(storedClassId, mastery);
+  const movesetMastery = ensureMovesetMasteryForClass(mastery, classId);
+  const masteryWasPatched =
+    Object.keys(movesetMastery).length !== Object.keys(mastery).length
+    || Object.keys(movesetMastery).some((id) => mastery[id] === undefined);
+
+  return { classId, movesetMastery, classIdWasMissing, masteryWasPatched };
+}
+
+/** Pool de moves para snapshot/HUD — classe persistida/inferida ou chaves já gravadas. */
 export function resolveClassMovePoolForMastery(
   mastery: Readonly<Record<string, number>>,
   classId?: ClassType | null,
 ): readonly string[] {
-  const resolvedClass = classId ?? inferClassIdFromMovesetMastery(mastery);
-  if (resolvedClass) return getClassMovePool(resolvedClass);
-  return Object.keys(mastery);
+  const resolvedClass = resolveAuthoritativeClassId(classId, mastery);
+  return getClassMovePool(resolvedClass);
 }

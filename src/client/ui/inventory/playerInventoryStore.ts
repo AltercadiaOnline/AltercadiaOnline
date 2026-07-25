@@ -1,5 +1,3 @@
-import { DEMO_STARTER_INVENTORY_STACKS } from '../../../shared/demo/demoStarterInventory.js';
-import { normalizeChargedInventoryStacks } from '../../../shared/items/chargedEquipment.js';
 import type { InventoryStack } from '../../../shared/character/equipmentState.js';
 import {
   addItemToInventorySlots,
@@ -65,8 +63,9 @@ class PlayerInventoryStore {
     this.publish();
   }
 
+  /** @deprecated Zero-start — não injeta inventário demo. */
   seedDemoInventory(): void {
-    this.setFromStacks(normalizeChargedInventoryStacks(DEMO_STARTER_INVENTORY_STACKS));
+    this.reset();
   }
 
   getSlot(index: number): InventorySlotState | null {

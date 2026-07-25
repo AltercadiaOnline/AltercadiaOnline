@@ -16,6 +16,9 @@ import { worldPixelToTile } from '../../shared/world/portals.js';
 
 import type { WorldDepthDrawable } from '../../shared/world/worldDepthSort.js';
 
+import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
+import { listZone1CreatureIds } from '../../shared/world/zone1CreatureRegistry.js';
+
 import { InteractiveEntity, type InteractiveEntityProps } from './InteractiveEntity.js';
 
 import {
@@ -39,7 +42,8 @@ import { preloadCreatureWorldSprites } from './creatureWorldImageLoader.js';
 
 export type WorldMapOptions = {
 
-  readonly onStartBattle?: (monsterId: string) => void;
+  /** Tecla E / foco — pede HUD de encontro (não inicia combate). */
+  readonly onRequestEncounter?: (monsterId: string) => void;
 
   readonly getPlayerLevel?: () => number;
 
@@ -53,7 +57,7 @@ export type WorldMapOptions = {
 
 export class WorldMap {
 
-  private readonly onStartBattle: ((monsterId: string) => void) | undefined;
+  private readonly onRequestEncounter: ((monsterId: string) => void) | undefined;
 
   private readonly getPlayerLevel: () => number;
 
@@ -71,7 +75,7 @@ export class WorldMap {
 
   constructor(options: WorldMapOptions = {}) {
 
-    this.onStartBattle = options.onStartBattle;
+    this.onRequestEncounter = options.onRequestEncounter;
 
     this.getPlayerLevel = options.getPlayerLevel ?? (() => 1);
 
@@ -137,11 +141,29 @@ export class WorldMap {
 
         tileY: entry.tileY,
 
+        ...(entry.worldX !== undefined ? { worldX: entry.worldX } : {}),
+
+        ...(entry.worldY !== undefined ? { worldY: entry.worldY } : {}),
+
+        ...(entry.facing === 'north'
+          || entry.facing === 'south'
+          || entry.facing === 'east'
+          || entry.facing === 'west'
+          ? { facing: entry.facing }
+          : {}),
+
       } satisfies InteractiveEntityProps),
 
     );
 
-    preloadCreatureWorldSprites(entries.map((entry) => entry.creatureId));
+    const creatureIds: string[] = entries.map((entry) => entry.creatureId);
+    // Sprites Zone1 só na farm (ou quando já há spawns no mapa) — cidade fica leve.
+    if (mapId === FARM_ZONE_01_ID) {
+      for (const id of listZone1CreatureIds()) {
+        if (!creatureIds.includes(id)) creatureIds.push(id);
+      }
+    }
+    preloadCreatureWorldSprites(creatureIds);
 
     this.focusedEntity = null;
 
@@ -215,13 +237,13 @@ export class WorldMap {
 
 
 
-  /** Enter / Espaço / E — inicia batalha com monstro adjacente focado. */
+  /** Enter / Espaço / E — abre HUD de encontro (servidor); não inicia combate. */
 
   tryInteractAdjacent(): boolean {
 
-    if (!this.focusedEntity || !this.onStartBattle) return false;
+    if (!this.focusedEntity || !this.onRequestEncounter) return false;
 
-    this.onStartBattle(this.focusedEntity.monsterId);
+    this.onRequestEncounter(this.focusedEntity.monsterId);
 
     return true;
 
@@ -259,12 +281,12 @@ export class WorldMap {
 
   }
 
-  /** Snapshots top-down para camada Phaser (mesmo contrato visual do canvas). */
-  collectCreatureRenderSnapshots(): WorldCreatureRenderSnapshot[] {
+  /** Snapshots top-down para overlay Construct. */
+  collectCreatureRenderSnapshots(nowMs: number = performance.now()): WorldCreatureRenderSnapshot[] {
     if (isVisualDebugModeEnabled()) {
       return [];
     }
-    return this.entities.map((entity) => buildCreatureRenderSnapshot(entity));
+    return this.entities.map((entity) => buildCreatureRenderSnapshot(entity, nowMs));
   }
 
 

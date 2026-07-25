@@ -1,0 +1,62 @@
+{
+	"name": "mercado2",
+	"plugin-id": "Sprite",
+	"sid": 963854849914531,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 64,
+						"height": 64,
+						"originX": 0.859375,
+						"originY": 0.578125,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 7891826,
+						"collisionPoly": {
+							"points": [
+								0.640625,
+								0,
+								0.6875,
+								0,
+								0.921875,
+								0.078125,
+								0.953125,
+								0.109375,
+								0.953125,
+								0.859375,
+								0.8125,
+								0.921875,
+								0.1875,
+								0.921875,
+								0.03125,
+								0.84375,
+								0.046875,
+								0.3125
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 147037133134952,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

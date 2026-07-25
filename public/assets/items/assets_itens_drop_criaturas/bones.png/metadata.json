@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "68bcf7dd-0d4c-4581-959d-f7a2f471182b",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a pair of crossed white bones, simple outline, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:20:50.211058"
+}

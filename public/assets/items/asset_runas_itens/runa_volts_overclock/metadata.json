@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "efe0bf66-7c4f-4bc7-ac35-a09774887a4c",
+      "name": null,
+      "prompt": "\"Sci-fi/Cyberpunk game rune icon. Design an energized, geometric rune symbol. The central glyph combines a stylized lightning bolt with interwoven circuit board patterns and a subtle clock gear motif. The overall shape is dynamic and unstable, crackling with energy. The color palette should be electric blue, neon yellow, and dark brushed metal. The glyph itself should appear to be glowing brightly, almost pulsating with electrical discharge. The material texture is metallic and synthetic, suitable for a sci-fi game UI. High resolution, sharp edges, isolated on a dark background.\"",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-16T05:12:06.468931"
+}

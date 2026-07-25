@@ -25,6 +25,7 @@ import { isGameServerReachable } from '../services/serverReachability.js';
 import { setClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import {
   createAuthoritativeCharacter,
+  deleteAuthoritativeCharacter,
   fetchAuthoritativeCharacterHub,
 } from '../services/characterHubClient.js';
 import {
@@ -41,6 +42,7 @@ import {
 import { showAuthView } from '../services/authFlow.js';
 import { showScreen } from '../navigation.js';
 import { mountWorldMapScene, SceneManager } from './sceneManager.js';
+import { revealWorldMountHost } from '../worldRender/worldRenderMount.js';
 import {
   resetCharacterSelectPreviewManager,
 } from './characterSelectPreview.js';
@@ -62,7 +64,11 @@ import {
   USER_GAME_HOST_MISSING,
   USER_SERVER_OFFLINE,
 } from '../../shared/brand.js';
-import { hidePlayerInitLoading, showPlayerInitLoading } from '../auth/playerInitLoading.js';
+import {
+  hidePlayerInitLoading,
+  showPlayerInitLoading,
+  updatePlayerInitLoadingMessage,
+} from '../auth/playerInitLoading.js';
 import { AuthOperationTimeoutError, withAuthDeadline } from '../auth/authDeadline.js';
 import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
 import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
@@ -142,11 +148,21 @@ async function runClientAuthBootstrap(): Promise<ClientAuthBootstrapResult> {
       throw new Error(USER_AUTH_UNAVAILABLE);
     }
 
-    await withAuthDeadline(
-      restorePersistedSession(),
-      'Restauração de sessão demorou demais. Verifique sua conexão e tente de novo.',
-      12_000,
-    );
+    // Libera LOGIN/CADASTRAR antes de restaurar sessão (getSession pode demorar).
+    markAuthBootstrapReady();
+
+    try {
+      await withAuthDeadline(
+        restorePersistedSession(),
+        'Restauração de sessão demorou demais. Verifique sua conexão e tente de novo.',
+        12_000,
+      );
+    } catch (sessionError) {
+      console.warn(
+        '[Auth] Restauração de sessão falhou ou expirou — login manual disponível.',
+        sessionError,
+      );
+    }
 
     clientAuthBootstrapCache = {
       serverOk,
@@ -330,11 +346,9 @@ export const AppScreens = {
       return;
     }
 
-    if (!this.hubHasPlayableCharacter()) {
-      this.openCharacterCreateForFirstEmptySlot();
-      if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth()) {
-        clearOAuthAutoCharCreate();
-      }
+    // Não abre criação sozinha — o jogador clica em "Criar Novo" no slot vazio.
+    if (oauthFlow && shouldAutoOpenCharacterCreateAfterOAuth()) {
+      clearOAuthAutoCharCreate();
     }
   },
 
@@ -361,12 +375,28 @@ export const AppScreens = {
     }
     this.renderCharacterSlots();
     this.syncCharacterSelectionUi();
+    const hasAnyCharacter = this.characterHub?.slots.some((slot) => slot !== null) ?? false;
+    if (!hasAnyCharacter) {
+      const serverHint = getCharSelectServerUiState()?.activeId?.trim();
+      getCharSelectBridge().setHubStatus(
+        serverHint
+          ? `Nenhum personagem neste servidor (${serverHint}). Personagens de outro shard não aparecem aqui — confira o seletor acima ou crie um novo.`
+          : 'Nenhum personagem nesta conta neste servidor. Crie um novo ou confira o shard selecionado.',
+        false,
+      );
+    }
     getCharSelectBridge().setHubLoading(false);
     return { ok: true };
   },
 
   showGameWorld(): void {
+    getCharSelectBridge().closeCreate();
+    getCharSelectBridge().closeDelete();
+    const game = document.getElementById('game-container');
+    game?.classList.remove('game-container--booting');
+    game?.removeAttribute('aria-hidden');
     showScreen('game-container');
+    revealWorldMountHost();
     mountWorldMapScene();
     const exploration = document.getElementById('scene-exploration');
     exploration?.classList.remove('hidden');
@@ -374,6 +404,49 @@ export const AppScreens = {
     document.getElementById('scene-combat')?.classList.add('hidden');
     document.getElementById('scene-combat')?.setAttribute('aria-hidden', 'true');
     SceneManager.showExploration();
+  },
+
+  /**
+   * Prepara #game-container fora de vista — char select + loading ficam na frente
+   * até Construct/world-login estarem prontos.
+   */
+  prepareGameWorldBootShell(): void {
+    showScreen('char-select-screen');
+    const game = document.getElementById('game-container');
+    if (game) {
+      game.classList.remove('hidden');
+      game.classList.add('game-container--booting');
+      game.setAttribute('aria-hidden', 'true');
+    }
+    revealWorldMountHost();
+    mountWorldMapScene();
+    const exploration = document.getElementById('scene-exploration');
+    exploration?.classList.remove('hidden');
+    exploration?.setAttribute('aria-hidden', 'true');
+    document.getElementById('scene-combat')?.classList.add('hidden');
+    document.getElementById('scene-combat')?.setAttribute('aria-hidden', 'true');
+    SceneManager.showExploration();
+  },
+
+  /** Aborta boot invisível e volta o foco à seleção de personagem. */
+  abortGameWorldBootShell(): void {
+    const game = document.getElementById('game-container');
+    if (game) {
+      game.classList.add('hidden');
+      game.classList.remove('game-container--booting');
+      game.setAttribute('aria-hidden', 'true');
+    }
+    showScreen('char-select-screen');
+    getCharSelectBridge().setEnterWorldBusy(false);
+    this.syncCharacterSelectionUi();
+  },
+
+  /** Char select → jogo já renderizado; libera loading e botão. */
+  revealGameWorldAfterBoot(): void {
+    this.showGameWorld();
+    hidePlayerInitLoading();
+    getCharSelectBridge().setEnterWorldBusy(false);
+    this.syncCharacterSelectionUi();
   },
 
   async setAuthenticatedUser(user: AuthUser): Promise<void> {
@@ -490,6 +563,29 @@ export const AppScreens = {
     return { ok: true, message: `${name} criado com sucesso!` };
   },
 
+  async deleteCharacter(characterId: number): Promise<{ ok: boolean; message: string }> {
+    if (!this.currentSession?.id) {
+      return { ok: false, message: 'Sessão inválida. Faça login novamente.' };
+    }
+
+    const character = this.characterHub?.slots.find((slot) => slot?.id === characterId) ?? null;
+
+    const result = await deleteAuthoritativeCharacter(characterId);
+    if (!result.ok) {
+      return { ok: false, message: result.message };
+    }
+
+    this.characterHub = result.hub;
+    if (this.selectedCharacterId === characterId) {
+      this.selectedCharacterId = null;
+    }
+    this.renderCharacterSlots();
+    this.syncCharacterSelectionUi();
+
+    const name = character?.name?.trim() || 'Personagem';
+    return { ok: true, message: `${name} excluído.` };
+  },
+
   setupCharacterCreation(): void {
     getCharSelectBridge().bindCreateSubmit(async (payload) => this.createCharacter(
       payload.slotIndex,
@@ -497,6 +593,7 @@ export const AppScreens = {
       payload.class,
       payload.skinBundleId,
     ));
+    getCharSelectBridge().bindDeleteSubmit(async (characterId) => this.deleteCharacter(characterId));
   },
 
   syncCharacterSelectionUi(): void {
@@ -557,6 +654,7 @@ export const AppScreens = {
     this.clearCharacterHubError();
     showPlayerInitLoading('Carregando perfil no servidor…');
 
+    let enteredWorld = false;
     try {
       const snapshot = await initializeAuthoritativePlayerSnapshot(character.id);
       if (!snapshot.ok || !snapshot.ready) {
@@ -565,13 +663,18 @@ export const AppScreens = {
         );
         return;
       }
+      updatePlayerInitLoadingMessage('Entrando no mundo…');
       onEnterWorld();
+      enteredWorld = true;
     } catch (error) {
       console.error('[CharSelect] Falha ao entrar no mundo:', error);
       this.renderCharacterHubError('Erro inesperado ao carregar o perfil.');
     } finally {
-      hidePlayerInitLoading();
-      getCharSelectBridge().setEnterWorldBusy(false);
+      // Em sucesso: loading + busy ficam até revealGameWorldAfterBoot().
+      if (!enteredWorld) {
+        hidePlayerInitLoading();
+        getCharSelectBridge().setEnterWorldBusy(false);
+      }
       this.syncCharacterSelectionUi();
     }
   },

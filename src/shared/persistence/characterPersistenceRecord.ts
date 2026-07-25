@@ -8,7 +8,9 @@ import { emptyMarcosNodeProgression } from '../progression/marcoProgression.js';
 import { createDefaultWorldProfile } from '../world/playerWorldProfile.js';
 
 import type { PlayerPetRosterSnapshot } from '../pet/petRoster.js';
+import { createEmptyPetRoster } from '../pet/petRoster.js';
 import type { SkinSlotId } from '../character/playerSkin.js';
+import type { ClassType } from '../types/classes.js';
 
 /** Versão do schema JSON — incrementar ao mudar formato. */
 export const CHARACTER_PERSISTENCE_SCHEMA_VERSION = 2;
@@ -30,6 +32,8 @@ export type PersistedCharacterProfileSlice = {
   readonly xpCurrent: number;
   readonly displayName?: string;
   readonly skinBundleId?: string;
+  /** Classe escolhida na criação — autoridade player → classe → moveset. */
+  readonly classId?: ClassType;
 };
 
 export type PersistedMarcosSlice = {
@@ -137,6 +141,12 @@ export function createEmptyCharacterPersistenceRecord(
     characterProfile: {
       level: 1,
       xpCurrent: 0,
+    },
+    petRoster: createEmptyPetRoster(),
+    petAffinity: {
+      rationCharges: 0,
+      lastPetRationFeedAtMs: null,
+      lastPetAffectionAtMs: null,
     },
   };
 }

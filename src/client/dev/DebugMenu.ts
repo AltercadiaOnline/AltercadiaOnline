@@ -1,15 +1,24 @@
-import { addItemToInventoryStacks } from '../../shared/character/inventoryStackOps.js';
 import { ITEM_CATALOG, getItemById } from '../../shared/items/itemCatalog.js';
-import { eventBus, HudEvent } from '../../shared/utils/EventBus.js';
+import {
+  getClassMoveById,
+  isClassMoveId,
+} from '../../shared/combat/classMovesetCatalog.js';
+import {
+  clampMoveMasteryXp,
+  MOVE_MAX_LEVEL,
+  resolveMoveProgressionFromMastery,
+  totalMasteryXpForLevel,
+} from '../../shared/progression/moveProgression.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
-import { getMockEconomyService } from '../economy/economyLayer.js';
-import { applyServerItemBundle } from '../game/PlayerItemSession.js';
-import { getPlayerStatsGateway, type PlayerStatsSnapshot } from '../gateway/PlayerStatsGateway.js';
+import { initializePlayerState } from '../player/initializePlayerState.js';
+import { getPlayerStatsGateway } from '../gateway/PlayerStatsGateway.js';
 import { getPlayerProgressionStore } from '../progression/playerProgressionStore.js';
-import { getPlayerProfileStore } from '../ui/character/playerProfileStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
+import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
+import { getPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
+import { AppScreens } from '../browser/appScreens.js';
 
 export type DebugMenuInitOptions = {
   readonly onLevelChanged?: (level: number) => void;
@@ -17,18 +26,10 @@ export type DebugMenuInitOptions = {
   readonly allowedEmails?: readonly string[];
 };
 
-type StatDelta = {
-  forca: number;
-  defesa: number;
-};
-
 const PANEL_ID = 'altercadia-dev-debug-menu';
 
 let visible = false;
-let statDelta: StatDelta = { forca: 0, defesa: 0 };
 let onLevelChanged: ((level: number) => void) | null = null;
-let statsGatewayPatched = false;
-let originalRefreshStats: (() => PlayerStatsSnapshot) | null = null;
 
 function normalizeEmail(email: string | null | undefined): string | null {
   const normalized = email?.trim().toLowerCase();
@@ -47,63 +48,125 @@ function isDebugEmailAllowed(
     .some((email) => email === current);
 }
 
-function resolveItemQuery(raw: string): string | null {
-  const query = raw.trim();
-  if (!query) return null;
+type DebugCatalogHit = {
+  readonly id: string;
+  readonly name: string;
+};
 
-  if (getItemById(query)) return query;
-
-  const lower = query.toLowerCase();
-  const exactName = ITEM_CATALOG.find((item) => item.name.toLowerCase() === lower);
-  if (exactName) return exactName.id;
-
-  const matches = ITEM_CATALOG.filter(
-    (item) => item.name.toLowerCase().includes(lower) || item.id.toLowerCase().includes(lower),
-  );
-  if (matches.length === 1) return matches[0]!.id;
-  return null;
+function normalizeItemSearch(value: string): string {
+  return value.trim().toLocaleLowerCase('pt-BR');
 }
 
-function devAddItem(itemId: string): string {
+/** Busca no catálogo completo — mesmo padrão do Marketplace (nome ou id). */
+function filterCatalogHits(rawQuery: string): readonly DebugCatalogHit[] {
+  const query = normalizeItemSearch(rawQuery);
+  const hits = ITEM_CATALOG
+    .filter((item) => {
+      if (!query) return true;
+      return (
+        item.name.toLocaleLowerCase('pt-BR').includes(query)
+        || item.id.toLocaleLowerCase('pt-BR').includes(query)
+      );
+    })
+    .map((item) => ({ id: item.id, name: item.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+  return hits;
+}
+
+function resolveItemIconSrc(itemId: string): string {
+  return `/assets/items/${encodeURIComponent(itemId)}.png`;
+}
+
+function parseGrantQuantity(raw: string): number {
+  const value = Math.floor(Number(raw));
+  if (!Number.isFinite(value) || value < 1) return 1;
+  return Math.min(value, 999);
+}
+
+function requireDispatcherReady(): string | null {
+  const mode = getActionDispatcher().getMode();
+  if (mode === 'online' || mode === 'mock' || mode === 'local') {
+    return null;
+  }
+  return 'Dispatcher indisponível — aguarde o boot do GAME_MODE.';
+}
+
+function dispatchDevGrantItem(itemId: string, quantity = 1): string {
   const definition = getItemById(itemId);
   if (!definition) return `Item desconhecido: ${itemId}`;
 
-  const itemStore = getPlayerItemStore();
-  const result = addItemToInventoryStacks(itemStore.toInventoryStacks(), itemId, 1);
-  if (result.added <= 0) {
-    return result.overflow > 0 ? 'Inventário cheio ou sem capacidade.' : 'Não foi possível adicionar o item.';
-  }
+  const offline = requireDispatcherReady();
+  if (offline) return offline;
 
-  applyServerItemBundle({
-    stacks: result.stacks,
-    equipped: itemStore.getEquippedSlots(),
-    equipmentUiGrid: itemStore.toEquipmentGrid(),
-    inventoryOnly: true,
-    immediate: true,
+  const qty = Math.max(1, Math.min(999, Math.floor(quantity)));
+  const result = getActionDispatcher().dispatch({
+    type: 'DEV_GRANT_ITEM',
+    payload: { itemId, quantity: qty },
+  });
+  if (!result.ok) return result.reason;
+  return `+${qty} ${definition.name} (${itemId}) → inventário [${getActionDispatcher().getMode()}].`;
+}
+
+function dispatchDevGrantCurrency(volts: number, alterCoins: number): string {
+  const offline = requireDispatcherReady();
+  if (offline) return offline;
+
+  const result = getActionDispatcher().dispatch({
+    type: 'DEV_GRANT_CURRENCY',
+    payload: { volts, alterCoins },
+  });
+  if (!result.ok) return result.reason;
+  return `Intent: +${volts} VOLTS / +${alterCoins} Alter — via ActionDispatcher (${getActionDispatcher().getMode()}).`;
+}
+
+function dispatchDevSetLevel(level: number): string {
+  const offline = requireDispatcherReady();
+  if (offline) return offline;
+
+  const result = getActionDispatcher().dispatch({
+    type: 'DEV_SET_LEVEL',
+    payload: { level },
+  });
+  if (!result.ok) return result.reason;
+
+  onLevelChanged?.(level);
+  if (getActionDispatcher().getMode() === 'online') {
+    getGlobalStateSynchronizer().requestFullState();
+  }
+  return `Intent: nível ${level} — via ActionDispatcher (${getActionDispatcher().getMode()}).`;
+}
+
+function dispatchDevResetPlayer(): string {
+  const selected = AppScreens.getSelectedCharacter();
+  initializePlayerState({
+    ...(selected?.name ? { displayName: selected.name } : {}),
+    ...(selected?.class ? { classId: selected.class } : {}),
+    requestServerSync: false,
   });
 
-  const mock = getMockEconomyService();
-  if (mock && getActionDispatcher().getMode() !== 'online') {
-    mock.syncInventoryStacksFromClient(itemStore.toInventoryStacks());
+  const offline = requireDispatcherReady();
+  if (offline) {
+    return `${offline} Espelho local zerado.`;
   }
 
-  return `Adicionado: ${definition.name} (${itemId})`;
+  const result = getActionDispatcher().dispatch({
+    type: 'DEV_RESET_PLAYER',
+    payload: {},
+  });
+  if (!result.ok) return result.reason;
+
+  if (getActionDispatcher().getMode() === 'online') {
+    getGlobalStateSynchronizer().requestFullState();
+  }
+  onLevelChanged?.(1);
+  return `Reset Local Data — via ActionDispatcher (${getActionDispatcher().getMode()}).`;
 }
 
 function adjustLevel(delta: number): void {
   const equipment = getPlayerEquipmentStore().getSnapshot();
   const nextLevel = Math.max(1, equipment.level + delta);
-  getPlayerEquipmentStore().setPlayerInfo(equipment.displayName, nextLevel);
-  getPlayerProfileStore().setLevel(nextLevel);
-  onLevelChanged?.(nextLevel);
-}
-
-function adjustStat(stat: keyof StatDelta, delta: number): void {
-  statDelta = {
-    ...statDelta,
-    [stat]: Math.max(-999, Math.min(999, statDelta[stat] + delta)),
-  };
-  getPlayerStatsGateway().refreshFromLocalEquipment();
+  dispatchDevSetLevel(nextLevel);
 }
 
 function getPrimaryMoveId(): string | null {
@@ -113,19 +176,27 @@ function getPrimaryMoveId(): string | null {
   return pool[0] ?? null;
 }
 
-function adjustMovesetMastery(delta: number): void {
-  const moveId = getPrimaryMoveId();
-  if (!moveId) return;
+function listDebugMoveIds(): readonly string[] {
+  const store = getGlobalPlayerStore().getSnapshot();
+  const ids = new Set<string>();
+  for (const id of store.confirmedLoadout) ids.add(id);
+  for (const id of store.activeMovesets) ids.add(id);
+  for (const id of store.availableMoveIds) ids.add(id);
+  const masteryKeys = Object.keys(getPlayerProgressionStore().getSnapshot().movesetMastery);
+  for (const id of masteryKeys) ids.add(id);
+  return [...ids].sort((a, b) => a.localeCompare(b));
+}
 
-  const progressionStore = getPlayerProgressionStore();
-  const snapshot = progressionStore.getSnapshot();
-  const current = snapshot.movesetMastery[moveId] ?? 1;
-  const next = Math.max(1, Math.min(999, current + delta));
+function resolveMoveDebugLabel(moveId: string): string {
+  if (isClassMoveId(moveId)) {
+    return getClassMoveById(moveId).name;
+  }
+  return moveId;
+}
 
-  progressionStore.applyBattleProgressionResult(
-    { ...snapshot.movesetMastery, [moveId]: next },
-    snapshot.milestoneTotalProgress,
-  );
+function getMoveMasteryLevel(moveId: string): number {
+  const xp = getPlayerProgressionStore().getSnapshot().movesetMastery[moveId] ?? 0;
+  return resolveMoveProgressionFromMastery(moveId, xp).level;
 }
 
 function getMovesetMasteryValue(): number {
@@ -134,42 +205,30 @@ function getMovesetMasteryValue(): number {
   return getPlayerProgressionStore().getSnapshot().movesetMastery[moveId] ?? 1;
 }
 
-function ensureStatsGatewayPatch(): void {
-  if (statsGatewayPatched) return;
+function dispatchDevSetMovesetMastery(moveId: string, level: number): string {
+  const offline = requireDispatcherReady();
+  if (offline) return offline;
 
-  const gateway = getPlayerStatsGateway();
-  originalRefreshStats = gateway.refreshFromLocalEquipment.bind(gateway);
-  gateway.refreshFromLocalEquipment = function patchedRefreshFromLocalEquipment() {
-    const base = originalRefreshStats!();
-    if (statDelta.forca === 0 && statDelta.defesa === 0) return base;
+  const capped = Math.max(1, Math.min(MOVE_MAX_LEVEL, Math.floor(level)));
+  const result = getActionDispatcher().dispatch({
+    type: 'DEV_SET_MOVESET_MASTERY',
+    payload: { moveId, level: capped },
+  });
+  if (!result.ok) return result.reason;
 
-    const statsBonus = {
-      ...base.statsBonus,
-      forca: base.statsBonus.forca + statDelta.forca,
-      defesa: base.statsBonus.defesa + statDelta.defesa,
-    };
-    const totalStats = {
-      ...base.totalStats,
-      forca: base.totalStats.forca + statDelta.forca,
-      defesa: base.totalStats.defesa + statDelta.defesa,
-    };
+  // Local/mock já aplica no processAction; online confirma via intent-result + full-state.
+  if (getActionDispatcher().getMode() === 'online' && result.status === 'pending') {
+    // Optimistic mirror — servidor confirma em seguida.
+    const masteryXp = clampMoveMasteryXp(totalMasteryXpForLevel(capped));
+    getPlayerProgressionStore().setMoveMasteryXp(moveId, masteryXp);
+  }
 
-    const adjusted = {
-      ...base,
-      statsBonus,
-      totalStats,
-    };
+  return `${resolveMoveDebugLabel(moveId)} → domínio Nv.${capped} [${getActionDispatcher().getMode()}].`;
+}
 
-    eventBus.publish(HudEvent.PLAYER_STATS_UPDATED, {
-      statsBonus: { ...statsBonus },
-      speedBonusTotal: base.speedBonusTotal,
-      level: getPlayerEquipmentStore().getSnapshot().level,
-    });
-
-    return adjusted;
-  };
-
-  statsGatewayPatched = true;
+function adjustMoveMastery(moveId: string, delta: number): string {
+  const next = getMoveMasteryLevel(moveId) + delta;
+  return dispatchDevSetMovesetMastery(moveId, next);
 }
 
 function buildStateLog(): string {
@@ -179,15 +238,18 @@ function buildStateLog(): string {
   const loadout = getGlobalPlayerStore().getConfirmedLoadout();
   const moveId = getPrimaryMoveId();
   const progression = getPlayerProgressionStore().getSnapshot();
+  const wallet = getPlayerWalletStore().getSnapshot();
 
   const inventoryLines = inventory.length === 0
     ? ['  (vazio)']
     : inventory.map((row) => `  ${row.itemId} x${row.quantity}`);
 
   return [
+    `dispatcher: ${getActionDispatcher().getMode()}`,
     `level: ${equipment.level}`,
-    `attack (força): ${stats.totalStats.forca} (Δ ${statDelta.forca})`,
-    `defense (defesa): ${stats.totalStats.defesa} (Δ ${statDelta.defesa})`,
+    `wallet: ${wallet.dollarVolt} VOLTS / ${wallet.alterCoins} Alter`,
+    `attack (força): ${stats.totalStats.forca}`,
+    `defense (defesa): ${stats.totalStats.defesa}`,
     `moveset: ${loadout.join(', ') || '(nenhum)'}`,
     `moveset mastery [${moveId ?? '—'}]: ${getMovesetMasteryValue()}`,
     `milestone progress: ${progression.milestoneTotalProgress}`,
@@ -212,7 +274,6 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
   }
 
   onLevelChanged = options?.onLevelChanged ?? null;
-  ensureStatsGatewayPatch();
 
   const root = document.createElement('div');
   root.id = PANEL_ID;
@@ -222,7 +283,7 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
     'top:12px',
     'right:12px',
     'z-index:100050',
-    'width:min(360px, calc(100vw - 24px))',
+    'width:min(420px, calc(100vw - 24px))',
     'max-height:calc(100vh - 24px)',
     'overflow:auto',
     'padding:12px',
@@ -238,19 +299,39 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
   root.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
       <strong style="font-size:13px;letter-spacing:0.04em;">DEV DEBUG MENU</strong>
-      <span style="opacity:0.65;font-size:11px;">D / Esc</span>
+      <span style="opacity:0.65;font-size:11px;">Shift+D / Esc</span>
     </div>
+    <p style="margin:0 0 10px;opacity:0.7;font-size:11px;">
+      Digite o nome/id → clique no item → cai no inventário (ActionDispatcher).
+    </p>
     <section style="margin-bottom:12px;">
       <div style="opacity:0.8;margin-bottom:6px;">Inventory Testing</div>
-      <div style="display:flex;gap:6px;">
-        <input id="dev-debug-item-input" type="text" placeholder="item id ou nome" style="flex:1;min-width:0;padding:6px 8px;border-radius:4px;border:1px solid #444;background:#111;color:#eee;" />
-        <button type="button" data-action="add-item" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#1f1f1f;color:#eee;cursor:pointer;">Add Item</button>
+      <label style="display:block;opacity:0.65;font-size:11px;margin-bottom:4px;">Buscar no catálogo</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input id="dev-debug-item-input" type="search" placeholder="Nome do item…" autocomplete="off" style="flex:1;min-width:0;padding:6px 8px;border-radius:4px;border:1px solid #444;background:#111;color:#eee;" />
+        <input id="dev-debug-item-qty" type="number" min="1" max="999" value="1" title="Quantidade" style="width:56px;padding:6px 6px;border-radius:4px;border:1px solid #444;background:#111;color:#eee;" />
       </div>
+      <div id="dev-debug-item-count" style="margin-top:4px;opacity:0.55;font-size:11px;"></div>
+      <div id="dev-debug-item-results" role="listbox" aria-label="Resultados do catálogo" style="margin-top:6px;max-height:220px;overflow:auto;border:1px solid rgba(255,255,255,0.12);border-radius:4px;background:rgba(0,0,0,0.35);"></div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button type="button" data-action="add-volts" style="flex:1;padding:6px 8px;border-radius:4px;border:1px solid #555;background:#1f1f1f;color:#eee;cursor:pointer;">+100 VOLTS</button>
+        <button type="button" data-action="add-alter" style="flex:1;padding:6px 8px;border-radius:4px;border:1px solid #555;background:#1f1f1f;color:#eee;cursor:pointer;">+10 Alter</button>
+      </div>
+      <button type="button" data-action="reset-local" style="width:100%;margin-top:6px;padding:6px 8px;border-radius:4px;border:1px solid #844;background:#2a1515;color:#f0c0c0;cursor:pointer;">Reset Local Data</button>
       <div id="dev-debug-item-feedback" style="margin-top:6px;min-height:16px;color:#9fd89f;"></div>
     </section>
     <section style="margin-bottom:12px;">
       <div style="opacity:0.8;margin-bottom:6px;">Stats Modifier</div>
       <div id="dev-debug-stat-rows"></div>
+    </section>
+    <section style="margin-bottom:12px;">
+      <div style="opacity:0.8;margin-bottom:6px;">Moveset Mastery</div>
+      <p style="margin:0 0 6px;opacity:0.65;font-size:11px;">+/− sobe ou desce o domínio do move (ActionDispatcher).</p>
+      <div id="dev-debug-moveset-rows" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto;"></div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button type="button" data-action="mastery-all-plus" style="flex:1;padding:6px 8px;border-radius:4px;border:1px solid #555;background:#1f1f1f;color:#eee;cursor:pointer;">Todos +1</button>
+        <button type="button" data-action="mastery-all-plus5" style="flex:1;padding:6px 8px;border-radius:4px;border:1px solid #555;background:#1f1f1f;color:#eee;cursor:pointer;">Todos +5</button>
+      </div>
     </section>
     <section>
       <div style="opacity:0.8;margin-bottom:6px;">State Logger</div>
@@ -261,9 +342,100 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
   document.body.appendChild(root);
 
   const itemInput = root.querySelector<HTMLInputElement>('#dev-debug-item-input')!;
+  const itemQtyInput = root.querySelector<HTMLInputElement>('#dev-debug-item-qty')!;
+  const itemResults = root.querySelector<HTMLDivElement>('#dev-debug-item-results')!;
+  const itemCount = root.querySelector<HTMLDivElement>('#dev-debug-item-count')!;
   const itemFeedback = root.querySelector<HTMLDivElement>('#dev-debug-item-feedback')!;
   const stateLog = root.querySelector<HTMLPreElement>('#dev-debug-state-log')!;
   const statRows = root.querySelector<HTMLDivElement>('#dev-debug-stat-rows')!;
+  const movesetRows = root.querySelector<HTMLDivElement>('#dev-debug-moveset-rows')!;
+
+  const setFeedback = (message: string, ok = true): void => {
+    itemFeedback.style.color = ok ? '#9fd89f' : '#f5a8a8';
+    itemFeedback.textContent = message;
+  };
+
+  const grantItem = (itemId: string): void => {
+    const quantity = parseGrantQuantity(itemQtyInput.value);
+    setFeedback(dispatchDevGrantItem(itemId, quantity));
+    refreshUi();
+  };
+
+  const renderItemResults = (): void => {
+    const hits = filterCatalogHits(itemInput.value);
+    itemCount.textContent = hits.length === 0
+      ? 'Nenhum item encontrado.'
+      : `${hits.length} item${hits.length === 1 ? '' : 's'} — clique para adicionar`;
+
+    itemResults.replaceChildren();
+
+    if (hits.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding:10px 8px;opacity:0.55;text-align:center;';
+      empty.textContent = 'Sem resultados para essa busca.';
+      itemResults.appendChild(empty);
+      return;
+    }
+
+    for (const hit of hits) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.role = 'option';
+      row.dataset.itemId = hit.id;
+      row.style.cssText = [
+        'display:flex',
+        'align-items:center',
+        'gap:8px',
+        'width:100%',
+        'padding:6px 8px',
+        'border:0',
+        'border-bottom:1px solid rgba(255,255,255,0.06)',
+        'background:transparent',
+        'color:#e8e8e8',
+        'text-align:left',
+        'cursor:pointer',
+        'font:inherit',
+      ].join(';');
+
+      const icon = document.createElement('img');
+      icon.src = resolveItemIconSrc(hit.id);
+      icon.alt = '';
+      icon.width = 24;
+      icon.height = 24;
+      icon.loading = 'lazy';
+      icon.decoding = 'async';
+      icon.style.cssText = 'width:24px;height:24px;object-fit:contain;flex-shrink:0;image-rendering:pixelated;background:rgba(255,255,255,0.04);border-radius:3px;';
+      icon.addEventListener('error', () => {
+        icon.style.visibility = 'hidden';
+      });
+
+      const textWrap = document.createElement('span');
+      textWrap.style.cssText = 'display:flex;flex-direction:column;min-width:0;flex:1;gap:1px;';
+
+      const nameEl = document.createElement('span');
+      nameEl.textContent = hit.name;
+      nameEl.style.cssText = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+
+      const idEl = document.createElement('span');
+      idEl.textContent = hit.id;
+      idEl.style.cssText = 'opacity:0.5;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+
+      textWrap.append(nameEl, idEl);
+      row.append(icon, textWrap);
+
+      row.addEventListener('mouseenter', () => {
+        row.style.background = 'rgba(255,255,255,0.08)';
+      });
+      row.addEventListener('mouseleave', () => {
+        row.style.background = 'transparent';
+      });
+      row.addEventListener('click', () => {
+        grantItem(hit.id);
+      });
+
+      itemResults.appendChild(row);
+    }
+  };
 
   const statControls: Array<{ label: string; onMinus: () => void; onPlus: () => void; readValue: () => string }> = [
     {
@@ -272,24 +444,6 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
       onPlus: () => adjustLevel(1),
       readValue: () => String(getPlayerEquipmentStore().getSnapshot().level),
     },
-    {
-      label: 'Attack',
-      onMinus: () => adjustStat('forca', -1),
-      onPlus: () => adjustStat('forca', 1),
-      readValue: () => String(getPlayerStatsGateway().resolveSnapshot().totalStats.forca),
-    },
-    {
-      label: 'Defense',
-      onMinus: () => adjustStat('defesa', -1),
-      onPlus: () => adjustStat('defesa', 1),
-      readValue: () => String(getPlayerStatsGateway().resolveSnapshot().totalStats.defesa),
-    },
-    {
-      label: 'Moveset',
-      onMinus: () => adjustMovesetMastery(-1),
-      onPlus: () => adjustMovesetMastery(1),
-      readValue: () => String(getMovesetMasteryValue()),
-    },
   ];
 
   const refreshUi = (): void => {
@@ -297,6 +451,49 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
     for (const row of statControls) {
       const valueEl = root.querySelector<HTMLSpanElement>(`[data-stat-value="${row.label}"]`);
       if (valueEl) valueEl.textContent = row.readValue();
+    }
+    renderMovesetRows();
+  };
+
+  const renderMovesetRows = (): void => {
+    const moveIds = listDebugMoveIds();
+    movesetRows.replaceChildren();
+
+    if (moveIds.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding:8px;opacity:0.55;';
+      empty.textContent = 'Nenhum move no loadout/pool — confirme o moveset no painel.';
+      movesetRows.appendChild(empty);
+      return;
+    }
+
+    for (const moveId of moveIds) {
+      const level = getMoveMasteryLevel(moveId);
+      const line = document.createElement('div');
+      line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+      line.innerHTML = `
+        <span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${moveId}">
+          ${resolveMoveDebugLabel(moveId)}
+          <span style="opacity:0.45;font-size:10px;margin-left:4px;">${moveId}</span>
+        </span>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+          <button type="button" data-mastery-delta="-5" style="width:28px;height:26px;border-radius:4px;border:1px solid #555;background:#1a1a1a;color:#eee;cursor:pointer;">−5</button>
+          <button type="button" data-mastery-delta="-1" style="width:28px;height:26px;border-radius:4px;border:1px solid #555;background:#1a1a1a;color:#eee;cursor:pointer;">−</button>
+          <span data-mastery-level style="min-width:36px;text-align:center;">${level}</span>
+          <button type="button" data-mastery-delta="1" style="width:28px;height:26px;border-radius:4px;border:1px solid #555;background:#1a1a1a;color:#eee;cursor:pointer;">+</button>
+          <button type="button" data-mastery-delta="5" style="width:28px;height:26px;border-radius:4px;border:1px solid #555;background:#1a1a1a;color:#eee;cursor:pointer;">+5</button>
+        </div>
+      `;
+
+      for (const button of line.querySelectorAll<HTMLButtonElement>('[data-mastery-delta]')) {
+        button.addEventListener('click', () => {
+          const delta = Number(button.dataset.masteryDelta);
+          setFeedback(adjustMoveMastery(moveId, delta));
+          refreshUi();
+        });
+      }
+
+      movesetRows.appendChild(line);
     }
   };
 
@@ -329,6 +526,7 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
     getPlayerItemStore().subscribe(() => refreshUi()),
     getGlobalPlayerStore().subscribe(() => refreshUi()),
     getPlayerProgressionStore().subscribe(() => refreshUi()),
+    getPlayerWalletStore().subscribe(() => refreshUi()),
   ];
 
   const setVisible = (next: boolean): void => {
@@ -336,6 +534,7 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
     root.hidden = !next;
     if (next) {
       refreshUi();
+      renderItemResults();
       itemInput.focus();
       itemInput.select();
     }
@@ -345,25 +544,63 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
     setVisible(!visible);
   };
 
-  const onAddItem = (): void => {
-    const resolvedId = resolveItemQuery(itemInput.value);
-    if (!resolvedId) {
-      itemFeedback.style.color = '#f5a8a8';
-      itemFeedback.textContent = 'Item não encontrado — use id ou nome exato/único.';
+  root.querySelector<HTMLButtonElement>('[data-action="add-volts"]')!.addEventListener('click', () => {
+    setFeedback(dispatchDevGrantCurrency(100, 0));
+    refreshUi();
+  });
+  root.querySelector<HTMLButtonElement>('[data-action="add-alter"]')!.addEventListener('click', () => {
+    setFeedback(dispatchDevGrantCurrency(0, 10));
+    refreshUi();
+  });
+  root.querySelector<HTMLButtonElement>('[data-action="reset-local"]')!.addEventListener('click', () => {
+    setFeedback(dispatchDevResetPlayer());
+    refreshUi();
+  });
+
+  root.querySelector<HTMLButtonElement>('[data-action="mastery-all-plus"]')!.addEventListener('click', () => {
+    const ids = listDebugMoveIds();
+    if (ids.length === 0) {
+      setFeedback('Nenhum move para upar.', false);
       return;
     }
-    itemFeedback.style.color = '#9fd89f';
-    itemFeedback.textContent = devAddItem(resolvedId);
-    refreshUi();
-  };
-
-  root.querySelector<HTMLButtonElement>('[data-action="add-item"]')!.addEventListener('click', onAddItem);
-  itemInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      onAddItem();
+    let last = '';
+    for (const moveId of ids) {
+      last = adjustMoveMastery(moveId, 1);
     }
+    setFeedback(last || `+1 domínio em ${ids.length} moves.`);
+    refreshUi();
   });
+
+  root.querySelector<HTMLButtonElement>('[data-action="mastery-all-plus5"]')!.addEventListener('click', () => {
+    const ids = listDebugMoveIds();
+    if (ids.length === 0) {
+      setFeedback('Nenhum move para upar.', false);
+      return;
+    }
+    let last = '';
+    for (const moveId of ids) {
+      last = adjustMoveMastery(moveId, 5);
+    }
+    setFeedback(last || `+5 domínio em ${ids.length} moves.`);
+    refreshUi();
+  });
+
+  itemInput.addEventListener('input', () => {
+    renderItemResults();
+  });
+
+  itemInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const hits = filterCatalogHits(itemInput.value);
+    if (hits.length === 0) {
+      setFeedback('Nenhum item para adicionar — refine a busca.', false);
+      return;
+    }
+    grantItem(hits[0]!.id);
+  });
+
+  renderItemResults();
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.code === 'Escape' && visible) {
@@ -372,7 +609,14 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
       return;
     }
 
-    if (event.code !== 'KeyD' || event.repeat || event.ctrlKey || event.metaKey || event.altKey) {
+    if (
+      event.code !== 'KeyD'
+      || !event.shiftKey
+      || event.repeat
+      || event.ctrlKey
+      || event.metaKey
+      || event.altKey
+    ) {
       return;
     }
 
@@ -390,7 +634,7 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
   window.addEventListener('keydown', onKeyDown, true);
   refreshUi();
 
-  console.info('[DebugMenu] Ativo — tecla D para abrir/fechar (Esc fecha).');
+  console.info('[DebugMenu] Ativo — Shift+D. Grants via ActionDispatcher/online intents.');
 
   return () => {
     window.removeEventListener('keydown', onKeyDown, true);
@@ -405,7 +649,7 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
 
 let teardownMenu: (() => void) | null = null;
 
-/** HUD de debug para progressão/inventário — remover a chamada em main.ts para publicar. */
+/** HUD de debug — grants usam o mesmo canal online (player-intent). */
 export function initDebugMenu(options?: DebugMenuInitOptions): () => void {
   teardownMenu?.();
   teardownMenu = mountDebugMenu(options);

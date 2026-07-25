@@ -1,5 +1,6 @@
 import type { BattleLootPackagePayload } from '../../../shared/combat/battleLootPackage.js';
 import { captureBattleLootPreview } from './battleLootBuffer.js';
+import { markBattleLootResolved } from '../../game/battleLootStageClient.js';
 
 const packagesByBattleId = new Map<string, BattleLootPackagePayload>();
 
@@ -8,6 +9,7 @@ export const BATTLE_LOOT_PACKAGE_EVENT = 'altercadia:battle-loot-package';
 export function captureBattleLootPackage(payload: BattleLootPackagePayload): void {
   packagesByBattleId.set(payload.battleId, payload);
   captureBattleLootPreview(payload.lootPreview);
+  markBattleLootResolved(payload.battleId);
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(BATTLE_LOOT_PACKAGE_EVENT, { detail: payload }));

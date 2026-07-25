@@ -10,7 +10,6 @@ import type { BattleEncounterData, ExplorationSnapshot } from '../../../shared/g
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { persistLoadoutToServer } from './loadoutPersistence.js';
 import { getPlayerEquipmentStore } from '../equipment/playerEquipmentStore.js';
-
 export type GlobalPlayerSnapshot = {
   readonly availableMoveIds: readonly string[];
   readonly activeMovesets: readonly string[];
@@ -51,6 +50,45 @@ class GlobalPlayerStore {
     this.availableMoveIds = pool;
     this.confirmedLoadout = [...defaultActive];
     this.activeMovesets = [...defaultActive];
+    this.publish();
+  }
+
+  /**
+   * Atualiza o pool da classe. Se o loadout confirmado estiver vazio ou for de
+   * outra classe (ex.: seed IMPETUS no boot), substitui pelo loadout padrão.
+   */
+  ensureClassMovePool(classId: ClassType): void {
+    const pool = [...getClassMovePool(classId)];
+    this.availableMoveIds = pool;
+    const loadoutMatchesClass =
+      this.confirmedLoadout.length > 0
+      && isValidClassActiveLoadout(classId, this.confirmedLoadout);
+    if (!loadoutMatchesClass) {
+      const defaultActive = getDefaultClassActiveLoadout(classId);
+      this.confirmedLoadout = [...defaultActive];
+      this.activeMovesets = [...defaultActive];
+    } else {
+      this.activeMovesets = [...this.confirmedLoadout];
+    }
+    this.publish();
+  }
+
+  /**
+   * Espelha loadout autoritativo do servidor (full-state-sync / intent-result).
+   * `classIdHint` evita hidratar contra IMPETUS residual do boot.
+   */
+  hydrateConfirmedLoadout(
+    activeMovesets: readonly string[],
+    classIdHint?: ClassType,
+  ): void {
+    const classId = classIdHint ?? getPlayerEquipmentStore().getSnapshot().classId;
+    this.ensureClassMovePool(classId);
+    if (!isValidClassActiveLoadout(classId, activeMovesets)) {
+      // ensureClassMovePool já colocou o default da classe.
+      return;
+    }
+    this.confirmedLoadout = [...activeMovesets];
+    this.activeMovesets = [...activeMovesets];
     this.publish();
   }
 
@@ -163,7 +201,8 @@ class GlobalPlayerStore {
 
     try {
       await persistLoadoutToServer(nextLoadout);
-    } catch {
+    } catch (error) {
+      console.warn('[GlobalPlayerStore] confirmLoadout falhou:', error);
       return false;
     }
 
@@ -200,11 +239,24 @@ class GlobalPlayerStore {
   }
 }
 
-let store: GlobalPlayerStore | null = null;
+type GlobalWithPlayerStore = typeof globalThis & {
+  __ALTERCADIA_GLOBAL_PLAYER_STORE__?: GlobalPlayerStore | null;
+};
 
+function getPlayerStoreGlobal(): GlobalWithPlayerStore {
+  return globalThis as GlobalWithPlayerStore;
+}
+
+/**
+ * Singleton cross-bundle (main.js tsc + ui-runtime esbuild).
+ * Sem globalThis, a HUD React do hub lia outra cópia presa em IMPETUS.
+ */
 export function getGlobalPlayerStore(): GlobalPlayerStore {
-  if (!store) store = new GlobalPlayerStore();
-  return store;
+  const g = getPlayerStoreGlobal();
+  if (!g.__ALTERCADIA_GLOBAL_PLAYER_STORE__) {
+    g.__ALTERCADIA_GLOBAL_PLAYER_STORE__ = new GlobalPlayerStore();
+  }
+  return g.__ALTERCADIA_GLOBAL_PLAYER_STORE__;
 }
 
 export function initGlobalPlayerStore(): GlobalPlayerStore {
@@ -212,5 +264,6 @@ export function initGlobalPlayerStore(): GlobalPlayerStore {
 }
 
 export function resetGlobalPlayerStore(): void {
-  store = null;
+  const g = getPlayerStoreGlobal();
+  g.__ALTERCADIA_GLOBAL_PLAYER_STORE__ = null;
 }

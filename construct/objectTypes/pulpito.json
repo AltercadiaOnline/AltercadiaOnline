@@ -1,0 +1,78 @@
+{
+	"name": "pulpito",
+	"plugin-id": "Sprite",
+	"sid": 387261375616619,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 192734972889755
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 32,
+						"height": 32,
+						"originX": 0.5,
+						"originY": 0.5,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 3683304,
+						"collisionPoly": {
+							"points": [
+								0.34375,
+								0,
+								0.625,
+								0,
+								0.78125,
+								0.09375,
+								0.875,
+								0.1875,
+								0.875,
+								0.625,
+								0.84375,
+								0.71875,
+								0.71875,
+								0.90625,
+								0.65625,
+								0.96875,
+								0.34375,
+								0.96875,
+								0.28125,
+								0.90625,
+								0.15625,
+								0.71875,
+								0.125,
+								0.625,
+								0.125,
+								0.1875,
+								0.21875,
+								0.09375
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 112265056064267,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

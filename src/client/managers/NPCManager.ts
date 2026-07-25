@@ -33,7 +33,7 @@ import {
 import { grantMarketTerminalAccess } from '../../shared/economy/marketAccessGate.js';
 import { MESTRE_TRILHAS_NPC_ID } from '../../shared/world/marcosTrailResetPolicy.js';
 import { setPlayerAtMarcosResetNpc } from '../ui/marcos/marcosTrailResetGate.js';
-import { ARENA_PULPIT_AUDIENCE_FACING } from '../../shared/world/maps/city01LayoutConstants.js';
+import { ARENA_COMPUTER_FACING } from '../../shared/world/maps/city01LayoutConstants.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 import { beginWorldHudInteractionSession } from '../world/worldHudInteractionSession.js';
 import { isWorldHudInteractionLocked } from '../world/worldHudInteractionSession.js';
@@ -41,6 +41,7 @@ import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { uiEvents, UIEventType, type UiWindowId } from '../ui/uiEvents.js';
 import { windowManager } from '../app/panels/worldWindowController.js';
 import { postSystemNotification } from '../ui/logService.js';
+import { hideInteractionCard } from '../world/interactionCardController.js';
 import {
   buildNpcRenderSnapshot,
   type WorldNpcRenderSnapshot,
@@ -63,8 +64,12 @@ function isPetShopNpcAction(actionType: NpcActionType): boolean {
   return actionType === NpcActionType.OPEN_PET_SHOP;
 }
 
-function isTournamentBetNpcAction(actionType: NpcActionType): boolean {
-  return actionType === NpcActionType.OPEN_TOURNAMENT_BET;
+function isArenaComputerNpcAction(actionType: NpcActionType): boolean {
+  return actionType === NpcActionType.OPEN_ARENA_COMPUTER;
+}
+
+function isPvpQueueNpcAction(actionType: NpcActionType): boolean {
+  return actionType === NpcActionType.OPEN_PVP_QUEUE;
 }
 
 function isRefractionBoothNpcAction(actionType: NpcActionType): boolean {
@@ -105,11 +110,6 @@ export class NPCManager {
     this.nearestInteractable = null;
   }
 
-  /** Recarrega instâncias após MapLoader atualizar placements Tiled. */
-  reloadFromTiledPlacements(): void {
-    this.rebuildNpcInstances();
-    this.refreshActiveZone(null);
-  }
 
   /** Atualiza subset visível — só NPCs na viewport + margem. */
   refreshActiveZone(camera: Camera | null): void {
@@ -215,6 +215,9 @@ export class NPCManager {
     }
 
     if (isPetShopNpcAction(npc.actionType)) {
+      // Evita diálogo preso por cima da loja (trava de movimento + HUD morta).
+      windowManager.close('dialogue');
+      hideInteractionCard();
       if (player) {
         beginWorldHudInteractionSession({
           x: player.x,
@@ -229,7 +232,7 @@ export class NPCManager {
       return;
     }
 
-    if (isTournamentBetNpcAction(npc.actionType)) {
+    if (isArenaComputerNpcAction(npc.actionType)) {
       if (player) {
         const center = tileCenterToWorldPixel(npc.position.tileX, npc.position.tileY);
         beginWorldHudInteractionSession({
@@ -239,18 +242,32 @@ export class NPCManager {
           pose: {
             x: center.x,
             y: center.y,
-            facing: ARENA_PULPIT_AUDIENCE_FACING,
+            facing: ARENA_COMPUTER_FACING,
           },
         });
         player.forceAuthoritativePosition({
           x: center.x,
           y: center.y,
-          facing: ARENA_PULPIT_AUDIENCE_FACING,
+          facing: ARENA_COMPUTER_FACING,
         });
       }
-      uiEvents.emit(UIEventType.SHOW_TOURNAMENT_BET, {
-        pulpitId: npc.id,
-        pulpitName: npc.name,
+      uiEvents.emit(UIEventType.SHOW_RANKING_MONITOR, {
+        objectId: npc.id,
+        label: npc.name,
+      });
+      return;
+    }
+
+    if (isPvpQueueNpcAction(npc.actionType)) {
+      // Abre direto no store compartilhado (main.js ↔ React) — sem depender só do bus.
+      windowManager.open('pvpQueue', {
+        kind: 'pvpQueue',
+        objectId: npc.id,
+        label: npc.name,
+      });
+      uiEvents.emit(UIEventType.SHOW_PVP_QUEUE, {
+        objectId: npc.id,
+        label: npc.name,
       });
       return;
     }
@@ -307,6 +324,12 @@ export class NPCManager {
 
   /** Card de interação — Conversar. */
   executeDialogInteraction(npc: NPC, player?: Player): void {
+    // Treinadora Zena: o diálogo é só o pitch da loja — Conversar abre a HUD de pets.
+    if (isPetShopNpcAction(npc.actionType)) {
+      this.executeAction(npc, player);
+      return;
+    }
+
     if (player && !isWorldHudInteractionLocked()) {
       beginWorldHudInteractionSession({
         x: player.x,
@@ -330,6 +353,13 @@ export class NPCManager {
     }
 
     postSystemNotification(`${npc.name} não tem nada a dizer agora.`);
+  }
+
+  /** Label do botão de loja no card (Comprar / Companheiros / …). */
+  resolveShopActionLabel(npc: NPC): string {
+    if (isPetShopNpcAction(npc.actionType)) return 'Companheiros';
+    if (isLabShopNpcAction(npc.actionType)) return 'Laboratório';
+    return 'Comprar';
   }
 
   /** Card de interação — Comprar. */
@@ -378,7 +408,7 @@ export class NPCManager {
     return drawables;
   }
 
-  /** Snapshots top-down de NPCs para Phaser (exclui jogador/pet — renderizados à parte). */
+  /** Snapshots top-down de NPCs para overlay Construct. */
   collectNpcRenderSnapshots(timestampMs: number): WorldNpcRenderSnapshot[] {
     return this.activeNpcs.map((npc) => buildNpcRenderSnapshot(npc, timestampMs));
   }
@@ -394,7 +424,7 @@ export class NPCManager {
       const bounds = getNpcSpriteBounds(npc);
       entries.push(...buildNpcSpriteDecalEntries(npc, bounds));
 
-      if (npc.sprite === 'pulpit') continue;
+      if (npc.sprite === 'terminal') continue;
       const featuredLift = npc.featured ? 10 : 0;
       entries.push({
         id: `npc-${npc.id}`,

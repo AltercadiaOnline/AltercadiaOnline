@@ -11,10 +11,6 @@ const NEIGHBOR_STEPS: readonly GridTileCoord[] = [
   { tileX: 1, tileY: 0 },
   { tileX: 0, tileY: 1 },
   { tileX: -1, tileY: 0 },
-  { tileX: 1, tileY: -1 },
-  { tileX: 1, tileY: 1 },
-  { tileX: -1, tileY: 1 },
-  { tileX: -1, tileY: -1 },
 ];
 
 function isInMapBounds(mapData: number[][], tileX: number, tileY: number): boolean {
@@ -37,7 +33,7 @@ function canWalkBetweenTiles(
 }
 
 /**
- * BFS em grade 8-direções com as mesmas regras de colisão do movimento por tecla.
+ * BFS em grade 4-direções (N/S/L/O) — sem diagonal.
  * Retorna tiles a visitar (exclui origem, inclui destino).
  */
 export function findGridPath(

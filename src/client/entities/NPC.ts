@@ -93,9 +93,9 @@ export class NPC {
     this.animationSpeed = resolveNpcAnimationSpeed(entry.id);
 
     const tileSize = resolveMapTileSize(entry.mapId);
-    const hasTiledFeet = entry.worldX !== undefined && entry.worldY !== undefined;
-    const worldX = hasTiledFeet ? entry.worldX! : tileCenterToWorldPixel(entry.tileX, entry.tileY, tileSize).x;
-    const worldY = hasTiledFeet ? entry.worldY! : tileCenterToWorldPixel(entry.tileX, entry.tileY, tileSize).y;
+    const hasExplicitFeet = entry.worldX !== undefined && entry.worldY !== undefined;
+    const worldX = hasExplicitFeet ? entry.worldX! : tileCenterToWorldPixel(entry.tileX, entry.tileY, tileSize).x;
+    const worldY = hasExplicitFeet ? entry.worldY! : tileCenterToWorldPixel(entry.tileX, entry.tileY, tileSize).y;
 
     this.position = {
 

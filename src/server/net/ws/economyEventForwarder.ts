@@ -104,13 +104,15 @@ function schedulePersistFromEconomyEvent(
     }
   }
 
-  // Economia crítica Supabase: InventoryPersistenceBridge (EventBus → saveCritical).
-  // File/postgres legado: scheduleCharacterPersist no hub (sem Supabase duplicado).
+  // Economia crítica Supabase: InventoryPersistenceBridge (EventBus → saveCritical),
+  // inclui pets (`character_pets`). File: scheduleCharacterPersist grava CharacterPersistenceRecord.
   const isBridgeHandledCritical =
     event.type === EconomyEventType.InventoryUpdated
     || event.type === EconomyEventType.UpdateBankSuccess
     || event.type === EconomyEventType.WalletUpdated
-    || event.type === EconomyEventType.AlterExchangeCompleted;
+    || event.type === EconomyEventType.AlterExchangeCompleted
+    || event.type === EconomyEventType.PetRosterUpdated
+    || event.type === EconomyEventType.PetAffinityUpdated;
 
   if (isDurablePersistence() && characterId !== undefined) {
     deps.scheduleCharacterPersist(playerId, characterId, {

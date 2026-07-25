@@ -1,8 +1,8 @@
 import type { WorldPoint } from '../shared/world/playerEntity.js';
 
 /** Espelha playerSpriteSourceTrim.ts — trim do frame do jogador (metadata). */
-const PLAYER_SPRITE_SRC_TOP_TRIM = 0.06;
-const PLAYER_SPRITE_SRC_BOTTOM_TRIM = 0.18;
+const PLAYER_SPRITE_SRC_TOP_TRIM = 0;
+const PLAYER_SPRITE_SRC_BOTTOM_TRIM = 0;
 import {
   resolvePlayerSpriteDimensions,
   resolvePlayerVisualBounds,

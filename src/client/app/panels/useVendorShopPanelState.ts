@@ -3,13 +3,10 @@ import {
   findNpcVendorListing,
   getNpcVendorListings,
 } from '../../../shared/economy/npcVendorCatalog.js';
-import {
-  listInventoryNpcBlockedRows,
-  listInventorySellRows,
-} from '../../ui/vendor/inventorySellRows.js';
+import { listInventorySellRows } from '../../ui/vendor/inventorySellRows.js';
 import { setNpcVendorShopOpen } from '../../ui/vendor/npcVendorSession.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
-import { usePlayerData } from '../store/gameStore.js';
+import { usePlayerInventoryAndGold } from '../store/gameStore.js';
 
 export type VendorShopView = {
   readonly vendorId: string;
@@ -31,7 +28,7 @@ export function resolveVendorFromContext(
 }
 
 export function useVendorShopPanelState(vendor: VendorShopView) {
-  const { inventory, gold } = usePlayerData();
+  const { inventory, gold } = usePlayerInventoryAndGold();
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [tradeMode, setTradeMode] = useState<VendorTradeMode>('catalog');
   const [tradeQuantity, setTradeQuantity] = useState(1);
@@ -51,10 +48,15 @@ export function useVendorShopPanelState(vendor: VendorShopView) {
     [inventory],
   );
 
-  const blockedRows = useMemo(
-    () => listInventoryNpcBlockedRows(inventory),
-    [inventory],
-  );
+  // Seleção some se o item foi vendido / saiu da lista.
+  useEffect(() => {
+    if (tradeMode !== 'inventory' || !selectedItemId) return;
+    if (!inventoryRows.some((row) => row.itemId === selectedItemId)) {
+      setSelectedItemId(null);
+      setTradeMode('catalog');
+      setTradeQuantity(1);
+    }
+  }, [inventoryRows, selectedItemId, tradeMode]);
 
   const selectedListing = useMemo(() => {
     if (tradeMode !== 'catalog' || !selectedItemId) return null;
@@ -123,7 +125,6 @@ export function useVendorShopPanelState(vendor: VendorShopView) {
     inventory,
     listings,
     inventoryRows,
-    blockedRows,
     selectedItemId,
     tradeMode,
     tradeQuantity,

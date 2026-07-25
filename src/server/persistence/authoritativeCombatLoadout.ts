@@ -5,7 +5,7 @@ import {
   normalizeClassActiveLoadout,
 } from '../../shared/combat/movesetLoadout.js';
 import { resolveEffectiveEquippedForCombat } from '../../shared/economy/chargedEquipmentBattle.js';
-import { inferClassIdFromMovesetMastery } from '../../shared/progression/movesetMasterySeed.js';
+import { resolveAuthoritativeClassId } from '../../shared/progression/movesetMasterySeed.js';
 import { exportCharacterEconomyPersistence } from '../../Economy/economyStore.js';
 import { resolveAuthoritativePlayerLoadout } from '../world/loadoutGateway.js';
 import { getWorldProfile } from '../world/worldProfileStore.js';
@@ -26,7 +26,10 @@ export function resolveAuthoritativeCombatLoadout(
   const equipped = resolveEffectiveEquippedForCombat(equippedSlots, economy.profile.inventory);
   const authoritativeMarcos = getAuthoritativeCombatMarcos(playerId, characterId);
   const movesetMastery = { ...progressionState.progression.movesetMastery };
-  const classId = inferClassIdFromMovesetMastery(movesetMastery) ?? 'IMPETUS';
+  const classId = resolveAuthoritativeClassId(
+    progressionState.characterProfile.classId,
+    movesetMastery,
+  );
   const sessionSync = world.sessionSync;
   const normalizedMoves =
     sessionSync?.activeMovesets && sessionSync.activeMovesets.length > 0

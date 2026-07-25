@@ -2,6 +2,8 @@ import { applyBattleProgressionGrant } from '../../shared/progression/applyBattl
 import { getClassMovePool } from '../../shared/combat/classMovesetCatalog.js';
 import type { BattleProgressionGrant } from '../../shared/progression/battleProgressionGrant.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
+import { getMockEconomyService } from '../economy/economyLayer.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerProgressionStore } from './playerProgressionStore.js';
@@ -47,6 +49,11 @@ export function mirrorBattleProgressionGrant(
 
   if (applied.movesetMasteryCapBlocked.length > 0) {
     alertSystem(MOVE_MASTERY_CAP_NOTIFICATION);
+  }
+
+  // Local: mastery/XP entram no mesmo CharacterPersistenceRecord do personagem.
+  if (isLocalGameMode()) {
+    getMockEconomyService()?.persistLocalSave();
   }
 }
 

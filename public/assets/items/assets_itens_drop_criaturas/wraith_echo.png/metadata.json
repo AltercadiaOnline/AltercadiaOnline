@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "2ab25131-dc7c-470e-b06f-c33db47eae32",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a ghostly blue silhouette of a face, faint, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:47:04.407372"
+}

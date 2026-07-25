@@ -3,6 +3,7 @@ import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panel
 import { useBankPanelState } from '../../../panels/useBankPanelState.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 import { BankSlotCell } from './BankSlotCell.js';
+import { ItemSlotIcon } from './ItemSlotIcon.js';
 
 type WorldBankPanelProps = {
   zIndex: number;
@@ -25,7 +26,6 @@ export function WorldBankPanel({ zIndex, focused }: WorldBankPanelProps) {
     flowClass,
     bridgeMeta,
     stageItemFromSlot,
-    clearStaged,
     confirmDeposit,
     confirmWithdraw,
     voltsInput,
@@ -46,7 +46,8 @@ export function WorldBankPanel({ zIndex, focused }: WorldBankPanelProps) {
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--bank ui-panel--bank ui-panel--movable"
-      panelStyle={{ width: 'min(920px, 98vw)', maxHeight: 'min(720px, 92vh)' }}
+      panelStyle={{ width: 'min(880px, 96vw)', maxHeight: 'min(88vh, 640px)' }}
+      bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('bank')}
       onClose={() => tryCloseReactWorldPanel('bank')}
     >
@@ -57,19 +58,22 @@ export function WorldBankPanel({ zIndex, focused }: WorldBankPanelProps) {
             className={`ui-bank-tab${activeTab === 'items' ? ' is-active' : ''}`}
             onClick={() => setActiveTab('items')}
           >
-            Depósito de Itens
+            Itens
           </button>
           <button
             type="button"
             className={`ui-bank-tab${activeTab === 'currency' ? ' is-active' : ''}`}
             onClick={() => setActiveTab('currency')}
           >
-            Depósito de Moedas
+            Moedas
           </button>
         </nav>
 
         {activeTab === 'items' ? (
           <div className={`ui-bank-items-layout ${flowClass}`} data-bank-items-layout>
+            <p className="ui-bank-items-hint">
+              Selecione no <strong>inventário</strong> para depositar · Selecione no <strong>cofre</strong> para sacar
+            </p>
             <div className="ui-bank-items-flow" aria-hidden="true">
               <span className="ui-bank-items-flow__packet" />
             </div>
@@ -130,7 +134,9 @@ export function WorldBankPanel({ zIndex, focused }: WorldBankPanelProps) {
               >
                 {resolvedStaged ? (
                   <>
-                    <span className="slot-item__icon" aria-hidden="true">{bridgeMeta.abbrev}</span>
+                    <span className="slot-item__icon" aria-hidden="true">
+                      <ItemSlotIcon itemId={resolvedStaged.itemId} />
+                    </span>
                     {resolvedStaged.maxQuantity > 1 ? (
                       <span className="slot-item__meta slot-item__meta--qty">{itemQuantity}</span>
                     ) : null}
@@ -159,19 +165,21 @@ export function WorldBankPanel({ zIndex, focused }: WorldBankPanelProps) {
               <div className="ui-bank-bridge__actions">
                 <button
                   type="button"
-                  className="ui-market-exchange-btn ui-bank-bridge__confirm"
-                  disabled={!resolvedStaged || inFlight}
-                  onClick={bridgeMeta.isDeposit ? confirmDeposit : confirmWithdraw}
+                  className="ui-market-exchange-btn ui-bank-bridge__deposit"
+                  disabled={!resolvedStaged || !bridgeMeta.isDeposit || inFlight}
+                  aria-label="Depositar item no cofre"
+                  onClick={confirmDeposit}
                 >
-                  {bridgeMeta.confirmLabel}
+                  Depositar
                 </button>
                 <button
                   type="button"
-                  className="ui-market-exchange-btn ui-bank-bridge__clear"
-                  disabled={!resolvedStaged || inFlight}
-                  onClick={clearStaged}
+                  className="ui-market-exchange-btn ui-bank-bridge__withdraw"
+                  disabled={!resolvedStaged || bridgeMeta.isDeposit || inFlight}
+                  aria-label="Sacar item para o inventário"
+                  onClick={confirmWithdraw}
                 >
-                  Limpar
+                  Sacar
                 </button>
               </div>
             </aside>

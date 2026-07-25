@@ -8,6 +8,7 @@ import {
   peekBattleLootPackage,
 } from '../../combat/client/battleLootPackageBuffer.js';
 import { consumePendingBattleLoot } from '../../combat/client/battleLootBuffer.js';
+import { markBattleLootResolved } from '../../game/battleLootStageClient.js';
 import {
   clearLootCasinoSessionHandlers,
   registerLootCasinoSessionHandlers,
@@ -27,10 +28,15 @@ function dimPostBattleHub(active: boolean): void {
 
 function dismissPendingBattleLootForBattle(battleId: string): void {
   const pkg = peekBattleLootPackage(battleId);
-  if (!pkg) return;
+  if (!pkg) {
+    markBattleLootResolved(battleId);
+    return;
+  }
   dismissBattleLootOnServer(pkg.lootId);
   consumeBattleLootPackage(battleId);
   consumePendingBattleLoot();
+  markBattleLootResolved(battleId);
+  getPostBattleHudBridge().setRewardsLootStatus('unavailable');
 }
 
 function registerReactLootCasinoHandlers(
@@ -55,6 +61,8 @@ function registerReactLootCasinoHandlers(
 
       consumeBattleLootPackage(battleId);
       consumePendingBattleLoot();
+      markBattleLootResolved(battleId);
+      getPostBattleHudBridge().setRewardsLootStatus('unavailable');
       return true;
     },
     onRetry: () => {

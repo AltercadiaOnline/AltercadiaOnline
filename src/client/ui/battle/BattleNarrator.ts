@@ -54,15 +54,23 @@ const HIDDEN_LINE_PATTERNS: readonly RegExp[] = [
 const ACTOR_USED_SKILL = /^actor\s+(\S+)\s+used\s+(\S+)/i;
 const ID_ARROW_DAMAGE = /^(\S+)\s*->\s*(\S+)\s*\((\d+)\)/i;
 const SKILL_LABEL_OVERRIDES: Readonly<Record<string, string>> = {
-  crow_peck: 'Bicada',
+  crow_peck: 'Bicada Debilitante',
+  crow_slash: 'Gadanha',
   rat_bite: 'Mordida',
-  wild_dog_bite: 'Mordida',
+  rat_septic: 'Mordida Séptica',
+  wild_dog_bite: 'Mordida Sangrenta',
+  wild_dog_snap: 'Estalo',
   spider_bite: 'Mordida',
+  spider_venom: 'Peçonha',
+  bat_strike: 'Investida',
+  bat_screech: 'Guincho',
   minotaur_charge: 'Investida',
   minotaur_gore: 'Chifradas',
+  minotaur_roar: 'Rugido',
+  minotaur_stomp: 'Pisada',
   specter_wail: 'Lamento',
   specter_phase: 'Deslocamento',
-  bat_screech: 'Guincho',
+  specter_chill: 'Frio do Véu',
 };
 
 export function createBattleNarratorContext(

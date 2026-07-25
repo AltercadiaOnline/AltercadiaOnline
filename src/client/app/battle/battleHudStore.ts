@@ -100,7 +100,18 @@ type BattleHudStoreActions = {
 
 export type BattleHudStore = BattleHudState & BattleHudStoreActions;
 
-export const useBattleHudStore = create<BattleHudStore>((set, get) => ({
+export const useBattleHudStore = (() => {
+  const g = globalThis as typeof globalThis & {
+    __ALTERCADIA_USE_BATTLE_HUD_STORE__?: ReturnType<typeof createBattleHudStore>;
+  };
+  if (!g.__ALTERCADIA_USE_BATTLE_HUD_STORE__) {
+    g.__ALTERCADIA_USE_BATTLE_HUD_STORE__ = createBattleHudStore();
+  }
+  return g.__ALTERCADIA_USE_BATTLE_HUD_STORE__;
+})();
+
+function createBattleHudStore() {
+  return create<BattleHudStore>((set, get) => ({
   ...INITIAL_BATTLE_HUD_STATE,
 
   markControllerReady: () => set({ controllerReady: true }),
@@ -205,15 +216,20 @@ export const useBattleHudStore = create<BattleHudStore>((set, get) => ({
 
   clearChatLines: () => set({ chatLines: [] }),
 }));
+}
 
-/** HUD de combate montada e visível — null fora de battle. */
+/** HUD de combate montada e visível — null fora de battle.
+ * Preferir selectors nos filhos; este helper só para gates legados.
+ */
 export function useBattleHud(): BattleHudState | null {
   const viewMode = useGameStore((state) => state.viewMode);
-  const hud = useBattleHudStore();
-  if (viewMode !== 'battle' || !hud.controllerReady || !hud.battleHudActive) {
+  const controllerReady = useBattleHudStore((state) => state.controllerReady);
+  const battleHudActive = useBattleHudStore((state) => state.battleHudActive);
+  if (viewMode !== 'battle' || !controllerReady || !battleHudActive) {
     return null;
   }
-  return hud;
+  // Snapshot pontual — não assina a store inteira (evita storm do timer).
+  return useBattleHudStore.getState();
 }
 
 /** Metadados de sessão — null fora de battle. */

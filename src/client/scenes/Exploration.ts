@@ -29,9 +29,8 @@ import { Camera } from './Camera.js';
 import { CameraManager } from './CameraManager.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { resolveSceneConfigForMapId } from '../../config/sceneConfig.js';
-import { isTiledMapEnabled } from '../../config/tiledMapManifest.js';
-import { getTiledMapPlayerSpawn } from '../../shared/world/tiledMapPlacements.js';
-import { applyPhaserMapInstanceSwap } from '../phaser/MapInstanceTransitionCoordinator.js';
+import { applyConstructMapLoad } from '../worldRender/applyConstructMapLoad.js';
+import { WORLD_MOUNT_ROOT_ID } from '../worldRender/worldRenderMount.js';
 
 import { Player } from '../entities/Player.js';
 
@@ -70,16 +69,13 @@ import {
   enforceFixedGameStagePixels,
   resolveGameUiLayer,
 } from '../layout/gameLayout.js';
-import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
-import { setPhaserWorldInputBlocked } from '../phaser/phaserExplorationPipeline.js';
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
-import { getRenderLayerBridge, isPhaserRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
+import { getRenderLayerBridge, isWorldRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
 import { getGameRenderLoop } from '../render/GameRenderLoop.js';
-import { buildExplorationDebugOverlaySnapshot } from '../phaser/overlay/explorationDebugOverlay.js';
 import { sortWorldActorsByDepth } from '../world/worldActorsRenderSnapshot.js';
 import {
   collectMinimapMonsterMarkers,
@@ -89,12 +85,23 @@ import { PetFollowEntity } from '../entities/pet/PetFollowEntity.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getSpeechBubbleManager } from '../world/speech/SpeechBubbleManager.js';
 import {
+  getAuthoritativeRemotePlayerSnapshots,
+  sampleRemoteEntitiesForRender,
+} from '../world/remoteEntitySyncBridge.js';
+import {
   bindInteractionCardController,
   InteractionCardController,
 } from '../world/interactionCardController.js';
 import { bindNpcModalController } from '../ui/npcModalController.js';
 import { setWorldCreatureSyncListener } from '../world/worldCreatureSyncBridge.js';
-import { ensureWorldMonsterInstances } from '../../shared/world/worldMonsterInstances.js';
+import { scheduleLocalMonsterRespawn } from '../world/localPveEncounterRuntime.js';
+import { getGameMode } from '../runtime/gameMode.js';
+import { CITY_01_ID } from '../../shared/world/maps/city01.js';
+import { isHuntZoneMapId } from '../../shared/world/zoneLoad/zoneLoadTypes.js';
+import {
+  ensureClientZone,
+  onExplorationMapLayoutReady,
+} from '../world/zoneLoad/zoneLoadClient.js';
 import { initVisualDebugModeHotkey } from '../debug/visualDebugMode.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
 import { cancelScheduledFrame, scheduleNextFrame } from '../sync/frameScheduler.js';
@@ -109,7 +116,6 @@ import { isAuthoritativeWorldSocket } from '../world/authoritativeWorldSocket.js
 import { resetInteractionCardController } from '../world/interactionCardController.js';
 import { resetNpcModalController } from '../ui/npcModalController.js';
 import type { Disposable } from '../utils/Disposable.js';
-import { subscribeTiledMapPlacementsCommitted } from '../world/tiledMapPlacementsBridge.js';
 
 export class ExplorationScene implements Disposable {
   public readonly camera: Camera;
@@ -164,8 +170,6 @@ export class ExplorationScene implements Disposable {
 
   private offPortalAccessDenied: (() => void) | null = null;
 
-  private offTiledPlacementsCommitted: (() => void) | null = null;
-
   private portalConfirmationCleanup: (() => void) | null = null;
 
   private zoneTransitionCleanup: (() => void) | null = null;
@@ -179,16 +183,15 @@ export class ExplorationScene implements Disposable {
   private worldCharacterId: number | null = null;
   private disconnectViewportObserver: (() => void) | null = null;
   private lastMinimapPublishKey = '';
-  private lastSpeechBubbleTileKey = '';
   private teardownVisualDebugHotkey: (() => void) | null = null;
 
   private disposed = false;
 
   constructor(mapManager: MapManager, worldSocket: WorldSocket) {
 
-    const inputSurface = document.getElementById(PHASER_MOUNT_ROOT_ID);
+    const inputSurface = document.getElementById(WORLD_MOUNT_ROOT_ID);
     if (!(inputSurface instanceof HTMLElement)) {
-      throw new Error('[ExplorationScene] Elemento #phaser-mount-root não encontrado.');
+      throw new Error('[ExplorationScene] Elemento #world-mount-root não encontrado.');
     }
 
     const stage = document.getElementById('game-stage');
@@ -219,20 +222,12 @@ export class ExplorationScene implements Disposable {
     });
 
     const initialMapId = mapManager.currentMapId;
-    const tiledSpawn = isTiledMapEnabled(initialMapId)
-      ? getTiledMapPlayerSpawn(initialMapId)
-      : null;
 
     this.player = new Player(worldSocket, {
-
-      x: tiledSpawn?.x ?? mapManager.pixelWidth / 2,
-
-      y: tiledSpawn?.y ?? mapManager.pixelHeight / 2,
-
-      facing: tiledSpawn?.facing ?? 'south',
-
+      x: mapManager.pixelWidth / 2,
+      y: mapManager.pixelHeight / 2,
+      facing: 'south',
       mapId: initialMapId,
-
     });
 
     this.offWorldPositionSync = getMutableDataStore().subscribeWorldPosition((snapshot) => {
@@ -295,19 +290,16 @@ export class ExplorationScene implements Disposable {
 
     this.npcManager = new NPCManager(mapManager.currentMapId);
 
-    this.offTiledPlacementsCommitted = subscribeTiledMapPlacementsCommitted((mapId) => {
-      if (this.disposed || this.mapManager.currentMapId !== mapId) return;
-      this.npcManager.reloadFromTiledPlacements();
-      this.pointClickController.refreshInteractables();
-    });
-
     this.worldMap = new WorldMap({
-      onStartBattle: (monsterId) => this.onRequestCombat?.(monsterId),
+      onRequestEncounter: (monsterId) => this.onRequestCombat?.(monsterId),
       getPlayerLevel: () => this.player.level,
       getPortals: () => this.mapManager.portals,
       onZoneAccessDenied: (message) => postGameChatMessage(message),
     });
-    ensureWorldMonsterInstances();
+    // Seed de hunt só se já spawnou na farm; cidade fica leve até layout-ready.
+    if (isHuntZoneMapId(mapManager.currentMapId)) {
+      ensureClientZone(mapManager.currentMapId);
+    }
     this.worldMap.loadMap(mapManager.currentMapId);
 
     setWorldCreatureSyncListener((mapId) => {
@@ -318,6 +310,9 @@ export class ExplorationScene implements Disposable {
 
     this.offBattleFinished = uiEvents.on(UIEventType.BATTLE_FINISHED, (payload) => {
       if (!payload.victory) return;
+      if (getGameMode() === 'local') {
+        scheduleLocalMonsterRespawn(payload.encounter.monsterId);
+      }
       this.worldMap.removeMonster(payload.encounter.monsterId);
       this.pointClickController.refreshInteractables();
     });
@@ -391,8 +386,11 @@ export class ExplorationScene implements Disposable {
     });
 
     registerZoneMapPreloader(this.zonePreloader);
-    this.zonePreloader.warmSessionMaps();
-
+    // Só aquece a cidade no boot — farm via layout-ready / portal tick.
+    this.zonePreloader.warmSessionMaps([CITY_01_ID]);
+    if (isHuntZoneMapId(mapManager.currentMapId)) {
+      this.zonePreloader.ensureReady(mapManager.currentMapId);
+    }
 
 
     mapManager.loadMap(mapManager.currentMapId, {
@@ -615,7 +613,7 @@ export class ExplorationScene implements Disposable {
       y: payload.lastPosition.y,
     });
 
-    applyPhaserMapInstanceSwap({
+    applyConstructMapLoad({
       mapId: payload.currentMapId,
       x: payload.lastPosition.x,
       y: payload.lastPosition.y,
@@ -629,6 +627,13 @@ export class ExplorationScene implements Disposable {
     readonly facing: ExplorationSnapshot['facing'];
     readonly mapId: string;
   }): void {
+    getMutableDataStore().applyWorldPositionFromServer({
+      mapId: snapshot.mapId,
+      x: snapshot.x,
+      y: snapshot.y,
+      facing: snapshot.facing,
+    });
+
     const mockSocket = this.worldSocket as MockWorldSocket;
     if (typeof mockSocket.applyServerWorldState !== 'function') return;
 
@@ -653,14 +658,7 @@ export class ExplorationScene implements Disposable {
     this.applyFixedViewport();
   }
 
-  /** Phaser recebe input — bloqueia cliques no mundo quando HUD modal está aberta. */
-  private syncWorldPointerGate(): void {
-    setPhaserWorldInputBlocked(isWorldHudInteractionLocked());
-  }
-
   public update(deltaMs = 16.67): void {
-    this.syncWorldPointerGate();
-
     if (
       this.paused
       || isPauseMenuOpen()
@@ -752,17 +750,34 @@ export class ExplorationScene implements Disposable {
 
     if (this.worldPlayerId === null || this.worldCharacterId === null) return;
 
-    const tile = worldPixelToTile(this.player.renderX, this.player.renderY);
-    const tileKey = `${this.mapManager.currentMapId}:${tile.tileX}:${tile.tileY}`;
-    if (tileKey === this.lastSpeechBubbleTileKey) return;
-    this.lastSpeechBubbleTileKey = tileKey;
+    const mapId = this.mapManager.currentMapId;
 
+    // Remotos com balão ativo acompanham o interpolador do state-sync.
+    const remoteSnapshots = getAuthoritativeRemotePlayerSnapshots(mapId as MapId);
+    if (remoteSnapshots.length > 0) {
+      const byPlayerId = new Map(
+        sampleRemoteEntitiesForRender(mapId as MapId).map((state) => [state.entityId, state] as const),
+      );
+      for (const snap of remoteSnapshots) {
+        const display = byPlayerId.get(snap.playerId);
+        if (!display) continue;
+        manager.registerEntity({
+          playerId: snap.playerId,
+          characterId: snap.characterId,
+          worldX: display.feetX,
+          worldY: display.feetY,
+          mapId,
+        });
+      }
+    }
+
+    // Local por último — updateLocalEntity sincroniza âncoras de todos os balões ativos.
     manager.updateLocalEntity({
       playerId: this.worldPlayerId,
       characterId: this.worldCharacterId,
       worldX: this.player.renderX,
       worldY: this.player.renderY,
-      mapId: this.mapManager.currentMapId,
+      mapId,
     });
   }
 
@@ -812,7 +827,10 @@ export class ExplorationScene implements Disposable {
   }
 
   private buildPortalSyncBundle(): import('../world/zoneTransitionController.js').ZoneTransitionSyncBundle | null {
-    const characterId = this.worldCharacterId ?? 1;
+    const characterId = this.worldCharacterId;
+    if (characterId === null || characterId === undefined || !Number.isInteger(characterId) || characterId < 1) {
+      return null;
+    }
 
     const vitals = getGlobalPlayerStore().getWorldVitals();
     const pet = getPlayerPetStore().getSnapshot();
@@ -873,12 +891,12 @@ export class ExplorationScene implements Disposable {
 
     this.publishMinimapState();
 
-    const phaserSnap = getRenderLayerBridge().snapshot();
-    const shouldSyncPhaser =
-      phaserSnap.renderEngine === 'phaser'
-      && (phaserSnap.phaserBooted || isPhaserRenderPipelineReady());
+    const renderSnap = getRenderLayerBridge().snapshot();
+    const shouldSyncWorldRender =
+      renderSnap.renderEngine === 'construct'
+      && (renderSnap.worldRenderBooted || isWorldRenderPipelineReady());
 
-    if (shouldSyncPhaser) {
+    if (shouldSyncWorldRender) {
       const timestampMs = performance.now();
       publishExplorationRenderFrame({
         mapId: this.mapManager.currentMapId,
@@ -890,23 +908,12 @@ export class ExplorationScene implements Disposable {
         timestampMs,
         playerSprite: this.playerAvatar.getAnimationSnapshot(),
         worldActors: sortWorldActorsByDepth([
-          ...this.worldMap.collectCreatureRenderSnapshots(),
+          ...this.worldMap.collectCreatureRenderSnapshots(timestampMs),
           ...this.npcManager.collectNpcRenderSnapshots(timestampMs),
         ]),
         pet: this.petFollow.toRenderSnapshot(),
         navigationDestination: this.navigationDestination,
-        debugOverlay: buildExplorationDebugOverlaySnapshot({
-          mapId: this.mapManager.currentMapId,
-          mapData: this.mapManager.mapDataSnapshot,
-          portals: this.mapManager.portals,
-          playerX: this.player.renderX,
-          playerY: this.player.renderY,
-          cameraX: this.camera.x,
-          cameraY: this.camera.y,
-          viewWidth: this.camera.visibleWorldWidth,
-          viewHeight: this.camera.visibleWorldHeight,
-          creatureSnapshots: this.worldMap.getAuthoritativeSnapshotsForDebug(),
-        }),
+        debugOverlay: null,
       });
     }
   }
@@ -970,7 +977,7 @@ export class ExplorationScene implements Disposable {
 
 
 
-  /** Sincroniza nametags/balões DOM acima do Phaser. */
+  /** Sincroniza nametags/balões DOM acima do Construct. */
   public syncWorldDomOverlay(timestampMs = performance.now()): void {
     const playerSnapshot = this.player.toRenderSnapshot();
     const petSnapshot = this.petFollow.toRenderSnapshot();
@@ -1024,8 +1031,6 @@ export class ExplorationScene implements Disposable {
     }
     this.offPlayerUpdate = null;
     this.offPortalAccessDenied = null;
-    this.offTiledPlacementsCommitted?.();
-    this.offTiledPlacementsCommitted = null;
 
     this.zoneTransitionCleanup?.();
     this.zoneTransitionCleanup = null;

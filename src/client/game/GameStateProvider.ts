@@ -8,6 +8,8 @@ import {
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { CITY_01_ID } from '../../shared/world/maps/city01.js';
+import { isMapId } from '../../shared/world/mapRegistry.js';
+import { buildCitySafeSpawnPayload } from '../../shared/world/zoneTransition.js';
 import { buildBattleEncounter } from '../../shared/world/monsterRegistry.js';
 import type { BattleEncounterData, BattleFinishedPayload, GameState } from '../../shared/game/gameState.js';
 import type { GameStateContextType } from '../../shared/game/gameStateContext.js';
@@ -19,6 +21,7 @@ import {
   type GameStateTransitionHooks,
 } from '../../shared/state/GameStateManager.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
+import { alertSystem } from '../ui/alertSystem.js';
 import {
   clearBattleSessionUi,
   lockBattleHudInput,
@@ -32,6 +35,7 @@ import { handleBattleDefeatPenalty } from '../progression/deathPenaltyClient.js'
 import { getMarcoCombatTelemetry } from '../progression/marcoCombatTelemetry.js';
 import { persistBattleEndVitals } from './battleVitalsPersistence.js';
 import type { ExplorationSnapshot } from '../../shared/game/gameState.js';
+import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
 
 export type GameStateProviderDeps = {
   readonly onPauseExploration: () => void;
@@ -41,10 +45,89 @@ export type GameStateProviderDeps = {
   readonly onEnterExplorationVisual?: () => void;
 };
 
-let providerHooks: GameStateTransitionHooks | null = null;
-let offBattleFinished: (() => void) | null = null;
-let loadingScreen: LoadingScreen | null = null;
-let pendingBattleEnd: BattleEndResult | null = null;
+/**
+ * Estado compartilhado entre o bundle tsc (`/client`) e o React HUD (`/app-ui`).
+ * Sem globalThis, a HUD chama beginPendingPveCombatJoin numa cópia sem hooks → "encontro inválido".
+ */
+type GameStateProviderSlot = {
+  hooks: GameStateTransitionHooks | null;
+  pendingCombatJoin: boolean;
+  pendingBattleEnd: BattleEndResult | null;
+  offBattleFinished: (() => void) | null;
+  loadingScreen: LoadingScreen | null;
+};
+
+type GlobalWithGameStateProvider = typeof globalThis & {
+  __ALTERCADIA_GAME_STATE_PROVIDER__?: GameStateProviderSlot;
+};
+
+function getGameStateProviderSlot(): GameStateProviderSlot {
+  const g = globalThis as GlobalWithGameStateProvider;
+  if (!g.__ALTERCADIA_GAME_STATE_PROVIDER__) {
+    g.__ALTERCADIA_GAME_STATE_PROVIDER__ = {
+      hooks: null,
+      pendingCombatJoin: false,
+      pendingBattleEnd: null,
+      offBattleFinished: null,
+      loadingScreen: null,
+    };
+  }
+  return g.__ALTERCADIA_GAME_STATE_PROVIDER__;
+}
+
+const COMBAT_JOIN_ABORT_REASONS = new Set([
+  'WORLD_LOGIN_REQUIRED',
+  'ENCOUNTER_REQUIRED',
+  'MONSTER_TOO_FAR',
+  'MONSTER_NOT_FOUND',
+  'MONSTER_UNAVAILABLE',
+  'MONSTER_NOT_ACTIVE',
+  'MONSTER_MAP_MISMATCH',
+  'MISSING_MONSTER_INSTANCE',
+  'NO_PENDING_ENCOUNTER',
+  'JOIN_BATTLE_FAILED',
+  'PROFILE_NOT_READY',
+  'PLAYER_NOT_EXPLORING',
+  'NO_SESSION',
+  'INVALID_BATTLE',
+  'INVALID_CHARACTER',
+  'INVALID_INTENT',
+  'BATTLE_SESSION_EXPIRED',
+  'SERVER_ERROR',
+  'INVALID_MESSAGE',
+  'PAYLOAD_TOO_LARGE',
+  'AUTH_REQUIRED',
+  'AUTH_INVALID',
+  'AUTH_MISMATCH',
+  'DEV_ONLY',
+]);
+
+/**
+ * Prefer mirror local; se AOI/seed ainda não tem o id, usa o offer da HUD
+ * (servidor continua autoridade no join).
+ */
+function resolvePendingBattleEncounter(monsterInstanceId: string): BattleEncounterData | null {
+  const fromMirror = buildBattleEncounter(monsterInstanceId);
+  if (fromMirror) return fromMirror;
+
+  const offer = getPveEncounterStore().getSnapshot().offer;
+  if (!offer || offer.monsterInstanceId !== monsterInstanceId) return null;
+
+  const snapMap = getGlobalPlayerStore().getExplorationSnapshot()?.mapId;
+  const mapId = isMapId(offer.mapId)
+    ? offer.mapId
+    : (snapMap && isMapId(snapMap) ? snapMap : CITY_01_ID);
+
+  return {
+    monsterId: offer.monsterInstanceId,
+    monsterName: offer.name.trim() || 'Inimigo',
+    mapId,
+    tileX: 0,
+    tileY: 0,
+    // Sem creatureId no offer = bug de dados; não inventar criatura ('' = desconhecida).
+    creatureId: offer.creatureId.trim(),
+  };
+}
 
 function buildPersistence() {
   const store = getGlobalPlayerStore();
@@ -71,16 +154,17 @@ function buildContext(): GameStateContextType {
  * Inicializa pub/sub, DOM e hooks de transição.
  */
 export function initGameStateProvider(deps: GameStateProviderDeps): () => void {
-  loadingScreen = new LoadingScreen(document.getElementById('scene-transition'));
+  const slot = getGameStateProviderSlot();
+  slot.loadingScreen = new LoadingScreen(document.getElementById('scene-transition'));
 
-  providerHooks = {
+  slot.hooks = {
     persistence: buildPersistence(),
     onTransitionStart: async () => {
       lockBattleHudInput();
-      loadingScreen?.show();
+      getGameStateProviderSlot().loadingScreen?.show();
     },
     onTransitionEnd: async () => {
-      loadingScreen?.hide();
+      getGameStateProviderSlot().loadingScreen?.hide();
     },
     onEnterBattle: async () => {
       await enterBattleWithFade();
@@ -92,7 +176,8 @@ export function initGameStateProvider(deps: GameStateProviderDeps): () => void {
     onResumeExploration: deps.onResumeExploration,
     onClearBattleSession: () => {
       clearBattleSessionUi();
-      prepareNextBattle();
+      // Mantém battleEndHandled até exitBattleToWorld confirmar EXPLORATION.
+      prepareNextBattle({ keepEndHandled: true });
     },
     requestCombatJoin: deps.requestCombatJoin,
     onBattleVictory: () => {
@@ -101,31 +186,34 @@ export function initGameStateProvider(deps: GameStateProviderDeps): () => void {
     captureExplorationSnapshot: deps.captureExplorationSnapshot,
   };
 
-  registerBattleReturnBridge(providerHooks, returnToExplorationFromBattle);
+  registerBattleReturnBridge(slot.hooks, returnToExplorationFromBattle);
 
-  offBattleFinished?.();
-  offBattleFinished = uiEvents.on(UIEventType.BATTLE_FINISHED, (payload) => {
+  slot.offBattleFinished?.();
+  slot.offBattleFinished = uiEvents.on(UIEventType.BATTLE_FINISHED, (payload) => {
     if (getGameStateManager().isExploration()) return;
 
     getPlayerPetStore().applyBattleAffinityReward(payload.victory);
     getMarcoCombatTelemetry().flushAfterBattle(payload.victory);
 
-    pendingBattleEnd = {
+    const runtime = getGameStateProviderSlot();
+    runtime.pendingBattleEnd = {
       encounter: payload.encounter,
       victory: payload.victory,
       rewards: payload.rewards,
     };
-    void endBattleWithResult(pendingBattleEnd);
+    void endBattleWithResult(runtime.pendingBattleEnd);
   });
 
   return () => {
+    const runtime = getGameStateProviderSlot();
     unregisterBattleReturnBridge();
-    offBattleFinished?.();
-    offBattleFinished = null;
-    providerHooks = null;
-    pendingBattleEnd = null;
-    loadingScreen?.destroy();
-    loadingScreen = null;
+    runtime.offBattleFinished?.();
+    runtime.offBattleFinished = null;
+    runtime.hooks = null;
+    runtime.pendingBattleEnd = null;
+    runtime.pendingCombatJoin = false;
+    runtime.loadingScreen?.destroy();
+    runtime.loadingScreen = null;
     resetGameStateManager();
   };
 }
@@ -159,13 +247,49 @@ export function gameStateAcceptsInput(): boolean {
   return getGameStateManager().acceptsPlayerInput();
 }
 
-export async function startBattle(monsterId: string): Promise<boolean> {
-  const encounter = buildBattleEncounter(monsterId);
-  if (!encounter || !providerHooks) return false;
+export function isPendingCombatJoin(): boolean {
+  return getGameStateProviderSlot().pendingCombatJoin;
+}
 
+/**
+ * Aceite PVE (WS) — grava encontro e marca join pendente.
+ * Não monta a tela de batalha (fail-closed até START_COMBAT).
+ */
+export function beginPendingPveCombatJoin(monsterInstanceId: string): boolean {
+  const encounter = resolvePendingBattleEncounter(monsterInstanceId);
+  const hooks = getGameStateProviderSlot().hooks;
+  if (!encounter || !hooks) {
+    console.warn('[GameState] beginPendingPveCombatJoin falhou', {
+      hasEncounter: Boolean(encounter),
+      hasHooks: Boolean(hooks),
+      monsterInstanceId,
+    });
+    return false;
+  }
+
+  const slot = getGameStateProviderSlot();
+  slot.pendingCombatJoin = true;
   prepareNextBattle();
   getPlayerPetStore().markBattleAffinityBaseline();
-  return getGameStateManager().startBattle(encounter, providerHooks);
+
+  const snapshot = hooks.captureExplorationSnapshot();
+  hooks.persistence.saveExplorationSnapshot(snapshot);
+  hooks.persistence.setActiveEncounter(encounter);
+  return true;
+}
+
+/**
+ * Pedido de join (legado / local) — prepara encontro + combat-join, sem montar Battle.
+ */
+export async function startBattle(monsterId: string): Promise<boolean> {
+  const encounter = resolvePendingBattleEncounter(monsterId) ?? buildBattleEncounter(monsterId);
+  const hooks = getGameStateProviderSlot().hooks;
+  if (!encounter || !hooks) return false;
+
+  getGameStateProviderSlot().pendingCombatJoin = true;
+  prepareNextBattle();
+  getPlayerPetStore().markBattleAffinityBaseline();
+  return getGameStateManager().prepareCombatJoin(encounter, hooks);
 }
 
 /** @deprecated Use startBattle */
@@ -174,17 +298,21 @@ export async function triggerBattle(monsterId: string): Promise<boolean> {
 }
 
 async function endBattleWithResult(result: BattleEndResult): Promise<void> {
-  if (!providerHooks) return;
-  await getGameStateManager().endBattle(result, providerHooks);
-  pendingBattleEnd = null;
+  const hooks = getGameStateProviderSlot().hooks;
+  if (!hooks) return;
+  const slot = getGameStateProviderSlot();
+  slot.pendingCombatJoin = false;
+  await getGameStateManager().endBattle(result, hooks);
+  slot.pendingBattleEnd = null;
 }
 
 /** endBattle() — restaura exploração usando encontro ativo ou resultado pendente. */
 export async function endBattleFromContext(): Promise<void> {
-  if (!providerHooks) return;
+  if (!getGameStateProviderSlot().hooks) return;
 
-  if (pendingBattleEnd) {
-    await endBattleWithResult(pendingBattleEnd);
+  const pending = getGameStateProviderSlot().pendingBattleEnd;
+  if (pending) {
+    await endBattleWithResult(pending);
     return;
   }
 
@@ -194,9 +322,65 @@ export async function endBattleFromContext(): Promise<void> {
   }
 }
 
-export async function enterBattleFromServer(): Promise<void> {
-  if (!providerHooks) return;
-  await getGameStateManager().enterBattleFromServer(providerHooks);
+export type EnterBattleFromServerOptions = {
+  readonly monsterInstanceId?: string;
+};
+
+/** START_COMBAT — única porta para montar a tela de batalha (fora do Construct / React HUD). */
+export async function enterBattleFromServer(
+  options: EnterBattleFromServerOptions = {},
+): Promise<void> {
+  const hooks = getGameStateProviderSlot().hooks;
+  if (!hooks) return;
+
+  getGameStateProviderSlot().pendingCombatJoin = false;
+  getPveEncounterStore().setBusy(false);
+
+  let encounter = getGlobalPlayerStore().getActiveEncounter();
+  const monsterId = options.monsterInstanceId?.trim();
+  if (monsterId) {
+    encounter = resolvePendingBattleEncounter(monsterId)
+      ?? buildBattleEncounter(monsterId)
+      ?? encounter
+      ?? {
+        monsterId,
+        monsterName: 'Inimigo',
+        mapId: getGlobalPlayerStore().getExplorationSnapshot()?.mapId ?? CITY_01_ID,
+        tileX: 0,
+        tileY: 0,
+        creatureId: '',
+      };
+  }
+
+  await getGameStateManager().enterBattleFromServer(hooks, encounter);
+}
+
+/**
+ * combat-error / join rejeitado — limpa busy e volta ao mundo se o join ainda estava pendente
+ * ou se a UI já entrou em transição/batalha sem sessão válida.
+ */
+export async function abortCombatJoinOnError(reason: string): Promise<void> {
+  const manager = getGameStateManager();
+  const inCombatUi = manager.isBattle() || manager.isTransitioning();
+  const knownJoinFailure = COMBAT_JOIN_ABORT_REASONS.has(reason);
+  const slot = getGameStateProviderSlot();
+
+  getPveEncounterStore().setBusy(false);
+
+  if (!slot.pendingCombatJoin && !(inCombatUi && knownJoinFailure)) {
+    return;
+  }
+
+  slot.pendingCombatJoin = false;
+  alertSystem(`Combate recusado: ${reason}`);
+
+  if (!slot.hooks) {
+    getGlobalPlayerStore().clearActiveEncounter();
+    return;
+  }
+
+  await getGameStateManager().abortCombatJoin(slot.hooks);
+  syncGameScenesToCurrentState();
 }
 
 /**
@@ -206,10 +390,25 @@ export async function enterBattleFromServer(): Promise<void> {
 export async function returnToExplorationFromBattle(
   options: ReturnToExplorationOptions,
 ): Promise<void> {
-  const hooks = providerHooks;
+  const hooks = getGameStateProviderSlot().hooks;
   if (!hooks) {
     console.warn('[GameState] returnToExplorationFromBattle sem provider');
     return;
+  }
+
+  getGameStateProviderSlot().pendingCombatJoin = false;
+
+  // Derrota → sempre voltar ao centro da cidade (espelha o respawn autoritativo do servidor).
+  if (!options.victory) {
+    const citySpawn = buildCitySafeSpawnPayload();
+    if (isMapId(citySpawn.mapId)) {
+      hooks.persistence.saveExplorationSnapshot({
+        mapId: citySpawn.mapId,
+        x: citySpawn.x,
+        y: citySpawn.y,
+        facing: citySpawn.facing ?? 'south',
+      });
+    }
   }
 
   const manager = getGameStateManager();
@@ -236,7 +435,7 @@ export async function returnToExplorationFromBattle(
     mapId: snap?.mapId ?? CITY_01_ID,
     tileX: 0,
     tileY: 0,
-    creatureId: 'rat',
+    creatureId: '',
   };
 
   persistBattleEndVitals();
@@ -260,7 +459,7 @@ export async function returnToExplorationFromBattle(
 export function publishBattleFinished(
   encounter: BattleEncounterData,
   victory: boolean,
-  endReason?: import('../../shared/combat/battleEnded.js').BattleEndReason,
+  endReason?: BattleEndReason,
 ): void {
   persistBattleEndVitals();
 

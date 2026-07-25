@@ -1,5 +1,6 @@
 import { buyCaelPetRationAtNpc } from '../../../Economy/economyGateway.js';
 import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
+import { buildPetIntentAckData } from '../pets/PetRosterHandlers.js';
 
 export type CaelBuyPetRationPayload = {
   readonly npcId: string;
@@ -21,14 +22,19 @@ export class CaelBuyPetRationHandler extends BaseIntentHandler<CaelBuyPetRationP
     });
 
     if (!result.ok) {
-      this.sendResponse(playerId, intentId, false, result.code);
+      this.sendResponse(playerId, intentId, false, result.message);
       return;
     }
 
-    this.sendResponse(playerId, intentId, true, {
-      chargesGranted: result.chargesGranted,
-      rationCharges: result.totalRationCharges,
-    });
+    this.sendResponse(
+      playerId,
+      intentId,
+      true,
+      buildPetIntentAckData(playerId, this.characterId, {
+        chargesGranted: result.chargesGranted,
+        rationCharges: result.totalRationCharges,
+      }),
+    );
   }
 }
 

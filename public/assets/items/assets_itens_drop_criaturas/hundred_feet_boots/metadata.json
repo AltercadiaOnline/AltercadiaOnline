@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "7d072986-092a-466b-a2d1-9cabb4dceba6",
+      "name": null,
+      "prompt": "Small flat grey stone rune with a simple [DESENHO/GEOMETRIA] symbol etched on the front, classic RPG item sprite, tibia aesthetic, old school runescape style, retro 32-bit pixel art, pixel-perfect, crisp dithered shading, hard shadows, vibrant classic colors, clean defined dark outlines, nostalgic retro game asset, isolated on solid black background",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-20T03:13:35.145433"
+}

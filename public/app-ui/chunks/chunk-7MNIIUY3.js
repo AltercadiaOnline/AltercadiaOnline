@@ -1,0 +1,1 @@
+import{h as i}from"./chunk-ODFLHP2P.js";import{c as n}from"./chunk-JFRRTHSV.js";import{a as f}from"./chunk-KAOZBIAA.js";import{c as u}from"./chunk-DCANE7XH.js";var e=u(f(),1);function d(o,t){let r=(0,e.useRef)(t);r.current=t,(0,e.useEffect)(()=>()=>{queueMicrotask(()=>{n(o)||r.current&&!r.current()||i({defer:!1})})},[o])}export{d as a};

@@ -1,0 +1,70 @@
+{
+	"name": "casa3",
+	"plugin-id": "Sprite",
+	"sid": 295828320650030,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 161973231519224
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 144,
+						"height": 144,
+						"originX": 0.45454545454545453,
+						"originY": 0.5,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 4287368,
+						"collisionPoly": {
+							"points": [
+								0.45454545454545453,
+								0.05744949494949493,
+								0.6380471380471376,
+								0.06902356902356906,
+								0.8202861952861943,
+								0.0723905723905727,
+								0.8295454545454541,
+								0.4553872053872056,
+								0.809764309764309,
+								0.8882575757575758,
+								0.6734006734006727,
+								0.8893097643097649,
+								0.3937289562289564,
+								0.8869949494949506,
+								0.18097643097643076,
+								0.8882575757575759,
+								0.17508417508417512,
+								0.44149831649831667,
+								0.1835016835016834,
+								0.06355218855218854
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 196612406362739,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

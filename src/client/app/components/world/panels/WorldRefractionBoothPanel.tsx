@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { REFRACTION_BOOTH_CONFIG } from '../../../../../shared/cityMinigames/refractionBoothConfig.js';
 import { formatVolts } from '../../../../../shared/economy/premiumCurrency.js';
-import { endWorldHudInteractionSession } from '../../../../world/worldHudInteractionSession.js';
-import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { consumeReactRefractionNpcStart } from '../../../panels/refractionBoothBridge.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
+import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
 import {
   formatRefractionDuration,
   resolveRefractionBoothFromContext,
@@ -60,12 +59,7 @@ export function WorldRefractionBoothPanel({
   const arenaHostRef = useRef<HTMLDivElement>(null);
   const bootedRef = useRef(false);
 
-  useEffect(() => () => {
-    const snapshot = endWorldHudInteractionSession();
-    if (snapshot) {
-      uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
-    }
-  }, []);
+  useReleaseWorldHudOnPanelClose('refractionBooth');
 
   useEffect(() => {
     if (bootedRef.current) return;

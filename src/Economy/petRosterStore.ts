@@ -69,6 +69,10 @@ export function setPetRosterSnapshot(
   });
 }
 
+export function clearPetRosterForCharacter(playerId: string, characterId: number): void {
+  rosters.delete(profileKey(playerId, characterId));
+}
+
 export function resetPetRosterStore(): void {
   rosters.clear();
 }

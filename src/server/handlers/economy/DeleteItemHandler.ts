@@ -32,6 +32,7 @@ export class DeleteItemHandler extends BaseIntentHandler<DeleteItemPayload> {
     this.sendResponse(playerId, intentId, true, {
       itemId: result.itemId,
       quantity: result.quantity,
+      inventorySync: result.inventorySync,
     });
   }
 }

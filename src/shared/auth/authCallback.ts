@@ -1,8 +1,11 @@
 /** Rota do SPA após OAuth / confirmação de email — char select. */
 export const AUTH_CALLBACK_PATH = '/characters';
 
-/** Rotas legadas que redirecionamos para `/characters`. */
-export const AUTH_CALLBACK_LEGACY_PATHS = ['/game'] as const;
+/** Rota do SPA com sessão de jogo ativa (exploração / combate). */
+export const GAME_SESSION_PATH = '/game';
+
+/** Rotas legadas de OAuth — redirecionamos para `/characters` (não incluir `/game`: conflita com módulos estáticos `/game/*.js`). */
+export const AUTH_CALLBACK_LEGACY_PATHS = [] as const;
 
 export {
   DEFAULT_PUBLIC_SITE_ORIGIN,
@@ -24,6 +27,18 @@ export function isAuthCallbackPath(pathname: string): boolean {
     return true;
   }
   return (AUTH_CALLBACK_LEGACY_PATHS as readonly string[]).includes(path);
+}
+
+export function isGameSessionPath(pathname: string): boolean {
+  const path = pathname.trim() || '/';
+  // Apenas a rota SPA — NÃO usar startsWith: /game/* serve módulos estáticos (GameConfig.js, etc.).
+  return path === GAME_SESSION_PATH || path === `${GAME_SESSION_PATH}/`;
+}
+
+/** Rotas SPA que devem servir index.html (Vercel / Railway static). */
+export function isSpaClientPath(pathname: string): boolean {
+  const path = pathname.trim() || '/';
+  return path === '/' || isAuthCallbackPath(path) || isGameSessionPath(path);
 }
 
 /** URL completa para redirectTo / emailRedirectTo do Supabase. */

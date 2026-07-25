@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "ad873ec5-031a-476e-8a99-bac6b1db0a02",
+      "name": null,
+      "prompt": "pixel art icon, 32x32, a mechanical metal jaw piece, grey, sharp, flat colors, retro game style",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-19T17:28:14.613209"
+}

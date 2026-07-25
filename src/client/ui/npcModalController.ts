@@ -26,6 +26,7 @@ const NPC_MODAL_WINDOWS: readonly UiWindowId[] = [
   'petTrainerShop',
   'tournamentBet',
   'rankingMonitor',
+  'pvpQueue',
   'refractionBooth',
 ];
 

@@ -21,7 +21,11 @@ export const TOP_DOWN_PLAYER_BUNDLE_ROOT = `${PLAYER_SHEET_ASSET_ROOT}/${DEFAULT
 
 /** URL da rotação sul — fallback em combate / loaders legados. */
 export const DEFAULT_PLAYER_SOUTH_ROTATION_URL =
-  `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations/south.png`;
+  `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/design/rotations/south.png`;
+
+/** URL da rotação leste — arena de batalha side-view (player olha o oponente à direita). */
+export const DEFAULT_PLAYER_EAST_ROTATION_URL =
+  `${TOP_DOWN_PLAYER_BUNDLE_ROOT}/design/rotations/east.png`;
 
 /** @deprecated Use TOP_DOWN_PLAYER_BUNDLE_ROOT */
 export const PLAYER_ASSET_BUNDLE_ROOT = TOP_DOWN_PLAYER_BUNDLE_ROOT;

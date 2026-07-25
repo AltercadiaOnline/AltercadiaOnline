@@ -1,5 +1,16 @@
-/** Grade compacta da Cidade 01 — 40×40 blocos na grade oficial 32×32. */
+/**
+ * Cidade 01 — âncoras de gameplay (NPCs, portais, zonas de serviço).
+ *
+ * Autoridade visual / bounds: Construct layout `cidade_01` (1280×1280 px).
+ * Esta grade 40×40 @ 32px é só math de coords — não pinta walkable Tiled.
+ */
+import { DESIGN_CONFIG } from '../../../config/designConstants.js';
+
 export const CITY_01_MAP_TILES = 40;
+
+/** Pixels do layout Construct `cidade_01`. */
+export const CITY_01_PIXEL_WIDTH = CITY_01_MAP_TILES * DESIGN_CONFIG.TILE.SIZE;
+export const CITY_01_PIXEL_HEIGHT = CITY_01_MAP_TILES * DESIGN_CONFIG.TILE.SIZE;
 
 /** Metade da grade — eixo urbano da Cidade 01. */
 export const CITY_01_MAP_HALF = Math.floor(CITY_01_MAP_TILES / 2);
@@ -127,44 +138,55 @@ export function isCity01ArenaStageStepTile(tileX: number, tileY: number): boolea
   );
 }
 
-export type ArenaPulpitDef = {
-  readonly id: string;
+/** Púlpitos legados removidos — interação única: `computador_arena`. */
+export type ArenaComputerDef = {
+  readonly id: 'computador_arena';
   readonly label: string;
   readonly tileX: number;
   readonly tileY: number;
 };
 
-/** Púlpitos frontais do palco — interação de torneio/aposta. */
-export const CITY_01_ARENA_PULPITS: readonly ArenaPulpitDef[] = [
-  {
-    id: 'arena_pulpit_west',
-    label: 'Púlpito Oeste',
-    tileX: CITY_01_ARENA_VISUAL.tileX + 1,
-    tileY: CITY_01_ARENA_VISUAL.tileY + CITY_01_ARENA_VISUAL.tileH - 1,
-  },
-  {
-    id: 'arena_pulpit_center',
-    label: 'Púlpito Central',
-    tileX: CITY_01_ARENA_CORE.tileX,
-    tileY: CITY_01_ARENA_VISUAL.tileY + CITY_01_ARENA_VISUAL.tileH - 1,
-  },
-  {
-    id: 'arena_pulpit_east',
-    label: 'Púlpito Leste',
-    tileX: CITY_01_ARENA_VISUAL.tileX + CITY_01_ARENA_VISUAL.tileW - 2,
-    tileY: CITY_01_ARENA_VISUAL.tileY + CITY_01_ARENA_VISUAL.tileH - 1,
-  },
-] as const;
-
-/** Monitor de ranking — ao lado oeste da arena principal. */
-export const CITY_01_ARENA_RANKING_MONITOR = {
-  id: 'arena_ranking_monitor',
-  label: 'Monitor de Ranking',
-  tileX: CITY_01_ARENA_VISUAL.tileX - 1,
-  tileY: CITY_01_ARENA_VISUAL.tileY + 1,
-  tileW: 1,
-  tileH: 2,
+/**
+ * Terminal da arena — hub ranking PvP.
+ * Marker Construct: `computador_arena`.
+ */
+export const CITY_01_COMPUTADOR_ARENA: ArenaComputerDef = {
+  id: 'computador_arena',
+  label: 'Computador da Arena',
+  tileX: CITY_01_ARENA_CORE.tileX,
+  tileY: CITY_01_ARENA_VISUAL.tileY + CITY_01_ARENA_VISUAL.tileH - 1,
 } as const;
+
+/** @deprecated Use CITY_01_COMPUTADOR_ARENA — mantido só para imports legados de layout. */
+export const CITY_01_ARENA_RANKING_MONITOR = {
+  id: CITY_01_COMPUTADOR_ARENA.id,
+  label: CITY_01_COMPUTADOR_ARENA.label,
+  tileX: CITY_01_COMPUTADOR_ARENA.tileX,
+  tileY: CITY_01_COMPUTADOR_ARENA.tileY,
+  tileW: 1,
+  tileH: 1,
+} as const;
+
+/**
+ * Púlpito de fila PvP ranqueada (2 slots → batalha).
+ * Marker Construct: `combate_pvp` (mesmo id da camada/objeto).
+ */
+export const CITY_01_COMBATE_PVP = {
+  id: 'combate_pvp',
+  label: 'PvP Rankeado',
+  tileX: CITY_01_ARENA_CORE.tileX,
+  /** Um tile à frente do computador da arena (lado da plateia). */
+  tileY: CITY_01_ARENA_VISUAL.tileY + CITY_01_ARENA_VISUAL.tileH,
+} as const;
+
+/** Direção do jogador ao usar o computador da arena / púlpito PvP. */
+export const ARENA_COMPUTER_FACING = 'south' as const;
+
+/** Alias — mesma pose ao entrar na fila do púlpito. */
+export const COMBATE_PVP_FACING = ARENA_COMPUTER_FACING;
+
+/** @deprecated Alias — use ARENA_COMPUTER_FACING. */
+export const ARENA_PULPIT_AUDIENCE_FACING = ARENA_COMPUTER_FACING;
 
 /** Estande de Tiro / Simulador de Refração — topo direito da cidade. */
 export const CITY_01_REFRACTION_BOOTH = {
@@ -204,9 +226,6 @@ export function isCity01RefractionBoothRoadTile(tileX: number, tileY: number): b
     tileRectContains(CITY_01_REFRACTION_BOOTH_ROAD_NS, tileX, tileY)
   );
 }
-
-/** Direção do jogador ao configurar aposta — voltado ao público (sul). */
-export const ARENA_PULPIT_AUDIENCE_FACING = 'south' as const;
 
 /** Placeholders de prédios — protótipo visual (somente cliente). Arena = chão, não estrutura 3D. */
 export const CITY_01_STRUCTURE_DEFS: readonly City01StructureDef[] = [

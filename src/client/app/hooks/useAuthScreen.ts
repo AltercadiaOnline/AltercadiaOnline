@@ -4,6 +4,11 @@ import {
   type AuthScreenSnapshot,
 } from '../screen/authScreenController.js';
 
+/**
+ * Espelha o AuthScreenController (singleton globalThis).
+ * Bootstrap → controller fica em uiRuntime + initAuthScreenController;
+ * este hook só assina o controller (evita patch duplicado a cada notify).
+ */
 export function useAuthScreen(): AuthScreenSnapshot {
   const [snapshot, setSnapshot] = useState<AuthScreenSnapshot>(
     () => getAuthScreenController().snapshot(),

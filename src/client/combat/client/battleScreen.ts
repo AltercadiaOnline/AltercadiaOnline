@@ -1,5 +1,5 @@
 /**
- * BattleScreen — sync combate, fade e render-bridge (arena Phaser ou DOM legado).
+ * BattleScreen — sync combate, fade e render-bridge (Construct + HUD React).
  * Vitals e HUD chrome: React via battleHudStore.
  */
 import type { CombatUiHints } from '../../../shared/combatWire.js';
@@ -13,14 +13,12 @@ import { resolveBattleOpponentActorId } from '../../../shared/combat/resolveBatt
 import type { CombatState } from '../../../shared/types.js';
 import type { BattleEncounterData } from '../../../shared/game/gameState.js';
 import { publishBattleFinished } from '../../game/GameStateProvider.js';
-import { setBattlePortraitStance } from '../../ui/battle/BattleScreen.js';
+import { setBattlePortraitStance, triggerBattleArenaCue } from '../../ui/battle/BattleScreen.js';
 import { syncBattleHudVitalsFromState } from '../../app/battle/battleHudVitalsSync.js';
 import {
   publishBattleRenderFromCombatState,
   triggerBattleRenderCue,
 } from '../../app/bridge/battleRenderBridge.js';
-import { isPhaserRenderEngineActive } from '../../app/bridge/renderLayerBridge.js';
-import { runPhaserBattleExitFade } from '../../phaser/battle/battleSceneTransitionFade.js';
 import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
 
 export type BattleScreenElements = {
@@ -58,13 +56,14 @@ export class BattleScreen {
     const player = state.combatants[ui.playerActorId];
     const opponent = this.boundOpponentId ? state.combatants[this.boundOpponentId] : null;
 
-    if (player && !isPhaserRenderEngineActive() && this.els.playerPortrait) {
+    // Arena DOM side-view — portraits sempre ativos (Construct = só exploração).
+    if (player && this.els.playerPortrait) {
       this.els.playerPortrait.dataset.classId = player.classId ?? '';
       this.els.playerPortrait.dataset.side = 'player';
       this.els.playerPortrait.setAttribute('aria-label', player.name);
     }
 
-    if (opponent && !isPhaserRenderEngineActive() && this.els.opponentPortrait) {
+    if (opponent && this.els.opponentPortrait) {
       this.els.opponentPortrait.dataset.classId = opponent.classId ?? '';
       this.els.opponentPortrait.dataset.side = 'opponent';
       this.els.opponentPortrait.setAttribute('aria-label', opponent.name);
@@ -113,22 +112,16 @@ export class BattleScreen {
     this.playSpawnInitializationFx();
   }
 
-  public async exitWithFade(onMidFade?: () => void): Promise<void> {
-    if (isPhaserRenderEngineActive()) {
-      await runPhaserBattleExitFade(onMidFade);
-      document.body.removeAttribute('data-phaser-render-fade');
-      return;
-    }
-
+  public async exitWithFade(onMidFade?: () => void | Promise<void>): Promise<void> {
     const overlay = this.els.fadeOverlay;
     if (!overlay) {
-      onMidFade?.();
+      await onMidFade?.();
       return;
     }
     overlay.classList.remove('hidden', 'is-fading-in');
     overlay.classList.add('is-fading-out');
     await this.waitTransition(overlay, 280);
-    onMidFade?.();
+    await onMidFade?.();
     await this.waitTransition(overlay, 320);
     overlay.classList.remove('is-fading-out');
     overlay.classList.add('hidden');
@@ -164,12 +157,13 @@ export class BattleScreen {
     cue: 'attack' | 'hit' | 'rune' | 'heal' | 'shield',
   ): Promise<void> {
     const side = this.resolveCombatantSide(combatantId);
-    if (side === 'player') triggerBattleRenderCue('ally', cue);
-    if (side === 'opponent') triggerBattleRenderCue('foe', cue);
-
-    if (isPhaserRenderEngineActive()) {
-      await this.waitMs(COMBAT_HIT_ANIM_MS);
-      return;
+    if (side === 'player') {
+      triggerBattleRenderCue('ally', cue);
+      triggerBattleArenaCue('ally', cue);
+    }
+    if (side === 'opponent') {
+      triggerBattleRenderCue('foe', cue);
+      triggerBattleArenaCue('foe', cue);
     }
 
     const portrait = this.getPortraitElement(combatantId);
@@ -192,8 +186,6 @@ export class BattleScreen {
     const side = this.resolveCombatantSide(combatantId);
     if (side === 'opponent') setBattlePortraitStance('foe', stance);
     if (side === 'player') setBattlePortraitStance('ally', stance);
-
-    if (isPhaserRenderEngineActive()) return;
 
     const portrait = this.resolvePortraitElement(combatantId);
     if (!portrait) return;
@@ -235,7 +227,7 @@ export class BattleScreen {
   }
 
   private playSpawnInitializationFx(): void {
-    if (isPhaserRenderEngineActive() || this.isSpawnFxRunning) return;
+    if (this.isSpawnFxRunning) return;
     this.isSpawnFxRunning = true;
     this.clearSpawnInitializationFx();
     this.els.playerPortrait?.classList.add('is-spawning');

@@ -1,9 +1,10 @@
 /**
- * BattleScreen — shell de arena (sprites DOM legado) + log/chat store-only.
+ * BattleScreen — shell de arena Canvas 2D + log/chat store-only.
+ * Construct = só exploração. HUD React fica por cima.
  */
 import { BattleChat } from './BattleChat.js';
 import { BattleLog } from './BattleLog.js';
-import { BattleSprite, queryBattleSpriteFrames } from './BattleSprite.js';
+import { BattleSprite } from './BattleSprite.js';
 import { getOpponentChatAuthorLabel } from './postBattleHonorContext.js';
 import { tryOpenHonorCardFromChatAuthor as openHonorFromChat } from './postBattleHonorOpener.js';
 import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
@@ -12,11 +13,18 @@ import {
   resetBattleRenderBridge,
   type BattleFighterStance,
 } from '../../app/bridge/battleRenderBridge.js';
-import { isPhaserRenderEngineActive } from '../../app/bridge/renderLayerBridge.js';
+import {
+  BattleArenaCanvas,
+  queryBattleArenaCanvas,
+  type BattleArenaCue,
+} from './BattleArenaCanvas.js';
+import { consumeBattleBackgroundVariant } from './battleBackgroundSession.js';
+import { getGlobalPlayerStore } from '../moveset/globalPlayerStore.js';
 
 export { BattleLog, type BattleLogProps, LOG_COLORS } from './BattleLog.js';
 export { BattleChat, type BattleChatProps, type BattleChatMessage } from './BattleChat.js';
 export { BattleSprite, type BattleSpriteProps } from './BattleSprite.js';
+export { BattleArenaCanvas } from './BattleArenaCanvas.js';
 export { BATTLE_TERMINAL_THEME } from './battleTerminalShared.js';
 
 export const BATTLE_SCREEN_ROOT_SELECTOR = '.battle-screen--terminal';
@@ -36,12 +44,13 @@ export type BattleCommandHandlers = {
 
 let battleLogPanel: BattleLog | null = null;
 let battleChatPanel: BattleChat | null = null;
-let battleSpriteAlly: BattleSprite | null = null;
-let battleSpriteFoe: BattleSprite | null = null;
+let battleArena: BattleArenaCanvas | null = null;
 let teardownCommandBar: (() => void) | null = null;
 let mountedMonsterId: string | null = null;
 let allyBattleStance: BattleFighterStance = 'idle';
 let foeBattleStance: BattleFighterStance = 'idle';
+/** Fundo aplicado nesta batalha — evita consumir o contador em re-render do mesmo mount. */
+let arenaBackgroundApplied = false;
 
 function publishCurrentBattleRenderFrame(): void {
   patchBattleRenderVisual({
@@ -57,6 +66,10 @@ export function getBattleLogPanel(): BattleLog | null {
 
 export function getBattleChatPanel(): BattleChat | null {
   return battleChatPanel;
+}
+
+export function getBattleArenaCanvas(): BattleArenaCanvas | null {
+  return battleArena;
 }
 
 export function syncBattleChatOpponentAuthor(): void {
@@ -76,10 +89,26 @@ export function mountBattleScreenView(
   ensureBattleScreenShell(root);
   mountedMonsterId = props.monsterId;
 
-  if (!isPhaserRenderEngineActive()) {
-    battleSpriteFoe?.bindMonsterId(props.monsterId);
-    battleSpriteAlly?.applyProps({ side: 'ally' });
+  if (battleArena) {
+    // Fonte primária: encontro ativo (tem creatureId mesmo se o bicho já saiu do mundo).
+    const encounter = getGlobalPlayerStore().getActiveEncounter();
+    if (
+      encounter?.creatureId
+      && (!props.monsterId || encounter.monsterId === props.monsterId)
+    ) {
+      void battleArena.bindCreature(encounter.creatureId, encounter.monsterName);
+    } else {
+      void battleArena.bindMonster(props.monsterId);
+    }
+    void battleArena.bindPlayer();
+    if (!arenaBackgroundApplied) {
+      const variant = consumeBattleBackgroundVariant();
+      void battleArena.applyBackground(variant);
+      arenaBackgroundApplied = true;
+    }
+    battleArena.startLoop();
   }
+
   allyBattleStance = 'idle';
   foeBattleStance = 'idle';
   publishCurrentBattleRenderFrame();
@@ -91,11 +120,11 @@ export function mountBattleScreenView(
 
 export function unmountBattleScreenView(root: ParentNode = document): void {
   clearBattleScreenPanels();
-  battleSpriteAlly?.clear();
-  battleSpriteFoe?.clear();
+  battleArena?.clear();
   mountedMonsterId = null;
   allyBattleStance = 'idle';
   foeBattleStance = 'idle';
+  arenaBackgroundApplied = false;
   resetBattleRenderBridge();
   getBattleHudBridge().closeDrawers();
 
@@ -113,11 +142,14 @@ export function setBattlePortraitStance(
     foeBattleStance = stance;
   }
   publishCurrentBattleRenderFrame();
+  battleArena?.setStance(side, stance);
+}
 
-  if (isPhaserRenderEngineActive()) return;
-
-  const sprite = side === 'foe' ? battleSpriteFoe : battleSpriteAlly;
-  sprite?.setStance(stance);
+export function triggerBattleArenaCue(
+  side: 'ally' | 'foe',
+  cue: BattleArenaCue,
+): void {
+  battleArena?.triggerCue(side, cue);
 }
 
 export function initBattleScreenUI(
@@ -136,8 +168,7 @@ export function initBattleScreenUI(
     battleChatPanel?.destroy();
     battleChatPanel = null;
     battleLogPanel = null;
-    battleSpriteAlly = null;
-    battleSpriteFoe = null;
+    battleArena = null;
     mountedMonsterId = null;
   };
 }
@@ -163,14 +194,11 @@ function ensureBattleScreenShell(root: ParentNode): void {
     syncBattleChatOpponentAuthor();
   }
 
-  if (isPhaserRenderEngineActive()) return;
-
-  const frames = queryBattleSpriteFrames(root);
-  if (frames.ally && !battleSpriteAlly) {
-    battleSpriteAlly = new BattleSprite(frames.ally, { side: 'ally' });
-  }
-  if (frames.foe && !battleSpriteFoe) {
-    battleSpriteFoe = new BattleSprite(frames.foe, { side: 'foe', monsterId: null });
+  if (!battleArena) {
+    const canvas = queryBattleArenaCanvas(root);
+    if (canvas) {
+      battleArena = new BattleArenaCanvas(canvas);
+    }
   }
 }
 
@@ -185,4 +213,3 @@ function wireBattleChatBridge(root: ParentNode, handlers: BattleCommandHandlers)
   }
   return () => undefined;
 }
-

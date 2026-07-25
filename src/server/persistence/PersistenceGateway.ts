@@ -26,12 +26,35 @@ import {
   exportMarketplacePersistence,
   hydrateMarketplacePersistence,
 } from '../../Economy/marketplaceStore.js';
+import { stripRetiredInventoryStacks } from '../../shared/items/retiredItems.js';
 import {
   hydrateGlobalMarketplaceListings,
   registerGlobalMarketListing,
 } from '../../Economy/globalMarketplaceStore.js';
 import { buildAuthoritativePlayerSnapshot } from './buildAuthoritativeSnapshot.js';
+import {
+  acknowledgeCharacterPersistenceSaved,
+  getCharacterPersistenceDirtyRevision,
+  isCharacterPersistenceDirty,
+  isForcePersistReason,
+  markCharacterPersistenceDirty,
+  resetCharacterPersistenceDirtyAfterHydrate,
+  resetCharacterPersistenceDirtyStore,
+} from './characterPersistenceDirty.js';
 import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
+
+export type PersistCharacterSessionOptions = {
+  /** Sempre grava (logout / disconnect / shutdown / login / marketplace). */
+  readonly force?: boolean;
+  /** Motivo de auditoria — force implícito para disconnect/logout/shutdown/login/marketplace. */
+  readonly reason?: string;
+};
+
+export type PersistCharacterSessionResult = {
+  readonly wrote: boolean;
+  readonly skipped: boolean;
+  readonly revision: number;
+};
 
 export type PersistenceRuntimeConfig = {
   readonly mode: PersistenceModeId;
@@ -78,11 +101,11 @@ function buildRecordFromRuntime(
     updatedAt: Date.now(),
     wallet: { ...economy.wallet },
     economy: {
-      inventory: economy.profile.inventory.map((row) => ({ ...row })),
+      inventory: stripRetiredInventoryStacks(economy.profile.inventory).map((row) => ({ ...row })),
       equipped: { ...economy.profile.equipped },
       activeBookBuff: economy.profile.activeBookBuff,
       bank: {
-        itemStacks: economy.bank.itemStacks.map((row) => ({ ...row })),
+        itemStacks: stripRetiredInventoryStacks(economy.bank.itemStacks).map((row) => ({ ...row })),
         currencies: { ...economy.bank.currencies },
       },
     },
@@ -116,12 +139,14 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
   hydrateCharacterEconomyPersistence(record.playerId, record.characterId, {
     wallet: { ...record.wallet },
     profile: {
-      inventory: record.economy.inventory.map((row) => ({ ...row })),
+      inventory: stripRetiredInventoryStacks(record.economy.inventory).map((row) => ({ ...row })),
       equipped: { ...record.economy.equipped },
       activeBookBuff: record.economy.activeBookBuff,
     },
     bank: {
-      itemStacks: record.economy.bank.itemStacks.map((row) => ({ ...row })),
+      itemStacks: stripRetiredInventoryStacks(record.economy.bank.itemStacks).map((row) => ({
+        ...row,
+      })),
       currencies: { ...record.economy.bank.currencies },
     },
   });
@@ -218,6 +243,7 @@ export async function hydrateCharacterSession(
 
   applyRecordToRuntime(record);
   hydratedFromDisk.add(key);
+  resetCharacterPersistenceDirtyAfterHydrate(playerId, characterId);
   return true;
 }
 
@@ -225,17 +251,49 @@ export function wasCharacterHydratedFromDisk(playerId: string, characterId: numb
   return hydratedFromDisk.has(recordKey(playerId, characterId));
 }
 
-/** Grava snapshot autoritativo do personagem via strategy ativa. */
+/**
+ * Grava snapshot autoritativo do personagem via strategy ativa.
+ * Skip quando não há dirty (salvo `force` / motivo de sessão).
+ */
 export async function persistCharacterSession(
   playerId: string,
   characterId: number,
-): Promise<void> {
+  options: PersistCharacterSessionOptions = {},
+): Promise<PersistCharacterSessionResult> {
   const storage = getActivePersistenceStorage();
-  if (!storage.isDurable()) return;
+  if (!storage.isDurable()) {
+    return {
+      wrote: false,
+      skipped: true,
+      revision: getCharacterPersistenceDirtyRevision(playerId, characterId),
+    };
+  }
 
+  const force = options.force === true || isForcePersistReason(options.reason);
+  if (!force && !isCharacterPersistenceDirty(playerId, characterId)) {
+    return {
+      wrote: false,
+      skipped: true,
+      revision: getCharacterPersistenceDirtyRevision(playerId, characterId),
+    };
+  }
+
+  // Snapshot + revision no mesmo instante — mutações durante I/O deixam dirty ativo.
   const record = buildRecordFromRuntime(playerId, characterId);
+  const revision = getCharacterPersistenceDirtyRevision(playerId, characterId);
   await storage.saveCharacter(record);
   hydratedFromDisk.add(recordKey(playerId, characterId));
+  acknowledgeCharacterPersistenceSaved(playerId, characterId, revision);
+  return { wrote: true, skipped: false, revision };
+}
+
+/** Marca dirty sem I/O — callers de mutação autoritativa. */
+export function touchCharacterPersistenceDirty(
+  playerId: string,
+  characterId: number,
+  reason: Parameters<typeof markCharacterPersistenceDirty>[2] = 'manual',
+): void {
+  markCharacterPersistenceDirty(playerId, characterId, reason);
 }
 
 /** Snapshot WS → cliente (full-state-sync). */
@@ -271,4 +329,5 @@ export async function shutdownPersistenceStorage(): Promise<void> {
 /** Testes — limpa flags de sessão. */
 export function resetPersistenceSessionFlags(): void {
   hydratedFromDisk.clear();
+  resetCharacterPersistenceDirtyStore();
 }

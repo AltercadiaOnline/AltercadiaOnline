@@ -37,7 +37,8 @@ export const SERVER_INSTANCE_CATALOG: Record<string, ServerInstanceDefinition> =
   azul: {
     id: 'azul',
     displayName: 'Servidor Azul',
-    mapIds: [CITY_01_ID],
+    // Cidade + Beco (Zona 1) — necessário para PvE local/online no shard jogável.
+    mapIds: [CITY_01_ID, FARM_ZONE_01_ID],
     defaultMapId: CITY_01_ID,
     databaseName: 'altercadia_azul',
     charSelectVisible: true,

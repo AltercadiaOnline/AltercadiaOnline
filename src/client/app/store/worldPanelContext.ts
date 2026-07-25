@@ -9,6 +9,7 @@ export type WorldPanelContext =
   | { readonly kind: 'craftStation'; readonly craftStationId: string; readonly stationName: string }
   | { readonly kind: 'tournamentBet'; readonly pulpitId: string; readonly pulpitName: string }
   | { readonly kind: 'rankingMonitor'; readonly objectId: string; readonly label: string }
+  | { readonly kind: 'pvpQueue'; readonly objectId: string; readonly label: string }
   | { readonly kind: 'refractionBooth'; readonly objectId: string; readonly label: string };
 
 export type OpenWorldPanelEntry = {
