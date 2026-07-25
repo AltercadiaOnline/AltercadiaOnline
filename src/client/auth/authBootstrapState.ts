@@ -51,6 +51,9 @@ export function subscribeAuthBootstrap(listener: AuthBootstrapListener): () => v
 
 export function markAuthBootstrapPending(): void {
   const state = getState();
+  if (state.phase === 'pending' && state.failureMessage === null) {
+    return;
+  }
   state.phase = 'pending';
   state.failureMessage = null;
   notifyListeners();
@@ -58,6 +61,9 @@ export function markAuthBootstrapPending(): void {
 
 export function markAuthBootstrapReady(): void {
   const state = getState();
+  if (state.phase === 'ready' && state.failureMessage === null) {
+    return;
+  }
   state.phase = 'ready';
   state.failureMessage = null;
   notifyListeners();
@@ -65,6 +71,9 @@ export function markAuthBootstrapReady(): void {
 
 export function markAuthBootstrapFailed(message: string): void {
   const state = getState();
+  if (state.phase === 'failed' && state.failureMessage === message) {
+    return;
+  }
   state.phase = 'failed';
   state.failureMessage = message;
   notifyListeners();
@@ -110,6 +119,12 @@ function sleep(ms: number): Promise<void> {
 /** Aguarda Supabase Auth — evita clique no login antes do bootstrap terminar. */
 export async function waitForAuthBootstrapReady(): Promise<boolean> {
   if (isSupabaseReady()) return true;
+
+  const state = getState();
+  // main.js ainda não registrou a promise — não bloquear 20s à toa.
+  if (state.phase === 'idle' && !state.bootstrapPromise) {
+    return false;
+  }
 
   const deadline = Date.now() + AUTH_BOOTSTRAP_WAIT_MS;
 

@@ -2,11 +2,11 @@ import type { InventoryStack } from '../character/equipmentState.js';
 import {
   addItemToInventoryStacks,
   stacksToInventorySlotsWithStacking,
-  inventorySlotsToStacks,
 } from '../character/inventoryStackOps.js';
 import { buildInventorySnapshot, INVENTORY_SLOT_COUNT } from '../character/inventorySlots.js';
 import { formatAlterCoins, formatVolts } from '../economy/premiumCurrency.js';
 import { BANK_ITEM_SLOT_CAPACITY } from './bankConstants.js';
+import { consumeInventoryQuantity } from './inventoryLockOps.js';
 import type { BankCurrencyBalances } from './bankTypes.js';
 import type { BankCurrencyTypeId } from './bankConstants.js';
 
@@ -43,34 +43,6 @@ function countBankSlotsUsed(stacks: readonly InventoryStack[]): number {
   ).used;
 }
 
-function removeFromStacks(
-  stacks: readonly InventoryStack[],
-  itemId: string,
-  quantity: number,
-): BankSwapResult<InventoryStack[]> {
-  const amount = normalizeQuantity(quantity);
-  if (amount === null) {
-    return { ok: false, reason: 'Quantidade inválida.' };
-  }
-
-  const index = stacks.findIndex((stack) => stack.itemId === itemId);
-  if (index < 0) {
-    return { ok: false, reason: 'Item não encontrado.' };
-  }
-
-  const stack = stacks[index]!;
-  if (stack.quantity < amount) {
-    return { ok: false, reason: 'Quantidade insuficiente.' };
-  }
-
-  const nextQty = stack.quantity - amount;
-  const nextStacks = stacks
-    .map((entry, i) => (i === index ? { ...entry, quantity: nextQty } : entry))
-    .filter((entry) => entry.quantity > 0);
-
-  return { ok: true, value: nextStacks };
-}
-
 /** AtomicSwap — inventário → cofre. */
 export function depositItemSwap(
   inventoryStacks: readonly InventoryStack[],
@@ -82,13 +54,20 @@ export function depositItemSwap(
     return { ok: false, reason: 'Use a aba de moedas para depositar Volts.' };
   }
 
-  const removed = removeFromStacks(inventoryStacks, itemId, quantity);
-  if (!removed.ok) return removed;
+  const amount = normalizeQuantity(quantity);
+  if (amount === null) {
+    return { ok: false, reason: 'Quantidade inválida.' };
+  }
+
+  const removed = consumeInventoryQuantity(inventoryStacks, itemId, amount);
+  if (!removed.ok) {
+    return { ok: false, reason: removed.reason };
+  }
 
   const added = addItemToInventoryStacks(
     bankStacks,
     itemId,
-    quantity,
+    amount,
     BANK_ITEM_SLOT_CAPACITY,
   );
   if (added.overflow > 0) {
@@ -98,7 +77,7 @@ export function depositItemSwap(
   return {
     ok: true,
     value: {
-      inventoryStacks: removed.value,
+      inventoryStacks: removed.stacks,
       bankStacks: added.stacks,
     },
   };
@@ -112,13 +91,20 @@ export function withdrawItemSwap(
   quantity: number,
   inventoryCapacity = INVENTORY_SLOT_COUNT,
 ): BankSwapResult<ItemBankSwapResult> {
-  const removed = removeFromStacks(bankStacks, itemId, quantity);
-  if (!removed.ok) return removed;
+  const amount = normalizeQuantity(quantity);
+  if (amount === null) {
+    return { ok: false, reason: 'Quantidade inválida.' };
+  }
+
+  const removed = consumeInventoryQuantity(bankStacks, itemId, amount);
+  if (!removed.ok) {
+    return { ok: false, reason: removed.reason };
+  }
 
   const added = addItemToInventoryStacks(
     inventoryStacks,
     itemId,
-    quantity,
+    amount,
     inventoryCapacity,
   );
   if (added.overflow > 0) {
@@ -129,7 +115,7 @@ export function withdrawItemSwap(
     ok: true,
     value: {
       inventoryStacks: added.stacks,
-      bankStacks: removed.value,
+      bankStacks: removed.stacks,
     },
   };
 }

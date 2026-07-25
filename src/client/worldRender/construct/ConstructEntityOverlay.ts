@@ -1,0 +1,113 @@
+// @ts-nocheck
+import { DESIGN_CONFIG } from '../../../config/designConstants.js';
+import { renderPlayer } from '../../renderPlayer.js';
+import { drawCreatureIdleSpriteAtFeet } from '../../world/creatureWorldImageLoader.js';
+import { renderCreatureOnWorldMap } from '../../world/creatureWorldRenderer.js';
+import { getResolvedNpcRegistry } from '../../../shared/world/npcRegistry.js';
+import { disableCanvasImageSmoothing } from '../../layout/gamePixelScale.js';
+import { renderWorldNpcSnapshot } from '../../world/npcRenderer.js';
+import { renderPetSprite } from '../../entities/pet/petRenderer.js';
+import { PetSpriteLoader } from '../../entities/pet/PetSpriteLoader.js';
+const VIEWPORT_W = DESIGN_CONFIG.VIEWPORT.WIDTH;
+const VIEWPORT_H = DESIGN_CONFIG.VIEWPORT.HEIGHT;
+/**
+ * Canvas DOM sobre o iframe Construct — desenha jogador, NPCs e criaturas
+ * espelhando o snapshot autoritativo (servidor / Exploration).
+ */
+export class ConstructEntityOverlay {
+    canvas = null;
+    ctx = null;
+    npcSpriteById = new Map(getResolvedNpcRegistry().map((entry) => [entry.id, entry.sprite]));
+    mount(host) {
+        this.unmount();
+        const canvas = document.createElement('canvas');
+        canvas.id = 'construct-entity-overlay';
+        canvas.width = VIEWPORT_W;
+        canvas.height = VIEWPORT_H;
+        canvas.setAttribute('aria-hidden', 'true');
+        Object.assign(canvas.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: `${VIEWPORT_W}px`,
+            height: `${VIEWPORT_H}px`,
+            pointerEvents: 'none',
+            zIndex: '2',
+            imageRendering: 'pixelated',
+            background: 'transparent',
+        });
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('[ConstructEntityOverlay] 2D context indisponível.');
+            return;
+        }
+        disableCanvasImageSmoothing(ctx);
+        host.appendChild(canvas);
+        this.canvas = canvas;
+        this.ctx = ctx;
+        void PetSpriteLoader.preloadAll();
+    }
+    unmount() {
+        this.canvas?.remove();
+        this.canvas = null;
+        this.ctx = null;
+    }
+    render(frame) {
+        const ctx = this.ctx;
+        if (!ctx)
+            return;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, VIEWPORT_W, VIEWPORT_H);
+        ctx.save();
+        ctx.translate(-frame.cameraX, -frame.cameraY);
+        for (const actor of frame.worldActors) {
+            if (actor.kind === 'npc') {
+                this.renderNpc(ctx, actor, frame.timestampMs);
+                continue;
+            }
+            this.renderCreature(ctx, actor);
+        }
+        const pet = frame.pet;
+        const drawPetBeforePlayer = Boolean(pet?.visible && pet.y <= frame.playerY);
+        if (drawPetBeforePlayer && pet) {
+            renderPetSprite(ctx, pet, frame.timestampMs);
+        }
+        renderPlayer(ctx, {
+            x: frame.playerX,
+            y: frame.playerY,
+            facing: frame.facing,
+        }, frame.timestampMs);
+        if (pet?.visible && !drawPetBeforePlayer) {
+            renderPetSprite(ctx, pet, frame.timestampMs);
+        }
+        ctx.restore();
+    }
+    renderNpc(ctx, snapshot, timestampMs) {
+        const spriteKey = this.npcSpriteById.get(snapshot.npcId) ?? 'elder';
+        renderWorldNpcSnapshot(ctx, snapshot, spriteKey, timestampMs);
+    }
+    renderCreature(ctx, snapshot) {
+        const drewSprite = drawCreatureIdleSpriteAtFeet(ctx, snapshot.creatureId, snapshot.feetX, snapshot.feetY, snapshot.facing);
+        if (drewSprite) {
+            if (snapshot.adjacent) {
+                const bounce = Math.round(Math.sin(snapshot.alertPulse) * 2);
+                ctx.fillStyle = '#ffea00';
+                ctx.fillRect(Math.round(snapshot.feetX) - 1, Math.round(snapshot.feetY - 40 + bounce), 2, 7);
+            }
+            return;
+        }
+        const tileSize = DESIGN_CONFIG.TILE.SIZE;
+        const tileX = Math.floor(snapshot.feetX / tileSize);
+        const tileY = Math.floor(snapshot.feetY / tileSize);
+        renderCreatureOnWorldMap(ctx, {
+            creatureId: snapshot.creatureId,
+            tileX,
+            tileY,
+            adjacent: snapshot.adjacent,
+            alertPulse: snapshot.alertPulse,
+            facing: snapshot.facing,
+            worldX: snapshot.feetX,
+            worldY: snapshot.feetY,
+        });
+    }
+}

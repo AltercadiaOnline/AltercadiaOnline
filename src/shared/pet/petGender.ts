@@ -1,4 +1,4 @@
-/** Sexo do companheiro — escolhido na adoção com o Treinador Zeno. */
+/** Sexo do companheiro — escolhido na adoção com a Treinadora Zena. */
 export type PetGenderId = 'male' | 'female';
 
 export const PetGender = {

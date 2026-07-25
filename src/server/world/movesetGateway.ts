@@ -4,7 +4,7 @@ import {
   isValidClassActiveLoadout,
   normalizeClassActiveLoadout,
 } from '../../shared/combat/movesetLoadout.js';
-import { inferClassIdFromMovesetMastery } from '../../shared/progression/movesetMasterySeed.js';
+import { resolveAuthoritativeClassId } from '../../shared/progression/movesetMasterySeed.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getWorldProfile, saveWorldProfile } from './worldProfileStore.js';
 import { rejectLoadoutMutationIfInBattle } from './loadoutMutationGuard.js';
@@ -24,10 +24,10 @@ export function applyAuthoritativeMovesetSync(
   if (blocked) return blocked;
 
   const progression = getAuthoritativeProgression(playerId, characterId);
-  const classId =
-    classIdHint
-    ?? inferClassIdFromMovesetMastery(progression.progression.movesetMastery)
-    ?? 'IMPETUS';
+  const classId = resolveAuthoritativeClassId(
+    progression.characterProfile.classId ?? classIdHint,
+    progression.progression.movesetMastery,
+  );
 
   if (!isValidClassActiveLoadout(classId, activeMovesets)) {
     return { ok: false, message: 'Loadout de moves inválido para a classe atual.' };

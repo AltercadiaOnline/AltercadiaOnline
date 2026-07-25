@@ -12,7 +12,27 @@ export function findInventoryStackIndex(
   return stacks.findIndex((stack) => stack.itemId === itemId);
 }
 
-/** Reserva quantidade no inventário (LOCKED) antes da validação do cofre. */
+function totalAvailableQuantity(stacks: readonly InventoryStack[], itemId: string): number {
+  return stacks
+    .filter((stack) => stack.itemId === itemId)
+    .reduce((sum, stack) => sum + resolveAvailableStackQuantity(stack), 0);
+}
+
+function totalQuantity(stacks: readonly InventoryStack[], itemId: string): number {
+  return stacks
+    .filter((stack) => stack.itemId === itemId)
+    .reduce((sum, stack) => sum + stack.quantity, 0);
+}
+
+function withAdjustedLock(entry: InventoryStack, nextLocked: number): InventoryStack {
+  if (nextLocked <= 0) {
+    const { lockedQuantity: _drop, ...rest } = entry;
+    return rest;
+  }
+  return { ...entry, lockedQuantity: nextLocked };
+}
+
+/** Reserva quantidade no inventário (LOCKED) antes da validação do cofre — cobre várias pilhas. */
 export function lockInventoryQuantity(
   stacks: readonly InventoryStack[],
   itemId: string,
@@ -23,25 +43,32 @@ export function lockInventoryQuantity(
     return { ok: false, reason: 'Quantidade inválida.' };
   }
 
-  const index = findInventoryStackIndex(stacks, itemId);
-  if (index < 0) {
-    return { ok: false, reason: 'Item não pertence ao inventário.' };
+  if (totalAvailableQuantity(stacks, itemId) < qty) {
+    const hasItem = stacks.some((stack) => stack.itemId === itemId);
+    return {
+      ok: false,
+      reason: hasItem
+        ? 'Quantidade indisponível (itens bloqueados ou insuficientes).'
+        : 'Item não pertence ao inventário.',
+    };
   }
 
-  const stack = stacks[index]!;
-  const available = resolveAvailableStackQuantity(stack);
-  if (available < qty) {
-    return { ok: false, reason: 'Quantidade indisponível (itens bloqueados ou insuficientes).' };
-  }
-
-  const lockedQuantity = (stack.lockedQuantity ?? 0) + qty;
-  const next = stacks.map((entry, i) => (
-    i === index ? { ...entry, lockedQuantity } : { ...entry }
-  ));
+  let remaining = qty;
+  const next = stacks.map((entry) => {
+    if (entry.itemId !== itemId || remaining <= 0) {
+      return { ...entry };
+    }
+    const available = resolveAvailableStackQuantity(entry);
+    if (available <= 0) return { ...entry };
+    const take = Math.min(available, remaining);
+    remaining -= take;
+    return { ...entry, lockedQuantity: (entry.lockedQuantity ?? 0) + take };
+  });
 
   return { ok: true, stacks: next };
 }
 
+/** Libera reserva LOCKED — cobre várias pilhas (LIFO reverso: do fim para o início). */
 export function unlockInventoryQuantity(
   stacks: readonly InventoryStack[],
   itemId: string,
@@ -50,52 +77,66 @@ export function unlockInventoryQuantity(
   const qty = Math.floor(quantity);
   if (qty <= 0) return stacks.map((stack) => ({ ...stack }));
 
-  const index = findInventoryStackIndex(stacks, itemId);
-  if (index < 0) return stacks.map((stack) => ({ ...stack }));
+  let remaining = qty;
+  const next = stacks.map((entry) => ({ ...entry }));
 
-  const stack = stacks[index]!;
-  const nextLocked = Math.max(0, (stack.lockedQuantity ?? 0) - qty);
-  return stacks.map((entry, i) => {
-    if (i !== index) return { ...entry };
-    if (nextLocked <= 0) {
-      const { lockedQuantity: _drop, ...rest } = entry;
-      return rest;
-    }
-    return { ...entry, lockedQuantity: nextLocked };
-  });
+  for (let i = next.length - 1; i >= 0 && remaining > 0; i -= 1) {
+    const entry = next[i]!;
+    if (entry.itemId !== itemId) continue;
+    const locked = Math.max(0, Math.floor(entry.lockedQuantity ?? 0));
+    if (locked <= 0) continue;
+    const release = Math.min(locked, remaining);
+    remaining -= release;
+    next[i] = withAdjustedLock(entry, locked - release);
+  }
+
+  return next;
 }
 
-/** Remove quantidade ignorando lock (após commit atômico). */
+/**
+ * Remove quantidade no commit atômico.
+ * Ajusta `lockedQuantity` na mesma proporção consumida (não deixa lock órfão).
+ * Cobre várias pilhas do mesmo `itemId`.
+ */
 export function consumeInventoryQuantity(
   stacks: readonly InventoryStack[],
   itemId: string,
   quantity: number,
 ): { readonly ok: true; readonly stacks: InventoryStack[] } | { readonly ok: false; readonly reason: string } {
   const qty = Math.floor(quantity);
-  const index = findInventoryStackIndex(stacks, itemId);
-  if (index < 0) {
-    return { ok: false, reason: 'Item não encontrado no inventário.' };
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return { ok: false, reason: 'Quantidade inválida.' };
   }
 
-  const stack = stacks[index]!;
-  if (stack.quantity < qty) {
-    return { ok: false, reason: 'Quantidade insuficiente no inventário.' };
+  if (totalQuantity(stacks, itemId) < qty) {
+    const hasItem = stacks.some((stack) => stack.itemId === itemId);
+    return {
+      ok: false,
+      reason: hasItem
+        ? 'Quantidade insuficiente no inventário.'
+        : 'Item não encontrado no inventário.',
+    };
   }
 
-  const nextQty = stack.quantity - qty;
-  const nextLocked = Math.max(0, (stack.lockedQuantity ?? 0) - qty);
+  let remaining = qty;
+  const next: InventoryStack[] = [];
 
-  const next = stacks
-    .map((entry, i) => {
-      if (i !== index) return { ...entry };
-      if (nextQty <= 0) return null;
-      if (nextLocked <= 0) {
-        const { lockedQuantity: _drop, ...rest } = entry;
-        return { ...rest, quantity: nextQty };
-      }
-      return { ...entry, quantity: nextQty, lockedQuantity: nextLocked };
-    })
-    .filter((entry): entry is InventoryStack => entry !== null);
+  for (const entry of stacks) {
+    if (entry.itemId !== itemId || remaining <= 0) {
+      next.push({ ...entry });
+      continue;
+    }
 
-  return { ok: true, stacks: next };
+    if (entry.quantity <= remaining) {
+      remaining -= entry.quantity;
+      continue;
+    }
+
+    const nextQty = entry.quantity - remaining;
+    const nextLocked = Math.max(0, (entry.lockedQuantity ?? 0) - remaining);
+    remaining = 0;
+    next.push(withAdjustedLock({ ...entry, quantity: nextQty }, nextLocked));
+  }
+
+  return { ok: true, stacks: next.filter((entry) => entry.quantity > 0) };
 }

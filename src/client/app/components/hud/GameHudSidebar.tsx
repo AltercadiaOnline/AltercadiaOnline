@@ -1,25 +1,22 @@
 import { WorldEquipmentSidebar } from '../world/hud/WorldEquipmentSidebar.js';
 import { WorldMinimapPanel } from '../world/hud/WorldMinimapPanel.js';
 import { WorldWalletPanel } from '../world/hud/WorldWalletPanel.js';
-import { useGameStore } from '../../store/gameStore.js';
 
 /**
- * Coluna direita fixa — mesma âncora no mapa (World) e na arena (Battle).
- * Reserva espaço via `padding-right` em `#game-container` (styles.css).
+ * Coluna direita fixa da tela — independente de mundo/batalha.
+ * Não escala com o stage; o playfield reserva `right: --game-hud-sidebar-width`.
  */
 export function GameHudSidebar() {
-  const worldHudActive = useGameStore((state) => state.worldHudActive);
-
   return (
     <aside
-      className={`sidebar game-layout__sidebar hud-sidebar equipment-sidebar-host game-hud-sidebar--persistent ${worldHudActive ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+      className="sidebar game-layout__sidebar hud-sidebar equipment-sidebar-host game-hud-sidebar--persistent pointer-events-auto"
       aria-label="HUD lateral"
       data-ui-widget="game-sidebar"
-      aria-hidden={!worldHudActive}
+      data-ui-surface="persistent-sidebar"
     >
-      <WorldMinimapPanel interactive={worldHudActive} />
+      <WorldMinimapPanel interactive />
       <WorldWalletPanel />
-      <WorldEquipmentSidebar interactive={worldHudActive} />
+      <WorldEquipmentSidebar interactive />
     </aside>
   );
 }

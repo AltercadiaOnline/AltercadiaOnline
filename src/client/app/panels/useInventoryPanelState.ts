@@ -1,21 +1,14 @@
 import { useEffect, useState } from 'react';
-import { isSyncPending } from '../../core/gameStoreSelectors.js';
-import { subscribeGameStore } from '../../state/GameStore.js';
 import { isNpcVendorShopOpen, subscribeNpcVendorShopOpen } from '../../ui/vendor/npcVendorSession.js';
-import { usePlayerData } from '../store/gameStore.js';
+import { usePlayerInventoryAndGold } from '../store/gameStore.js';
 
-/** Estado reativo do inventário — espelha GameStore + sessão de vendedor NPC. */
+/**
+ * Estado reativo do inventário — só espelha inventário/ouro + sessão de vendedor.
+ * Sem spinner global: loot/economia não devem “carregar” a grade.
+ */
 export function useInventoryPanelState() {
-  const { inventory, gold } = usePlayerData();
-  const [syncPending, setSyncPending] = useState(() => isSyncPending());
+  const { inventory, gold } = usePlayerInventoryAndGold();
   const [vendorOpen, setVendorOpen] = useState(() => isNpcVendorShopOpen());
-
-  useEffect(() => {
-    return subscribeGameStore((state, slice) => {
-      if (slice !== 'player' && slice !== 'pendingActions' && slice !== '*') return;
-      setSyncPending(isSyncPending(state));
-    });
-  }, []);
 
   useEffect(() => subscribeNpcVendorShopOpen(() => {
     setVendorOpen(isNpcVendorShopOpen());
@@ -24,7 +17,6 @@ export function useInventoryPanelState() {
   return {
     inventory,
     gold,
-    syncPending,
     vendorOpen,
   };
 }

@@ -37,6 +37,8 @@ export type MinimapTerrain = {
   readonly mapId: MapId;
   readonly tilesWide: number;
   readonly tilesHigh: number;
-  /** Cores hex por tile — indexadas [y][x]. */
+  /** Cores hex por tile — indexadas [y][x]. Fallback se overview falhar. */
   readonly colors: readonly (readonly string[])[];
+  /** URL do overview estático (Construct-baked / gerado). */
+  readonly overviewUrl?: string;
 };

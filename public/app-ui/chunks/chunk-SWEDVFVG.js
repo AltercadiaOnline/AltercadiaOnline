@@ -1,0 +1,1 @@
+import{ia as s}from"./chunk-KAUAM36C.js";function u(n){return n?s[n].name:"\u2014"}function a(n,r){let t=u(r);return t==="\u2014"?`Nv. ${n}`:`Nv. ${n} \xB7 ${t}`}function o(n,r,t){let e=u(t);return e==="\u2014"?`${n} \xB7 Nv.${r}`:`${n} \xB7 ${e} \xB7 Nv.${r}`}export{u as a,a as b,o as c};

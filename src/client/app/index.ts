@@ -3,9 +3,8 @@ export { initClientApp, initClientAppGameLayer, resetClientAppSession, isClientA
 export { teardownClientApp } from './bootstrap/teardownClientApp.js';
 
 export { mountReactUiRuntime } from './runtime/uiRuntime.js';
-export { mountScreenRuntime } from './runtime/mountScreenRuntime.js';
-export { mountHudRuntime } from './runtime/mountHudRuntime.js';
-export { mountOverlayRuntime } from './runtime/mountOverlayRuntime.js';
+/** HUD in-game: `ensureGameHudRuntime` → `__ALTERCADIA_HUD_RUNTIME__` (mesmo React do ui-runtime). */
+export { ensureGameHudRuntime } from './runtime/ensureGameHudRuntime.js';
 
 export {
   ensureClientArchitectureRoots,
@@ -51,14 +50,10 @@ export {
 export { initWorldPanelsBridge, teardownWorldPanelsBridge } from './panels/initWorldPanelsBridge.js';
 
 export {
-  enablePhaserHybridMode,
-  disablePhaserHybridMode,
-  enablePhaserHybridForOnlineSession,
-  isPhaserHybridDevRequested,
-} from './phaser/initPhaserReadyLayer.js';
-
-export { buildPhaserGameConfig, PHASER_DESIGN_VIEWPORT } from '../phaser/buildPhaserGameConfig.js';
-export { PHASER_MAIN_SCENE_KEY, PHASER_RUNTIME_CONFIG } from '../phaser/PhaserConfig.js';
+  bootOnlineWorldRender,
+  enableWorldRenderForOnlineSession,
+  WORLD_MOUNT_ROOT_ID,
+} from '../worldRender/index.js';
 
 export * from './store/index.js';
 

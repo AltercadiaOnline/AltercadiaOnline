@@ -12,12 +12,14 @@ const DESTINATION_FILL = 'rgba(241, 196, 15, 0.85)';
 
 /**
  * Renderiza o minimapa em canvas 1px/tile — escalado via CSS sem distorção.
+ * Overview estático (WebP) quando disponível; senão ImageData procedural.
  */
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private terrain: MinimapTerrain | null = null;
   private terrainImage: ImageData | null = null;
+  private overviewImage: HTMLImageElement | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -29,33 +31,42 @@ export class MinimapRenderer {
     this.ctx.imageSmoothingEnabled = false;
   }
 
-  setTerrain(terrain: MinimapTerrain): void {
-    if (
-      this.terrain?.mapId === terrain.mapId &&
-      this.terrain.tilesWide === terrain.tilesWide &&
-      this.terrain.tilesHigh === terrain.tilesHigh
-    ) {
-      return;
-    }
+  setTerrain(terrain: MinimapTerrain, overviewImage: HTMLImageElement | null = null): void {
+    const sameTerrain =
+      this.terrain?.mapId === terrain.mapId
+      && this.terrain.tilesWide === terrain.tilesWide
+      && this.terrain.tilesHigh === terrain.tilesHigh;
+    const sameOverview = this.overviewImage === overviewImage;
+
+    if (sameTerrain && sameOverview) return;
 
     this.terrain = terrain;
-    this.terrainImage = this.buildTerrainImage(terrain);
-    this.canvas.width = terrain.tilesWide;
-    this.canvas.height = terrain.tilesHigh;
+    this.overviewImage = overviewImage;
+    if (!sameTerrain || !this.terrainImage) {
+      this.terrainImage = this.buildTerrainImage(terrain);
+      this.canvas.width = terrain.tilesWide;
+      this.canvas.height = terrain.tilesHigh;
+    }
   }
 
   render(snapshot: MinimapSnapshot): void {
     if (!this.terrain || !this.terrainImage) return;
     if (
-      this.terrain.mapId !== snapshot.mapId ||
-      this.terrain.tilesWide !== snapshot.tilesWide ||
-      this.terrain.tilesHigh !== snapshot.tilesHigh
+      this.terrain.mapId !== snapshot.mapId
+      || this.terrain.tilesWide !== snapshot.tilesWide
+      || this.terrain.tilesHigh !== snapshot.tilesHigh
     ) {
       return;
     }
 
     const { ctx, canvas } = this;
-    ctx.putImageData(this.terrainImage, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+
+    if (this.overviewImage && this.overviewImage.complete && this.overviewImage.naturalWidth > 0) {
+      ctx.drawImage(this.overviewImage, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.putImageData(this.terrainImage, 0, 0);
+    }
 
     if (snapshot.viewport) {
       const { minTileX, minTileY, maxTileX, maxTileY } = snapshot.viewport;
@@ -107,10 +118,10 @@ export class MinimapRenderer {
   private isTileInBounds(tileX: number, tileY: number): boolean {
     if (!this.terrain) return false;
     return (
-      tileX >= 0 &&
-      tileY >= 0 &&
-      tileX < this.terrain.tilesWide &&
-      tileY < this.terrain.tilesHigh
+      tileX >= 0
+      && tileY >= 0
+      && tileX < this.terrain.tilesWide
+      && tileY < this.terrain.tilesHigh
     );
   }
 

@@ -29,6 +29,9 @@ export const WORLD_AUTH_REQUIRED_MESSAGES = new Set<string>([
   'combat-confirm-loot',
   'combat-dismiss-loot',
   'player-honor-given',
+  'pve-encounter-accept',
+  'pve-encounter-request',
+  'pve-encounter-flee',
 ]);
 
 /** Subconjunto de {@link WORLD_AUTH_REQUIRED_MESSAGES} — JWT revalidado a cada mensagem (C.2). */

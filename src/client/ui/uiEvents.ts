@@ -40,6 +40,7 @@ export type UiWindowId =
   | 'petTrainerShop'
   | 'tournamentBet'
   | 'rankingMonitor'
+  | 'pvpQueue'
   | 'refractionBooth'
   | 'social'
   | 'petLove'
@@ -60,6 +61,7 @@ export const UIEventType = {
   SHOW_CRAFT_STATION: 'SHOW_CRAFT_STATION',
   SHOW_TOURNAMENT_BET: 'SHOW_TOURNAMENT_BET',
   SHOW_RANKING_MONITOR: 'SHOW_RANKING_MONITOR',
+  SHOW_PVP_QUEUE: 'SHOW_PVP_QUEUE',
   SHOW_REFRACTION_BOOTH: 'SHOW_REFRACTION_BOOTH',
   REFRACTION_CHALLENGE_ACCEPT: 'REFRACTION_CHALLENGE_ACCEPT',
   EQUIPMENT_UPDATED: 'EQUIPMENT_UPDATED',
@@ -103,6 +105,8 @@ export const UIEventType = {
   MARCO_CHOSEN: 'MARCO_CHOSEN',
   /** Nova entrada no diário pessoal. */
   DIARY_ENTRY_CREATED: 'DIARY_ENTRY_CREATED',
+  /** Conquista desbloqueada (Diário de Memórias na ficha). */
+  ACHIEVEMENT_UNLOCKED: 'ACHIEVEMENT_UNLOCKED',
 } as const;
 
 export type UIEventType = (typeof UIEventType)[keyof typeof UIEventType];
@@ -140,6 +144,10 @@ export type UiEventMap = {
     readonly pulpitName: string;
   };
   readonly SHOW_RANKING_MONITOR: {
+    readonly objectId: string;
+    readonly label: string;
+  };
+  readonly SHOW_PVP_QUEUE: {
     readonly objectId: string;
     readonly label: string;
   };
@@ -252,6 +260,10 @@ export type UiEventMap = {
   };
   readonly MARCO_CHOSEN: { readonly nodeId: string };
   readonly DIARY_ENTRY_CREATED: { readonly entry: DiaryEntry };
+  readonly ACHIEVEMENT_UNLOCKED: {
+    readonly achievementId: string;
+    readonly unlockedAt: number;
+  };
 };
 
 export type UiEventHandler<T extends UIEventType> = (payload: UiEventMap[T]) => void;
@@ -307,5 +319,18 @@ export class UiEventBus {
   }
 }
 
-/** Instância global — ponto único de integração jogo ↔ HUD. */
-export const uiEvents = new UiEventBus();
+/** Instância global — compartilhada entre main.js (tsc) e ui-runtime (esbuild). */
+type GlobalWithUiEvents = typeof globalThis & {
+  __ALTERCADIA_UI_EVENTS__?: UiEventBus;
+};
+
+function getSharedUiEvents(): UiEventBus {
+  const g = globalThis as GlobalWithUiEvents;
+  if (!g.__ALTERCADIA_UI_EVENTS__) {
+    g.__ALTERCADIA_UI_EVENTS__ = new UiEventBus();
+  }
+  return g.__ALTERCADIA_UI_EVENTS__;
+}
+
+/** Ponto único de integração jogo ↔ HUD. */
+export const uiEvents = getSharedUiEvents();

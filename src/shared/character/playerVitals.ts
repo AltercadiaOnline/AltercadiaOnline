@@ -8,3 +8,32 @@ export function computePlayerHpMax(maxHpBonusPercent = 0): number {
 export function clampPlayerHpCurrent(hpCurrent: number, hpMax: number): number {
   return Math.max(0, Math.min(hpMax, Math.floor(hpCurrent)));
 }
+
+/**
+ * Ajusta HP atual quando o teto muda (buff/equip de vida %).
+ * Ganho de teto: soma o delta no atual (100/100 +12 → 112/112).
+ * Perda de teto: só clamp no novo máximo.
+ */
+export function applyPlayerHpMaxChange(
+  hpCurrent: number,
+  previousHpMax: number,
+  nextHpMax: number,
+): number {
+  const prevMax = Math.max(1, Math.floor(previousHpMax));
+  const nextMax = Math.max(1, Math.floor(nextHpMax));
+  const current = Math.floor(hpCurrent);
+
+  if (nextMax === prevMax) {
+    // Legado: HUD antiga subia só o teto (100/112) — preenche o buff se o atual ficou na base.
+    if (current === BASE_PLAYER_HP && nextMax > BASE_PLAYER_HP) {
+      return nextMax;
+    }
+    return clampPlayerHpCurrent(current, nextMax);
+  }
+
+  if (nextMax > prevMax) {
+    return clampPlayerHpCurrent(current + (nextMax - prevMax), nextMax);
+  }
+
+  return clampPlayerHpCurrent(current, nextMax);
+}

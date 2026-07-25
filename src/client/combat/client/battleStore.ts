@@ -53,17 +53,31 @@ class BattleStore {
 
   getPlayerBattleSkills(): SkillData[] {
     const classId = this.resolveClassId();
-    const ids = resolvePlayerEquippedSkillIds(classId, this.activeMovesets);
+    // Sempre preferir confirmedLoadout (GlobalPlayerStore) — activeMovesets pode
+    // estar vazio/stale e cair nos 4 defaults da classe.
+    const confirmed = getGlobalPlayerStore().getConfirmedLoadout();
+    const source = confirmed.length > 0 ? confirmed : this.activeMovesets;
+    const ids = resolvePlayerEquippedSkillIds(classId, source);
     const { movesetMastery } = getPlayerProgressionStore().getSnapshot();
     return moveIdsToSkillData(ids, movesetMastery);
   }
 }
 
-let store: BattleStore | null = null;
+type GlobalWithBattleStore = typeof globalThis & {
+  __ALTERCADIA_BATTLE_STORE__?: BattleStore | null;
+};
 
+function getBattleStoreGlobal(): GlobalWithBattleStore {
+  return globalThis as GlobalWithBattleStore;
+}
+
+/** Singleton cross-bundle (main.js + ui-runtime) — loadout de batalha único. */
 export function getBattleStore(): BattleStore {
-  if (!store) store = new BattleStore();
-  return store;
+  const g = getBattleStoreGlobal();
+  if (!g.__ALTERCADIA_BATTLE_STORE__) {
+    g.__ALTERCADIA_BATTLE_STORE__ = new BattleStore();
+  }
+  return g.__ALTERCADIA_BATTLE_STORE__;
 }
 
 export function initBattleStore(): BattleStore {
@@ -73,6 +87,7 @@ export function initBattleStore(): BattleStore {
 }
 
 export function resetBattleStore(): void {
-  store?.detach();
-  store = null;
+  const g = getBattleStoreGlobal();
+  g.__ALTERCADIA_BATTLE_STORE__?.detach();
+  g.__ALTERCADIA_BATTLE_STORE__ = null;
 }

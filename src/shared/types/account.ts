@@ -5,10 +5,12 @@ import type { PlayerSkin } from '../character/playerSkin.js';
 import type { PlayerSkinBundleId } from '../character/playerSkinBundle.js';
 
 export interface AccountCharacter {
+  /** Identidade estável do personagem (não é slotIndex+1). */
   readonly id: number;
   readonly name: string;
   readonly class: ClassType;
   readonly level: number;
+  /** Posição na char select (0..4). Independente de `id`. */
   readonly slotIndex: number;
   /** Shard onde o personagem foi criado — imutável. */
   readonly serverId: string;

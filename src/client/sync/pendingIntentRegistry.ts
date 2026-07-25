@@ -161,6 +161,14 @@ export class PendingIntentRegistry {
 
 let registry: PendingIntentRegistry | null = null;
 
+type GlobalWithPendingIntentRegistry = typeof globalThis & {
+  __ALTERCADIA_PENDING_INTENT_REGISTRY__?: PendingIntentRegistry | null;
+};
+
+function getSharedPendingRegistrySlot(): GlobalWithPendingIntentRegistry {
+  return globalThis as GlobalWithPendingIntentRegistry;
+}
+
 function isItemMutationAction(action: ClientAction): boolean {
   return (
     action.type === 'EQUIP_ITEM'
@@ -171,11 +179,17 @@ function isItemMutationAction(action: ClientAction): boolean {
 }
 
 export function getPendingIntentRegistry(): PendingIntentRegistry {
-  if (!registry) registry = new PendingIntentRegistry();
+  const g = getSharedPendingRegistrySlot();
+  if (!g.__ALTERCADIA_PENDING_INTENT_REGISTRY__) {
+    g.__ALTERCADIA_PENDING_INTENT_REGISTRY__ = new PendingIntentRegistry();
+  }
+  registry = g.__ALTERCADIA_PENDING_INTENT_REGISTRY__;
   return registry;
 }
 
 export function resetPendingIntentRegistry(): void {
-  registry?.clear();
+  const g = getSharedPendingRegistrySlot();
+  g.__ALTERCADIA_PENDING_INTENT_REGISTRY__?.clear();
+  g.__ALTERCADIA_PENDING_INTENT_REGISTRY__ = null;
   registry = null;
 }

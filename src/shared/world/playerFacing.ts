@@ -41,18 +41,9 @@ export function moveVectorToFacing(dx: number, dy: number): PlayerFacing {
   return dy < 0 ? 'north' : 'south';
 }
 
+/** Facing / sprite — sempre cardinal (N/S/L/O). */
 export function moveVectorToSpriteDirection(dx: number, dy: number): SpriteDirectionKey {
-  const sx = dx === 0 ? 0 : dx > 0 ? 1 : -1;
-  const sy = dy === 0 ? 0 : dy > 0 ? 1 : -1;
-
-  if (sx === 0 && sy < 0) return 'north';
-  if (sx === 0 && sy > 0) return 'south';
-  if (sx < 0 && sy === 0) return 'west';
-  if (sx > 0 && sy === 0) return 'east';
-  if (sx < 0 && sy < 0) return 'north-west';
-  if (sx > 0 && sy < 0) return 'north-east';
-  if (sx < 0 && sy > 0) return 'south-west';
-  return 'south-east';
+  return moveVectorToFacing(dx, dy);
 }
 
 export function facingToSpriteDirection(facing: PlayerFacing): SpriteDirectionKey {

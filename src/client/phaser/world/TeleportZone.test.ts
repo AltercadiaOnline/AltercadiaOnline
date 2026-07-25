@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { axisAlignedBoundsIntersect } from '../../../shared/world/axisAlignedBounds.js';
 import { TeleportZone } from './TeleportZone.js';
 import { DESIGN_CONFIG } from '../../../config/designConstants.js';
@@ -37,7 +37,6 @@ describe('TeleportZone', () => {
       targetY: 2,
       zoneBounds: { x: 100, y: 100, width: 40, height: 40 },
     });
-
     assert.equal(zone.intersectsPlayer({ x: 120, y: 120 }), true);
     assert.equal(zone.intersectsPlayer({ x: 0, y: 0 }), false);
   });

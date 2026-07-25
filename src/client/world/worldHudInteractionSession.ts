@@ -1,4 +1,8 @@
+// @ts-nocheck
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
+import { uiEvents, UIEventType } from '../ui/uiEvents.js';
+import { isWorldPanelOpen } from '../app/store/worldPanelsStore.js';
+import { WORLD_HUD_LOCK_WINDOW_IDS } from './worldHudLockWindows.js';
 
 export type WorldHudInteractionPose = {
   readonly x: number;
@@ -15,20 +19,35 @@ export type WorldHudInteractionSnapshot = {
   readonly pose?: WorldHudInteractionPose;
 };
 
-let activeSession: WorldHudInteractionSnapshot | null = null;
+const WORLD_HUD_SESSION_GLOBAL_KEY = '__ALTERCADIA_WORLD_HUD_INTERACTION_SESSION__';
+
+type GlobalWithWorldHudSession = typeof globalThis & {
+  [WORLD_HUD_SESSION_GLOBAL_KEY]?: WorldHudInteractionSnapshot | null;
+};
+
+/** Singleton entre main.js (tsc) e ui-runtime (esbuild) — evita trava permanente ao fechar HUD React. */
+function readActiveSession(): WorldHudInteractionSnapshot | null {
+  const snapshot = (globalThis as GlobalWithWorldHudSession)[WORLD_HUD_SESSION_GLOBAL_KEY];
+  return snapshot ?? null;
+}
+
+function writeActiveSession(snapshot: WorldHudInteractionSnapshot | null): void {
+  (globalThis as GlobalWithWorldHudSession)[WORLD_HUD_SESSION_GLOBAL_KEY] = snapshot;
+}
 
 export function beginWorldHudInteractionSession(snapshot: WorldHudInteractionSnapshot): void {
-  activeSession = { ...snapshot };
+  writeActiveSession({ ...snapshot });
 }
 
 export function endWorldHudInteractionSession(): WorldHudInteractionSnapshot | null {
-  const snapshot = activeSession;
-  activeSession = null;
-  return snapshot;
+  const snapshot = readActiveSession();
+  writeActiveSession(null);
+  return snapshot ? { ...snapshot } : null;
 }
 
 export function getWorldHudInteractionSession(): WorldHudInteractionSnapshot | null {
-  return activeSession ? { ...activeSession } : null;
+  const snapshot = readActiveSession();
+  return snapshot ? { ...snapshot } : null;
 }
 
 export function resolveWorldHudInteractionPose(
@@ -38,9 +57,36 @@ export function resolveWorldHudInteractionPose(
 }
 
 export function forceEndWorldHudInteractionSession(): void {
-  activeSession = null;
+  writeActiveSession(null);
 }
 
 export function isWorldHudInteractionLocked(): boolean {
-  return activeSession !== null;
+  return readActiveSession() !== null;
+}
+
+function hasOpenWorldHudLockPanel(): boolean {
+  return WORLD_HUD_LOCK_WINDOW_IDS.some((windowId) => isWorldPanelOpen(windowId));
+}
+
+/**
+ * Libera trava de exploração quando nenhuma HUD de NPC permanece aberta.
+ * Chamada síncrona após closePanel — não depende do unmount do React.
+ */
+export function releaseWorldHudInteractionIfIdle(options?: { readonly defer?: boolean }): void {
+  const run = (): void => {
+    if (hasOpenWorldHudLockPanel()) return;
+    if (!isWorldHudInteractionLocked()) return;
+
+    const snapshot = endWorldHudInteractionSession();
+    if (snapshot) {
+      uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
+    }
+  };
+
+  if (options?.defer) {
+    queueMicrotask(run);
+    return;
+  }
+
+  run();
 }

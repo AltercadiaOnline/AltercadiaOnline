@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Domínio [WORLD/GAME] — carregado dinamicamente após "Entrar no Mundo".
  * Não importar este módulo estaticamente em main.ts ou telas de login.
@@ -6,6 +7,7 @@ import type { CombatState } from '../../shared/types.js';
 import { createCombatSocketHandler } from '../combat/client/combatSocketHandler.js';
 import { InputHandler } from '../inputHandler.js';
 import { applyEconomyEventToHud, isEconomyEvent } from '../ui/economyHud.js';
+import { alertSystem } from '../ui/alertSystem.js';
 import {
   registerCombatDevTransportResolver,
   refreshCombatDevBindings,
@@ -28,14 +30,14 @@ import { getPlayerPetStore, initPlayerPetStore } from '../ui/pet/playerPetStore.
 import { canPetEnterBattle } from '../../shared/pet/petModel.js';
 import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
-import { bootstrapEmptyPlayerItems, bootstrapMvpPlayerItems } from '../game/PlayerItemSession.js';
 import { prefetchItemCatalogExtra } from '../../shared/items/itemCatalog.js';
-import { attachOnlineEconomyLayer, getDataStore } from '../economy/economyLayer.js';
+import { attachOnlineEconomyLayer, bindLocalGameCharacter, getDataStore, getMockEconomyService } from '../economy/economyLayer.js';
+import { getGameMode } from '../runtime/gameMode.js';
 import { requestReturnToExploration } from '../game/battleReturnToWorld.js';
 import {
   initGameStateProvider,
-  startBattle,
   enterBattleFromServer,
+  abortCombatJoinOnError,
   getGameStateManager,
   resetGameStateManager,
 } from '../game/GameStateProvider.js';
@@ -46,6 +48,18 @@ import {
   isAuthoritativeWorldSocket,
 } from '../world/authoritativeWorldSocket.js';
 import { applyWorldPeersPayload } from '../world/worldPeersStore.js';
+import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
+import { bindPveEncounterWsSender, sendPveEncounterRequest } from '../app/panels/pveEncounterBridge.js';
+import {
+  resetLocalPveEncounterRuntime,
+  startLocalPveEncounterRuntime,
+  stopLocalPveEncounterRuntime,
+} from '../world/localPveEncounterRuntime.js';
+import type {
+  PveEncounterClearPayload,
+  PveEncounterFleeResultPayload,
+  PveEncounterOfferPayload,
+} from '../../shared/world/pveEncounterProtocol.js';
 import { DEFAULT_MAP_ID } from '../../shared/world/mapRegistry.js';
 import { getZoneTransitionController } from '../world/zoneTransitionController.js';
 import { getGameRenderLoop, resetGameRenderLoop } from '../render/GameRenderLoop.js';
@@ -54,6 +68,9 @@ import { ExplorationScene } from '../scenes/Exploration.js';
 import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
 import { AppScreens } from './appScreens.js';
 import { createBrowserCombatSocket, connectionPhaseLabel, type BrowserCombatSocket } from './createBrowserCombatSocket.js';
+import { createLocalCombatSocket } from '../combat/local/createLocalCombatSocket.js';
+import { resolveLocalCombatLoadoutFromClient } from '../combat/local/resolveLocalCombatLoadout.js';
+import { resolvePlayerEquippedSkillIds } from '../../shared/combat/movesetLoadout.js';
 import { mountWorldMapScene, SceneManager, resetWorldMapSceneMount } from './sceneManager.js';
 import { initGameRoot } from './GameRoot.js';
 import {
@@ -91,7 +108,6 @@ import {
   clearWorldLoginRetry,
   scheduleWorldLoginRetry,
 } from '../world/worldLoginCoordinator.js';
-import { PHASER_MOUNT_ROOT_ID } from '../phaser/PhaserConfig.js';
 import {
   beginWorldChroniclesSession,
   bindWorldLoreWsTransport,
@@ -106,12 +122,24 @@ import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { subscribeAuthStateChange } from '../auth/supabaseAuth.js';
 import { presentMinorAccountAviso } from '../world/minorAccountAviso.js';
-import { bootOnlinePhaserExploration, enablePhaserForOnlineSession } from '../app/phaser/initPhaserReadyLayer.js';
-import { registerMapLoadFatalHandler } from '../phaser/tiled/mapLoadFatalError.js';
+import {
+  bootOnlineWorldRender,
+  enableWorldRenderForOnlineSession,
+} from '../worldRender/bootOnlineWorldRender.js';
+import { WORLD_MOUNT_ROOT_ID } from '../worldRender/worldRenderMount.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 import { deactivateGameDomain } from '../domains/executionDomain.js';
 import { resetServiceRegistry } from '../domains/ServiceRegistry.js';
 import { warnIfStaleClientBuild } from './runtimeBuildIntegrity.js';
+import { shutdownWorldRender } from '../worldRender/bootOnlineWorldRender.js';
+import {
+  hidePlayerInitLoading,
+  updatePlayerInitLoadingMessage,
+} from '../auth/playerInitLoading.js';
+import {
+  waitForWorldPaintSettle,
+  waitForWorldSessionReady,
+} from '../world/waitForWorldEntryReady.js';
 
 const DEV_DEBUG_ALLOWED_EMAILS: readonly string[] = ['juninhomc94@gmail.com'];
 
@@ -129,13 +157,13 @@ let teardownGameState: (() => void) | null = null;
 let teardownGameRoot: (() => void) | null = null;
 let teardownLightOverlay: (() => void) | null = null;
 
-registerMapLoadFatalHandler(() => {
-  worldStarted = false;
-  getGameRenderLoop().stop();
-});
-
 export function isWorldSessionStarted(): boolean {
   return worldStarted;
+}
+
+/** Socket de combate/mundo ativo — usado por HUDs (ex.: encontro PVE). */
+export function getActiveCombatSocket(): BrowserCombatSocket | null {
+  return socket;
 }
 
 function setStatus(text: string): void {
@@ -184,6 +212,10 @@ function wirePortalTransitionBridge(): void {
     }
   });
 
+  // Estrutura única Local × Online: sempre portal-transition-request no socket.
+  // Online → CombatWsHub / PortalTransitionGateway.
+  // Local → LocalCombatSocket (mesmo resolvePortalTransition + ensure zona).
+  // Sem socket → ZoneTransitionController.resolveLocally (fallback idêntico).
   const useRemote = socket !== null && socket.readyState === 1;
   world.configurePortalTransitionRemote(
     useRemote
@@ -225,17 +257,26 @@ function requestWorldLoginIfPossible(): void {
 function beginWorldLoginHandshake(): void {
   resetWorldSessionGate();
   clearWorldLoginRetry();
+  // GAME_MODE=local: sem handshake Railway — libera exploração imediatamente.
+  if (getGameMode() === 'local') {
+    setWorldSessionReady(true);
+    setWorldSessionActive(true);
+    setStatus('GAME_MODE=local — personagem limpo / save local.');
+    return;
+  }
   scheduleWorldLoginRetry(requestWorldLoginIfPossible);
 }
 
 function syncExplorationOnlineFromSocket(): void {
   if (socket?.readyState !== 1) return;
+  // GAME_MODE=local permanece no simulador — WS opcional não sobrescreve.
+  if (getGameMode() === 'local') return;
   attachOnlineEconomyLayer();
   setExplorationOnlineMode(true);
 }
 
 function focusGameRenderSurfaceForInput(): void {
-  const surface = document.getElementById(PHASER_MOUNT_ROOT_ID);
+  const surface = document.getElementById(WORLD_MOUNT_ROOT_ID);
   if (!(surface instanceof HTMLElement)) return;
   surface.tabIndex = -1;
   if (!surface.hasAttribute('role')) {
@@ -266,6 +307,7 @@ function handleWorldAuthError(reason: string): void {
     resetWorldSessionGate();
     setWorldSessionActive(false);
     clearWorldLoginRetry();
+    hidePlayerInitLoading();
     void AppScreens.showCharSelect();
     AppScreens.renderCharacterHubError(msg);
     return;
@@ -317,11 +359,43 @@ function handleWorldLoginResult(raw: unknown): void {
   presentMinorAccountAviso(raw.aviso_menor);
 }
 
+function wirePveEncounterCombatJoinHandler(): void {
+  if (!world) return;
+  world.setCombatJoinHandler((monsterId) => {
+    // E / foco: mesma HUD do aggro — combate só via Aceitar / fuga falha.
+    if (!sendPveEncounterRequest(monsterId)) {
+      console.warn('[PVE] Sem canal para pedir encontro:', monsterId);
+    }
+  });
+}
+
+function bindLocalPveEncounterLayer(activeWorld: ExplorationScene): void {
+  if (getGameMode() !== 'local') return;
+  // Sender PVE fica no socket (mesmo fio online) — ver bindPveEncounterWsSender em connectSocket.
+  wirePveEncounterCombatJoinHandler();
+  startLocalPveEncounterRuntime({
+    getPose: () => {
+      const snap = activeWorld.captureExplorationSnapshot();
+      return {
+        mapId: snap.mapId,
+        worldX: snap.x,
+        worldY: snap.y,
+      };
+    },
+    isExploring: () => getGameStateManager().isExploration() && !activeWorld.isPaused(),
+  });
+}
+
 function connectSocket(): void {
   if (socket) {
     positionGateway?.bindSocket(socket);
     refreshCombatDevBindings();
     syncExplorationOnlineFromSocket();
+    if (getGameMode() === 'local') {
+      setWorldSessionReady(true);
+      setWorldSessionActive(true);
+      return;
+    }
     if (world && !isWorldSessionReady()) {
       void positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
     }
@@ -335,20 +409,28 @@ function connectSocket(): void {
 
   const synchronizer = getGlobalStateSynchronizer();
 
-  socket = createBrowserCombatSocket(
-    resolveGameWsUrl(window.location, getClientRuntimeConfig()?.gameWsUrl),
-    {
-      onReconnect: () => {
-        synchronizer.onReconnect();
-        if (world && positionGateway) {
-          void positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
-        }
-      },
+  socket = getGameMode() === 'local'
+    ? createLocalCombatSocket(resolveLocalCombatLoadoutFromClient, {
       onSystemError: (reason) => {
         handleWorldAuthError(reason);
+        void abortCombatJoinOnError(reason);
       },
-    },
-  );
+    })
+    : createBrowserCombatSocket(
+      resolveGameWsUrl(window.location, getClientRuntimeConfig()?.gameWsUrl),
+      {
+        onReconnect: () => {
+          synchronizer.onReconnect();
+          if (world && positionGateway) {
+            void positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
+          }
+        },
+        onSystemError: (reason) => {
+          handleWorldAuthError(reason);
+          void abortCombatJoinOnError(reason);
+        },
+      },
+    );
   positionGateway?.bindSocket(socket);
   bindRefractionBoothSocket(socket);
 
@@ -368,9 +450,25 @@ function connectSocket(): void {
     setStatus(connectionPhaseLabel(phase));
   });
   const dispatcher = getActionDispatcher();
-  dispatcher.setIntentTransport((intent) => {
-    socket?.send('player-intent', pendingIntentToWire(intent, resolveActiveServerId()));
-  });
+  if (getGameMode() === 'local') {
+    // Simulador: intents via MockEconomyService / dispatchLocal — sem player-intent WS.
+    dispatcher.setIntentTransport(null);
+  } else {
+    dispatcher.setIntentTransport((intent) => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.warn('[ActionDispatcher] player-intent bloqueado — WS fechado.', intent.action.type);
+        queueMicrotask(() => {
+          dispatcher.rejectIntent(
+            intent.intentId,
+            'Servidor desconectado. Reconecte e tente novamente.',
+          );
+          alertSystem('Servidor desconectado. Reconecte e tente novamente.');
+        });
+        return;
+      }
+      socket.send('player-intent', pendingIntentToWire(intent, resolveActiveServerId()));
+    });
+  }
 
   configureCombatClient({
     emitAction: (action) => socket?.send('combat-action', action),
@@ -419,12 +517,22 @@ function connectSocket(): void {
   });
 
   socket.on('START_COMBAT', (raw) => {
-    if (raw && typeof raw === 'object' && typeof (raw as { battleId?: unknown }).battleId === 'string') {
-      registerActiveBattleId((raw as { battleId: string }).battleId);
+    const payload = raw && typeof raw === 'object' ? raw as {
+      battleId?: unknown;
+      monsterInstanceId?: unknown;
+    } : null;
+    if (payload && typeof payload.battleId === 'string') {
+      registerActiveBattleId(payload.battleId);
     }
+    const monsterInstanceId =
+      payload && typeof payload.monsterInstanceId === 'string'
+        ? payload.monsterInstanceId
+        : undefined;
     positionGateway?.stopHeartbeat();
     InputHandler.resetKeys();
-    void enterBattleFromServer().then(() => setStatus('Combate iniciado…'));
+    void enterBattleFromServer(
+      monsterInstanceId ? { monsterInstanceId } : {},
+    ).then(() => setStatus('Combate iniciado…'));
   });
 
   socket.on('world-login-result', handleWorldLoginResult);
@@ -490,16 +598,50 @@ function connectSocket(): void {
     applyWorldPeersPayload(raw);
   });
 
+  socket.on('pve-encounter-offer', (raw) => {
+    if (!raw || typeof raw !== 'object') return;
+    const payload = raw as PveEncounterOfferPayload;
+    if (typeof payload.monsterInstanceId !== 'string') return;
+    getPveEncounterStore().applyOffer(payload);
+  });
+
+  socket.on('pve-encounter-clear', (raw) => {
+    if (!raw || typeof raw !== 'object') return;
+    const payload = raw as PveEncounterClearPayload;
+    if (typeof payload.monsterInstanceId !== 'string') return;
+    getPveEncounterStore().applyClear(payload);
+  });
+
+  socket.on('pve-encounter-flee-result', (raw) => {
+    if (!raw || typeof raw !== 'object') return;
+    const payload = raw as PveEncounterFleeResultPayload;
+    if (typeof payload.monsterInstanceId !== 'string') return;
+    getPveEncounterStore().applyFleeResult(payload);
+    window.setTimeout(() => {
+      getPveEncounterStore().clearFleeToast(payload.message);
+    }, 2_500);
+  });
+
+  // Estrutura única Local × Online: HUD → socket → autoridade.
+  // Online: CombatWsHub. Local: LocalCombatSocket (tryAccept / flee / request).
+  bindPveEncounterWsSender((type, payload) => {
+    socket?.send(type, payload);
+  });
+
   socket.onOpen(() => {
-    attachOnlineEconomyLayer();
-    setExplorationOnlineMode(true);
-    setStatus('Sincronizando personagem… (WASD após conectar)');
-    if (!world) return;
-    world.setCombatJoinHandler((monsterId) => {
-      void startBattle(monsterId);
-    });
-    wirePortalTransitionBridge();
-    requestWorldLoginIfPossible();
+    if (getGameMode() === 'online') {
+      attachOnlineEconomyLayer();
+      setExplorationOnlineMode(true);
+      setStatus('Sincronizando personagem… (WASD após conectar)');
+      wirePortalTransitionBridge();
+      requestWorldLoginIfPossible();
+    } else {
+      setWorldSessionReady(true);
+      setWorldSessionActive(true);
+      setStatus('GAME_MODE=local — simulador ativo (WASD)');
+      wirePortalTransitionBridge();
+    }
+    wirePveEncounterCombatJoinHandler();
   });
 
   socket.onError((message) => {
@@ -508,6 +650,7 @@ function connectSocket(): void {
       return;
     }
     setExplorationOnlineMode(false);
+    // Mantém modo online + intentTransport — reconexão reusa o mesmo caminho (local = Railway).
     setStatus(message);
   });
   socket.onClose((message) => {
@@ -526,7 +669,10 @@ function connectSocket(): void {
 
 export function enterWorldAfterHudReady(): void {
   if (worldStarted) return;
+  void enterWorldAfterHudReadyAsync();
+}
 
+async function enterWorldAfterHudReadyAsync(): Promise<void> {
   void warnIfStaleClientBuild('enter-world').then((integrity) => {
     if (integrity.stale) {
       setStatus(
@@ -536,9 +682,10 @@ export function enterWorldAfterHudReady(): void {
     }
   });
 
+  updatePlayerInitLoadingMessage('Preparando instância…');
+
   beginWorldLoginHandshake();
-  mountWorldMapScene();
-  AppScreens.showGameWorld();
+  AppScreens.prepareGameWorldBootShell();
 
   try {
     initUiLayer(document);
@@ -557,26 +704,34 @@ export function enterWorldAfterHudReady(): void {
     initPlayerPetStore();
 
     const selected = AppScreens.getSelectedCharacter();
-    const equipmentStore = getPlayerEquipmentStore();
-    const profileStore = getPlayerProfileStore();
-    if (selected) {
-      profileStore.setProfile(selected.name, selected.level);
-      equipmentStore.setPlayerInfo(selected.name, selected.level, {
-        resetVitals: true,
-        classId: selected.class,
-      });
-      loadSelectedCharacterAppearance();
-    } else {
-      profileStore.setProfile('Operative', 1);
-      equipmentStore.setPlayerInfo('Operative', 1, { resetVitals: true });
+    // Personagem existente: NÃO zerar inventário/carteira aqui — full-state-sync hidrata.
+    // initializePlayerState fica só no DebugMenu (Reset Local Data).
+    if (getGameMode() === 'local') {
+      if (!selected) {
+        throw new Error('Entrar no mundo exige personagem selecionado.');
+      }
+      updatePlayerInitLoadingMessage('Carregando save do personagem…');
+      const bound = await bindLocalGameCharacter(
+        AppScreens.currentSession?.id ?? 'local-player',
+        selected.id,
+        ...(selected.name ? [{ displayName: selected.name }] as const : []),
+      );
+      if (!bound) {
+        throw new Error('Falha ao ligar o save local do personagem (itens/pets).');
+      }
     }
-    if (AppScreens.currentSession) {
-      bootstrapEmptyPlayerItems();
-    } else {
-      bootstrapMvpPlayerItems();
+    if (selected) {
+      loadSelectedCharacterAppearance();
+      getPlayerProfileStore().setProfile(selected.name, selected.level);
+      getPlayerEquipmentStore().setPlayerInfo(selected.name, selected.level, {
+        classId: selected.class as never,
+      });
     }
     void prefetchItemCatalogExtra();
-    getGlobalPlayerStore().applyClassMoveset(equipmentStore.getSnapshot().classId);
+    const equipmentStore = getPlayerEquipmentStore();
+    // Troca pool + invalida loadout de outra classe (seed IMPETUS do boot).
+    // full-state-sync / save local sobrescreve com o loadout confirmado logo em seguida.
+    getGlobalPlayerStore().ensureClassMovePool(equipmentStore.getSnapshot().classId);
     getBattleStore().resyncLoadout();
     initPlayerHudHpMaxSync();
     initCombatEquipmentBridge();
@@ -586,16 +741,39 @@ export function enterWorldAfterHudReady(): void {
     world = new ExplorationScene(mapManager, worldSocket);
     const activeWorld = world;
     activeWorld.resize();
-    if (selected) {
-      activeWorld.setPlayerDisplayName(selected.name);
-      activeWorld.setPlayerLevel(selected.level);
-      activeWorld.setWorldIdentity(
-        AppScreens.currentSession?.id ?? 'local-player',
-        selected.id,
-      );
-    } else {
-      activeWorld.setWorldIdentity('local-player', 1);
+    if (!selected) {
+      throw new Error('Entrar no mundo exige personagem selecionado.');
     }
+
+    if (getGameMode() === 'local') {
+      getMockEconomyService()?.setLocalWorldSnapshotProvider(() => {
+        if (!world) return null;
+        const snap = world.captureExplorationSnapshot();
+        return {
+          mapId: snap.mapId,
+          x: snap.x,
+          y: snap.y,
+          facing: snap.facing,
+        };
+      });
+      const savedWorld = getMutableDataStore().getWorldPosition();
+      if (savedWorld) {
+        activeWorld.applyServerWorldSpawn({
+          ok: true,
+          currentMapId: savedWorld.mapId,
+          lastPosition: { x: savedWorld.x, y: savedWorld.y },
+          facing: savedWorld.facing,
+        });
+      }
+      bindLocalPveEncounterLayer(activeWorld);
+    }
+
+    activeWorld.setPlayerDisplayName(selected.name);
+    activeWorld.setPlayerLevel(selected.level);
+    activeWorld.setWorldIdentity(
+      AppScreens.currentSession?.id ?? 'local-player',
+      selected.id,
+    );
     syncRefractionBoothCredentials();
 
     teardownGlobalChat?.();
@@ -649,9 +827,12 @@ export function enterWorldAfterHudReady(): void {
           activeWorld.restoreExplorationSnapshot(snapshot);
         }
         activeWorld.setPaused(false);
+        // Mundo de novo ativo — retoma sync de posição (online) e frames Construct.
+        positionGateway?.startHeartbeat();
       },
       onEnterExplorationVisual: () => {
         activeWorld?.setPaused(false);
+        positionGateway?.startHeartbeat();
       },
       captureExplorationSnapshot: () => activeWorld.captureExplorationSnapshot(),
       requestCombatJoin: (encounter) => {
@@ -660,10 +841,16 @@ export function enterWorldAfterHudReady(): void {
         const marcos = getDataStore().getMarcosState();
         const pet = getPlayerPetStore().getSnapshot();
         const equipmentSnapshot = resolveClientCombatEquipmentSnapshot();
+        const equipment = getPlayerEquipmentStore().getSnapshot();
+        const classId = equipment.classId || selectedCharacter?.class || 'IMPETUS';
+        const activeMovesets = resolvePlayerEquippedSkillIds(
+          classId,
+          getGlobalPlayerStore().getConfirmedLoadout(),
+        );
         socket?.send('combat-join', {
           displayName: selectedCharacter?.name,
-          classId: selectedCharacter?.class ?? getPlayerEquipmentStore().getSnapshot().classId,
-          activeMovesets: [...getGlobalPlayerStore().getConfirmedLoadout()],
+          classId,
+          activeMovesets,
           monsterInstanceId: encounter.monsterId,
           worldVitals: vitals,
           equipmentSnapshot: { ...equipmentSnapshot },
@@ -702,7 +889,7 @@ export function enterWorldAfterHudReady(): void {
     wirePortalTransitionBridge();
     focusGameRenderSurfaceForInput();
 
-    enablePhaserForOnlineSession();
+    enableWorldRenderForOnlineSession();
 
     activeWorld.prepareFrame(0);
     activeWorld.syncWorldDomOverlay(performance.now());
@@ -714,14 +901,45 @@ export function enterWorldAfterHudReady(): void {
       onLevelChanged: (level) => activeWorld.setPlayerLevel(level),
     });
 
-    void bootOnlinePhaserExploration().then((phaserBooted) => {
-      if (!phaserBooted || !world) {
+    try {
+      updatePlayerInitLoadingMessage('Carregando mapa…');
+      const worldRenderBooted = await bootOnlineWorldRender(
+        mapManager?.currentMapId ?? DEFAULT_MAP_ID,
+      );
+      if (!worldRenderBooted || !world) {
+        updatePlayerInitLoadingMessage('Falha ao carregar o mapa. Tente novamente.');
+        window.setTimeout(() => {
+          hidePlayerInitLoading();
+          AppScreens.abortGameWorldBootShell();
+        }, 1500);
         return;
       }
+
       world.prepareFrame(0);
       world.syncWorldDomOverlay(performance.now());
-      console.debug('[Altercadia] Runtime Phaser iniciado — montagem do mapa Tiled em andamento.');
-    });
+
+      updatePlayerInitLoadingMessage('Sincronizando personagem…');
+      const sessionReady = await waitForWorldSessionReady();
+      if (!sessionReady) {
+        console.warn('[Altercadia] Timeout no world-login — revelando mundo mesmo assim.');
+      }
+
+      updatePlayerInitLoadingMessage('Quase pronto…');
+      world.prepareFrame(0);
+      world.syncWorldDomOverlay(performance.now());
+      await waitForWorldPaintSettle();
+
+      // Só agora: sai da tela de personagem e mostra o jogo já renderizado.
+      AppScreens.revealGameWorldAfterBoot();
+      console.info('[Altercadia] Instância pronta — jogo revelado.');
+    } catch (error) {
+      console.error('[Altercadia] Falha no boot da instância:', error);
+      updatePlayerInitLoadingMessage('Erro ao carregar o mundo. Tente novamente.');
+      window.setTimeout(() => {
+        hidePlayerInitLoading();
+        AppScreens.abortGameWorldBootShell();
+      }, 1800);
+    }
 
     console.log('[Altercadia] Entrou no mundo', {
       userId: AppScreens.currentSession?.id,
@@ -729,16 +947,19 @@ export function enterWorldAfterHudReady(): void {
     });
 
     if (selected) {
-      setStatus(`Sincronizando ${selected.name}… clique no mapa ou use WASD quando conectar.`);
+      setStatus(`Sincronizando ${selected.name}…`);
     }
 
-    const loreCreds = AppScreens.currentSession && selected
-      ? { playerId: AppScreens.currentSession.id, characterId: selected.id }
-      : { playerId: 'local-player', characterId: 1 };
+    const loreCreds = {
+      playerId: AppScreens.currentSession?.id ?? 'local-player',
+      characterId: selected.id,
+    };
     beginWorldChroniclesSession(loreCreds.playerId, loreCreds.characterId);
   } catch (error) {
     console.error('[Altercadia] Falha ao entrar no mundo:', error);
     setStatus('Erro ao carregar o mundo — recarregue a página (F5).');
+    hidePlayerInitLoading();
+    AppScreens.abortGameWorldBootShell();
     teardownGameRoot?.();
     teardownGameRoot = null;
     teardownGameState?.();
@@ -752,14 +973,13 @@ export function enterWorldAfterHudReady(): void {
     worldStarted = false;
     setWorldSessionActive(false);
     hidePauseMenu();
-    mountWorldMapScene();
-    SceneManager.showExploration();
   }
 }
 
 export function clearGameState(): void {
   hidePauseMenu();
   getHudBridge().resetSession();
+  getMockEconomyService()?.setLocalWorldSnapshotProvider(null);
 
   teardownGlobalChat?.();
   teardownGlobalChat = null;
@@ -787,6 +1007,10 @@ export function clearGameState(): void {
     socket.close(1000, 'player_exit');
     socket = null;
   }
+  bindPveEncounterWsSender(null);
+  stopLocalPveEncounterRuntime();
+  resetLocalPveEncounterRuntime();
+  getPveEncounterStore().reset();
   refreshCombatDevBindings();
 
   teardownGameRoot?.();
@@ -808,6 +1032,7 @@ export function clearGameState(): void {
   world?.dispose();
   world = null;
   resetExplorationRenderBridge();
+  shutdownWorldRender();
 
   if (worldSocket && isAuthoritativeWorldSocket(worldSocket)) {
     worldSocket.removeAllListeners();

@@ -1,16 +1,25 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type MouseEvent } from 'react';
 import { formatSpriteMetaLine } from '../../../../../shared/character/combatClassDisplay.js';
+import { resolveMoveDefinitionForUi } from '../../../../../shared/combat/movesetLoadout.js';
 import { getPetDefinition } from '../../../../../shared/pet/petCatalog.js';
 import { getPetColorPalette } from '../../../../../shared/pet/petColorPalette.js';
 import { isPetDefeated } from '../../../../../shared/pet/petModel.js';
 import type { PetSnapshot } from '../../../../../shared/pet/petModel.js';
 import type { PlayerPetRosterSnapshot } from '../../../../../shared/pet/petRoster.js';
+import { resolvePetHudSouthPreviewUrl } from '../../../../entities/pet/petHudPreview.js';
 import { paintCharacterPanelPreview } from '../../../../ui/character/characterPanelPreview.js';
-import { renderOperativeEventLog } from '../../../../ui/character/characterPanelAchievementLog.js';
 import { renderEstiloLine } from '../../../../ui/character/characterPanelEstilo.js';
 import { renderLevelProgressionSection } from '../../../../ui/character/levelProgressionSection.js';
-import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
-import { useCharactersPanelState } from '../../../panels/useCharactersPanelState.js';
+import { bindPlayerHpTooltipHost } from '../../../../ui/equipment/playerHpTooltip.js';
+import { hideMoveTooltip, showMoveTooltipAt } from '../../../../ui/tooltip/showMoveTooltip.js';
+import {
+  tryCloseReactWorldPanel,
+  tryFocusReactWorldPanel,
+} from '../../../panels/initWorldPanelsBridge.js';
+import {
+  useCharactersPanelState,
+  type CharacterAchievementRow,
+} from '../../../panels/useCharactersPanelState.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 
 type WorldCharactersPanelProps = {
@@ -38,6 +47,23 @@ function SyncSignalBars({ activeBars }: { readonly activeBars: number }) {
   );
 }
 
+function showMoveTooltip(event: MouseEvent, moveId: string): void {
+  const rect = event.currentTarget.getBoundingClientRect();
+  showMoveTooltipAt(moveId, rect.left + rect.width / 2, rect.top, 'above');
+}
+
+function formatUnlockStamp(unlockedAt: number | null): string {
+  if (!unlockedAt) return '';
+  try {
+    return new Date(unlockedAt).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+    });
+  } catch {
+    return '';
+  }
+}
+
 function CharacterPetSection({
   petSnapshot,
   roster,
@@ -45,30 +71,16 @@ function CharacterPetSection({
   readonly petSnapshot: PetSnapshot | null;
   readonly roster: PlayerPetRosterSnapshot;
 }) {
-  const iconRef = useRef<HTMLCanvasElement>(null);
   const hasAnyPet = roster.pets.length > 0;
-
-  useEffect(() => {
-    const pet = petSnapshot;
-    const canvas = iconRef.current;
-    if (!pet || !canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    void import('../../../../entities/pet/petRenderer.js').then(({ renderPetPortrait }) => {
-      renderPetPortrait(ctx, pet.kindId, pet.colorId, canvas.width, 0, pet.gender);
-    });
-  }, [petSnapshot]);
 
   if (!hasAnyPet) {
     return (
       <section className="character-pets-block" aria-label="Companheiros" data-pet-section>
         <header className="character-terminal-block__header">
           <span className="character-terminal-block__tag">PETS</span>
-          <h3 className="character-terminal-block__title">Companheiro ativo</h3>
+          <h3 className="character-terminal-block__title">Companheiro</h3>
         </header>
-        <p className="character-pets-empty">Nenhum pet adotado. Visite o Treinador Zeno na cidade.</p>
+        <p className="character-pets-empty">Nenhum pet — visite a Treinadora Zena.</p>
       </section>
     );
   }
@@ -78,12 +90,9 @@ function CharacterPetSection({
       <section className="character-pets-block" aria-label="Companheiros" data-pet-section>
         <header className="character-terminal-block__header">
           <span className="character-terminal-block__tag">PETS</span>
-          <h3 className="character-terminal-block__title">Companheiro ativo</h3>
+          <h3 className="character-terminal-block__title">Companheiro</h3>
         </header>
-        <p className="character-pets-empty">Nenhum companheiro convocado.</p>
-        <p className="character-pets-hint">
-          Abra <strong>Pet Love</strong> no Hub para escolher qual pet ativar (até 3 salvos).
-        </p>
+        <p className="character-pets-empty">Nenhum convocado — ative em Pet Love.</p>
       </section>
     );
   }
@@ -92,92 +101,181 @@ function CharacterPetSection({
   const def = getPetDefinition(pet.kindId);
   const palette = getPetColorPalette(pet.colorId);
   const defeated = isPetDefeated(pet);
-  const statusLabel = defeated ? 'Inativo (ferido)' : 'Convocado';
+  const statusLabel = defeated ? 'Inativo' : 'Convocado';
   const statusClass = defeated ? 'character-pets-status--down' : 'character-pets-status--on';
 
   return (
     <section className="character-pets-block" aria-label="Companheiros" data-pet-section>
       <header className="character-terminal-block__header">
         <span className="character-terminal-block__tag">PETS</span>
-        <h3 className="character-terminal-block__title">Companheiro ativo</h3>
+        <h3 className="character-terminal-block__title">Companheiro</h3>
       </header>
       <div className="character-pets-card">
-        <canvas
-          ref={iconRef}
+        <img
           className="character-pets-card__icon"
           data-pet-icon
-          width={64}
-          height={64}
+          src={resolvePetHudSouthPreviewUrl(pet.kindId)}
+          alt=""
+          width={40}
+          height={40}
+          draggable={false}
           aria-hidden="true"
         />
         <div className="character-pets-card__meta">
           <p className="character-pets-card__name">{pet.name}</p>
-          <p className="character-pets-card__species">{def.shopTitle}</p>
-          <p className="character-pets-card__hp">HP {pet.hpCurrent} / {pet.hpMax}</p>
+          <p className="character-pets-card__hp">
+            HP {pet.hpCurrent}/{pet.hpMax}
+            <span className={`character-pets-status ${statusClass}`}>{statusLabel}</span>
+          </p>
           <p
             className="character-pets-card__palette"
             style={{ '--pet-accent': palette.tag } as CSSProperties}
           >
-            {palette.label}
+            {def.shopTitle} · {palette.label}
           </p>
-          <span className={`character-pets-status ${statusClass}`}>{statusLabel}</span>
         </div>
       </div>
-      <p className="character-pets-hint">Espelho do companheiro ativo — troque em Pet Love.</p>
-      {defeated ? (
-        <p className="character-pets-hint">Visite o Ancião Cael para reviver seu companheiro.</p>
-      ) : null}
+    </section>
+  );
+}
+
+function ActiveMovesetMirror({
+  slots,
+}: {
+  readonly slots: readonly (string | null)[];
+}) {
+  return (
+    <section className="character-moveset-mirror" aria-label="Moveset ativo">
+      <header className="character-terminal-block__header">
+        <span className="character-terminal-block__tag">LOADOUT</span>
+        <h3 className="character-terminal-block__title">Moveset ativo</h3>
+      </header>
+      <ul className="character-moveset-mirror__grid">
+        {slots.map((moveId, index) => {
+          if (!moveId) {
+            return (
+              <li
+                key={`empty-${index}`}
+                className="character-moveset-mirror__slot character-moveset-mirror__slot--empty"
+              >
+                <span className="character-moveset-mirror__index">{index + 1}</span>
+                <span className="character-moveset-mirror__name">Vazio</span>
+              </li>
+            );
+          }
+          const move = resolveMoveDefinitionForUi(moveId);
+          const label = move?.name ?? moveId;
+          return (
+            <li
+              key={moveId}
+              className="character-moveset-mirror__slot character-moveset-mirror__slot--filled"
+            >
+              <button
+                type="button"
+                className="character-moveset-mirror__btn"
+                onMouseEnter={(event) => showMoveTooltip(event, moveId)}
+                onMouseLeave={hideMoveTooltip}
+              >
+                <span className="character-moveset-mirror__index">{index + 1}</span>
+                <span className="character-moveset-mirror__name">{label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function MemoryDiaryAchievements({
+  rows,
+  unlockedCount,
+  total,
+}: {
+  readonly rows: readonly CharacterAchievementRow[];
+  readonly unlockedCount: number;
+  readonly total: number;
+}) {
+  const unlocked = rows.filter((row) => row.unlocked);
+  const locked = rows.filter((row) => !row.unlocked);
+
+  return (
+    <section className="character-memory-diary" aria-label="Diário de Memórias">
+      <header className="character-memory-diary__header">
+        <span className="character-memory-diary__tag">DIÁRIO // MEMÓRIAS</span>
+        <h3 className="character-memory-diary__title">Conquistas</h3>
+        <p className="character-memory-diary__count">
+          {unlockedCount}/{total}
+        </p>
+      </header>
+      {rows.length === 0 ? (
+        <p className="character-memory-diary__empty">Nenhuma conquista registrada.</p>
+      ) : (
+        <ul className="character-memory-diary__list">
+          {unlocked.map((row) => (
+            <li
+              key={row.id}
+              className="character-memory-diary__row character-memory-diary__row--unlocked"
+            >
+              <span className="character-memory-diary__badge">{row.categoryLabel}</span>
+              <div className="character-memory-diary__body">
+                <p className="character-memory-diary__name">{row.title}</p>
+                <p className="character-memory-diary__desc">{row.description}</p>
+              </div>
+              <span className="character-memory-diary__stamp">
+                {formatUnlockStamp(row.unlockedAt)}
+              </span>
+            </li>
+          ))}
+          {locked.map((row) => (
+            <li
+              key={row.id}
+              className="character-memory-diary__row character-memory-diary__row--locked"
+            >
+              <span className="character-memory-diary__badge">{row.categoryLabel}</span>
+              <div className="character-memory-diary__body">
+                <p className="character-memory-diary__name">{row.title}</p>
+                <p className="character-memory-diary__desc">{row.description}</p>
+                {row.progressLabel ? (
+                  <p className="character-memory-diary__progress">{row.progressLabel}</p>
+                ) : null}
+              </div>
+              <span className="character-memory-diary__stamp">—</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
 
 export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelProps) {
   const previewRef = useRef<HTMLCanvasElement>(null);
-  const {
-    skinState,
-    equipmentMeta,
-    equipmentGrid,
-    profile,
-    wallet,
-    syncStatus,
-    petSnapshot,
-    roster,
-    eventLogLines,
-    estiloName,
-    openSkinMenu,
-    levelProgressionModel,
-    toggleSkinMenu,
-    selectSkinOption,
-    closeSkinMenu,
-    resolveEquipmentName,
-    skinSlotOrder,
-    skinSlotLabels,
-    getSkinOptionLabel,
-    equipmentSlotOrder,
-    equipmentSlotLabels,
-  } = useCharactersPanelState();
+  const progressionWrapRef = useRef<HTMLDivElement>(null);
+  const state = useCharactersPanelState();
+
+  const progressionHtml = useMemo(
+    () => renderLevelProgressionSection(state.levelProgressionModel),
+    [state.levelProgressionModel],
+  );
 
   useEffect(() => {
     const canvas = previewRef.current;
-    if (canvas) paintCharacterPanelPreview(canvas, skinState.skin);
-  }, [skinState.skin]);
+    if (canvas) paintCharacterPanelPreview(canvas, state.skinState.skin);
+  }, [state.skinState.skin]);
 
-  const progressionHtml = useMemo(
-    () => renderLevelProgressionSection(levelProgressionModel),
-    [levelProgressionModel],
-  );
+  useEffect(() => {
+    const host = progressionWrapRef.current;
+    if (!host) return undefined;
+    return bindPlayerHpTooltipHost(host);
+  }, [progressionHtml]);
 
-  const estiloHtml = useMemo(() => renderEstiloLine(estiloName), [estiloName]);
-
-  const eventLogHtml = useMemo(
-    () => renderOperativeEventLog(eventLogLines),
-    [eventLogLines],
-  );
+  const estiloHtml = useMemo(() => renderEstiloLine(state.estiloName), [state.estiloName]);
 
   const pvpRows = [
-    ['Batalhas', profile.pvp.battles],
-    ['Vitórias', profile.pvp.wins],
-    ['Derrotas', profile.pvp.losses],
+    ['Batalhas', state.profile.pvp.battles],
+    ['Vitórias', state.profile.pvp.wins],
+    ['Derrotas', state.profile.pvp.losses],
   ] as const;
 
   return (
@@ -187,43 +285,47 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--characters ui-panel ui-panel--characters ui-panel--movable"
+      bodyOverflow="hidden"
       panelStyle={{
-        width: 'min(1080px, 98vw)',
-        minWidth: 'min(720px, 98vw)',
-        maxHeight: 'min(92vh, 700px)',
+        width: 'min(960px, 96vw)',
+        minWidth: 'min(720px, 96vw)',
+        maxHeight: 'min(92vh, 660px)',
+        height: 'min(92vh, 660px)',
       }}
       onFocus={() => tryFocusReactWorldPanel('characters')}
       onClose={() => tryCloseReactWorldPanel('characters')}
     >
-      <div className="ui-panel__body character-sheet-layout">
+      <div className="ui-panel__body character-sheet-layout character-sheet-layout--compact">
         <div className="character-panel__header-row character-panel__header-row--inline">
           <span className="character-panel__tag">TERMINAL // OPERATIVO</span>
           <div
-            className={`character-sync${syncStatus.stable ? '' : ' character-sync--unstable'}`}
+            className={`character-sync${state.syncStatus.stable ? '' : ' character-sync--unstable'}`}
             data-sync-indicator
-            aria-label={`Sincronia: ${syncStatus.label} — ${syncStatus.mapLabel}`}
+            aria-label={`Sincronia: ${state.syncStatus.label} — ${state.syncStatus.mapLabel}`}
           >
             <span className="character-sync__label">SINCRONIA</span>
-            <span className="character-sync__status" data-sync-status>{syncStatus.label}</span>
-            <SyncSignalBars activeBars={syncStatus.signalBars} />
+            <span className="character-sync__status" data-sync-status>
+              {state.syncStatus.label}
+            </span>
+            <SyncSignalBars activeBars={state.syncStatus.signalBars} />
           </div>
         </div>
 
-        <div className="character-sheet character-sheet--triple">
+        <div className="character-sheet character-sheet--triple character-sheet--ficha">
           <div className="character-sheet__col character-sheet__col--preview">
             <div className="character-sheet__sprite-frame" aria-label="Preview do operativo">
               <canvas
                 ref={previewRef}
                 className="character-sheet__canvas"
                 data-char-preview
-                width={144}
-                height={176}
+                width={220}
+                height={280}
               />
               <p className="character-sheet__sprite-meta">
                 {formatSpriteMetaLine(
-                  equipmentMeta.displayName,
-                  equipmentMeta.level,
-                  equipmentMeta.classId,
+                  state.equipmentMeta.displayName,
+                  state.equipmentMeta.level,
+                  state.equipmentMeta.classId,
                 )}
               </p>
             </div>
@@ -234,23 +336,22 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
               onClick={(event) => {
                 const target = event.target;
                 if (!(target instanceof HTMLElement)) return;
-                if (!target.closest('.character-wardrobe__menu') && openSkinMenu) {
-                  closeSkinMenu();
+                if (!target.closest('.character-wardrobe__menu') && state.openSkinMenu) {
+                  state.closeSkinMenu();
                 }
               }}
             >
               <header className="character-wardrobe__header">
                 <span className="character-wardrobe__tag">SKIN</span>
                 <h3 className="character-wardrobe__title">Aparência</h3>
-                <p className="character-wardrobe__hint">Cosmético — sem bônus de stats.</p>
               </header>
               <div className="character-wardrobe__slots">
-                {skinSlotOrder.map((slot) => {
-                  const optionId = skinState.skin[slot];
-                  const label = skinSlotLabels[slot];
-                  const value = getSkinOptionLabel(slot, optionId);
-                  const ownedCount = skinState.ownedSkins[slot].length;
-                  const isOpen = openSkinMenu === slot;
+                {state.skinSlotOrder.map((slot) => {
+                  const optionId = state.skinState.skin[slot];
+                  const label = state.skinSlotLabels[slot];
+                  const value = state.getSkinOptionLabel(slot, optionId);
+                  const ownedCount = state.skinState.ownedSkins[slot].length;
+                  const isOpen = state.openSkinMenu === slot;
                   return (
                     <button
                       key={slot}
@@ -258,56 +359,60 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
                       className={`character-wardrobe__slot${isOpen ? ' character-wardrobe__slot--open' : ''}`}
                       data-skin-slot={slot}
                       aria-expanded={isOpen}
-                      onClick={() => toggleSkinMenu(slot)}
+                      onClick={() => state.toggleSkinMenu(slot)}
                     >
                       <span className="character-wardrobe__slot-label">{label}</span>
                       <span className="character-wardrobe__slot-value">{value}</span>
-                      <span className="character-wardrobe__slot-owned">{ownedCount} peças</span>
+                      <span className="character-wardrobe__slot-owned">{ownedCount}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {openSkinMenu ? (
+              {state.openSkinMenu ? (
                 <div className="character-wardrobe__menu" data-skin-menu role="listbox">
                   <p className="character-wardrobe__menu-title">
-                    {skinSlotLabels[openSkinMenu]} — possuídas
+                    {state.skinSlotLabels[state.openSkinMenu]}
                   </p>
                   <ul className="character-wardrobe__menu-list">
-                    {skinState.ownedSkins[openSkinMenu].map((optionId) => (
+                    {state.skinState.ownedSkins[state.openSkinMenu].map((optionId) => (
                       <li key={optionId}>
                         <button
                           type="button"
                           className={`character-wardrobe__menu-item${
-                            optionId === skinState.skin[openSkinMenu]
+                            optionId === state.skinState.skin[state.openSkinMenu!]
                               ? ' character-wardrobe__menu-item--active'
                               : ''
                           }`}
-                          data-skin-slot={openSkinMenu}
+                          data-skin-slot={state.openSkinMenu}
                           data-skin-option={optionId}
                           role="option"
-                          onClick={() => selectSkinOption(openSkinMenu, optionId)}
+                          onClick={() =>
+                            state.selectSkinOption(state.openSkinMenu!, optionId)
+                          }
                         >
-                          {getSkinOptionLabel(openSkinMenu, optionId)}
+                          {state.getSkinOptionLabel(state.openSkinMenu!, optionId)}
                         </button>
                       </li>
                     ))}
                   </ul>
                 </div>
-              ) : (
-                <div
-                  className="character-wardrobe__menu character-wardrobe__menu--hidden"
-                  data-skin-menu
-                  hidden
-                />
-              )}
+              ) : null}
             </section>
           </div>
 
           <div className="character-sheet__col character-sheet__col--stats">
-            <div dangerouslySetInnerHTML={{ __html: progressionHtml }} />
+            <div
+              ref={progressionWrapRef}
+              className="character-progression-wrap"
+              dangerouslySetInnerHTML={{ __html: progressionHtml }}
+            />
 
-            <section className="character-terminal-block character-wallet-block" aria-label="Carteira" data-wallet-block>
+            <section
+              className="character-terminal-block character-wallet-block"
+              aria-label="Carteira"
+              data-wallet-block
+            >
               <header className="character-terminal-block__header">
                 <span className="character-terminal-block__tag">WALLET</span>
                 <h3 className="character-terminal-block__title">Recursos</h3>
@@ -315,18 +420,22 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
               <ul className="character-wallet-list">
                 <li className="character-wallet-row">
                   <span className="character-wallet-row__code">[VLT]</span>
-                  <strong className="character-wallet-row__value" data-wallet-vlt>{wallet.voltsFormatted}</strong>
+                  <strong className="character-wallet-row__value" data-wallet-vlt>
+                    {state.wallet.voltsFormatted}
+                  </strong>
                 </li>
                 <li className="character-wallet-row">
                   <span className="character-wallet-row__code">[ALT]</span>
-                  <strong className="character-wallet-row__value" data-wallet-alt>{wallet.alterFormatted}</strong>
+                  <strong className="character-wallet-row__value" data-wallet-alt>
+                    {state.wallet.alterFormatted}
+                  </strong>
                 </li>
               </ul>
             </section>
 
             <section className="character-stats-block" aria-label="PvP">
               <header className="character-stats-block__header">
-                <h3 className="character-stats-block__title">Painel PvP</h3>
+                <h3 className="character-stats-block__title">PvP</h3>
               </header>
               <ul className="character-pvp-grid" data-pvp-grid>
                 {pvpRows.map(([label, value]) => (
@@ -338,49 +447,23 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
               </ul>
             </section>
 
-            <div dangerouslySetInnerHTML={{ __html: estiloHtml }} />
+            <div
+              className="character-estilo-wrap"
+              dangerouslySetInnerHTML={{ __html: estiloHtml }}
+            />
 
-            <CharacterPetSection petSnapshot={petSnapshot} roster={roster} />
+            <CharacterPetSection petSnapshot={state.petSnapshot} roster={state.roster} />
           </div>
 
-          <div className="character-sheet__col character-sheet__col--equipment">
-            <section className="character-equip-set" aria-label="Equipamentos">
-              <header className="character-equip-set__header">
-                <h3 className="character-equip-set__title">SET Equipado</h3>
-                <p className="character-equip-set__hint">10 slots — stats de batalha.</p>
-              </header>
-              <ul className="character-equip-set__grid" data-equip-grid>
-                {equipmentSlotOrder.map((slotId) => {
-                  const itemId = equipmentGrid[slotId];
-                  const label = equipmentSlotLabels[slotId];
-                  const name = resolveEquipmentName(itemId);
-                  return (
-                    <li
-                      key={slotId}
-                      className={`character-equip-slot${itemId ? ' character-equip-slot--filled' : ''}`}
-                      data-equip-slot={slotId}
-                    >
-                      <span className="character-equip-slot__code">{label}</span>
-                      <span className="character-equip-slot__item">{name}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+          <div className="character-sheet__col character-sheet__col--memory">
+            <ActiveMovesetMirror slots={state.confirmedLoadout} />
+            <MemoryDiaryAchievements
+              rows={state.achievementRows}
+              unlockedCount={state.unlockedCount}
+              total={state.achievementTotal}
+            />
           </div>
         </div>
-
-        <footer className="character-event-log" aria-label="Log de eventos do operativo" data-event-log>
-          <header className="character-event-log__header">
-            <span className="character-event-log__tag">LOG // EVENTOS</span>
-            <h3 className="character-event-log__title">Marcos do Operativo</h3>
-          </header>
-          <ul
-            className="character-event-log__list"
-            data-event-log-list
-            dangerouslySetInnerHTML={{ __html: eventLogHtml }}
-          />
-        </footer>
       </div>
     </MovablePanelFrame>
   );

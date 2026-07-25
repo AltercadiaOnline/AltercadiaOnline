@@ -2,11 +2,9 @@
  * FLUXO DE DADOS — GiftService
  *
  * UI → GiftService.sendGift(itemId, targetPlayerId)
- *   → GameStore.sendGift (pendingAction + snapshot, sem mutação otimista)
- *   → giftTransferClient → POST /api/gift/transfer (JWT)
- *   → servidor → Supabase RPC transfer_item (transação atômica A→B)
- *   → sucesso: aplica senderStacks no domain store + GameStore
- *   → falha: GameTransactionCoordinator alerta + rollback (inventário intacto)
+ *   → GameStore.sendGift → ActionDispatcher GIFT_TRANSFER (player-intent)
+ *   → servidor GiftTransferHandler → Supabase RPC transfer_item
+ *   → InventoryUpdated / intent-result (espelho no cliente)
  */
 
 import { getGameStore } from '../../state/GameStore.js';

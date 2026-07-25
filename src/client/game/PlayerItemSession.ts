@@ -8,7 +8,6 @@ import {
   findInventoryEquipmentOverlap,
   mergeEquipmentUiGridPreservingLocalEquipped,
 } from '../../shared/character/itemSlotModel.js';
-import { DEMO_STARTER_INVENTORY_STACKS } from '../../shared/demo/demoStarterInventory.js';
 import { normalizeChargedInventoryStacks } from '../../shared/items/chargedEquipment.js';
 import type { InventorySnapshot } from '../../shared/character/inventorySlots.js';
 import { getMockEconomyService } from '../economy/economyLayer.js';
@@ -216,6 +215,7 @@ export function applyInventoryUpdatedPayload(
     stacks,
     equipmentUiGrid: grid,
     equipped: payload.equipped ?? {},
+    immediate: true,
   });
 
   getPlayerStatsGateway().refreshFromAuthoritativeGrid(grid);
@@ -234,14 +234,9 @@ export function applyInventoryUpdatedPayload(
   }
 }
 
+/** Personagem novo começa sem inventário demo — use DebugMenu / DEV_* para testes. */
 export function bootstrapMvpPlayerItems(): void {
-  const store = getPlayerItemStore();
-  if (store.getItems().length > 0) return;
-
-  const stacks = normalizeChargedInventoryStacks(
-    DEMO_STARTER_INVENTORY_STACKS.map((row) => ({ ...row })),
-  );
-  store.hydrateFromServerBundle(stacks, undefined, { immediate: true });
+  bootstrapEmptyPlayerItems();
 }
 
 export function bootstrapEmptyPlayerItems(): void {

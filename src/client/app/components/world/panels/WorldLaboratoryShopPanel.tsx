@@ -4,7 +4,6 @@ import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.
 import type { LabShopTabId } from '../../../../../shared/economy/npcVendorCatalog.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
 import {
-  resolveInventoryItemAbbrev,
   resolveInventoryItemKindClass,
   resolveInventoryItemLabel,
 } from '../../../../ui/inventory/inventoryItemDisplay.js';
@@ -20,7 +19,9 @@ import {
   resolveLaboratoryFromContext,
   useLaboratoryShopPanelState,
 } from '../../../panels/useLaboratoryShopPanelState.js';
+import { bindItemHoverHandlers } from '../../../../ui/tooltip/itemHoverTooltip.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
+import { ItemSlotIcon } from './ItemSlotIcon.js';
 
 type WorldLaboratoryShopPanelProps = {
   context: WorldPanelContext;
@@ -113,7 +114,6 @@ export function WorldLaboratoryShopPanel({
                   const selected = listing?.itemId === item.itemId;
                   const kindClass = resolveInventoryItemKindClass(item.itemId);
                   const label = resolveInventoryItemLabel(item.itemId);
-                  const abbrev = resolveInventoryItemAbbrev(item.itemId);
                   const subtitle = resolveConsumableShopSubtitle(item.itemId);
                   const unit = resolveEffectiveNpcBuyUnitPrice(item.itemId, item) ?? 0;
 
@@ -128,9 +128,12 @@ export function WorldLaboratoryShopPanel({
                         ].join('')}
                         aria-pressed={selected}
                         onClick={() => state.selectItem(item.itemId)}
+                        {...bindItemHoverHandlers(item.itemId)}
                       >
                         <span className="laboratory-shop__col laboratory-shop__col--item">
-                          <span className="laboratory-shop__icon" aria-hidden="true">{abbrev}</span>
+                          <span className="laboratory-shop__icon" aria-hidden="true">
+                            <ItemSlotIcon itemId={item.itemId} />
+                          </span>
                           <span className="laboratory-shop__item-text">
                             <span className="laboratory-shop__name">{label}</span>
                             {subtitle ? (
@@ -157,9 +160,12 @@ export function WorldLaboratoryShopPanel({
                 <span className="laboratory-shop__detail-tag">
                   PREPARO::{state.activeTab.toUpperCase()}
                 </span>
-                <div className="laboratory-shop__item-head">
+                <div
+                  className="laboratory-shop__item-head"
+                  {...bindItemHoverHandlers(listing.itemId)}
+                >
                   <span className="laboratory-shop__item-icon">
-                    {resolveInventoryItemAbbrev(listing.itemId)}
+                    <ItemSlotIcon itemId={listing.itemId} className="slot-item__sprite slot-item__sprite--lg" />
                   </span>
                   <div className="laboratory-shop__item-meta">
                     <p className="laboratory-shop__item-name">

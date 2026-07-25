@@ -49,9 +49,10 @@ SUPABASE_SERVICE_ROLE_KEY=sua-service-role
 
 | Tabela | Descrição |
 |--------|-----------|
-| `profiles` | Perfil por `user_id` + `character_id` |
-| `currency` | Carteira (`dollar_volt`, `alter_coins`) por usuário |
+| `profiles` | Perfil por `user_id` + `character_id` (identidade) + `slot_index` (UI 0..4) + `server_id` |
+| `currency` | Carteira (`dollar_volt`, `alter_coins`) por personagem/shard |
 | `inventory` | Pilhas (`stacks` JSONB) e equipamento (`equipped` JSONB) |
+| `character_pets` | Roster + afinidade de pets (`roster` / `affinity` JSONB) — migração `016` |
 
 ## RLS (Zero Trust)
 

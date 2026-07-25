@@ -18,6 +18,8 @@ import {
 import { getLootCasinoHudBridge } from '../../bridge/lootCasinoHudBridge.js';
 import type { LootCasinoHudSnapshot } from '../../bridge/lootCasinoHudBridge.js';
 import { LootCasinoLever, type LootCasinoLeverHandle } from './LootCasinoLever.js';
+import { bindDelegatedItemTooltip } from '../../../ui/tooltip/itemHoverTooltip.js';
+import { hideGameTooltip } from '../../../ui/tooltip/showGameTooltip.js';
 
 type LootCasinoScreenPanelProps = {
   snapshot: LootCasinoHudSnapshot;
@@ -72,7 +74,11 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
     controllerRef.current = controller;
     leverRef.current?.focusHandle();
 
+    const unbindTooltip = bindDelegatedItemTooltip(host);
+
     return () => {
+      unbindTooltip();
+      hideGameTooltip();
       controller.destroy();
       if (controllerRef.current === controller) {
         controllerRef.current = null;

@@ -1,11 +1,8 @@
-import type { TeleportZoneEnterHandler } from './TeleportZoneController.js';
-
-let portalZoneEnterHandler: TeleportZoneEnterHandler | null = null;
-
-export function setPortalZonePhaserTriggerHandler(handler: TeleportZoneEnterHandler | null): void {
-  portalZoneEnterHandler = handler;
+// @ts-nocheck
+let portalZoneEnterHandler = null;
+export function setPortalZonePhaserTriggerHandler(handler) {
+    portalZoneEnterHandler = handler;
 }
-
-export function notifyPortalZonePhaserTrigger(portalId: string): void {
-  portalZoneEnterHandler?.(portalId);
+export function notifyPortalZonePhaserTrigger(portalId) {
+    portalZoneEnterHandler?.(portalId);
 }

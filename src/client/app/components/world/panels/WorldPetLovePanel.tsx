@@ -14,12 +14,15 @@ import { resolvePetAffinityProgress, formatPetAffinityGainPercent } from '../../
 import { getPetCareStatusLabel, resolvePetState } from '../../../../../shared/pet/petState.js';
 import { getPetLifePhaseLabel } from '../../../../../shared/pet/petLifePhase.js';
 import { PET_AFFINITY_CONFIG } from '../../../../../shared/pet/petAffinityConfig.js';
+import { PET_AFFECTION_CONFIG } from '../../../../../shared/pet/petAffection.js';
 import { buildPetAffinityProgressionTooltip } from '../../../../../shared/progression/progressionTooltipContent.js';
+import { resolvePetHudSouthPreviewUrl } from '../../../../entities/pet/petHudPreview.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
 import { getPlayerPetStore } from '../../../../ui/pet/playerPetStore.js';
 import { postSystemNotification } from '../../../../ui/logService.js';
 import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
+import { useActionGatewaySubmit } from '../../../panels/useActionGatewaySubmit.js';
 import { usePetLovePanelState } from '../../../panels/usePetLovePanelState.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 
@@ -41,59 +44,121 @@ export function WorldPetLovePanel({ zIndex, focused }: WorldPetLovePanelProps) {
   const selectedPet = roster.pets[roster.selectedSlotIndex] ?? null;
 
   const handleSelectSlot = useCallback((slotIndex: number) => {
-    getPlayerPetStore().selectPetSlot(slotIndex);
+    const pet = getPlayerPetStore().getRoster().pets[slotIndex] ?? null;
+    const action = pet && pet.hpCurrent > 0
+      ? ({
+          type: 'PET_ACTIVATE_SLOT' as const,
+          payload: { slotIndex },
+        })
+      : ({
+          type: 'PET_SELECT_SLOT' as const,
+          payload: { slotIndex },
+        });
+
+    getPlayerPetStore().previewSelectedPetSlot(slotIndex);
+
+    const result = getActionDispatcher().dispatch(action);
+    if (!result.ok) {
+      postSystemNotification(result.reason, 'normal');
+      return;
+    }
+    if (result.status === 'pending') {
+      void getActionDispatcher().waitForIntentResult(result.intentId).then((ok) => {
+        if (!ok) {
+          postSystemNotification('Não foi possível trocar o companheiro.', 'normal');
+        }
+      });
+    }
     setFeedInlineError(null);
   }, []);
 
-  const handleActivate = useCallback((slotIndex: number) => {
-    const store = getPlayerPetStore();
-    if (!store.activatePetSlot(slotIndex)) return;
-    const pet = store.getRoster().pets[slotIndex];
+  const handleActivateSelected = useCallback(() => {
+    const slotIndex = getPlayerPetStore().getRoster().selectedSlotIndex;
+    return getActionDispatcher().dispatch({
+      type: 'PET_ACTIVATE_SLOT',
+      payload: { slotIndex },
+    });
+  }, []);
+
+  const handleDeactivate = useCallback(() => {
+    return getActionDispatcher().dispatch({
+      type: 'PET_DEACTIVATE',
+      payload: {},
+    });
+  }, []);
+
+  const notifyPetActivated = useCallback((slotIndex: number) => {
+    const pet = getPlayerPetStore().getRoster().pets[slotIndex];
     postSystemNotification(
       pet ? `${pet.name} está convocado.` : 'Companheiro ativado.',
       'normal',
     );
   }, []);
 
-  const handleDeactivate = useCallback(() => {
-    getPlayerPetStore().deactivateAllPets();
-    postSystemNotification('Companheiro guardado.', 'normal');
-  }, []);
+  const activateGateway = useActionGatewaySubmit({
+    onClick: handleActivateSelected,
+    onResolved: () => notifyPetActivated(getPlayerPetStore().getRoster().selectedSlotIndex),
+    onRejected: (reason) => {
+      if (reason) postSystemNotification(reason, 'normal');
+    },
+    pendingLabel: 'Convocando…',
+    idleLabel: 'Ativar',
+  });
+
+  const deactivateGateway = useActionGatewaySubmit({
+    onClick: handleDeactivate,
+    onResolved: () => postSystemNotification('Companheiro guardado.', 'normal'),
+    onRejected: (reason) => {
+      if (reason) postSystemNotification(reason, 'normal');
+    },
+    pendingLabel: 'Guardando…',
+    idleLabel: 'Guardar',
+  });
 
   const handleAffection = useCallback(() => {
-    const result = getPlayerPetStore().applyPetAffection();
-    if (!result.ok) {
-      const cooldown = formatPetAffectionCooldown(result.remainingMs);
-      postSystemNotification(
-        cooldown
-          ? `Você já fez carinho. Próximo em ${cooldown}.`
-          : result.reason,
-        'normal',
-      );
-      return;
-    }
-    const petName = roster.pets[roster.selectedSlotIndex]?.name ?? 'seu pet';
-    postSystemNotification(
-      `Carinho em ${petName}! +${(result.xpGained * 100).toFixed(2)}% de afinidade.`,
-      'normal',
-    );
-  }, [roster.pets, roster.selectedSlotIndex]);
+    return getActionDispatcher().dispatch({
+      type: 'PET_APPLY_AFFECTION',
+      payload: {},
+    });
+  }, []);
 
   const handleFeedRation = useCallback(() => {
-    const result = getActionDispatcher().dispatch({
+    return getActionDispatcher().dispatch({
       type: 'PET_FEED_SPECIAL_RATION',
       payload: { slotIndex: roster.selectedSlotIndex },
     });
-    if (!result.ok) {
-      if (result.reason.includes('Sem cargas')) {
-        setFeedInlineError(result.reason);
-      } else {
-        postSystemNotification(result.reason, 'normal');
-      }
-      return;
-    }
-    setFeedInlineError(null);
   }, [roster.selectedSlotIndex]);
+
+  const affectionGateway = useActionGatewaySubmit({
+    onClick: handleAffection,
+    onResolved: () => {
+      const petName = roster.pets[roster.selectedSlotIndex]?.name ?? 'seu pet';
+      postSystemNotification(
+        `Carinho em ${petName}! +${(PET_AFFECTION_CONFIG.affinityReward * 100).toFixed(2)}% de afinidade.`,
+        'normal',
+      );
+    },
+    onRejected: (reason) => {
+      if (reason) postSystemNotification(reason, 'normal');
+    },
+    pendingLabel: 'Carinho…',
+    idleLabel: 'Carinho',
+  });
+
+  const feedGateway = useActionGatewaySubmit({
+    onClick: handleFeedRation,
+    onResolved: () => setFeedInlineError(null),
+    onRejected: (reason) => {
+      if (!reason) return;
+      if (reason.includes('Sem cargas')) {
+        setFeedInlineError(reason);
+      } else {
+        postSystemNotification(reason, 'normal');
+      }
+    },
+    pendingLabel: 'Alimentando…',
+    idleLabel: 'Alimentar',
+  });
 
   const showAffinityTooltip = useCallback((event: React.MouseEvent<HTMLElement>) => {
     if (!selectedPet) return;
@@ -156,7 +221,8 @@ export function WorldPetLovePanel({ zIndex, focused }: WorldPetLovePanelProps) {
               rationCharges={rationCharges}
               feedAvailability={feedAvailability}
               feedInlineError={feedInlineError}
-              onFeedRation={handleFeedRation}
+              feedPending={feedGateway.pending}
+              onFeedRation={feedGateway.submit}
               onShowAffinityTooltip={showAffinityTooltip}
               onHideTooltip={hideTooltip}
             />
@@ -168,7 +234,7 @@ export function WorldPetLovePanel({ zIndex, focused }: WorldPetLovePanelProps) {
                   <h3 className="pet-love__title">Pet Love</h3>
                   <p className="pet-love__empty">Você ainda não tem um pet vinculado.</p>
                   <p className="pet-love__hint" data-hud-fit-secondary>
-                    Adote uma criatura dimensional com o Treinador Zeno na cidade.
+                    Adote uma criatura dimensional com a Treinadora Zena na cidade.
                   </p>
                 </div>
               </div>
@@ -181,8 +247,10 @@ export function WorldPetLovePanel({ zIndex, focused }: WorldPetLovePanelProps) {
             <PetLoveActivateControl
               roster={roster}
               pet={selectedPet}
-              onActivate={handleActivate}
-              onDeactivate={handleDeactivate}
+              activatePending={activateGateway.pending}
+              deactivatePending={deactivateGateway.pending}
+              onActivate={activateGateway.submit}
+              onDeactivate={deactivateGateway.submit}
             />
           </div>
           <div className="pet-love-panel__actions-col pet-love-panel__actions-col--right" data-pet-affection-col>
@@ -192,9 +260,13 @@ export function WorldPetLovePanel({ zIndex, focused }: WorldPetLovePanelProps) {
                   type="button"
                   className="pet-love-panel__affection-btn"
                   aria-label={`Fazer carinho em ${selectedPet.name}`}
-                  onClick={handleAffection}
+                  aria-busy={affectionGateway.pending}
+                  disabled={affectionGateway.pending}
+                  onClick={affectionGateway.submit}
                 >
-                  {`Fazer carinho em ${selectedPet.name}`}
+                  {affectionGateway.pending
+                    ? 'Carinho…'
+                    : `Fazer carinho em ${selectedPet.name}`}
                 </button>
               ) : (
                 <>
@@ -226,6 +298,7 @@ type PetLoveDetailProps = {
   readonly rationCharges: number;
   readonly feedAvailability: PetRationFeedAvailability;
   readonly feedInlineError: string | null;
+  readonly feedPending: boolean;
   readonly onFeedRation: () => void;
   readonly onShowAffinityTooltip: (event: React.MouseEvent<HTMLElement>) => void;
   readonly onHideTooltip: () => void;
@@ -236,6 +309,7 @@ function PetLoveDetail({
   rationCharges,
   feedAvailability,
   feedInlineError,
+  feedPending,
   onFeedRation,
   onShowAffinityTooltip,
   onHideTooltip,
@@ -250,7 +324,8 @@ function PetLoveDetail({
   const canFeed = pet.hpCurrent > 0;
   const onCooldown = !feedAvailability.canFeed;
   const noCharges = rationCharges <= 0;
-  const feedDisabled = !canFeed || onCooldown || noCharges;
+  const feedDisabled = !canFeed || onCooldown || noCharges || feedPending;
+  const previewUrl = resolvePetHudSouthPreviewUrl(pet.kindId);
   const portraitClass =
     pet.kindId === 'dimensional_dog' ? 'pet-love__portrait--dog' : 'pet-love__portrait--cat';
 
@@ -259,7 +334,7 @@ function PetLoveDetail({
       <div className="pet-love__layout pet-love__layout--segmented">
         <div className="pet-love__segment pet-love__segment--portrait">
           <div
-            className={`pet-love__portrait ${portraitClass}${isSenior ? ' pet-love__portrait--senior' : ''}`}
+            className={`pet-love__portrait pet-love__portrait--sprite ${portraitClass}${isSenior ? ' pet-love__portrait--senior' : ''}`}
             style={{
               '--pet-fur': palette.fur,
               '--pet-accent': palette.accent,
@@ -268,6 +343,13 @@ function PetLoveDetail({
             } as React.CSSProperties}
             aria-hidden="true"
           >
+            <img
+              className="pet-love__portrait-img"
+              src={previewUrl}
+              alt=""
+              draggable={false}
+              decoding="async"
+            />
             <span className="pet-love__portrait-led" />
           </div>
         </div>
@@ -297,14 +379,17 @@ function PetLoveDetail({
                 type="button"
                 className={`pet-love__feed-btn${onCooldown ? ' pet-love__feed-btn--cooldown' : ''}`}
                 disabled={feedDisabled}
+                aria-busy={feedPending}
                 aria-label={
-                  onCooldown
-                    ? 'Alimentar indisponível — cooldown de 30 min'
-                    : `Alimentar (${rationCharges} cargas restantes)`
+                  feedPending
+                    ? 'Alimentando companheiro'
+                    : onCooldown
+                      ? 'Alimentar indisponível — cooldown de 30 min'
+                      : `Alimentar (${rationCharges} cargas restantes)`
                 }
                 onClick={onFeedRation}
               >
-                Alimentar
+                {feedPending ? 'Alimentando…' : 'Alimentar'}
               </button>
               {onCooldown ? (
                 <p className="pet-love__ration-cooldown">
@@ -409,15 +494,24 @@ function PetLoveDetail({
 type PetLoveActivateControlProps = {
   readonly roster: PlayerPetRosterSnapshot;
   readonly pet: PetSnapshot | null;
-  readonly onActivate: (slotIndex: number) => void;
+  readonly activatePending: boolean;
+  readonly deactivatePending: boolean;
+  readonly onActivate: () => void;
   readonly onDeactivate: () => void;
 };
 
-function PetLoveActivateControl({ roster, pet, onActivate, onDeactivate }: PetLoveActivateControlProps) {
+function PetLoveActivateControl({
+  roster,
+  pet,
+  activatePending,
+  deactivatePending,
+  onActivate,
+  onDeactivate,
+}: PetLoveActivateControlProps) {
   if (!pet) {
     return (
       <p className="pet-love-roster__activate-hint" data-hud-fit-secondary>
-        Slot vazio — adote até {MAX_PETS_PER_CHARACTER} pets com o Treinador Zeno.
+        Slot vazio — adote até {MAX_PETS_PER_CHARACTER} pets com a Treinadora Zena.
       </p>
     );
   }
@@ -441,9 +535,11 @@ function PetLoveActivateControl({ roster, pet, onActivate, onDeactivate }: PetLo
           type="button"
           className="pet-love-roster__activate-btn pet-love-roster__activate-btn--active"
           aria-label={`Guardar ${pet.name}`}
+          aria-busy={deactivatePending}
+          disabled={deactivatePending}
           onClick={onDeactivate}
         >
-          Guardar {formatPetNameWithGender(pet)}
+          {deactivatePending ? 'Guardando…' : `Guardar ${formatPetNameWithGender(pet)}`}
         </button>
         <p className="pet-love-roster__activate-hint" data-hud-fit-secondary>
           Convocado — segue você no mapa e entra em combate.
@@ -458,12 +554,14 @@ function PetLoveActivateControl({ roster, pet, onActivate, onDeactivate }: PetLo
         type="button"
         className="pet-love-roster__activate-btn"
         aria-label={`Ativar ${pet.name}`}
-        onClick={() => onActivate(slot)}
+        aria-busy={activatePending}
+        disabled={activatePending}
+        onClick={onActivate}
       >
-        Ativar {formatPetNameWithGender(pet)}
+        {activatePending ? 'Convocando…' : `Ativar ${formatPetNameWithGender(pet)}`}
       </button>
       <p className="pet-love-roster__activate-hint" data-hud-fit-secondary>
-        Só um companheiro pode estar ativo por vez.
+        Toque na aba de um companheiro para convocá-lo — só um ativo por vez.
       </p>
     </>
   );

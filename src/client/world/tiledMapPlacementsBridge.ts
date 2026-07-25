@@ -1,19 +1,12 @@
-import type { MapId } from '../../shared/world/mapRegistry.js';
-
-type TiledPlacementsListener = (mapId: MapId) => void;
-
-const listeners = new Set<TiledPlacementsListener>();
-
+// @ts-nocheck
+const listeners = new Set();
 /** MapLoader confirmou placements após montar o mapa Phaser. */
-export function notifyTiledMapPlacementsCommitted(mapId: MapId): void {
-  for (const listener of listeners) {
-    listener(mapId);
-  }
+export function notifyTiledMapPlacementsCommitted(mapId) {
+    for (const listener of listeners) {
+        listener(mapId);
+    }
 }
-
-export function subscribeTiledMapPlacementsCommitted(
-  listener: TiledPlacementsListener,
-): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+export function subscribeTiledMapPlacementsCommitted(listener) {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
 }

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ACTIVE_MOVESET_SLOT_COUNT } from '../../../../shared/combat/moveTypes.js';
 import { resolveMoveDefinitionForUi } from '../../../../shared/combat/movesetLoadout.js';
 import type { BattleMenuMove } from '../../../combat/client/battleMenuMoves.js';
-import { uiEvents, UIEventType } from '../../../ui/uiEvents.js';
+import { hideMoveTooltip, showMoveTooltipAt } from '../../../ui/tooltip/showMoveTooltip.js';
 
 type BattleMovesetPaletteProps = {
   moves: readonly BattleMenuMove[];
@@ -18,15 +18,8 @@ function buildSlots(moves: readonly BattleMenuMove[]): Array<BattleMenuMove | nu
 }
 
 function showMoveTooltip(moveId: string, element: HTMLElement): void {
-  const move = resolveMoveDefinitionForUi(moveId);
-  if (!move) return;
   const rect = element.getBoundingClientRect();
-  uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
-    data: { kind: 'move', data: move },
-    x: rect.left + rect.width / 2,
-    y: rect.top,
-    placement: 'above',
-  });
+  showMoveTooltipAt(moveId, rect.left + rect.width / 2, rect.top, 'above');
 }
 
 export function BattleMovesetPalette({
@@ -89,7 +82,7 @@ export function BattleMovesetPalette({
             data-move-id={move.id}
             disabled={!paletteEnabled || blocked}
             onMouseEnter={(event) => showMoveTooltip(move.id, event.currentTarget)}
-            onMouseLeave={() => uiEvents.emit(UIEventType.HIDE_TOOLTIP, {})}
+            onMouseLeave={() => hideMoveTooltip()}
             onClick={() => onSelectMove(move.id)}
           >
             <span className="skill-name">{move.name}</span>

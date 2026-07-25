@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAuthCallbackPath } from '../../shared/auth/authCallback.js';
+import { isSpaClientPath } from '../../shared/auth/authCallback.js';
 import { applyHttpCors } from '../config/cors.js';
 import type { ServerEnv } from '../config/env.js';
 import { createServerPublicClientConfig } from '../config/clientPublicConfig.js';
@@ -375,6 +375,30 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
         return;
       }
 
+      if (pathname === '/config/deploy-manifest.json') {
+        const manifestFile = safePath(options.publicDir, 'config/deploy-manifest.json');
+        if (
+          manifestFile
+          && existsSync(manifestFile)
+          && statSync(manifestFile).isFile()
+        ) {
+          streamFile(
+            res,
+            manifestFile,
+            options.serverEnv.nodeEnv === 'development' ? 'no-store' : undefined,
+          );
+          return;
+        }
+        writeJson(res, 200, {
+          commit: 'local-dev',
+          commitShort: 'local-dev',
+          branch: 'local',
+          builtAt: new Date().toISOString(),
+          service: 'altercadia-v2',
+        });
+        return;
+      }
+
       if (await handleGiftTransferRoute(req, res, url, options.serverEnv)) {
         return;
       }
@@ -391,7 +415,7 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
         return;
       }
 
-      if (pathname === '/' || isAuthCallbackPath(pathname)) pathname = '/index.html';
+      if (isSpaClientPath(pathname)) pathname = '/index.html';
 
       const vendorFile = resolveVendorFile(options, pathname);
       if (vendorFile) {

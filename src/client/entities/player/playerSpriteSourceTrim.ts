@@ -1,10 +1,13 @@
 /**
  * Recorte de padding transparente em assets de pixel art.
- * Remove margem vazia para ocupação visual = tamanho do draw 1:1.
+ *
+ * Sprites `player_male_1/design` já vêm no canvas oficial 35×54 com âncora nos pés —
+ * trim percentual aqui cortava cabelo (~6%) e sapatos (~18%).
+ * Só use trim > 0 em assets AI com margem transparente grande.
  */
-export const PLAYER_SPRITE_SRC_TOP_TRIM = 0.06;
-export const PLAYER_SPRITE_SRC_BOTTOM_TRIM = 0.18;
-export const PLAYER_SPRITE_SRC_SIDE_TRIM = 0.04;
+export const PLAYER_SPRITE_SRC_TOP_TRIM = 0;
+export const PLAYER_SPRITE_SRC_BOTTOM_TRIM = 0;
+export const PLAYER_SPRITE_SRC_SIDE_TRIM = 0;
 
 export type TrimmedSourceRect = {
   readonly sx: number;

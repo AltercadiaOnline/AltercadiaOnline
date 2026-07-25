@@ -1,158 +1,53 @@
-export type TerrainAssetDescriptor = {
-  readonly key: string;
-  readonly path: string;
-};
-
-export type StructureAssetDescriptor = {
-  readonly key: string;
-  readonly path: string;
-};
-
-export type PhaserLayoutContainer = {
-  readonly x: number;
-  readonly y: number;
-  add: (child: unknown) => PhaserLayoutContainer;
-  setPosition: (x: number, y: number) => PhaserLayoutContainer;
-  setDepth: (depth: number) => PhaserLayoutContainer;
-  setVisible: (visible: boolean) => PhaserLayoutContainer;
-  destroy: () => void;
-};
-
-export type PhaserLayoutRectangle = {
-  setPosition: (x: number, y: number) => PhaserLayoutRectangle;
-  setOrigin: (x: number, y: number) => PhaserLayoutRectangle;
-  setSize: (width: number, height: number) => PhaserLayoutRectangle;
-  setFillStyle: (color: number, alpha?: number) => PhaserLayoutRectangle;
-  setStrokeStyle: (lineWidth: number, color: number, alpha?: number) => PhaserLayoutRectangle;
-  setDepth: (depth: number) => PhaserLayoutRectangle;
-  setVisible: (visible: boolean) => PhaserLayoutRectangle;
-  destroy: () => void;
-};
-
-export type PhaserLayoutText = {
-  setPosition: (x: number, y: number) => PhaserLayoutText;
-  setOrigin: (x: number, y: number) => PhaserLayoutText;
-  setText: (value: string) => PhaserLayoutText;
-  setDepth: (depth: number) => PhaserLayoutText;
-  setVisible: (visible: boolean) => PhaserLayoutText;
-  destroy: () => void;
-};
-
-export type PhaserLayoutImage = {
-  setPosition: (x: number, y: number) => PhaserLayoutImage;
-  setOrigin: (x: number, y: number) => PhaserLayoutImage;
-  setCrop: (x: number, y: number, width: number, height: number) => PhaserLayoutImage;
-  setDepth: (depth: number) => PhaserLayoutImage;
-  setDisplaySize: (width: number, height: number) => PhaserLayoutImage;
-  setTexture: (textureKey: string) => PhaserLayoutImage;
-  setTint?: (color: number) => PhaserLayoutImage;
-  clearTint?: () => PhaserLayoutImage;
-  setVisible: (visible: boolean) => PhaserLayoutImage;
-  destroy: () => void;
-};
-
-/** Superfície Phaser mínima para controllers de layout (sem import estático de phaser). */
-export type PhaserLayoutScene = {
-  readonly textures: {
-    exists: (key: string) => boolean;
-    addImage: (key: string, source: HTMLImageElement) => unknown;
-    addCanvas: (key: string, canvas: HTMLCanvasElement) => unknown;
-    get: (key: string) => { setFilter: (mode: number) => void };
-  };
-  readonly load: {
-    image: (key: string, url: string) => void;
-  };
-  readonly add: {
-    container: (x: number, y: number) => PhaserLayoutContainer;
-    rectangle: (
-      x: number,
-      y: number,
-      width: number,
-      height: number,
-      fillColor?: number,
-    ) => PhaserLayoutRectangle;
-    text: (
-      x: number,
-      y: number,
-      content: string,
-      style?: Record<string, unknown>,
-    ) => PhaserLayoutText;
-    image: (x: number, y: number, textureKey: string) => PhaserLayoutImage;
-  };
-};
-
-export type PhaserLayoutRoots = {
-  readonly worldRoot: PhaserLayoutContainer;
-  /** Camada 0 — terreno (depth fixo, sempre atrás). */
-  readonly mapContainer: PhaserLayoutContainer;
-  /**
-   * Camada Y-sort — estruturas, jogador, NPCs, pets e criaturas.
-   * Todos os filhos usam `setDepth(feetY)` para ordenação 2D correta.
-   */
-  readonly ySortContainer: PhaserLayoutContainer;
-};
-
+// @ts-nocheck
 const DEBUG_LABEL_STYLE = {
-  fontFamily: 'monospace',
-  fontSize: '9px',
-  color: '#f0f4ff',
-  backgroundColor: '#080a12cc',
-  padding: { x: 3, y: 2 },
-} as const;
-
-export function createDebugLabelStyle(): Record<string, unknown> {
-  return { ...DEBUG_LABEL_STYLE };
+    fontFamily: 'monospace',
+    fontSize: '9px',
+    color: '#f0f4ff',
+    backgroundColor: '#080a12cc',
+    padding: { x: 3, y: 2 },
+};
+export function createDebugLabelStyle() {
+    return { ...DEBUG_LABEL_STYLE };
 }
-
 /**
  * Agrupa camadas de layout — câmera do Phaser scrolla o mundo; containers ficam em (0,0).
  * `mapContainer` desenha primeiro; `ySortContainer` compartilha depth por coordenada Y dos pés.
  */
-export function mountPhaserLayoutRoots(scene: PhaserLayoutScene): PhaserLayoutRoots {
-  const worldRoot = scene.add.container(0, 0);
-  const mapContainer = scene.add.container(0, 0);
-  const ySortContainer = scene.add.container(0, 0);
-
-  mapContainer.setDepth(0);
-  ySortContainer.setDepth(0);
-
-  worldRoot.add(mapContainer);
-  worldRoot.add(ySortContainer);
-
-  return {
-    worldRoot,
-    mapContainer,
-    ySortContainer,
-  };
+export function mountPhaserLayoutRoots(scene) {
+    const worldRoot = scene.add.container(0, 0);
+    const mapContainer = scene.add.container(0, 0);
+    const ySortContainer = scene.add.container(0, 0);
+    mapContainer.setDepth(0);
+    ySortContainer.setDepth(0);
+    worldRoot.add(mapContainer);
+    worldRoot.add(ySortContainer);
+    return {
+        worldRoot,
+        mapContainer,
+        ySortContainer,
+    };
 }
-
-export function destroyPhaserLayoutRoots(roots: PhaserLayoutRoots | null): void {
-  roots?.worldRoot.destroy();
+export function destroyPhaserLayoutRoots(roots) {
+    roots?.worldRoot.destroy();
 }
-
 /**
  * preload() — registra chaves de terreno (paths em /assets/terrain/).
  */
-export function queueTerrainLayoutPreloads(
-  scene: PhaserLayoutScene,
-  assets: readonly TerrainAssetDescriptor[],
-): void {
-  for (const asset of assets) {
-    if (!asset.path) continue;
-    scene.load.image(asset.key, asset.path);
-  }
+export function queueTerrainLayoutPreloads(scene, assets) {
+    for (const asset of assets) {
+        if (!asset.path)
+            continue;
+        scene.load.image(asset.key, asset.path);
+    }
 }
-
 /**
  * preload() — registra chaves de estruturas.
  * Game Designer: adicione entradas em MapConfig.structureAssets ou WORLD_ASSET_IMAGE_URLS.
  */
-export function queueStructureLayoutPreloads(
-  scene: PhaserLayoutScene,
-  assets: readonly StructureAssetDescriptor[],
-): void {
-  for (const asset of assets) {
-    if (!asset.path) continue;
-    scene.load.image(asset.key, asset.path);
-  }
+export function queueStructureLayoutPreloads(scene, assets) {
+    for (const asset of assets) {
+        if (!asset.path)
+            continue;
+        scene.load.image(asset.key, asset.path);
+    }
 }

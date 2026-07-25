@@ -1,0 +1,22 @@
+// @ts-nocheck
+import { loginLocalUser, registerLocalUser } from './localAuthStore.js';
+export const mockAuth = {
+    async login(email, pass) {
+        const result = loginLocalUser(email, pass);
+        if (!result.ok || !result.user) {
+            return { success: false, message: result.message };
+        }
+        return {
+            success: true,
+            user: result.user,
+            message: result.message,
+        };
+    },
+    async register(payload) {
+        const result = registerLocalUser(payload);
+        return {
+            success: result.ok,
+            message: result.message,
+        };
+    },
+};

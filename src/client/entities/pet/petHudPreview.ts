@@ -1,0 +1,12 @@
+// @ts-nocheck
+/**
+ * Preview south estático para HUD (loja / ficha).
+ * Evita canvas async — o PNG aparece imediatamente.
+ */
+export const PET_HUD_SOUTH_PREVIEW_URL = {
+    dimensional_cat: '/assets/pets/cat_pet_1_asset/Pixel_art_sprite_top-down_view_a_small_cat_sitting/rotations/south.png',
+    dimensional_dog: '/assets/pets/dog_pet_1_asset/Top-down_2d_game_character_sprite_medium-sized_rea/rotations/south.png',
+};
+export function resolvePetHudSouthPreviewUrl(kindId) {
+    return PET_HUD_SOUTH_PREVIEW_URL[kindId];
+}

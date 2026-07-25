@@ -22,8 +22,21 @@ export async function executeTransferItem(
   const scopedServerId = requireServerId(serverId);
 
   const quantity = Math.max(1, Math.floor(payload.quantity ?? 1));
-  const fromCharacterId = Math.max(1, Math.floor(payload.characterId ?? 1));
-  const toCharacterId = Math.max(1, Math.floor(payload.targetCharacterId ?? 1));
+  if (typeof payload.characterId !== 'number' || !Number.isInteger(payload.characterId) || payload.characterId < 1) {
+    return { ok: false, message: 'characterId do remetente é obrigatório.' };
+  }
+  const fromCharacterId = payload.characterId;
+  // Destinatário: se omitido, usa o personagem ativo do destinatário via RPC default legado —
+  // preferir targetCharacterId explícito no cliente.
+  const toCharacterId =
+    typeof payload.targetCharacterId === 'number'
+    && Number.isInteger(payload.targetCharacterId)
+    && payload.targetCharacterId >= 1
+      ? payload.targetCharacterId
+      : null;
+  if (toCharacterId === null) {
+    return { ok: false, message: 'targetCharacterId do destinatário é obrigatório.' };
+  }
 
   const { data, error } = await client.rpc('transfer_item', {
     p_from_user_id: senderUserId,

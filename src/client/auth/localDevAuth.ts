@@ -1,0 +1,40 @@
+// @ts-nocheck
+import { loginLocalUser, registerLocalUser, migrateLegacyLocalUsersWithoutPasswords } from '../services/localAuthStore.js';
+function normalizeEmail(email) {
+    return email.trim().toLowerCase();
+}
+/** Hostnames onde o login local pode auto-criar conta (sem Supabase). */
+export function isLocalDevHost(hostname = window.location.hostname) {
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+/**
+ * Login offline (somente localhost): conta por email — senha não é armazenada localmente.
+ * Supabase Auth é o caminho de produção.
+ */
+export async function loginLocalDevAccount(email, password) {
+    migrateLegacyLocalUsersWithoutPasswords();
+    const existing = loginLocalUser(email, password);
+    if (existing.ok)
+        return existing;
+    if (!isLocalDevHost()) {
+        return existing;
+    }
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !password) {
+        return { ok: false, message: 'Preencha email e senha.' };
+    }
+    if (password.length < 6) {
+        return { ok: false, message: 'A senha deve ter pelo menos 6 caracteres.' };
+    }
+    const displayName = normalizedEmail.split('@')[0] || 'Operador';
+    const registered = registerLocalUser({
+        email: normalizedEmail,
+        password,
+        fullName: displayName,
+        birthDate: '2000-01-01',
+    });
+    if (!registered.ok && !registered.message.includes('já está cadastrado')) {
+        return { ok: false, message: registered.message };
+    }
+    return loginLocalUser(email, password);
+}

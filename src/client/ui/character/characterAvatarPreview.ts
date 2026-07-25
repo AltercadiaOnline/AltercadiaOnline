@@ -8,7 +8,6 @@ import type { PlayerFacing } from '../../../shared/world/playerFacing.js';
 import {
   PLAYER_COLLISION_OFFSET,
   PLAYER_RENDER_FLOOR_OFFSET_Y,
-  PLAYER_VISUAL_HEIGHT,
 } from '../../../shared/world/playerEntity.js';
 import { disableCanvasImageSmoothing } from '../../layout/gamePixelScale.js';
 import { PlayerSprite } from '../../entities/player/PlayerSprite.js';
@@ -19,7 +18,7 @@ export type CharacterAvatarPreviewOptions = {
   readonly facing?: PlayerFacing;
   /** Fundo do preview (slot de seleção vs ficha). */
   readonly backdropAlpha?: number;
-  /** Fração da altura do canvas ocupada pelo sprite (ex.: 0.85 na seleção). */
+  /** Fração da altura do canvas ocupada pelo sprite (ex.: 0.8 na ficha). */
   readonly visualOccupancy?: number;
   /** Exibe faixa de cores da skin na base do canvas. */
   readonly showSkinAccentStrip?: boolean;
@@ -45,6 +44,7 @@ export async function paintCharacterAvatarPreview(
   const facing = options.facing ?? DEFAULT_FACING;
   const occupancy = options.visualOccupancy ?? 0.58;
   const showAccent = options.showSkinAccentStrip ?? true;
+  const accentPad = showAccent ? 10 : 6;
 
   const clearFrame = (): void => {
     ctx.clearRect(0, 0, w, h);
@@ -64,9 +64,17 @@ export async function paintCharacterAvatarPreview(
 
   clearFrame();
 
-  const scale = (h * occupancy) / PLAYER_VISUAL_HEIGHT;
-  const feetY = h - (showAccent ? 10 : 6);
+  // Sprite desenha 1:1 — escala pelo frame nativo, não pela altura lógica de mundo (124).
+  const native = player.getNativeDrawSize();
+  const usableH = Math.max(1, h - accentPad);
+  const usableW = Math.max(1, w * 0.92);
+  const scale = Math.min(
+    (usableH * occupancy) / native.height,
+    usableW / native.width,
+  );
+  const feetY = h - accentPad;
   const centerX = w / 2;
+  // draw() ancora pés via getPlayerFeetWorldY — compensar offset de mundo.
   const logicalY = feetY - (PLAYER_RENDER_FLOOR_OFFSET_Y + PLAYER_COLLISION_OFFSET.y);
 
   ctx.save();
@@ -122,14 +130,72 @@ export async function paintCharacterBundleSouthPreview(
   const image = await loadPreviewImage(resolvePlayerSkinBundleSouthPreviewUrl(bundleId));
   clearFrame();
 
-  const maxDrawHeight = h * occupancy;
-  const scale = Math.min(maxDrawHeight / image.naturalHeight, w / image.naturalWidth);
-  const drawW = image.naturalWidth * scale;
-  const drawH = image.naturalHeight * scale;
-  const drawX = (w - drawW) / 2;
-  const drawY = h - (showAccent ? 10 : 6) - drawH;
+  // Recorta a margem transparente para normalizar o tamanho VISÍVEL do sprite entre
+  // bundles — cada PNG tem uma moldura diferente (35×54 justo vs. 96/112/128 com folga).
+  const crop = computeOpaqueBounds(image) ?? {
+    x: 0,
+    y: 0,
+    width: image.naturalWidth,
+    height: image.naturalHeight,
+  };
 
-  ctx.drawImage(image, drawX, drawY, drawW, drawH);
+  const bottomPad = showAccent ? 10 : 6;
+  const maxDrawHeight = Math.max(1, h - bottomPad) * occupancy;
+  const maxDrawWidth = w * 0.92;
+  const scale = Math.min(maxDrawHeight / crop.height, maxDrawWidth / crop.width);
+  const drawW = crop.width * scale;
+  const drawH = crop.height * scale;
+  const drawX = (w - drawW) / 2;
+  const drawY = h - bottomPad - drawH;
+
+  ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, drawX, drawY, drawW, drawH);
+}
+
+type OpaqueBounds = { x: number; y: number; width: number; height: number };
+
+/**
+ * Bounding box dos pixels não transparentes de um sprite.
+ * Same-origin (/assets) → getImageData é seguro; em falha retorna null (usa PNG inteiro).
+ */
+function computeOpaqueBounds(image: HTMLImageElement): OpaqueBounds | null {
+  const nw = image.naturalWidth;
+  const nh = image.naturalHeight;
+  if (nw <= 0 || nh <= 0) return null;
+
+  const off = document.createElement('canvas');
+  off.width = nw;
+  off.height = nh;
+  const octx = off.getContext('2d', { willReadFrequently: true });
+  if (!octx) return null;
+  octx.drawImage(image, 0, 0);
+
+  let pixels: Uint8ClampedArray;
+  try {
+    pixels = octx.getImageData(0, 0, nw, nh).data;
+  } catch {
+    return null;
+  }
+
+  const alphaThreshold = 8;
+  let minX = nw;
+  let minY = nh;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < nh; y += 1) {
+    for (let x = 0; x < nw; x += 1) {
+      const alphaValue = pixels[(y * nw + x) * 4 + 3] ?? 0;
+      if (alphaValue > alphaThreshold) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return null;
+  return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
 }
 
 function paintSkinAccentStrip(

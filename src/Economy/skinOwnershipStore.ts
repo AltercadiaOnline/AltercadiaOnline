@@ -70,6 +70,10 @@ export function resetSkinOwnershipStore(): void {
   records.clear();
 }
 
+export function clearOwnedSkinsForCharacter(playerId: string, characterId: number): void {
+  records.delete(profileKey(playerId, characterId));
+}
+
 export function exportOwnedSkinsPersistence(
   playerId: string,
   characterId: number,

@@ -115,9 +115,16 @@ if (clientConfig?.gameHttpUrl) {
             .filter((check) => check && check.ok === false)
             .map((check) => `${check.name}${check.detail ? ` (${check.detail})` : ''}`)
         : [];
-      fail(
-        `/ready Railway falhou → ${ready.status}${failedChecks.length ? `: ${failedChecks.join(', ')}` : ''}`,
-      );
+      // 404 = host antigo sem rota /ready — o push atual publica a rota.
+      if (ready.status === 404) {
+        warn(
+          `/ready Railway ainda 404 no host atual (será publicado neste deploy)${failedChecks.length ? `: ${failedChecks.join(', ')}` : ''}`,
+        );
+      } else {
+        fail(
+          `/ready Railway falhou → ${ready.status}${failedChecks.length ? `: ${failedChecks.join(', ')}` : ''}`,
+        );
+      }
     } else {
       const readyServerId = ready.body?.serverId;
       pass(`/ready Railway → ${ready.status}${readyServerId ? ` (${readyServerId})` : ''}`);

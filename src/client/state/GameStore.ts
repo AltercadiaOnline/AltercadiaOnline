@@ -144,7 +144,7 @@ class GameStore {
 
     this.domainUnsubs.push(
       getPlayerItemStore().subscribe(() => {
-        if (this.state.authenticated && this.state.hydrated) {
+        if (this.state.authenticated) {
           this.syncPlayerFromDomain();
         }
       }),
@@ -152,7 +152,7 @@ class GameStore {
 
     this.domainUnsubs.push(
       getPlayerWalletStore().subscribe(() => {
-        if (this.state.authenticated && this.state.hydrated) {
+        if (this.state.authenticated) {
           this.syncPlayerFromDomain();
         }
       }),
@@ -359,14 +359,14 @@ class GameStore {
   }
 
   /**
-   * Envia item a outro jogador — sem mutação otimista local.
-   * Falha no Postgres/servidor restaura snapshot e mantém inventário original.
+   * Envia item a outro jogador — via ActionDispatcher (GIFT_TRANSFER).
+   * Inventário atualiza pelo InventoryUpdated do servidor; sem mutação otimista.
    */
   async sendGift(
     itemId: string,
     targetPlayerId: string,
     quantity = 1,
-    characterId?: number,
+    _characterId?: number,
     targetCharacterId?: number,
   ): Promise<{ ok: boolean; message?: string }> {
     if (!this.state.authenticated) {
@@ -390,34 +390,35 @@ class GameStore {
       return { ok: false, message: transferPolicy.reason };
     }
 
-    const resolvedCharacterId = characterId ?? this.activeCharacterId ?? 1;
-    const correlationId = createCorrelationId();
-
-    this.performServerAction(correlationId, 'economy-event', () => {});
-
-    const { requestGiftTransfer } = await import('../services/gift/giftTransferClient.js');
-    const result = await requestGiftTransfer({
-      itemId: trimmedItem,
-      targetPlayerId: trimmedTarget,
-      quantity,
-      characterId: resolvedCharacterId,
-      ...(targetCharacterId !== undefined ? { targetCharacterId } : {}),
+    const { getActionDispatcher } = await import('../ActionDispatcher.js');
+    const dispatcher = getActionDispatcher();
+    const result = dispatcher.dispatch({
+      type: 'GIFT_TRANSFER',
+      payload: {
+        itemId: trimmedItem,
+        targetPlayerId: trimmedTarget,
+        quantity,
+        ...(targetCharacterId !== undefined ? { targetCharacterId } : {}),
+      },
     });
 
     if (!result.ok) {
-      const message = result.error;
-      this.handleServerResponse(correlationId, false, message);
+      alertSystem(result.reason);
+      return { ok: false, message: result.reason };
+    }
+
+    if (result.status === 'applied') {
+      this.syncPlayerFromDomain();
+      return { ok: true };
+    }
+
+    const ok = await dispatcher.waitForIntentResult(result.intentId);
+    if (!ok) {
+      const message = 'Não foi possível enviar o presente.';
+      alertSystem(message);
       return { ok: false, message };
     }
 
-    getPlayerItemStore().hydrateFromServerBundle(
-      result.senderStacks,
-      { equipped: getPlayerItemStore().getEquippedSlots() },
-      { immediate: true },
-    );
-    getMutableDataStore().bumpRevision('inventory');
-
-    this.handleServerResponse(correlationId, true, undefined, { silent: true });
     this.syncPlayerFromDomain();
     return { ok: true };
   }
@@ -525,14 +526,30 @@ class GameStore {
 
 let activeStore: GameStore | null = null;
 
+type GlobalWithGameStore = typeof globalThis & {
+  __ALTERCADIA_GAME_STORE__?: GameStore | null;
+};
+
+function getSharedGameStoreSlot(): GlobalWithGameStore {
+  return globalThis as GlobalWithGameStore;
+}
+
 export function initGameStore(): GameStore {
-  if (!activeStore) activeStore = new GameStore();
+  const g = getSharedGameStoreSlot();
+  if (!g.__ALTERCADIA_GAME_STORE__) {
+    g.__ALTERCADIA_GAME_STORE__ = new GameStore();
+  }
+  activeStore = g.__ALTERCADIA_GAME_STORE__;
   activeStore.init();
   return activeStore;
 }
 
 export function getGameStore(): GameStore {
-  if (!activeStore) activeStore = new GameStore();
+  const g = getSharedGameStoreSlot();
+  if (!g.__ALTERCADIA_GAME_STORE__) {
+    g.__ALTERCADIA_GAME_STORE__ = new GameStore();
+  }
+  activeStore = g.__ALTERCADIA_GAME_STORE__;
   return activeStore;
 }
 
@@ -545,7 +562,9 @@ export function resetGameStoreState(): void {
 }
 
 export function resetGameStore(): void {
-  activeStore?.reset();
+  const g = getSharedGameStoreSlot();
+  g.__ALTERCADIA_GAME_STORE__?.reset();
+  g.__ALTERCADIA_GAME_STORE__ = null;
   activeStore = null;
 }
 
@@ -575,7 +594,10 @@ export async function persistGameStoreToDatabase(
   characterId?: number,
 ): Promise<{ ok: boolean; message?: string }> {
   const { persistGameStoreToSupabase } = await import('./GameStoreSupabaseSync.js');
-  const resolved = characterId ?? getGameStore().getActiveCharacterId() ?? 1;
+  const resolved = characterId ?? getGameStore().getActiveCharacterId();
+  if (resolved === null || resolved === undefined || !Number.isInteger(resolved) || resolved < 1) {
+    return { ok: false, message: 'Nenhum personagem ativo para persistir.' };
+  }
   return persistGameStoreToSupabase(resolved);
 }
 

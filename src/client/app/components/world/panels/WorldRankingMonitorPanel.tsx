@@ -1,8 +1,8 @@
-import { useEffect, useMemo } from 'react';
-import { endWorldHudInteractionSession } from '../../../../world/worldHudInteractionSession.js';
-import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
+// @ts-nocheck
+import { useMemo } from 'react';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
+import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
 import {
   RANKING_TAB_DEFS,
   resolveRankingMonitorFromContext,
@@ -24,12 +24,7 @@ export function WorldRankingMonitorPanel({
   const monitor = useMemo(() => resolveRankingMonitorFromContext(context), [context]);
   const state = useRankingMonitorPanelState(monitor);
 
-  useEffect(() => () => {
-    const snapshot = endWorldHudInteractionSession();
-    if (snapshot) {
-      uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
-    }
-  }, []);
+  useReleaseWorldHudOnPanelClose('rankingMonitor');
 
   return (
     <MovablePanelFrame

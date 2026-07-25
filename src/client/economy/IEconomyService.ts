@@ -21,4 +21,25 @@ export interface IDevMockEconomyService extends IEconomyService {
   consumeLastBattleLootDiscardedQuantity(): number;
   syncInventoryStacksFromClient(stacks: readonly InventoryStack[], notify?: boolean): void;
   syncWalletFromStore(): void;
+  /** Espelha carteira autoritativa (fuga L1) no mock + localStorage. */
+  syncWalletFromAuthoritative(dollarVolt: number, alterCoins: number): void;
+  /** Liga identidade do slot e hidrata save local (GAME_MODE=local). */
+  bindLocalCharacter(
+    playerId: string,
+    characterId: number,
+    options?: { readonly displayName?: string },
+  ): void;
+  /** Persiste o estado atual no localStorage (mesmo schema do servidor). */
+  persistLocalSave(): boolean;
+  /** Exploration fornece posição live para o CharacterPersistenceRecord.world. */
+  setLocalWorldSnapshotProvider(
+    provider: (() => {
+      readonly mapId: string;
+      readonly x: number;
+      readonly y: number;
+      readonly facing: import('../../shared/world/playerFacing.js').PlayerFacing;
+    } | null) | null,
+  ): void;
+  /** Apaga save local do personagem ligado. */
+  clearLocalSave(): void;
 }

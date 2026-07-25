@@ -1,0 +1,1 @@
+var e={dimensional_cat:"/assets/pets/cat_pet_1_asset/Pixel_art_sprite_top-down_view_a_small_cat_sitting/rotations/south.png",dimensional_dog:"/assets/pets/dog_pet_1_asset/Top-down_2d_game_character_sprite_medium-sized_rea/rotations/south.png"};function _(t){return e[t]}export{_ as a};

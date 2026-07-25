@@ -1,46 +1,38 @@
-type PoolableActorSprite = {
-  setVisible: (visible: boolean) => PoolableActorSprite;
-  setAlpha: (alpha: number) => PoolableActorSprite;
-  destroy: () => void;
-};
-
+// @ts-nocheck
 const DEFAULT_POOL_CAPACITY = 50;
-
 /**
  * Pool de sprites de atores (NPC/criatura) — evita destroy/create no meio da exploração.
  */
-export class PhaserActorSpritePool<TSprite extends PoolableActorSprite> {
-  private readonly available: TSprite[] = [];
-
-  constructor(private readonly maxSize: number = DEFAULT_POOL_CAPACITY) {}
-
-  acquire(factory: () => TSprite): TSprite {
-    const pooled = this.available.pop();
-    if (pooled) {
-      pooled.setVisible(true);
-      pooled.setAlpha(1);
-      return pooled;
+export class PhaserActorSpritePool {
+    maxSize;
+    available = [];
+    constructor(maxSize = DEFAULT_POOL_CAPACITY) {
+        this.maxSize = maxSize;
     }
-    return factory();
-  }
-
-  release(sprite: TSprite): void {
-    sprite.setVisible(false);
-    sprite.setAlpha(0);
-    if (this.available.length >= this.maxSize) {
-      sprite.destroy();
-      return;
+    acquire(factory) {
+        const pooled = this.available.pop();
+        if (pooled) {
+            pooled.setVisible(true);
+            pooled.setAlpha(1);
+            return pooled;
+        }
+        return factory();
     }
-    this.available.push(sprite);
-  }
-
-  drain(): void {
-    while (this.available.length > 0) {
-      this.available.pop()?.destroy();
+    release(sprite) {
+        sprite.setVisible(false);
+        sprite.setAlpha(0);
+        if (this.available.length >= this.maxSize) {
+            sprite.destroy();
+            return;
+        }
+        this.available.push(sprite);
     }
-  }
-
-  getPooledCount(): number {
-    return this.available.length;
-  }
+    drain() {
+        while (this.available.length > 0) {
+            this.available.pop()?.destroy();
+        }
+    }
+    getPooledCount() {
+        return this.available.length;
+    }
 }

@@ -22,6 +22,9 @@ import {
 } from './MonsterCatalog.js';
 import { isPhysicalMove } from './calculateDamage.js';
 import { createBattleLogEvent } from './battleCombatLog.js';
+import { isMonsterDebuffSkillId } from './monsterDebuffCatalog.js';
+import { getMonsterSkillById } from './monsterSkillCatalog.js';
+import { MoveTarget } from './classMovesetCatalog.js';
 
 export const BattleTurnOwner = {
   Player: 'PLAYER',
@@ -75,6 +78,27 @@ function computePatrolSeed(input: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+/**
+ * Escolha ponderada: debuffs peso 3, puro dano peso 1.
+ * Seed estável por battleId+turn+monsterId (sem Math.random).
+ */
+export function pickWeightedMonsterSkill(
+  skillIds: readonly string[],
+  seedKey: string,
+): string | null {
+  if (skillIds.length === 0) return null;
+  if (skillIds.length === 1) return skillIds[0] ?? null;
+
+  const weights = skillIds.map((skillId) => (isMonsterDebuffSkillId(skillId) ? 3 : 1));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  let roll = computePatrolSeed(seedKey) % total;
+  for (let i = 0; i < skillIds.length; i += 1) {
+    roll -= weights[i] ?? 1;
+    if (roll < 0) return skillIds[i] ?? null;
+  }
+  return skillIds[skillIds.length - 1] ?? null;
 }
 
 function isInsidePatrolZone(cell: GridCell, zone: MonsterPatrolZone): boolean {
@@ -383,10 +407,23 @@ export class MonsterTurnController {
     if (turnStart.preferredSkillId) {
       return turnStart.preferredSkillId;
     }
+
     const combatant = state.combatants[monsterActorId];
-    const fromCatalog = monster.skillIds[0];
-    const fromCombatant = combatant?.skills[0]?.id;
-    return fromCatalog ?? fromCombatant ?? 'rat_bite';
+    const catalogIds = [...monster.skillIds];
+    const combatantIds = combatant?.skills.map((row) => row.id) ?? [];
+    const pool = (combatantIds.length > 0 ? combatantIds : catalogIds).filter((skillId) => {
+      const def = getMonsterSkillById(skillId);
+      if (!def) return true;
+      // Evita utility self (ex.: specter_phase) na roleta ofensiva.
+      if (def.moveTarget === MoveTarget.Self) return false;
+      return true;
+    });
+
+    const picked = pickWeightedMonsterSkill(
+      pool.length > 0 ? pool : catalogIds,
+      `${state.battleId}:${state.turn}:${monsterActorId}`,
+    );
+    return picked ?? catalogIds[0] ?? combatantIds[0] ?? 'rat_bite';
   }
 
   private getBehaviorState(actorId: string): MonsterBehaviorState {

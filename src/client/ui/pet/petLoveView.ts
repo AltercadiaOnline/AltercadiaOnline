@@ -11,6 +11,7 @@ import type { PetRationFeedAvailability } from '../../../shared/pet/petRationFee
 import { PET_AFFINITY_CONFIG } from '../../../shared/pet/petAffinityConfig.js';
 import { buildPetAffinityProgressionTooltip } from '../../../shared/progression/progressionTooltipContent.js';
 import { renderProgressionTooltipAttrs } from '../tooltip/progressionTooltipAttrs.js';
+import { resolvePetHudSouthPreviewUrl } from '../../entities/pet/petHudPreview.js';
 
 export type PetLoveViewVariant = 'segment' | 'standalone';
 
@@ -28,13 +29,15 @@ function renderPortrait(
   const portraitClass =
     pet.kindId === 'dimensional_dog' ? 'pet-love__portrait--dog' : 'pet-love__portrait--cat';
   const seniorClass = isSenior ? ' pet-love__portrait--senior' : '';
+  const previewUrl = resolvePetHudSouthPreviewUrl(pet.kindId);
 
   return `
     <div
-      class="pet-love__portrait ${portraitClass}${seniorClass}"
+      class="pet-love__portrait pet-love__portrait--sprite ${portraitClass}${seniorClass}"
       style="--pet-fur:${palette.fur}; --pet-accent:${palette.accent}; --pet-eye:${palette.eye}; --pet-led:${palette.led};"
       aria-hidden="true"
     >
+      <img class="pet-love__portrait-img" src="${previewUrl}" alt="" draggable="false" decoding="async" />
       <span class="pet-love__portrait-led"></span>
     </div>
   `;
@@ -102,7 +105,7 @@ function renderEmpty(variant: PetLoveViewVariant): string {
           <h3 class="pet-love__title">Pet Love</h3>
           <p class="pet-love__empty">Você ainda não tem um pet vinculado.</p>
           <p class="pet-love__hint" data-hud-fit-secondary>
-            Adote uma criatura dimensional com o Treinador Zeno na cidade.
+            Adote uma criatura dimensional com a Treinadora Zena na cidade.
           </p>
         </div>
       </div>

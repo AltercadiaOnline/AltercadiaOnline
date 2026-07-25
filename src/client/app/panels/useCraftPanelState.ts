@@ -7,7 +7,7 @@ import {
   type CraftRecipe,
 } from '../../../shared/crafting/craftValidation.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
-import { usePlayerData } from '../store/gameStore.js';
+import { usePlayerInventory } from '../store/gameStore.js';
 
 export type CraftStationView = {
   readonly craftStationId: string;
@@ -28,7 +28,7 @@ export function resolveCraftStationFromContext(context: WorldPanelContext): Craf
 }
 
 export function useCraftPanelState(station: CraftStationView) {
-  const { inventory } = usePlayerData();
+  const inventory = usePlayerInventory();
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [craftQuantity, setCraftQuantity] = useState(1);
 

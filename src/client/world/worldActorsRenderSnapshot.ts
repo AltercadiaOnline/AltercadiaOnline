@@ -10,6 +10,8 @@ import { getNpcDefinition } from '../../assets/npcs/npcDefinition.js';
 import type { NPC } from '../entities/NPC.js';
 import type { InteractiveEntity } from './InteractiveEntity.js';
 import { resolveCreatureTileWorldPoint } from './creatureWorldRenderer.js';
+import { sampleCreatureDisplay } from './creatureDisplayBridge.js';
+import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 
 /** Criatura no mapa — sprite idle top-down (não confundir com side-view de BattleSprite). */
 export type WorldCreatureRenderSnapshot = {
@@ -21,6 +23,7 @@ export type WorldCreatureRenderSnapshot = {
   readonly depthY: number;
   readonly adjacent: boolean;
   readonly alertPulse: number;
+  readonly facing: PlayerFacing;
 };
 
 /** NPC no mapa — top-down, PNG ou humanoid procedural no canvas legado. */
@@ -37,20 +40,32 @@ export type WorldNpcRenderSnapshot = {
 
 export type WorldActorRenderSnapshot = WorldCreatureRenderSnapshot | WorldNpcRenderSnapshot;
 
-export function buildCreatureRenderSnapshot(entity: InteractiveEntity): WorldCreatureRenderSnapshot {
+export function buildCreatureRenderSnapshot(
+  entity: InteractiveEntity,
+  nowMs: number = performance.now(),
+): WorldCreatureRenderSnapshot {
+  const display = sampleCreatureDisplay(entity.monsterId, nowMs);
   const tileSize = getActiveMapTileSize();
-  const worldPoint = resolveCreatureTileWorldPoint(entity.tileX, entity.tileY, tileSize);
-  const feetY = getEntityFeetWorldY(worldPoint, tileSize);
+  const worldPoint =
+    entity.worldX !== undefined && entity.worldY !== undefined
+      ? { x: entity.worldX, y: entity.worldY }
+      : resolveCreatureTileWorldPoint(entity.tileX, entity.tileY, tileSize);
+  const authFeetY = getEntityFeetWorldY(worldPoint, tileSize);
+
+  const feetX = display?.feetX ?? worldPoint.x;
+  const feetY = display?.feetY ?? authFeetY;
+  const facing = display?.facing ?? entity.facing;
 
   return {
     kind: 'creature',
     instanceId: entity.monsterId,
     creatureId: entity.creatureId,
-    feetX: worldPoint.x,
+    feetX,
     feetY,
-    depthY: entity.depthY,
+    depthY: feetY,
     adjacent: entity.isAdjacent(),
     alertPulse: entity.getAlertPulse(),
+    facing,
   };
 }
 

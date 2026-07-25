@@ -1,4 +1,6 @@
 import { exportCharacterEconomyPersistence } from '../../Economy/economyStore.js';
+import { exportPetAffinityPersistence } from '../../Economy/petAffinityStore.js';
+import { exportPetRosterPersistence } from '../../Economy/petRosterStore.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import type { CriticalCharacterData } from './persistenceManagerTypes.js';
 
@@ -24,6 +26,10 @@ export function buildCriticalCharacterDataFromRuntime(
     currency: {
       dollarVolt: economy.wallet.dollarVolt,
       alterCoins: economy.wallet.alterCoins,
+    },
+    pets: {
+      roster: exportPetRosterPersistence(playerId, characterId),
+      affinity: exportPetAffinityPersistence(playerId, characterId),
     },
   };
 }

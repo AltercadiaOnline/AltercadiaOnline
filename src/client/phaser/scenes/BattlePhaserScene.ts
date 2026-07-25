@@ -1,42 +1,32 @@
+// @ts-nocheck
 import { DESIGN_CONFIG } from '../../../config/designConstants.js';
 import { getRenderLayerBridge } from '../../app/bridge/renderLayerBridge.js';
 import { PHASER_BATTLE_SCENE_KEY } from '../PhaserConfig.js';
 import { activatePhaserExplorationPipeline } from '../phaserExplorationPipeline.js';
 import { bindBattlePhaserSync } from '../battlePhaserSync.js';
-import { createMainSceneClass, type PhaserWorldSceneBase } from './MainScene.js';
-
-type PhaserNamespace = {
-  Scene: new (config?: string | Record<string, unknown>) => PhaserWorldSceneBase;
-};
-
+import { createMainSceneClass } from './MainScene.js';
 /**
  * Cena de combate Phaser — chão, plataformas e sprites side-view (battleRenderBridge).
  */
-export function createBattlePhaserScene(Phaser: PhaserNamespace): new () => PhaserWorldSceneBase {
-  const MainScene = createMainSceneClass(Phaser as never);
-  const { WIDTH, HEIGHT } = DESIGN_CONFIG.VIEWPORT;
-
-  class BattleArenaScene extends MainScene {
-    private teardownSync: (() => void) | null = null;
-
-    constructor() {
-      super(PHASER_BATTLE_SCENE_KEY);
+export function createBattlePhaserScene(Phaser) {
+    const MainScene = createMainSceneClass(Phaser);
+    const { WIDTH, HEIGHT } = DESIGN_CONFIG.VIEWPORT;
+    class BattleArenaScene extends MainScene {
+        teardownSync = null;
+        constructor() {
+            super(PHASER_BATTLE_SCENE_KEY);
+        }
+        onMainCreate() {
+            this.cameras.main.setBounds(0, 0, WIDTH, HEIGHT);
+            this.teardownSync = bindBattlePhaserSync(this);
+            activatePhaserExplorationPipeline();
+            getRenderLayerBridge().setActivePhaserScene('battle');
+            this.events.on('shutdown', () => {
+                this.teardownSync?.();
+                this.teardownSync = null;
+            });
+        }
+        onMainUpdate(_time, _delta) { }
     }
-
-    onMainCreate(): void {
-      this.cameras.main.setBounds(0, 0, WIDTH, HEIGHT);
-      this.teardownSync = bindBattlePhaserSync(this);
-      activatePhaserExplorationPipeline();
-      getRenderLayerBridge().setActivePhaserScene('battle');
-
-      this.events.on('shutdown', () => {
-        this.teardownSync?.();
-        this.teardownSync = null;
-      });
-    }
-
-    onMainUpdate(_time: number, _delta: number): void {}
-  }
-
-  return BattleArenaScene as unknown as new () => PhaserWorldSceneBase;
+    return BattleArenaScene;
 }

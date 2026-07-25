@@ -18,6 +18,10 @@ export type CriticalCharacterData = {
     readonly dollarVolt: number;
     readonly alterCoins: number;
   };
+  readonly pets?: {
+    readonly roster: import('../../shared/pet/petRoster.js').PlayerPetRosterSnapshot;
+    readonly affinity: import('../../shared/persistence/characterPersistenceRecord.js').PersistedPetAffinitySlice;
+  };
 };
 
 export type PendingWorldPosition = {

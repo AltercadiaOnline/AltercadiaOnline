@@ -1,9 +1,14 @@
-const BATTLE_COMMANDS = ['moveset', 'items', 'skip', 'surrender'] as const;
+const BATTLE_COMMANDS = ['items', 'skip', 'surrender'] as const;
+const OPTIONAL_COMMANDS = ['moveset'] as const;
 
-type BattleCommandId = typeof BATTLE_COMMANDS[number];
+type BattleCommandId =
+  | typeof BATTLE_COMMANDS[number]
+  | typeof OPTIONAL_COMMANDS[number];
 
 type BattleCommandBarHudProps = {
   locked: boolean;
+  /** Moveset já fica na faixa — botão opcional para foco/legado. */
+  showMovesetButton?: boolean;
 };
 
 type GlobalBattleCommands = typeof globalThis & {
@@ -25,7 +30,14 @@ function dispatchBattleCommand(cmd: BattleCommandId): void {
   }));
 }
 
-export function BattleCommandBarHud({ locked }: BattleCommandBarHudProps) {
+export function BattleCommandBarHud({
+  locked,
+  showMovesetButton = false,
+}: BattleCommandBarHudProps) {
+  const commands: readonly BattleCommandId[] = showMovesetButton
+    ? [...OPTIONAL_COMMANDS, ...BATTLE_COMMANDS]
+    : BATTLE_COMMANDS;
+
   return (
     <nav
       className={[
@@ -35,7 +47,7 @@ export function BattleCommandBarHud({ locked }: BattleCommandBarHudProps) {
       aria-label="Comandos de combate"
       aria-disabled={locked}
     >
-      {BATTLE_COMMANDS.map((cmd) => (
+      {commands.map((cmd) => (
         <button
           key={cmd}
           type="button"

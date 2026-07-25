@@ -1,4 +1,3 @@
-import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
 import { normalizeSpeechBubbleText } from '../../shared/world/speechBubbleText.js';
 import type { ExplorationScene } from '../scenes/Exploration.js';
 import { getSpeechBubbleManager } from './speech/SpeechBubbleManager.js';
@@ -7,6 +6,8 @@ import {
   type GlobalMessageBusContext,
   type GlobalMessageBusCredentials,
 } from '../net/GlobalMessageBus.js';
+import { getActionDispatcher } from '../ActionDispatcher.js';
+import type { BrowserCombatSocket } from '../browser/createBrowserCombatSocket.js';
 
 export type GlobalChatCredentials = GlobalMessageBusCredentials;
 
@@ -46,10 +47,20 @@ function buildBusContext(options: GlobalChatControllerOptions): GlobalMessageBus
   };
 }
 
+/** Envia chat global via ActionDispatcher (local + online). */
 export function submitGlobalChatMessage(raw: string): void {
   const text = normalizeSpeechBubbleText(raw);
   if (!text) return;
-  getGlobalMessageBus().sendGlobalChat(text);
+
+  const result = getActionDispatcher().dispatch({
+    type: 'CHAT_GLOBAL_SEND',
+    payload: { text },
+  });
+
+  if (!result.ok) {
+    // previewGlobalChat / applyLocalChat já postam feedback no feed.
+    return;
+  }
 }
 
 export function initGlobalChatController(options: GlobalChatControllerOptions): () => void {

@@ -56,7 +56,7 @@ export class RefractionBoothService {
       0,
       REFRACTION_BOOTH_CONFIG.cooldownMs - elapsedSinceLastSession,
     );
-    const wallet = getWalletBalance(params.playerId);
+    const wallet = getWalletBalance(params.playerId, params.characterId);
     const dailyPrizeRemainingVolts = Math.max(
       0,
       REFRACTION_BOOTH_CONFIG.maxDailyPrizeVolts - state.dailyPrizeVolts,

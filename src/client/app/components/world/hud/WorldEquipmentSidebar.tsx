@@ -7,11 +7,7 @@ import {
 import { resolveCharacterLevelXpBar } from '../../../../../shared/character/characterLevelProgression.js';
 import { resolveLoadoutPpBudget } from '../../../../../shared/combat/loadoutPpBudget.js';
 import { emitItemTooltip } from '../../../../ui/tooltip/emitItemTooltip.js';
-import {
-  InventoryService,
-  isSyncPending,
-  selectPlayerEquipment,
-} from '../../../../services/index.js';
+import { selectPlayerEquipment } from '../../../../services/index.js';
 import { dispatchUnequipFromSlot } from '../../../../ui/equipment/equipItemAction.js';
 import { getPlayerEquipmentStore } from '../../../../ui/equipment/playerEquipmentStore.js';
 import { getPlayerItemStore } from '../../../../ui/items/playerItemStore.js';
@@ -25,27 +21,31 @@ import {
   usePlayerEquipmentSnapshot,
   usePlayerProfileSnapshot,
 } from '../../../hooks/usePlayerHudStores.js';
+import { refreshHudPlayerHpMax } from '../../../../ui/equipment/playerHudHpMax.js';
+import {
+  hidePlayerHpTooltip,
+  showPlayerHpTooltip,
+} from '../../../../ui/equipment/playerHpTooltip.js';
+import { ItemSlotIcon } from '../panels/ItemSlotIcon.js';
 import { buildProgressionTooltipDataAttributes } from './progressionTooltipProps.js';
 
 function EquipSlotButton({
   slotId,
   itemId,
-  pending,
 }: {
   slotId: EquipmentUiSlotId;
   itemId: string | null;
-  pending: boolean;
 }) {
   const label = EQUIPMENT_UI_SLOT_LABELS[slotId];
   const displayStore = getPlayerEquipmentStore();
   const displayName = itemId ? displayStore.getItemDisplayName(itemId) : label;
-  const pendingClass = pending ? ' equip-slot--pending' : '';
   const contextTarget = JSON.stringify({ slotId });
 
   const handleDoubleClick = useCallback(() => {
-    if (InventoryService.isInventoryMutationPending() || !itemId) return;
+    if (!itemId) return;
     const row = getPlayerItemStore().getItemInSlot(slotId);
     if (!row) return;
+    // Concorrência é barrada no dispatch (dispatchInventoryAction) — sem gate de render.
     dispatchUnequipFromSlot(slotId);
   }, [itemId, slotId]);
 
@@ -61,7 +61,7 @@ function EquipSlotButton({
   return (
     <button
       type="button"
-      className={`equip-slot${itemId ? ' equip-slot--filled' : ''}${pendingClass}`}
+      className={`equip-slot${itemId ? ' equip-slot--filled' : ''}`}
       data-equip-slot={slotId}
       {...(itemId
         ? {
@@ -72,26 +72,17 @@ function EquipSlotButton({
         : {})}
       aria-label={displayName}
       title={itemId ? undefined : label}
-      aria-busy={pending || undefined}
-      disabled={pending || undefined}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={itemId ? showTooltip : undefined}
       onMouseLeave={itemId ? hideTooltip : undefined}
     >
       {itemId ? (
-        <>
-          <span className="equip-slot__placeholder" hidden>{label}</span>
-          <span className="equip-slot__icon">{itemId.slice(0, 2).toUpperCase()}</span>
-          <span className="equip-slot__name">{displayName}</span>
-        </>
+        <span className="equip-slot__sprite-wrap" aria-hidden="true">
+          <ItemSlotIcon itemId={itemId} className="equip-slot__sprite" />
+        </span>
       ) : (
-        <>
-          <span className="equip-slot__placeholder">{label}</span>
-          <span className="equip-slot__icon" hidden />
-          <span className="equip-slot__name" hidden />
-        </>
+        <span className="equip-slot__placeholder">{label}</span>
       )}
-      {pending ? <span className="equip-slot__pending" aria-hidden="true">⟳</span> : null}
     </button>
   );
 }
@@ -104,7 +95,6 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
   useEquipmentGridRevision();
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const pending = isSyncPending();
   const equippedItems = selectPlayerEquipment();
   const loadout = getGlobalPlayerStore().getConfirmedLoadout();
   const { ppCurrent, ppMax } = resolveLoadoutPpBudget(loadout);
@@ -118,6 +108,10 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
   const capPct = capacity.maxWeight > 0
     ? Math.min(100, (capacity.currentWeight / capacity.maxWeight) * 100)
     : 0;
+
+  useEffect(() => {
+    refreshHudPlayerHpMax();
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -145,7 +139,12 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
       </header>
 
       <section className="equipment-sidebar__vitals" aria-label="Status vital">
-        <div className="vital-row">
+        <div
+          className="vital-row"
+          onMouseEnter={(event) => showPlayerHpTooltip(event.clientX, event.clientY)}
+          onMouseMove={(event) => showPlayerHpTooltip(event.clientX, event.clientY)}
+          onMouseLeave={() => hidePlayerHpTooltip()}
+        >
           <span className="vital-label">HP</span>
           <div className="vital-bar vital-bar--hp" role="progressbar" aria-label="Vida">
             <div className="vital-bar__fill" style={{ width: `${hpPct}%` }} />
@@ -213,12 +212,7 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
       </section>
 
       <section className="equipment-sidebar__set" aria-label="Equipamentos">
-        <h2 className="equipment-sidebar__set-title">
-          SET
-          {pending ? (
-            <span className="equipment-sidebar__sync" aria-busy="true" title="Sincronizando…"> ⟳</span>
-          ) : null}
-        </h2>
+        <h2 className="equipment-sidebar__set-title">SET</h2>
         <div className="equip-grid" data-equip-grid>
           {EQUIPMENT_UI_SLOT_ORDER.map((slotId) => {
             const row = equippedItems.find((item) => item.slot === slotId);
@@ -227,7 +221,6 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
                 key={slotId}
                 slotId={slotId}
                 itemId={row?.itemId ?? null}
-                pending={pending}
               />
             );
           })}

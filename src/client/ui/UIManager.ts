@@ -2,6 +2,7 @@ import { resolveGameUiLayer } from '../layout/gameLayout.js';
 import { resetMinimapState } from '../world/minimap/minimapState.js';
 import { registerMinimapNavigateHandler } from '../world/minimap/minimapNavigation.js';
 import { clearMinimapTerrainCache } from '../world/minimap/buildMinimapTerrain.js';
+import { clearMinimapOverviewCache } from '../world/minimap/loadMinimapOverview.js';
 import { initCarryCapacityStore, resetCarryCapacityStore } from './capacity/carryCapacityStore.js';
 import { initPlayerStatsGateway, resetPlayerStatsGateway } from '../gateway/PlayerStatsGateway.js';
 import { resetPlayerEquipmentStore } from './equipment/playerEquipmentStore.js';
@@ -11,12 +12,13 @@ import { resetPlayerSkinStore } from './character/playerSkinStore.js';
 import { resetPlayerWalletStore } from './wallet/playerWalletStore.js';
 import { destroyHudEventBridge, initHudEventBridge } from './hudEventBridge.js';
 import { initDiaryEventBridge } from './diary/diaryEventBridge.js';
+import { initAchievementEventBridge } from './achievements/achievementEventBridge.js';
 import { destroyTooltip, initTooltip } from './components/Tooltip.js';
 import { resetGlobalPlayerStore } from './moveset/globalPlayerStore.js';
 import { resetPlayerProgressionStore } from '../progression/playerProgressionStore.js';
 import { resetPlayerMarcosStore } from './marcos/playerMarcosStore.js';
-import { initEconomyLayer, attachOnlineEconomyLayer, resetEconomyLayer } from '../economy/economyLayer.js';
-import { allowsOfflineGameplayFallback } from '../runtime/onlineFirstPolicy.js';
+import { attachOnlineEconomyLayer, initEconomyLayer, resetEconomyLayer } from '../economy/economyLayer.js';
+import { getGameMode } from '../runtime/gameMode.js';
 import { resetMarketplaceBuyOrderStore } from './market/marketplaceBuyOrderStore.js';
 import { resetPlayerMarketStore } from './market/playerMarketStore.js';
 import { installDevConsoleCommands } from '../dev/consoleCommands.js';
@@ -57,16 +59,20 @@ export class UIManager {
 
     initCarryCapacityStore();
     initPlayerStatsGateway();
-    if (allowsOfflineGameplayFallback()) {
+    // GAME_MODE: local = ActionDispatcher + mock (simula ACK); online = WS autoritativo.
+    if (getGameMode() === 'local') {
       initEconomyLayer('mock');
+      console.info('[UI] GAME_MODE=local — ActionDispatcher simula ACK no cliente.');
     } else {
       attachOnlineEconomyLayer();
+      console.info('[UI] GAME_MODE=online — ActionDispatcher → player-intent / servidor.');
     }
 
     this.keyFeatureObserver.attachHub();
     installDevConsoleCommands();
     initHudEventBridge();
     initDiaryEventBridge();
+    initAchievementEventBridge();
     initTooltip(document.body);
     initPortalModal(this.layer.parentElement ?? this.layer);
     initKeyboardManager();
@@ -98,7 +104,11 @@ export function getUiManager(): UIManager | null {
 }
 
 export function initUiLayer(root: ParentNode = document): UIManager {
-  if (activeManager) return activeManager;
+  if (activeManager) {
+    // Sessão reentrada: tooltip pode ter sido só escondido — reafirma mount.
+    initTooltip(document.body);
+    return activeManager;
+  }
 
   const layer = resolveGameUiLayer(root);
   if (!layer) {
@@ -123,6 +133,7 @@ export function destroyUiLayer(): void {
   registerMinimapNavigateHandler(null);
   resetMinimapState();
   clearMinimapTerrainCache();
+  clearMinimapOverviewCache();
   resetPlayerEquipmentStore();
   resetPlayerInventoryStore();
   resetPlayerWalletStore();

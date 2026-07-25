@@ -13,12 +13,14 @@ import {
 import { getPostBattleHudBridge } from '../../bridge/postBattleHudBridge.js';
 import type { PostBattleHudSnapshot } from '../../bridge/postBattleHudBridge.js';
 import {
+  hasPostBattleHubHandlers,
   triggerPostBattleExit,
   triggerPostBattleRewards,
   triggerPostBattleStatistics,
   triggerPostBattleViewOpponent,
 } from '../../battle/postBattleHubHandlers.js';
 import { usePostBattleLootPackageWatcher } from '../../panels/usePostBattleLootWatcher.js';
+import { postSystemNotification } from '../../../ui/logService.js';
 
 type PostBattleHubPanelProps = {
   snapshot: PostBattleHudSnapshot;
@@ -54,29 +56,41 @@ export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
   const showRewards = shouldShowPostBattleRewardsSlot(summary);
   const lootStatus = snapshot.rewardsLootStatus;
 
-  const rewardsDisabled =
-    lootStatus === 'unavailable'
-    || lootStatus === 'waiting_for_server'
-    || snapshot.rewardsOpening;
+  // Vitória PVE: botão sempre clicável (cassino abre mesmo vazio / com retry).
+  // Só trava enquanto a abertura está em andamento.
+  const rewardsDisabled = snapshot.rewardsOpening;
 
-  const rewardsLabel = lootStatus === 'unavailable'
-    ? 'Recompensas indisponíveis'
+  const rewardsLabel = snapshot.rewardsOpening
+    ? 'Abrindo…'
     : lootStatus === 'waiting_for_server'
       ? 'Aguardando servidor…'
-      : snapshot.rewardsOpening
-        ? 'Abrindo…'
-        : 'Recompensas';
+      : 'Recompensas';
 
   const handleRewards = () => {
     if (rewardsDisabled) return;
+    if (!hasPostBattleHubHandlers()) {
+      postSystemNotification('Hub de batalha sem ligação — recarregue e tente de novo.', 'high');
+      return;
+    }
     getPostBattleHudBridge().setRewardsOpening(true);
-    void Promise.resolve(triggerPostBattleRewards())
-      .finally(() => {
-        const status = getPostBattleHudBridge().snapshot().rewardsLootStatus;
-        if (status !== 'waiting_for_server' && status !== 'unavailable') {
-          getPostBattleHudBridge().setRewardsOpening(false);
-        }
-      });
+    void triggerPostBattleRewards().finally(() => {
+      getPostBattleHudBridge().setRewardsOpening(false);
+    });
+  };
+
+  const handleExit = () => {
+    if (snapshot.exitPending) return;
+    if (!hasPostBattleHubHandlers()) {
+      postSystemNotification('Não foi possível sair — hub sem ligação. Recarregue a página.', 'high');
+      return;
+    }
+    getPostBattleHudBridge().setExitPending(true);
+    void triggerPostBattleExit().finally(() => {
+      // Sucesso dismissa o hub; falha mantém ativo → libera o botão.
+      if (getPostBattleHudBridge().snapshot().active) {
+        getPostBattleHudBridge().setExitPending(false);
+      }
+    });
   };
 
   return (
@@ -99,7 +113,13 @@ export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
           <button
             type="button"
             className="post-battle-hub__stats"
-            onClick={() => triggerPostBattleStatistics()}
+            onClick={() => {
+              if (!hasPostBattleHubHandlers()) {
+                postSystemNotification('Estatísticas indisponíveis — hub sem ligação.', 'normal');
+                return;
+              }
+              triggerPostBattleStatistics();
+            }}
           >
             Estatísticas
           </button>
@@ -149,12 +169,9 @@ export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
             type="button"
             className="post-battle-hub__exit"
             disabled={snapshot.exitPending}
-            onClick={() => {
-              getPostBattleHudBridge().setExitPending(true);
-              triggerPostBattleExit();
-            }}
+            onClick={handleExit}
           >
-            {snapshot.exitPending ? 'Saindo…' : 'Sair'}
+            {snapshot.exitPending ? 'Saindo…' : 'Saída'}
           </button>
         </div>
       </div>

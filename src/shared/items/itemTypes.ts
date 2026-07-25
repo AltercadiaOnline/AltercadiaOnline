@@ -206,5 +206,11 @@ export type CreatureDropEntry = {
   readonly zoneId: ZoneId;
   readonly archetypeId: string;
   readonly genericDropIds: readonly string[];
+  /** Equipável exclusivo principal (legado — um por criatura). */
   readonly equipableItemId: string | null;
+  /**
+   * Equipáveis extras no mesmo pool de drop exclusivo.
+   * No roll de equip, sorteia 1 entre principal + extras.
+   */
+  readonly alternateEquipableItemIds?: readonly string[];
 };

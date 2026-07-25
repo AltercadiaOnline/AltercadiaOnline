@@ -62,12 +62,13 @@ export function resolveEquippedFieldForUiSlot(
   uiSlotId: UiSlotId,
   itemId: string | null,
 ): EquippedField | null {
-  if (uiSlotId === EquipmentUiSlotId.Card) return null;
-
   if (uiSlotId === EquipmentUiSlotId.Books) return 'book';
   if (uiSlotId === EquipmentUiSlotId.Runes) return 'rune';
   if (uiSlotId === EquipmentUiSlotId.RingLeft || uiSlotId === EquipmentUiSlotId.RingRight) {
     return 'ring';
+  }
+  if (uiSlotId === EquipmentUiSlotId.Amulet || uiSlotId === EquipmentUiSlotId.Card) {
+    return 'amulet';
   }
 
   const mapped = UI_SLOT_TO_EQUIPMENT_SLOT[uiSlotId] as EquipmentSlotId | undefined;
@@ -82,8 +83,6 @@ export function resolveEquippedFieldForUiSlot(
 }
 
 export function canItemFitUiSlot(itemId: string, uiSlotId: UiSlotId): boolean {
-  if (uiSlotId === EquipmentUiSlotId.Card) return false;
-
   if (uiSlotId === EquipmentUiSlotId.Books) return Boolean(getBookDefinition(itemId));
   if (uiSlotId === EquipmentUiSlotId.Runes) return Boolean(getRuneDefinition(itemId));
 
@@ -96,6 +95,9 @@ export function canItemFitUiSlot(itemId: string, uiSlotId: UiSlotId): boolean {
   if (uiSlotId === EquipmentUiSlotId.RingLeft || uiSlotId === EquipmentUiSlotId.RingRight) {
     return equip.slot === EquipmentSlot.Ring;
   }
+  if (uiSlotId === EquipmentUiSlotId.Amulet || uiSlotId === EquipmentUiSlotId.Card) {
+    return equip.slot === EquipmentSlot.Amulet;
+  }
   if (uiSlotId === EquipmentUiSlotId.Legs || uiSlotId === EquipmentUiSlotId.Boots) {
     return equip.slot === EquipmentSlot.Bottom;
   }
@@ -103,7 +105,7 @@ export function canItemFitUiSlot(itemId: string, uiSlotId: UiSlotId): boolean {
   return equip.slot === expected;
 }
 
-/** Escolhe slot visual — respeita preferência do drag e preenche anel/perna vazio primeiro. */
+/** Escolhe slot visual — respeita preferência do drag e preenche anel/perna/amuleto vazio primeiro. */
 export function resolveTargetUiSlotForEquip(
   grid: EquipmentUiGridState,
   itemId: string,
@@ -118,6 +120,11 @@ export function resolveTargetUiSlotForEquip(
     if (!grid[EquipmentUiSlotId.RingLeft]) return EquipmentUiSlotId.RingLeft;
     if (!grid[EquipmentUiSlotId.RingRight]) return EquipmentUiSlotId.RingRight;
     return EquipmentUiSlotId.RingLeft;
+  }
+  if (equip?.slot === EquipmentSlot.Amulet) {
+    if (!grid[EquipmentUiSlotId.Amulet]) return EquipmentUiSlotId.Amulet;
+    if (!grid[EquipmentUiSlotId.Card]) return EquipmentUiSlotId.Card;
+    return EquipmentUiSlotId.Amulet;
   }
   if (equip?.slot === EquipmentSlot.Bottom) {
     const primary = resolveCatalogBottomUiSlot(itemId);

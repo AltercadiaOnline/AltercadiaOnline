@@ -501,12 +501,14 @@ export class PointClickController implements Disposable {
 
     this.pendingInteractableId = interactableId;
     const isCreature = definition.kind === InteractableKind.MONSTER;
-    const promptOffsetY = isCreature ? 34 : INTERACTION_PROMPT_BUFFER_OFFSET_Y;
-    this.prompt.show(definition.label, screenX, screenY - promptOffsetY, {
-      ...(isCreature
-        ? { variant: 'creature' as const, acceptLabel: 'Batalhar' }
-        : {}),
-    });
+    if (isCreature) {
+      // Sem prompt "Batalhar" — encontro vem do servidor (HUD Aceitar / Fugir).
+      this.dismissPrompt();
+      this.pendingInteractableId = null;
+      return;
+    }
+    const promptOffsetY = INTERACTION_PROMPT_BUFFER_OFFSET_Y;
+    this.prompt.show(definition.label, screenX, screenY - promptOffsetY, {});
   }
 
   private executeInteraction(interactableId: InteractableId): void {
@@ -530,8 +532,7 @@ export class PointClickController implements Disposable {
         break;
       }
       case InteractableKind.MONSTER: {
-        if (isMonsterDefeated(definition.sourceId)) break;
-        this.onRequestCombat?.(definition.sourceId);
+        // Combate PVE entra só pela HUD de encontro (servidor). Click só aproxima.
         break;
       }
       case InteractableKind.WORLD_OBJECT: {

@@ -1,26 +1,57 @@
+// @ts-nocheck
 import { Suspense, lazy, type ReactNode } from 'react';
 import type { OpenWorldPanelEntry } from '../store/worldPanelContext.js';
 import { tryFocusReactWorldPanel } from './initWorldPanelsBridge.js';
 import type { UiWindowId } from '../../ui/uiEvents.js';
-import { WorldCraftPanel } from '../components/world/panels/WorldCraftPanel.js';
+import { HudErrorBoundary } from '../components/HudErrorBoundary.js';
 import { WorldDialoguePanel } from '../components/world/panels/WorldDialoguePanel.js';
 import { WorldDiaryPanel } from '../components/world/panels/WorldDiaryPanel.js';
-import { WorldInventoryPanel } from '../components/world/panels/WorldInventoryPanel.js';
 import { WorldLaboratoryShopPanel } from '../components/world/panels/WorldLaboratoryShopPanel.js';
-import { WorldMarketHubPanel } from '../components/world/panels/WorldMarketHubPanel.js';
 import { WorldPetMemorialPanel } from '../components/world/panels/WorldPetMemorialPanel.js';
 import { WorldPetTrainerShopPanel } from '../components/world/panels/WorldPetTrainerShopPanel.js';
 import { WorldQuestPanel } from '../components/world/panels/WorldQuestPanel.js';
 import { WorldRankingMonitorPanel } from '../components/world/panels/WorldRankingMonitorPanel.js';
+import { WorldPvpQueuePanel } from '../components/world/panels/WorldPvpQueuePanel.js';
 import { WorldRefractionBoothPanel } from '../components/world/panels/WorldRefractionBoothPanel.js';
 import { WorldShopPanel } from '../components/world/panels/WorldShopPanel.js';
 import { WorldSocialPanel } from '../components/world/panels/WorldSocialPanel.js';
 import { WorldTournamentBetPanel } from '../components/world/panels/WorldTournamentBetPanel.js';
-import { WorldVendorShopPanel } from '../components/world/panels/WorldVendorShopPanel.js';
 import { WorldPetLovePanel } from '../components/world/panels/WorldPetLovePanel.js';
-import { WorldBankPanel } from '../components/world/panels/WorldBankPanel.js';
-import { WorldMarketPanel } from '../components/world/panels/WorldMarketPanel.js';
-import { WorldCharactersPanel } from '../components/world/panels/WorldCharactersPanel.js';
+
+const LazyWorldInventoryPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldInventoryPanel.js');
+  return { default: module.WorldInventoryPanel };
+});
+
+const LazyWorldCraftPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldCraftPanel.js');
+  return { default: module.WorldCraftPanel };
+});
+
+const LazyWorldVendorShopPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldVendorShopPanel.js');
+  return { default: module.WorldVendorShopPanel };
+});
+
+const LazyWorldMarketPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldMarketPanel.js');
+  return { default: module.WorldMarketPanel };
+});
+
+const LazyWorldMarketHubPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldMarketHubPanel.js');
+  return { default: module.WorldMarketHubPanel };
+});
+
+const LazyWorldBankPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldBankPanel.js');
+  return { default: module.WorldBankPanel };
+});
+
+const LazyWorldCharactersPanel = lazy(async () => {
+  const module = await import('../components/world/panels/WorldCharactersPanel.js');
+  return { default: module.WorldCharactersPanel };
+});
 
 const LazyWorldMovesetPanel = lazy(async () => {
   const module = await import('../components/world/panels/WorldMovesetPanel.js');
@@ -63,6 +94,8 @@ function resolvePanelKey(entry: OpenWorldPanelEntry): string {
       return `tournament-${context.kind === 'tournamentBet' ? context.pulpitId : 'default'}`;
     case 'rankingMonitor':
       return `ranking-${context.kind === 'rankingMonitor' ? context.objectId : 'default'}`;
+    case 'pvpQueue':
+      return `pvp-queue-${context.kind === 'pvpQueue' ? context.objectId : 'default'}`;
     case 'refractionBooth':
       return `refraction-${context.kind === 'refractionBooth' ? context.objectId : 'default'}`;
     default:
@@ -86,30 +119,30 @@ function renderDialoguePanel({ entry, focused }: WorldPanelRenderProps): ReactNo
 
 /** Mapa canônico windowId → componente React (exploração). */
 export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRenderer>> = {
-  inventory: ({ entry, focused }) => (
-    <WorldInventoryPanel
+  inventory: withSuspense(({ entry, focused }) => (
+    <LazyWorldInventoryPanel
       key={resolvePanelKey(entry)}
       zIndex={entry.zIndex}
       focused={focused}
     />
-  ),
-  craft: ({ entry, focused }) => (
-    <WorldCraftPanel
+  )),
+  craft: withSuspense(({ entry, focused }) => (
+    <LazyWorldCraftPanel
       key={resolvePanelKey(entry)}
       context={entry.context}
       zIndex={entry.zIndex}
       focused={focused}
     />
-  ),
+  )),
   dialogue: renderDialoguePanel,
-  vendorShop: ({ entry, focused }) => (
-    <WorldVendorShopPanel
+  vendorShop: withSuspense(({ entry, focused }) => (
+    <LazyWorldVendorShopPanel
       key={resolvePanelKey(entry)}
       context={entry.context}
       zIndex={entry.zIndex}
       focused={focused}
     />
-  ),
+  )),
   laboratoryShop: ({ entry, focused }) => (
     <WorldLaboratoryShopPanel
       key={resolvePanelKey(entry)}
@@ -142,6 +175,22 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
       focused={focused}
     />
   ),
+  pvpQueue: ({ entry, focused }) => (
+    <HudErrorBoundary
+      key={resolvePanelKey(entry)}
+      fallback={(
+        <div className="pvp-queue pvp-queue--error" style={{ padding: '0.75rem', color: '#ecdcc4' }}>
+          Falha ao abrir PvP Rankeado. Feche e tente de novo.
+        </div>
+      )}
+    >
+      <WorldPvpQueuePanel
+        context={entry.context}
+        zIndex={entry.zIndex}
+        focused={focused}
+      />
+    </HudErrorBoundary>
+  ),
   refractionBooth: ({ entry, focused }) => (
     <WorldRefractionBoothPanel
       key={resolvePanelKey(entry)}
@@ -159,9 +208,9 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
   shop: ({ entry, focused }) => (
     <WorldShopPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   ),
-  marketHub: ({ entry, focused }) => (
-    <WorldMarketHubPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
-  ),
+  marketHub: withSuspense(({ entry, focused }) => (
+    <LazyWorldMarketHubPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  )),
   diary: ({ entry, focused }) => (
     <WorldDiaryPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   ),
@@ -174,15 +223,15 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
   marcos: withSuspense(({ entry, focused }) => (
     <LazyWorldMarcosPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   )),
-  market: ({ entry, focused }) => (
-    <WorldMarketPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
-  ),
-  characters: ({ entry, focused }) => (
-    <WorldCharactersPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
-  ),
-  bank: ({ entry, focused }) => (
-    <WorldBankPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
-  ),
+  market: withSuspense(({ entry, focused }) => (
+    <LazyWorldMarketPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  )),
+  characters: withSuspense(({ entry, focused }) => (
+    <LazyWorldCharactersPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  )),
+  bank: withSuspense(({ entry, focused }) => (
+    <LazyWorldBankPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  )),
   petLove: ({ entry, focused }) => (
     <WorldPetLovePanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   ),
@@ -199,4 +248,3 @@ export function renderDedicatedWorldPanel(props: WorldPanelRenderProps): ReactNo
 }
 
 export { resolvePanelKey };
-

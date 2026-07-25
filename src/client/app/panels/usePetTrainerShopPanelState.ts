@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   getPetDefinition,
   PET_KIND_ORDER,
@@ -13,9 +13,11 @@ import {
   type PetGenderId,
 } from '../../../shared/pet/petGender.js';
 import { resolvePetPurchaseQuote } from '../../../shared/economy/petTrainerService.js';
+import type { PlayerPetRosterSnapshot } from '../../../shared/pet/petRoster.js';
 import { getPlayerPetStore } from '../../ui/pet/playerPetStore.js';
+import { getPlayerWalletStore } from '../../ui/wallet/playerWalletStore.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
-import { usePlayerData } from '../store/gameStore.js';
+import { usePlayerGold } from '../store/gameStore.js';
 
 export type PetTrainerShopView = {
   readonly vendorId: string;
@@ -31,21 +33,33 @@ export function resolvePetTrainerFromContext(
       vendorName: context.vendorName,
     };
   }
-  return { vendorId: 'treinador_zeno', vendorName: 'Treinador Zeno' };
+  return { vendorId: 'treinador_zeno', vendorName: 'Treinadora Zena' };
 }
 
 export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
-  const { gold } = usePlayerData();
+  const gold = usePlayerGold();
+  const [walletVolts, setWalletVolts] = useState(
+    () => getPlayerWalletStore().getSnapshot().dollarVolt,
+  );
+  const [roster, setRoster] = useState<PlayerPetRosterSnapshot>(
+    () => getPlayerPetStore().getRoster(),
+  );
   const [selectedKind, setSelectedKind] = useState<PetKindId | null>(null);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [petName, setPetName] = useState('');
   const [selectedColor, setSelectedColor] = useState<PetColorId | null>(null);
   const [selectedGender, setSelectedGender] = useState<PetGenderId>(getDefaultPetGenderId());
 
-  const roster = useMemo(
-    () => getPlayerPetStore().getRoster(),
-    [gold.dollarVolt],
-  );
+  useEffect(() => {
+    const unsubRoster = getPlayerPetStore().subscribeRoster(setRoster);
+    const unsubWallet = getPlayerWalletStore().subscribe((snapshot) => {
+      setWalletVolts(snapshot.dollarVolt);
+    });
+    return () => {
+      unsubRoster();
+      unsubWallet();
+    };
+  }, []);
 
   const ownedKinds = useMemo(() => {
     const set = new Set<PetKindId>();
@@ -57,9 +71,25 @@ export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
 
   const isKindOwned = (kindId: PetKindId): boolean => ownedKinds.has(kindId);
 
+  const firstAvailableKind = useMemo(
+    () => PET_KIND_ORDER.find((kindId) => !ownedKinds.has(kindId)) ?? null,
+    [ownedKinds],
+  );
+
+  useEffect(() => {
+    setSelectedKind((current) => {
+      if (current && !ownedKinds.has(current)) return current;
+      return firstAvailableKind;
+    });
+  }, [firstAvailableKind, ownedKinds]);
+
   const selectedDefinition = selectedKind ? getPetDefinition(selectedKind) : null;
   const selectedQuote = selectedKind ? resolvePetPurchaseQuote(selectedKind) : null;
-  const canPurchase = Boolean(selectedKind && !isKindOwned(selectedKind));
+  const canPurchase = Boolean(
+    selectedKind
+    && !isKindOwned(selectedKind)
+    && walletVolts >= (selectedQuote?.priceVolts ?? Number.POSITIVE_INFINITY),
+  );
 
   const selectKind = (kindId: PetKindId) => {
     if (isKindOwned(kindId)) return;
@@ -89,6 +119,7 @@ export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
   return {
     vendor,
     gold,
+    walletVolts,
     roster,
     kindOrder: PET_KIND_ORDER,
     selectedKind,
@@ -99,6 +130,7 @@ export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
     selectedColor: effectiveColor,
     selectedGender,
     canPurchase,
+    firstAvailableKind,
     isKindOwned,
     selectKind,
     openCustomize,

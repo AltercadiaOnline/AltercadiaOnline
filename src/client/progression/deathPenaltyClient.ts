@@ -4,6 +4,8 @@ import {
   type DeathPenaltyOutcome,
 } from '../../shared/progression/ProgressionPenaltyManager.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
+import { getMockEconomyService } from '../economy/economyLayer.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { getPlayerProfileStore } from '../ui/character/playerProfileStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
@@ -61,13 +63,17 @@ export function mirrorDeathPenaltyOutcome(
   );
   getMutableDataStore().bumpRevision('movesProgression');
   showDeathPenaltyBattleLogAlert();
+
+  if (isLocalGameMode()) {
+    getMockEconomyService()?.persistLocalSave();
+  }
 }
 
 export function resetDeathPenaltyMirrorGuard(): void {
   lastMirroredDeathPenaltyBattleId = null;
 }
 
-/** Mock/local — aplica penalidade no cliente (dev offline). */
+/** Mock legado — aplica penalidade no cliente (sem LocalCombatAuthority). */
 export function applyDeathPenaltyToPlayer(): DeathPenaltyOutcome {
   const outcome = buildDeathPenaltyOutcome();
 
@@ -100,7 +106,9 @@ export function showDeathPenaltyBattleLogAlert(): void {
 }
 
 export function handleBattleDefeatPenalty(): DeathPenaltyOutcome {
-  if (!canApplyLocalGameplayMutations(getActionDispatcher().getMode())) {
+  // Local L1 / online: deathPenaltyOutcome já veio no COMBAT_FINISHED.
+  // Só mock legado recalcula no cliente.
+  if (isLocalGameMode() || !canApplyLocalGameplayMutations(getActionDispatcher().getMode())) {
     return buildDeathPenaltyOutcome();
   }
 

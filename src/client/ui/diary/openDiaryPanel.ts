@@ -1,6 +1,6 @@
-import { windowManager } from '../../app/panels/worldWindowController.js';
+import { openWorldWindow } from '../../app/panels/worldWindowController.js';
 
-/** Abre o Diário de Memórias (item soulbound) via painel React. */
+/** Diário de Memórias vive na Ficha do Personagem (conquistas) — não é painel/item separado. */
 export function openDiaryPanel(): void {
-  windowManager.open('diary');
+  openWorldWindow('characters');
 }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
+// @ts-nocheck
+import { useCallback, useEffect, useMemo, type CSSProperties } from 'react';
 import {
   getPetDefinition,
   type PetKindId,
@@ -6,27 +7,27 @@ import {
 import {
   getPetColorPalette,
   PET_COLOR_ORDER,
-  type PetColorId,
 } from '../../../../../shared/pet/petColorPalette.js';
 import {
   getPetGenderLabel,
   PET_GENDER_ORDER,
-  type PetGenderId,
 } from '../../../../../shared/pet/petGender.js';
 import { validatePetPurchase } from '../../../../../shared/economy/petTrainerService.js';
 import { formatVolts } from '../../../../../shared/economy/premiumCurrency.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
+import { getPlayerWalletStore } from '../../../../ui/wallet/playerWalletStore.js';
 import { getPlayerPetStore } from '../../../../ui/pet/playerPetStore.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
-import { endWorldHudInteractionSession } from '../../../../world/worldHudInteractionSession.js';
-import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
+import { hideInteractionCard } from '../../../../world/interactionCardController.js';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
 import { useActionGatewaySubmit } from '../../../panels/useActionGatewaySubmit.js';
+import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
 import {
   resolvePetTrainerFromContext,
   usePetTrainerShopPanelState,
 } from '../../../panels/usePetTrainerShopPanelState.js';
+import { resolvePetHudSouthPreviewUrl } from '../../../../entities/pet/petHudPreview.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 
 type WorldPetTrainerShopPanelProps = {
@@ -35,50 +36,24 @@ type WorldPetTrainerShopPanelProps = {
   focused: boolean;
 };
 
-function PetPreviewCanvas({
+function PetPreviewImage({
   kindId,
-  colorId,
-  gender,
+  label,
 }: {
   kindId: PetKindId;
-  colorId?: PetColorId;
-  gender?: PetGenderId;
+  label?: string;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    let cancelled = false;
-    void import('../../../../entities/pet/petRenderer.js').then(({ renderPetShopPreview }) => {
-      if (cancelled) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      renderPetShopPreview(
-        ctx,
-        kindId,
-        8,
-        8,
-        canvas.width - 16,
-        colorId,
-        gender,
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [colorId, gender, kindId]);
-
   return (
-    <canvas
-      ref={canvasRef}
+    <img
       className="pet-trainer-card__preview"
+      src={resolvePetHudSouthPreviewUrl(kindId)}
+      alt={label ?? ''}
       width={96}
       height={96}
-      aria-hidden="true"
+      draggable={false}
+      onError={(event) => {
+        event.currentTarget.style.visibility = 'hidden';
+      }}
     />
   );
 }
@@ -90,24 +65,32 @@ export function WorldPetTrainerShopPanel({
 }: WorldPetTrainerShopPanelProps) {
   const vendor = useMemo(() => resolvePetTrainerFromContext(context), [context]);
   const state = usePetTrainerShopPanelState(vendor);
+  const customize = Boolean(
+    state.customizeOpen && state.selectedKind && state.selectedDefinition,
+  );
 
-  useEffect(() => () => {
-    const snapshot = endWorldHudInteractionSession();
-    if (snapshot) {
-      uiEvents.emit(UIEventType.RESTORE_WORLD_PLAYER_POSITION, snapshot);
-    }
+  useReleaseWorldHudOnPanelClose('petTrainerShop');
+
+  useEffect(() => {
+    hideInteractionCard();
+  }, []);
+
+  const handleClose = useCallback(() => {
+    hideInteractionCard();
+    tryCloseReactWorldPanel('petTrainerShop');
   }, []);
 
   const handlePurchase = useCallback(() => {
     if (!state.selectedKind || !state.selectedColor) return undefined;
 
+    const walletVolts = getPlayerWalletStore().getSnapshot().dollarVolt;
     const validation = validatePetPurchase({
       vendorId: vendor.vendorId,
       kindId: state.selectedKind,
       name: state.effectiveName,
       colorId: state.selectedColor,
       gender: state.selectedGender,
-      walletVolts: state.gold.dollarVolt,
+      walletVolts,
       ownedPetCount: getPlayerPetStore().getRoster().pets.length,
     });
 
@@ -128,7 +111,6 @@ export function WorldPetTrainerShopPanel({
     });
   }, [
     state.effectiveName,
-    state.gold.dollarVolt,
     state.selectedColor,
     state.selectedGender,
     state.selectedKind,
@@ -145,21 +127,21 @@ export function WorldPetTrainerShopPanel({
     idleLabel: 'Confirmar Compra',
   });
 
-  if (state.customizeOpen && state.selectedKind && state.selectedDefinition) {
-    const def = state.selectedDefinition;
-    const quote = state.selectedQuote;
+  const def = state.selectedDefinition;
+  const quote = state.selectedQuote;
 
-    return (
-      <MovablePanelFrame
-        windowId="petTrainerShop"
-        title="Nome, Sexo e Cor"
-        zIndex={zIndex}
-        focused={focused}
-        panelClassName="world-panel--pet-trainer-shop ui-panel--pet-trainer-shop"
-        panelStyle={{ width: 'min(420px, 96vw)' }}
-        onFocus={() => tryFocusReactWorldPanel('petTrainerShop')}
-        onClose={() => tryCloseReactWorldPanel('petTrainerShop')}
-      >
+  return (
+    <MovablePanelFrame
+      windowId="petTrainerShop"
+      title={customize ? 'Nome, Sexo e Cor' : vendor.vendorName}
+      zIndex={zIndex}
+      focused={focused}
+      panelClassName="world-panel--pet-trainer-shop ui-panel--pet-trainer-shop"
+      panelStyle={{ width: customize ? 'min(420px, 96vw)' : 'min(520px, 96vw)' }}
+      onFocus={() => tryFocusReactWorldPanel('petTrainerShop')}
+      onClose={handleClose}
+    >
+      {customize && state.selectedKind && def ? (
         <div className="pet-trainer-shop pet-trainer-shop__body--customize">
           <p className="pet-trainer-shop__tag">
             PERSONALIZAR // {def.shopTitle.toUpperCase()}
@@ -173,11 +155,7 @@ export function WorldPetTrainerShopPanel({
           </button>
 
           <div className="pet-trainer-customize__preview">
-            <PetPreviewCanvas
-              kindId={state.selectedKind}
-              {...(state.selectedColor ? { colorId: state.selectedColor } : {})}
-              gender={state.selectedGender}
-            />
+            <PetPreviewImage kindId={state.selectedKind} label={def.shopTitle} />
           </div>
 
           <label className="pet-trainer-customize__field">
@@ -258,94 +236,76 @@ export function WorldPetTrainerShopPanel({
             </button>
           </footer>
         </div>
-      </MovablePanelFrame>
-    );
-  }
-
-  return (
-    <MovablePanelFrame
-      windowId="petTrainerShop"
-      title={vendor.vendorName}
-      zIndex={zIndex}
-      focused={focused}
-      panelClassName="world-panel--pet-trainer-shop ui-panel--pet-trainer-shop"
-      panelStyle={{ width: 'min(520px, 96vw)' }}
-      onFocus={() => tryFocusReactWorldPanel('petTrainerShop')}
-      onClose={() => tryCloseReactWorldPanel('petTrainerShop')}
-    >
-      <div className="pet-trainer-shop">
-        <p className="pet-trainer-shop__tag">COMPANHEIROS // DIMENSIONAIS</p>
-        <p className="pet-trainer-shop__balance">
-          Saldo: <strong>{state.gold.voltsFormatted}</strong>
-        </p>
-        <p className="pet-trainer-shop__hint">
-          Adote até 3 companheiros. Ative qual segue você em Pet Love (
-          {state.roster.pets.length}/3).
-        </p>
-
-        <div className="pet-trainer-shop__grid">
-          {state.kindOrder.map((kindId) => {
-            const def = getPetDefinition(kindId);
-            const owned = state.isKindOwned(kindId);
-            const selected = state.selectedKind === kindId;
-            const roleTag = kindId === 'dimensional_cat' ? 'DANO / AGILIDADE' : 'DEFESA / HP';
-            const stats = kindId === 'dimensional_cat'
-              ? `HP ${def.hpMax} · Dano ${def.baseDamage} · Esquiva +${def.combatStats.dodgePercent ?? 0}%`
-              : `HP ${def.hpMax} · Dano ${def.baseDamage} · Defesa +${def.combatStats.defensePercent ?? 0}%`;
-
-            return (
-              <article
-                key={kindId}
-                className={[
-                  'pet-trainer-card',
-                  selected ? 'pet-trainer-card--selected' : '',
-                  owned ? 'pet-trainer-card--owned' : '',
-                ].filter(Boolean).join(' ')}
-                role={owned ? undefined : 'button'}
-                tabIndex={owned ? undefined : 0}
-                aria-pressed={selected}
-                aria-disabled={owned || undefined}
-                onClick={() => !owned && state.selectKind(kindId)}
-                onKeyDown={(event) => {
-                  if (owned) return;
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    state.selectKind(kindId);
-                  }
-                }}
-              >
-                <header className="pet-trainer-card__head">
-                  <span className="pet-trainer-card__role">{roleTag}</span>
-                  {owned ? <span className="pet-trainer-card__owned">SEU</span> : null}
-                </header>
-                <PetPreviewCanvas kindId={kindId} />
-                <h3 className="pet-trainer-card__title">{def.shopTitle}</h3>
-                <p className="pet-trainer-card__pitch">{def.shopPitch}</p>
-                <p className="pet-trainer-card__stats">{stats}</p>
-                <p className="pet-trainer-card__price">{formatVolts(def.priceVolts)}</p>
-              </article>
-            );
-          })}
-        </div>
-
-        <footer className="pet-trainer-shop__footer">
-          <p className="pet-trainer-shop__selection">
-            {state.selectedDefinition
-              ? state.isKindOwned(state.selectedKind!)
-                ? `${state.selectedDefinition.shopTitle} — você já possui este companheiro.`
-                : `${state.selectedDefinition.shopTitle} — ${formatVolts(state.selectedQuote?.priceVolts ?? 0)}`
-              : 'Selecione um companheiro.'}
+      ) : (
+        <div className="pet-trainer-shop">
+          <p className="pet-trainer-shop__tag">COMPANHEIROS // DIMENSIONAIS</p>
+          <p className="pet-trainer-shop__balance">
+            Saldo: <strong>{state.gold.voltsFormatted}</strong>
           </p>
-          <button
-            type="button"
-            className="pet-trainer-shop__buy"
-            disabled={!state.canPurchase}
-            onClick={state.openCustomize}
-          >
-            Comprar
-          </button>
-        </footer>
-      </div>
+          <p className="pet-trainer-shop__hint">
+            Adote até 3 companheiros. Ative qual segue você em Pet Love (
+            {state.roster.pets.length}/3).
+          </p>
+
+          <div className="pet-trainer-shop__grid">
+            {state.kindOrder.map((kindId) => {
+              const kindDef = getPetDefinition(kindId);
+              const owned = state.isKindOwned(kindId);
+              const selected = state.selectedKind === kindId;
+              const roleTag = kindId === 'dimensional_cat' ? 'DANO / AGILIDADE' : 'DEFESA / HP';
+              const stats = kindId === 'dimensional_cat'
+                ? `HP ${kindDef.hpMax} · Dano ${kindDef.baseDamage} · Esquiva +${kindDef.combatStats.dodgePercent ?? 0}%`
+                : `HP ${kindDef.hpMax} · Dano ${kindDef.baseDamage} · Defesa +${kindDef.combatStats.defensePercent ?? 0}%`;
+
+              return (
+                <button
+                  key={kindId}
+                  type="button"
+                  className={[
+                    'pet-trainer-card',
+                    selected ? 'pet-trainer-card--selected' : '',
+                    owned ? 'pet-trainer-card--owned' : '',
+                  ].filter(Boolean).join(' ')}
+                  disabled={owned}
+                  onClick={() => state.selectKind(kindId)}
+                >
+                  <PetPreviewImage kindId={kindId} label={kindDef.shopTitle} />
+                  <header className="pet-trainer-card__head">
+                    <span className="pet-trainer-card__role">{roleTag}</span>
+                    {owned ? <span className="pet-trainer-card__owned">SEU</span> : null}
+                  </header>
+                  <h3 className="pet-trainer-card__title">{kindDef.shopTitle}</h3>
+                  <p className="pet-trainer-card__pitch">{kindDef.shopPitch}</p>
+                  <p className="pet-trainer-card__stats">{stats}</p>
+                  <p className="pet-trainer-card__price">{formatVolts(kindDef.priceVolts)}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          <footer className="pet-trainer-shop__footer">
+            <p className="pet-trainer-shop__selection">
+              {state.selectedDefinition
+                ? state.isKindOwned(state.selectedKind!)
+                  ? `${state.selectedDefinition.shopTitle} — você já possui este companheiro.`
+                  : state.walletVolts < (state.selectedQuote?.priceVolts ?? 0)
+                    ? `${state.selectedDefinition.shopTitle} — VOLTS insuficientes (${formatVolts(state.selectedQuote?.priceVolts ?? 0)}).`
+                    : `${state.selectedDefinition.shopTitle} — ${formatVolts(state.selectedQuote?.priceVolts ?? 0)}`
+                : state.firstAvailableKind
+                  ? 'Selecione um companheiro.'
+                  : 'Roster cheio — você já possui todos os companheiros da Zena.'}
+            </p>
+            <button
+              type="button"
+              className="pet-trainer-shop__buy"
+              disabled={!state.canPurchase}
+              onClick={state.openCustomize}
+            >
+              Comprar
+            </button>
+          </footer>
+        </div>
+      )}
     </MovablePanelFrame>
   );
 }

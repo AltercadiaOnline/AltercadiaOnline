@@ -127,20 +127,10 @@ class PlayerWalletStore {
 
 
 
-  seedDemo(seed: { readonly dollarVolt?: number; readonly alterCoins?: number }): void {
-
-    if (this.dollarVolt === 0 && this.alterCoins === 0) {
-
-      this.applyBalances({
-
-        dollarVolt: seed.dollarVolt ?? 0,
-
-        alterCoins: seed.alterCoins ?? 0,
-
-      });
-
-    }
-
+  /** @deprecated Zero-start — ignore seed amounts; wallet starts empty. */
+  seedDemo(_seed?: { readonly dollarVolt?: number; readonly alterCoins?: number }): void {
+    if (this.dollarVolt === 0 && this.alterCoins === 0) return;
+    this.applyBalances({ dollarVolt: 0, alterCoins: 0 });
   }
 
 
@@ -316,40 +306,35 @@ class PlayerWalletStore {
 
 let store: PlayerWalletStore | null = null;
 
+type GlobalWithPlayerWalletStore = typeof globalThis & {
+  __ALTERCADIA_PLAYER_WALLET_STORE__?: PlayerWalletStore | null;
+};
 
+function getSharedWalletSlot(): GlobalWithPlayerWalletStore {
+  return globalThis as GlobalWithPlayerWalletStore;
+}
 
 export function getPlayerWalletStore(): PlayerWalletStore {
-
-  if (!store) store = new PlayerWalletStore();
-
+  const g = getSharedWalletSlot();
+  if (!g.__ALTERCADIA_PLAYER_WALLET_STORE__) {
+    g.__ALTERCADIA_PLAYER_WALLET_STORE__ = new PlayerWalletStore();
+  }
+  store = g.__ALTERCADIA_PLAYER_WALLET_STORE__;
   return store;
-
 }
-
-
 
 /** Alias semântico — HUD e serviços escutam mudanças de saldo aqui. */
-
 export function onBalanceChanged(listener: BalanceListener): () => void {
-
   return getPlayerWalletStore().subscribe(listener);
-
 }
-
-
 
 export function initPlayerWalletStore(): PlayerWalletStore {
-
   return getPlayerWalletStore();
-
 }
-
-
 
 export function resetPlayerWalletStore(): void {
-
+  const g = getSharedWalletSlot();
+  g.__ALTERCADIA_PLAYER_WALLET_STORE__ = null;
   store = null;
-
 }
-
 

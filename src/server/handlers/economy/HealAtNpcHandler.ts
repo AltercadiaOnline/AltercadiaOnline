@@ -25,7 +25,11 @@ export class HealAtNpcHandler extends BaseIntentHandler<HealAtNpcPayload> {
       return;
     }
 
-    this.sendResponse(playerId, intentId, true);
+    this.sendResponse(playerId, intentId, true, {
+      vitals: result.vitals,
+      message: result.message,
+      voltsCost: result.voltsCost,
+    });
   }
 }
 

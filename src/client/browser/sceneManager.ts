@@ -2,13 +2,8 @@ import type { GameState } from '../../shared/game/gameState.js';
 import { GameState as GameStateValue } from '../../shared/game/gameState.js';
 import { getGameStateManager } from '../../shared/state/GameStateManager.js';
 import { syncReactBattleHudVisibility, syncReactHudVisibility } from '../app/shell/clientArchitecture.js';
-import { syncPhaserSceneForGameState } from '../phaser/phaserSceneRouter.js';
-import {
-  beginBattleEnterSceneFade,
-  completeBattleEnterSceneFadeIfPending,
-  resetBattleSceneTransitionFade,
-} from '../phaser/battle/battleSceneTransitionFade.js';
-import { isPhaserRenderEngineActive } from '../app/bridge/renderLayerBridge.js';
+import { syncWorldRenderForGameState } from '../worldRender/syncWorldRenderForGameState.js';
+import { updateScale } from '../layout/gameLayout.js';
 import type { MapManager } from '../managers/mapManager.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
@@ -44,6 +39,15 @@ function syncWorldDomOverlayLayersVisible(visible: boolean): void {
   }
 }
 
+/**
+ * Arena de batalha = DOM side-view; Construct só renderiza exploração.
+ * Em TRANSITIONING/BATTLE o #game-render-column sai de cena via CSS
+ * (body.battle-arena-active — ver styles.css).
+ */
+function syncBattleArenaBodyFlag(active: boolean): void {
+  document.body.classList.toggle('battle-arena-active', active);
+}
+
 /** Remonta #scene-exploration no #game-container e garante visibilidade. */
 export function mountWorldMapScene(container: ParentNode = document): void {
   if (detachedWorldMap) {
@@ -73,16 +77,16 @@ export function unmountWorldMapScene(): void {
 
 /**
  * Isolamento de renderização:
- * - EXPLORATION: chrome de exploração visível; render host compartilhado em #game-render-column
- * - TRANSITIONING / BATTLE: chrome de exploração oculto; Phaser permanece em #game-render-column
+ * - EXPLORATION: Construct em #world-mount-root (#game-render-column);
+ *   #scene-exploration é shell legado transparente (não cobre o iframe).
+ * - TRANSITIONING / BATTLE: chrome de exploração oculto; Construct modo battle + HUD React
  */
 export function applyGameStateToScenes(state: GameState): void {
   const combat = document.getElementById('scene-combat');
   const transition = document.getElementById('scene-transition');
 
   if (state === GameStateValue.Exploration) {
-    document.body.removeAttribute('data-phaser-render-fade');
-    resetBattleSceneTransitionFade();
+    syncBattleArenaBodyFlag(false);
     mountWorldMapScene();
     const exploration = document.getElementById(WORLD_MAP_SCENE_ID);
     if (exploration) revealExplorationScene(exploration);
@@ -93,12 +97,13 @@ export function applyGameStateToScenes(state: GameState): void {
     transition?.setAttribute('aria-hidden', 'true');
     syncReactHudVisibility('game-container');
     syncReactBattleHudVisibility('game-container');
-    syncPhaserSceneForGameState(state);
+    syncWorldRenderForGameState(state);
     return;
   }
 
   hideExplorationScene();
   syncWorldDomOverlayLayersVisible(false);
+  syncBattleArenaBodyFlag(true);
 
   if (state === GameStateValue.Transitioning) {
     combat?.classList.add('hidden');
@@ -117,8 +122,12 @@ export function applyGameStateToScenes(state: GameState): void {
     transition?.setAttribute('aria-hidden', 'true');
     syncReactHudVisibility('game-container');
     syncReactBattleHudVisibility('game-container');
-    syncPhaserSceneForGameState(state);
-    void completeBattleEnterSceneFadeIfPending();
+    syncWorldRenderForGameState(state);
+    // Letterbox 640×360 na coluna sem sidebar.
+    requestAnimationFrame(() => {
+      updateScale();
+      requestAnimationFrame(() => updateScale());
+    });
   }
 }
 
@@ -149,13 +158,6 @@ export function handlePortalTrigger(
 }
 
 export async function enterBattleWithFade(): Promise<void> {
-  if (isPhaserRenderEngineActive()) {
-    document.body.dataset.phaserRenderFade = '1';
-    await beginBattleEnterSceneFade();
-    return;
-  }
-
-  document.body.removeAttribute('data-phaser-render-fade');
   const { getBattleScreen } = await import('../hud/index.js');
   await getBattleScreen()?.enterWithFade();
 }

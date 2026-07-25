@@ -17,7 +17,7 @@ import { findCompatibleEquipmentUiSlot } from '../../../shared/character/equipIt
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { reportTransactionFailure } from '../../core/GameTransactionCoordinator.js';
 import { getGameStore } from '../../state/GameStore.js';
-import { isSyncPending } from '../../core/gameStoreSelectors.js';
+import { hasPendingItemMutation } from '../../ui/items/itemMutationPendingUi.js';
 
 export type InventoryActionResult = {
   readonly ok: boolean;
@@ -29,7 +29,8 @@ function dispatchInventoryAction(
   action: Parameters<ReturnType<typeof getActionDispatcher>['dispatch']>[0],
   fallbackMessage: string,
 ): InventoryActionResult {
-  if (isSyncPending()) {
+  // Só bloqueia se já há equip/desequip em voo — não loot, craft, banco, etc.
+  if (hasPendingItemMutation()) {
     const message = 'Aguarde a sincronização do inventário.';
     reportTransactionFailure(null, message, message);
     return { ok: false, reason: message };
@@ -95,7 +96,7 @@ export function toggleItemSlot(
 }
 
 export function isInventoryMutationPending(): boolean {
-  return getGameStore().hasPendingActions();
+  return hasPendingItemMutation();
 }
 
 export function deleteItemFromInventory(

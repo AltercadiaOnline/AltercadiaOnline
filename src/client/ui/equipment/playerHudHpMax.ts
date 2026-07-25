@@ -1,6 +1,6 @@
 import type { CombatLoadoutResolveInput } from '../../../shared/combat/combatLoadoutResolver.js';
 import { resolvePlayerHpMaxFromLoadoutInput } from '../../../shared/character/resolvePlayerHpMax.js';
-import { clampPlayerHpCurrent } from '../../../shared/character/playerVitals.js';
+import { applyPlayerHpMaxChange } from '../../../shared/character/playerVitals.js';
 import type { EquippedSlots } from '../../../shared/character/equipmentState.js';
 import type { ClassType } from '../../../shared/types/classes.js';
 import type { MarcosNodeProgressionData } from '../../../shared/progression/marcoProgression.js';
@@ -47,24 +47,35 @@ export function resolveHudPlayerHpMaxFromStores(): number {
   );
 }
 
-/** Alinha hpMax da HUD lateral com o combate (equipamento, marcos, loadout). */
-export function refreshHudPlayerHpMax(): void {
-  const hpMax = resolveHudPlayerHpMaxFromStores();
-  const equip = getPlayerEquipmentStore().getSnapshot();
-  const hpCurrent = clampPlayerHpCurrent(equip.vitals.hpCurrent, hpMax);
-  const current = getPlayerEquipmentStore().getSnapshot().vitals;
-  const global = getGlobalPlayerStore().getWorldVitals();
-  if (
-    current.hpMax === hpMax &&
-    current.hpCurrent === hpCurrent &&
-    global.hpMax === hpMax &&
-    global.hpCurrent === hpCurrent
-  ) {
-    return;
-  }
+let refreshInFlight = false;
 
-  getPlayerEquipmentStore().setVitals({ hpMax, hpCurrent });
-  getGlobalPlayerStore().syncWorldVitalsFromEquipment();
+/** Alinha hpMax da HUD com o combate; ganho de buff preenche o HP atual (ex.: 112/112). */
+export function refreshHudPlayerHpMax(): void {
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+  try {
+    const hpMax = resolveHudPlayerHpMaxFromStores();
+    const current = getPlayerEquipmentStore().getSnapshot().vitals;
+    const previousMax = current.hpMax > 0 ? current.hpMax : hpMax;
+    const hpCurrent = applyPlayerHpMaxChange(current.hpCurrent, previousMax, hpMax);
+
+    if (current.hpMax !== hpMax || current.hpCurrent !== hpCurrent) {
+      getPlayerEquipmentStore().setVitals({ hpMax, hpCurrent });
+    }
+
+    const global = getGlobalPlayerStore().getWorldVitals();
+    const equipVitals = getPlayerEquipmentStore().getSnapshot().vitals;
+    if (
+      global.hpMax !== equipVitals.hpMax
+      || global.hpCurrent !== equipVitals.hpCurrent
+      || global.mpMax !== equipVitals.mpMax
+      || global.mpCurrent !== equipVitals.mpCurrent
+    ) {
+      getGlobalPlayerStore().syncWorldVitalsFromEquipment();
+    }
+  } finally {
+    refreshInFlight = false;
+  }
 }
 
 export function initPlayerHudHpMaxSync(): void {

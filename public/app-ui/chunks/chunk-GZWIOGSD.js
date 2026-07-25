@@ -1,0 +1,1 @@
+import{aa as o,na as c}from"./chunk-CNXGVQW4.js";var E={city_01:{mapId:"city_01",constructX:124,constructY:232,widthPx:250,heightPx:250}};var _=E;function C(n,r=o.TILE.SIZE){let t=_[n];return t?c(t.constructX,t.constructY,r,r):null}export{C as a};

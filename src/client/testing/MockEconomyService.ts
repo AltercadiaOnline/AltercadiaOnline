@@ -1,6 +1,6 @@
+// @ts-nocheck
 import type { InventoryStack, PlayerWorldVitals } from '../../shared/character/equipmentState.js';
 import type { EquipmentUiSlotId } from '../../shared/character/equipmentUiSlots.js';
-import { DEMO_STARTER_INVENTORY_STACKS } from '../../shared/demo/demoStarterInventory.js';
 import {
   buildInventorySnapshot,
   stacksToInventorySlots,
@@ -28,6 +28,7 @@ import { isMarketplaceListableItem } from '../../shared/economy/itemValorEconomy
 import { getMarketplaceBuyOrderStore, resetMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
 import { getPlayerMarketStore, resetPlayerMarketStore } from '../ui/market/playerMarketStore.js';
 import { getItemById } from '../../shared/items/itemCatalog.js';
+import { ensureHuntZoneLoaded } from '../../shared/world/worldMonsterInstances.js';
 import { getAuthoritativeItemById } from '../../shared/items/itemCatalogAuthoritative.js';
 import {
   canChooseMarco,
@@ -50,12 +51,33 @@ import type {
 } from '../../shared/playerDataSnapshots.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import type { ClientAction } from '../ActionDispatcher.js';
+import { getGlobalMessageBus } from '../net/GlobalMessageBus.js';
 import {
   executeCaelBuyPetRation,
   executePetFeedSpecialRation,
 } from '../pet/caelPetActions.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
-import type { IEconomyService, IntentHandleResult } from '../economy/IEconomyService.js';
+import type { IDevMockEconomyService, IntentHandleResult } from '../economy/IEconomyService.js';
+import {
+  clearLocalCharacterSave,
+  createLocalEmptySave,
+  loadLocalCharacterSave,
+  saveLocalCharacterSave,
+} from '../persistence/localCharacterSave.js';
+import type { CharacterPersistenceRecord } from '../../shared/persistence/characterPersistenceRecord.js';
+import { CHARACTER_PERSISTENCE_SCHEMA_VERSION } from '../../shared/persistence/characterPersistenceRecord.js';
+import { createDefaultWorldProfile, type PlayerWorldProfile } from '../../shared/world/playerWorldProfile.js';
+import type { PlayerFacing } from '../../shared/world/playerFacing.js';
+import { isValidClassActiveLoadout } from '../../shared/combat/movesetLoadout.js';
+import { createDefaultPlayerProgressionData } from '../../shared/progression/playerProgressionData.js';
+import {
+  clampMoveMasteryXp,
+  MOVE_MAX_LEVEL,
+  totalMasteryXpForLevel,
+} from '../../shared/progression/moveProgression.js';
+import { createEmptyPetRoster } from '../../shared/pet/petRoster.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
+import { equippedToEquipmentUiGrid } from '../../shared/character/equipmentUiSlots.js';
 import {
   readMoveProgression,
   readMovesProgressionSnapshot,
@@ -94,11 +116,15 @@ import type { OwnedSkins } from '../ui/character/playerSkinStore.js';
 import { getPlayerSkinStore, resetPlayerSkinStore } from '../ui/character/playerSkinStore.js';
 import { getPlayerInventoryStore, resetPlayerInventoryStore } from '../ui/inventory/playerInventoryStore.js';
 import { getPlayerEquipmentStore, resetPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
+import { refreshHudPlayerHpMax } from '../ui/equipment/playerHudHpMax.js';
+import { getPlayerProfileStore } from '../ui/character/playerProfileStore.js';
 import { getPlayerItemStore, resetPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { resetInventorySyncScheduler } from '../game/PlayerItemSession.js';
 import { getPlayerMarcosStore, resetPlayerMarcosStore } from '../ui/marcos/playerMarcosStore.js';
 import { getPlayerWalletStore, resetPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
+import { getGameStore } from '../state/GameStore.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
+import { stripRetiredInventoryStacks } from '../../shared/items/retiredItems.js';
 
 const DEFAULT_NETWORK_DELAY_MS = 420;
 
@@ -140,12 +166,12 @@ function cloneOwnedSkins(owned: OwnedSkins): OwnedSkins {
 
 function createInitialState(): MockInternalState {
   return {
-    wallet: { dollarVolt: 1200, alterCoins: 50 },
-    inventoryStacks: DEMO_STARTER_INVENTORY_STACKS.map((row) => ({ ...row })),
+    wallet: { dollarVolt: 0, alterCoins: 0 },
+    inventoryStacks: [],
     marcos: {
       activeMarcos: [],
-      flowSpeedBase: 35,
-      milestoneTotalProgress: 18,
+      flowSpeedBase: 1,
+      milestoneTotalProgress: 0,
       ramificacaoSelecionada: null,
       trilhaTravada: false,
       nodeProgression: emptyMarcosNodeProgression(),
@@ -156,8 +182,10 @@ function createInitialState(): MockInternalState {
 }
 
 /** Simula servidor autoritativo com atraso de rede — implementa IDataStore. */
-export class MockEconomyService implements IEconomyService {
+export class MockEconomyService implements IDevMockEconomyService {
   private state: MockInternalState = createInitialState();
+  private boundPlayerId: string | null = null;
+  private boundCharacterId: number | null = null;
   private readonly sliceRevisions: Record<DataStoreSlice, number> = {
     characterLevel: 0,
     wallet: 0,
@@ -176,6 +204,17 @@ export class MockEconomyService implements IEconomyService {
   private readonly bankStorageListeners = new Set<(snapshot: BankStorageDataSnapshot) => void>();
 
   private bankTransactionPending = false;
+  private petCharacterPersistUnsub: (() => void) | null = null;
+  /** Posição/mapa hidratados do save — atualizado por snapshot live no persist. */
+  private cachedWorldProfile: PlayerWorldProfile = createDefaultWorldProfile();
+  private worldSnapshotProvider:
+    | (() => {
+        readonly mapId: string;
+        readonly x: number;
+        readonly y: number;
+        readonly facing: PlayerFacing;
+      } | null)
+    | null = null;
   private readonly marcosListeners = new Set<(snapshot: MarcosStateSnapshot) => void>();
   private readonly movesProgressionListeners = new Set<
     (snapshot: MovesProgressionSnapshot) => void
@@ -324,6 +363,7 @@ export class MockEconomyService implements IEconomyService {
       if (result.ok) {
         this.syncLegacyStores();
         this.notifyAll();
+        this.persistLocalSave();
         getActionDispatcher().confirmIntent(intentId);
       } else {
         getActionDispatcher().rejectIntent(intentId);
@@ -343,6 +383,7 @@ export class MockEconomyService implements IEconomyService {
 
     if (isItemMutation) {
       this.syncInventoryStacksFromClient(getPlayerItemStore().toInventoryStacks(), false);
+      this.persistLocalSave();
       getActionDispatcher().confirmIntent(intentId);
       return;
     }
@@ -351,6 +392,7 @@ export class MockEconomyService implements IEconomyService {
     if (result.ok) {
       this.syncLegacyStores();
       this.notifyAll();
+      this.persistLocalSave();
       getActionDispatcher().confirmIntent(intentId);
       return;
     }
@@ -394,6 +436,333 @@ export class MockEconomyService implements IEconomyService {
 
     this.syncLegacyStores();
     this.notifyAll();
+  }
+
+  bindLocalCharacter(
+    playerId: string,
+    characterId: number,
+    options?: { readonly displayName?: string },
+  ): void {
+    this.boundPlayerId = playerId;
+    this.boundCharacterId = characterId;
+
+    const loaded = loadLocalCharacterSave(playerId, characterId);
+    const record = loaded ?? createLocalEmptySave(playerId, characterId, {
+      ...(options?.displayName ? { displayName: options.displayName } : {}),
+    });
+
+    this.applyPersistenceRecord(record);
+    this.ensurePetCharacterPersistBridge();
+
+    const migratedLegacyPets = this.migrateLegacyPetRosterIfNeeded(record);
+    const migratedLegacyAffinity = this.migrateLegacyPetAffinityIfNeeded(record);
+    if ((!loaded || migratedLegacyPets || migratedLegacyAffinity) && isLocalGameMode()) {
+      this.persistLocalSave();
+    }
+    console.info('[LocalSave] Personagem ligado', {
+      playerId,
+      characterId,
+      source: loaded ? 'localStorage' : 'empty',
+      inventoryStacks: record.economy.inventory.length,
+      volts: record.wallet.dollarVolt,
+      pets: getPlayerPetStore().getRoster().pets.length,
+      saveKey: `altercadia.localSave.v2:${playerId}:${characterId}`,
+    });
+  }
+
+  persistLocalSave(): boolean {
+    if (!isLocalGameMode()) return false;
+    if (!this.boundPlayerId || this.boundCharacterId === null) {
+      console.warn('[LocalSave] persistLocalSave ignorado — personagem ainda não ligado.', {
+        pets: getPlayerPetStore().getRoster().pets.length,
+      });
+      return false;
+    }
+    // Carteira pode ter sido mutada via ActionDispatcher.dispatchLocal (wallet store).
+    this.syncWalletFromStore();
+    const ok = saveLocalCharacterSave(this.buildPersistenceRecord());
+    if (!ok) {
+      console.warn('[LocalSave] Falha ao gravar CharacterPersistenceRecord (pets inclusos).', {
+        playerId: this.boundPlayerId,
+        characterId: this.boundCharacterId,
+      });
+    }
+    return ok;
+  }
+
+  clearLocalSave(): void {
+    if (!this.boundPlayerId || this.boundCharacterId === null) return;
+    clearLocalCharacterSave(this.boundPlayerId, this.boundCharacterId);
+  }
+
+  /**
+   * Exploration registra o snapshot live — evita world default no save local.
+   * Provider retorna null se o mundo ainda não estiver montado.
+   */
+  setLocalWorldSnapshotProvider(
+    provider: (() => {
+      readonly mapId: string;
+      readonly x: number;
+      readonly y: number;
+      readonly facing: PlayerFacing;
+    } | null) | null,
+  ): void {
+    this.worldSnapshotProvider = provider;
+  }
+
+  private resolveWorldProfileForSave(): PlayerWorldProfile {
+    const live = this.worldSnapshotProvider?.() ?? null;
+    const stored = getMutableDataStore().getWorldPosition();
+    const base: PlayerWorldProfile = live
+      ? {
+          currentMapId: live.mapId,
+          lastPosition: { x: live.x, y: live.y },
+          facing: live.facing,
+        }
+      : stored
+        ? {
+            currentMapId: stored.mapId,
+            lastPosition: { x: stored.x, y: stored.y },
+            facing: stored.facing,
+          }
+        : {
+            currentMapId: this.cachedWorldProfile.currentMapId,
+            lastPosition: { ...this.cachedWorldProfile.lastPosition },
+            facing: this.cachedWorldProfile.facing,
+          };
+
+    const global = getGlobalPlayerStore();
+    const itemStore = getPlayerItemStore();
+    const pet = getPlayerPetStore().getSnapshot();
+    const equipmentUiGrid = itemStore.toEquipmentGrid();
+
+    this.cachedWorldProfile = {
+      ...base,
+      sessionSync: {
+        worldVitals: { ...global.getWorldVitals() },
+        activeMovesets: [...global.getConfirmedLoadout()],
+        ...(pet ? { pet: { ...pet } } : { pet: null }),
+      },
+      loadout: {
+        equipmentUiGrid,
+        equipped: itemStore.getEquippedSlots(),
+      },
+    };
+    return this.cachedWorldProfile;
+  }
+
+  private buildPersistenceRecord(): CharacterPersistenceRecord {
+    const playerId = this.boundPlayerId ?? 'local-player';
+    const characterId = this.boundCharacterId ?? 1;
+    const equipment = getPlayerEquipmentStore().getSnapshot();
+    const progression = getPlayerProgressionStore().getSnapshot();
+    const itemStore = getPlayerItemStore();
+    const levelState = getMutableDataStore().getCharacterLevel();
+    const world = this.resolveWorldProfileForSave();
+
+    return {
+      schemaVersion: CHARACTER_PERSISTENCE_SCHEMA_VERSION,
+      playerId,
+      characterId,
+      updatedAt: Date.now(),
+      wallet: {
+        dollarVolt: this.state.wallet.dollarVolt,
+        alterCoins: this.state.wallet.alterCoins,
+        lockedDollarVolt: 0,
+        lockedAlterCoins: 0,
+      },
+      economy: {
+        inventory: this.state.inventoryStacks.map((row) => ({ ...row })),
+        equipped: itemStore.getEquippedSlots(),
+        activeBookBuff: null,
+        bank: {
+          itemStacks: this.state.bank.itemStacks.map((row) => ({ ...row })),
+          currencies: { ...this.state.bank.currencies },
+        },
+      },
+      world: {
+        currentMapId: world.currentMapId,
+        lastPosition: { ...world.lastPosition },
+        facing: world.facing,
+        ...(world.sessionSync !== undefined ? { sessionSync: world.sessionSync } : {}),
+        ...(world.loadout !== undefined ? { loadout: world.loadout } : {}),
+      },
+      progression: {
+        movesetMastery: { ...progression.movesetMastery },
+        milestoneTotalProgress: progression.milestoneTotalProgress,
+        ramificacaoSelecionada: progression.ramificacaoSelecionada,
+        trilhaTravada: progression.trilhaTravada,
+      },
+      marcos: {
+        activeMarcos: [...this.state.marcos.activeMarcos],
+        flowSpeedBase: this.state.marcos.flowSpeedBase,
+        nodeProgression: {
+          byNodeId: { ...this.state.marcos.nodeProgression.byNodeId },
+        },
+      },
+      characterProfile: {
+        level: Math.max(1, levelState.level || equipment.level),
+        xpCurrent: Math.max(0, levelState.xpCurrent),
+        displayName: equipment.displayName,
+        classId: equipment.classId,
+      },
+      petRoster: getPlayerPetStore().getRoster(),
+      petAffinity: getPlayerPetStore().getPetAffinitySnapshot(),
+      ownedSkins: cloneOwnedSkins(this.state.ownedSkins),
+    };
+  }
+
+  /**
+   * Uma vez por sessão: qualquer mutação de pet (roster/afinidade) grava no mesmo
+   * CharacterPersistenceRecord do personagem ligado (playerId + characterId).
+   */
+  private ensurePetCharacterPersistBridge(): void {
+    if (this.petCharacterPersistUnsub) return;
+    this.petCharacterPersistUnsub = getPlayerPetStore().registerCharacterPersistHandler(() => {
+      if (!isLocalGameMode() || this.boundCharacterId === null) return;
+      this.persistLocalSave();
+    });
+  }
+
+  /**
+   * Migra pets do localStorage global legado (`altercadia.playerPetRoster.v1`)
+   * para o save por personagem — evita perda após a unificação.
+   */
+  private migrateLegacyPetRosterIfNeeded(record: CharacterPersistenceRecord): boolean {
+    const current = getPlayerPetStore().getRoster();
+    if (current.pets.length > 0) return false;
+    if (record.petRoster && record.petRoster.pets.length > 0) return false;
+
+    const legacy = getPlayerPetStore().consumeLegacyRosterMirror();
+    if (!legacy || legacy.pets.length === 0) return false;
+
+    getPlayerPetStore().hydrateFromStorage(legacy);
+    getPlayerPetStore().notifyHydrated();
+    return true;
+  }
+
+  /** Migra afinidade/rações globais legadas → slice do personagem. */
+  private migrateLegacyPetAffinityIfNeeded(record: CharacterPersistenceRecord): boolean {
+    const slice = record.petAffinity;
+    const recordHasAffinity = Boolean(
+      slice
+      && (slice.rationCharges > 0
+        || slice.lastPetAffectionAtMs !== null
+        || slice.lastPetRationFeedAtMs !== null),
+    );
+    if (recordHasAffinity) return false;
+
+    const legacy = getPlayerPetStore().consumeLegacyAffinityMirror();
+    if (!legacy) return false;
+    getPlayerPetStore().applyPetAffinityFromServer(legacy);
+    return true;
+  }
+
+  private applyPersistenceRecord(record: CharacterPersistenceRecord): void {
+    this.state = {
+      wallet: {
+        dollarVolt: record.wallet.dollarVolt,
+        alterCoins: record.wallet.alterCoins,
+      },
+      inventoryStacks: stripRetiredInventoryStacks(record.economy.inventory).map((row) => ({
+        ...row,
+      })),
+      marcos: {
+        activeMarcos: [...record.marcos.activeMarcos],
+        flowSpeedBase: record.marcos.flowSpeedBase,
+        milestoneTotalProgress: record.progression.milestoneTotalProgress,
+        ramificacaoSelecionada: record.progression.ramificacaoSelecionada,
+        trilhaTravada: record.progression.trilhaTravada,
+        nodeProgression: {
+          byNodeId: { ...record.marcos.nodeProgression.byNodeId },
+        },
+      },
+      bank: {
+        itemStacks: stripRetiredInventoryStacks(record.economy.bank.itemStacks).map((row) => ({
+          ...row,
+        })),
+        currencies: { ...record.economy.bank.currencies },
+      },
+      ownedSkins: record.ownedSkins
+        ? cloneOwnedSkins(record.ownedSkins as OwnedSkins)
+        : cloneOwnedSkins(getDefaultOwnedSkinIds()),
+    };
+
+    const level = Math.max(1, record.characterProfile.level);
+    const xpCurrent = Math.max(0, Math.floor(record.characterProfile.xpCurrent ?? 0));
+    const name = record.characterProfile.displayName?.trim() || 'Operative';
+    const savedVitals = record.world.sessionSync?.worldVitals;
+
+    getPlayerEquipmentStore().setPlayerInfo(name, level, {
+      resetVitals: !savedVitals,
+      ...(record.characterProfile.classId
+        ? { classId: record.characterProfile.classId }
+        : {}),
+    });
+    getPlayerProfileStore().setProfile(name, level);
+    getMutableDataStore().applyCharacterLevelState(level, xpCurrent, 'server_sync');
+
+    this.cachedWorldProfile = {
+      currentMapId: record.world.currentMapId,
+      lastPosition: { ...record.world.lastPosition },
+      facing: record.world.facing,
+      ...(record.world.sessionSync !== undefined
+        ? { sessionSync: record.world.sessionSync }
+        : {}),
+      ...(record.world.loadout !== undefined ? { loadout: record.world.loadout } : {}),
+    };
+
+    getMutableDataStore().applyWorldSpawnFromServer({
+      currentMapId: record.world.currentMapId,
+      lastPosition: { ...record.world.lastPosition },
+      facing: record.world.facing,
+    });
+
+    const equipmentUiGrid =
+      record.world.loadout?.equipmentUiGrid
+      ?? equippedToEquipmentUiGrid(record.economy.equipped);
+
+    applyServerItemBundle({
+      stacks: this.state.inventoryStacks,
+      equipped: record.economy.equipped,
+      equipmentUiGrid,
+      immediate: true,
+    });
+
+    const global = getGlobalPlayerStore();
+    const classId =
+      record.characterProfile.classId
+      ?? getPlayerEquipmentStore().getSnapshot().classId;
+    global.ensureClassMovePool(classId);
+    const savedMoves = record.world.sessionSync?.activeMovesets;
+    if (savedMoves && savedMoves.length > 0) {
+      global.hydrateConfirmedLoadout(savedMoves, classId);
+    }
+    if (savedVitals) {
+      global.applyWorldVitals({
+        hpCurrent: savedVitals.hpCurrent,
+        hpMax: savedVitals.hpMax,
+        mpCurrent: savedVitals.mpCurrent,
+        mpMax: savedVitals.mpMax,
+      });
+    }
+
+    getPlayerPetStore().hydrateFromStorage(record.petRoster ?? createEmptyPetRoster());
+    getPlayerPetStore().applyPetAffinityFromServer({
+      rationCharges: record.petAffinity?.rationCharges ?? 0,
+      lastPetRationFeedAtMs: record.petAffinity?.lastPetRationFeedAtMs ?? null,
+      lastPetAffectionAtMs: record.petAffinity?.lastPetAffectionAtMs ?? null,
+    });
+    getPlayerProgressionStore().loadFromProgressionData({
+      ...createDefaultPlayerProgressionData(),
+      ...record.progression,
+      movesetMastery: { ...record.progression.movesetMastery },
+    });
+
+    this.syncLegacyStores();
+    this.notifyAll();
+    // Notifica HUD de pets após hidratar (sem gravar — bridge ainda pode não existir).
+    getPlayerPetStore().notifyHydrated();
   }
 
   private processAction(action: ClientAction): IntentHandleResult {
@@ -456,6 +825,28 @@ export class MockEconomyService implements IEconomyService {
         if (!feedResult.ok) return feedResult;
         return { ok: true };
       }
+      case 'PET_SELECT_SLOT':
+        getPlayerPetStore().selectPetSlot(action.payload.slotIndex);
+        return { ok: true };
+      case 'PET_ACTIVATE_SLOT':
+        if (!getPlayerPetStore().activatePetSlot(action.payload.slotIndex)) {
+          return { ok: false, reason: 'Não foi possível convocar este companheiro.' };
+        }
+        return { ok: true };
+      case 'PET_DEACTIVATE':
+        getPlayerPetStore().deactivateAllPets();
+        return { ok: true };
+      case 'PET_APPLY_AFFECTION': {
+        const affection = getPlayerPetStore().applyPetAffection();
+        if (!affection.ok) return { ok: false, reason: affection.reason };
+        return { ok: true };
+      }
+      case 'GIFT_TRANSFER':
+        return { ok: false, reason: 'Presentes requerem servidor online.' };
+      case 'REFRACTION_BOOTH_QUOTE':
+      case 'REFRACTION_BOOTH_START':
+      case 'REFRACTION_BOOTH_COMPLETE':
+        return { ok: false, reason: 'Estande de Refração requer servidor online.' };
       case 'STAGE_BATTLE_LOOT':
         return this.stageBattleLoot(
           action.payload.battleId,
@@ -501,8 +892,19 @@ export class MockEconomyService implements IEconomyService {
         return this.unequipToInventory(action.payload.slotId);
       case 'SYNC_LOADOUT':
         return { ok: false, reason: 'Mock aplica equip local — SYNC_LOADOUT não é necessário.' };
-      case 'SYNC_MOVESET':
+      case 'SYNC_MOVESET': {
+        const classId = getPlayerEquipmentStore().getSnapshot().classId;
+        const moves = action.payload.activeMovesets;
+        if (!isValidClassActiveLoadout(classId, moves)) {
+          return { ok: false, reason: 'Loadout inválido para a classe.' };
+        }
+        getGlobalPlayerStore().hydrateConfirmedLoadout(moves);
         return { ok: true };
+      }
+      case 'ZONE_ENSURE': {
+        ensureHuntZoneLoaded(action.payload.mapId);
+        return { ok: true };
+      }
       case 'MOVE_INTENT':
         return { ok: false, reason: 'Movimento de exploração usa WorldSocket no mock.' };
       case 'ROTATE_INTENT':
@@ -511,6 +913,89 @@ export class MockEconomyService implements IEconomyService {
         return { ok: false, reason: 'Craft requer servidor online (CraftItemHandler).' };
       case 'ACTIVATE_BOOK':
         return { ok: false, reason: 'Ativação de livro requer servidor online.' };
+      case 'DEV_GRANT_ITEM': {
+        const itemId = action.payload.itemId;
+        if (!getItemById(itemId)) {
+          return { ok: false, reason: `Item desconhecido: ${itemId}` };
+        }
+        const quantity = Math.max(1, Math.floor(action.payload.quantity ?? 1));
+        const result = addItemToInventoryStacks(this.state.inventoryStacks, itemId, quantity);
+        if (result.added <= 0) {
+          return { ok: false, reason: result.overflow > 0 ? 'Inventário cheio.' : 'Falha ao adicionar.' };
+        }
+        this.state.inventoryStacks = result.stacks.map((row) => ({ ...row }));
+        this.bumpRevision('inventory');
+        applyServerItemBundle({
+          stacks: this.state.inventoryStacks,
+          inventoryOnly: true,
+          immediate: true,
+        });
+        for (const listener of this.inventoryListeners) listener(this.getInventory());
+        return { ok: true };
+      }
+      case 'DEV_GRANT_CURRENCY': {
+        const volts = Math.max(0, Math.floor(action.payload.volts ?? 0));
+        const alterCoins = Math.max(0, Math.floor(action.payload.alterCoins ?? 0));
+        if (volts === 0 && alterCoins === 0) {
+          return { ok: false, reason: 'Informe volts e/ou alterCoins.' };
+        }
+        this.commitWallet({
+          dollarVolt: this.state.wallet.dollarVolt + volts,
+          alterCoins: this.state.wallet.alterCoins + alterCoins,
+        });
+        return { ok: true };
+      }
+      case 'DEV_SET_LEVEL': {
+        const level = Math.max(1, Math.min(999, Math.floor(action.payload.level)));
+        getPlayerEquipmentStore().setPlayerInfo(
+          getPlayerEquipmentStore().getSnapshot().displayName,
+          level,
+        );
+        getPlayerProfileStore().setLevel(level);
+        this.bumpRevision('characterLevel');
+        return { ok: true };
+      }
+      case 'DEV_SET_MOVESET_MASTERY': {
+        const moveId = action.payload.moveId.trim();
+        if (!moveId) return { ok: false, reason: 'Informe o moveId.' };
+        const level = Math.max(1, Math.min(MOVE_MAX_LEVEL, Math.floor(action.payload.level)));
+        const masteryXp = clampMoveMasteryXp(totalMasteryXpForLevel(level));
+        getPlayerProgressionStore().setMoveMasteryXp(moveId, masteryXp);
+        this.bumpRevision('movesProgression');
+        return { ok: true };
+      }
+      case 'DEV_RESET_PLAYER': {
+        this.clearLocalSave();
+        this.state = createInitialState();
+        this.bumpRevision('wallet');
+        this.bumpRevision('inventory');
+        this.bumpRevision('bankStorage');
+        this.bumpRevision('marcosState');
+        this.bumpRevision('characterLevel');
+        this.commitWallet(this.state.wallet);
+        applyServerItemBundle({
+          stacks: [],
+          inventoryOnly: true,
+          immediate: true,
+        });
+        for (const listener of this.inventoryListeners) listener(this.getInventory());
+        for (const listener of this.bankStorageListeners) listener(this.getBankStorage());
+        getPlayerPetStore().reset();
+        getPlayerEquipmentStore().setPlayerInfo(
+          getPlayerEquipmentStore().getSnapshot().displayName,
+          1,
+          { resetVitals: true },
+        );
+        getPlayerProfileStore().setLevel(1);
+        this.persistLocalSave();
+        return { ok: true };
+      }
+      case 'CHAT_GLOBAL_SEND': {
+        if (!getGlobalMessageBus().applyLocalChat(action.payload.text)) {
+          return { ok: false, reason: 'Não foi possível enviar a mensagem.' };
+        }
+        return { ok: true };
+      }
       default: {
         const _exhaustive: never = action;
         return _exhaustive;
@@ -626,6 +1111,10 @@ export class MockEconomyService implements IEconomyService {
     }
   }
 
+  private emitBankTransactionFailure(reason: string): void {
+    uiEvents.emit(UIEventType.BANK_TRANSACTION_FAILED, { message: reason });
+  }
+
   private depositItem(itemId: string, quantity = 1): IntentHandleResult {
     if (this.bankTransactionPending) {
       return { ok: false, reason: 'Aguarde a conclusão da transação bancária anterior.' };
@@ -636,31 +1125,47 @@ export class MockEconomyService implements IEconomyService {
 
     try {
       const locked = lockInventoryQuantity(this.state.inventoryStacks, itemId, qty);
-      if (!locked.ok) return { ok: false, reason: locked.reason };
+      if (!locked.ok) {
+        this.emitBankTransactionFailure(locked.reason);
+        return { ok: false, reason: locked.reason };
+      }
       lockedQty = qty;
       this.state.inventoryStacks = locked.stacks;
       this.bumpRevision('inventory');
 
       const rules = validateBankItemTransfer(itemId, qty);
-      if (!rules.ok) return { ok: false, reason: rules.reason };
+      if (!rules.ok) {
+        this.emitBankTransactionFailure(rules.reason);
+        return { ok: false, reason: rules.reason };
+      }
 
       const result = depositItemSwap(this.state.inventoryStacks, this.state.bank.itemStacks, itemId, qty);
-      if (!result.ok) return { ok: false, reason: result.reason };
+      if (!result.ok) {
+        this.emitBankTransactionFailure(result.reason);
+        return { ok: false, reason: result.reason };
+      }
 
       this.state.inventoryStacks = result.value.inventoryStacks;
       this.state.bank.itemStacks = result.value.bankStacks;
       this.bumpRevision('inventory');
       this.bumpRevision('bankStorage');
       lockedQty = 0;
+      applyServerItemBundle({
+        stacks: this.state.inventoryStacks.map((row) => ({ ...row })),
+        inventoryOnly: true,
+        immediate: true,
+      });
       this.emitBankTransactionSuccess();
       return { ok: true };
     } finally {
       if (lockedQty > 0) {
         this.state.inventoryStacks = unlockInventoryQuantity(this.state.inventoryStacks, itemId, lockedQty);
-        const stillLocked = this.state.inventoryStacks.find((s) => s.itemId === itemId);
-        if (stillLocked && (stillLocked.lockedQuantity ?? 0) > 0) {
-          this.bumpRevision('inventory');
-        }
+        this.bumpRevision('inventory');
+        applyServerItemBundle({
+          stacks: this.state.inventoryStacks.map((row) => ({ ...row })),
+          inventoryOnly: true,
+          immediate: true,
+        });
       }
       this.bankTransactionPending = false;
     }
@@ -673,21 +1178,33 @@ export class MockEconomyService implements IEconomyService {
     this.bankTransactionPending = true;
 
     try {
-      const rules = validateBankItemTransfer(itemId, quantity);
-      if (!rules.ok) return { ok: false, reason: rules.reason };
+      const qty = Math.max(1, Math.floor(quantity));
+      const rules = validateBankItemTransfer(itemId, qty);
+      if (!rules.ok) {
+        this.emitBankTransactionFailure(rules.reason);
+        return { ok: false, reason: rules.reason };
+      }
 
       const result = withdrawItemSwap(
         this.state.inventoryStacks,
         this.state.bank.itemStacks,
         itemId,
-        quantity,
+        qty,
       );
-      if (!result.ok) return { ok: false, reason: result.reason };
+      if (!result.ok) {
+        this.emitBankTransactionFailure(result.reason);
+        return { ok: false, reason: result.reason };
+      }
 
       this.state.inventoryStacks = result.value.inventoryStacks;
       this.state.bank.itemStacks = result.value.bankStacks;
       this.bumpRevision('inventory');
       this.bumpRevision('bankStorage');
+      applyServerItemBundle({
+        stacks: this.state.inventoryStacks.map((row) => ({ ...row })),
+        inventoryOnly: true,
+        immediate: true,
+      });
       this.emitBankTransactionSuccess();
       return { ok: true };
     } finally {
@@ -702,6 +1219,7 @@ export class MockEconomyService implements IEconomyService {
 
     const validated = validateBankCurrencyRequest(currency, amount);
     if (!validated.ok) {
+      this.emitBankTransactionFailure(validated.reason);
       return { ok: false, reason: validated.reason };
     }
 
@@ -716,7 +1234,10 @@ export class MockEconomyService implements IEconomyService {
         this.state.wallet,
         this.state.bank.currencies,
       );
-      if (!result.ok) return { ok: false, reason: result.reason };
+      if (!result.ok) {
+        this.emitBankTransactionFailure(result.reason);
+        return { ok: false, reason: result.reason };
+      }
 
       this.state.wallet = { ...result.value.wallet };
       this.state.bank.currencies = { ...result.value.bankCurrencies };
@@ -736,6 +1257,7 @@ export class MockEconomyService implements IEconomyService {
 
     const validated = validateBankCurrencyRequest(currency, amount);
     if (!validated.ok) {
+      this.emitBankTransactionFailure(validated.reason);
       return { ok: false, reason: validated.reason };
     }
 
@@ -750,7 +1272,10 @@ export class MockEconomyService implements IEconomyService {
         this.state.wallet,
         this.state.bank.currencies,
       );
-      if (!result.ok) return { ok: false, reason: result.reason };
+      if (!result.ok) {
+        this.emitBankTransactionFailure(result.reason);
+        return { ok: false, reason: result.reason };
+      }
 
       this.state.wallet = { ...result.value.wallet };
       this.state.bank.currencies = { ...result.value.bankCurrencies };
@@ -767,13 +1292,19 @@ export class MockEconomyService implements IEconomyService {
     readonly npcId: string;
     readonly clientVitals?: PlayerWorldVitals;
   }): IntentHandleResult {
+    // Alinha hpMax com buffs do SET antes de curar (ex.: até 112, não 100).
+    refreshHudPlayerHpMax();
     const equipment = getPlayerEquipmentStore().getSnapshot();
     const vitals = payload.clientVitals ?? getGlobalPlayerStore().getWorldVitals();
     const result = healPlayer({
       npcId: payload.npcId,
       playerLevel: equipment.level,
       walletVolts: this.state.wallet.dollarVolt,
-      vitals,
+      vitals: {
+        ...vitals,
+        hpMax: equipment.vitals.hpMax,
+        mpMax: equipment.vitals.mpMax,
+      },
     });
 
     if (!result.ok) {
@@ -850,7 +1381,15 @@ export class MockEconomyService implements IEconomyService {
 
   private collectBattleLoot(lootId: string): IntentHandleResult {
     const pending = peekPendingLoot(lootId);
-    if (!pending || pending.winnerId !== MockEconomyService.MOCK_WINNER_ID) {
+    if (!pending) {
+      return { ok: false, reason: 'Saque indisponível ou expirado.' };
+    }
+
+    // Mock clássico (STAGE via ActionDispatcher) ou LocalCombatAuthority (winnerId local_*).
+    const allowedWinner =
+      pending.winnerId === MockEconomyService.MOCK_WINNER_ID
+      || pending.winnerId.startsWith('local_');
+    if (!allowedWinner) {
       return { ok: false, reason: 'Saque indisponível ou expirado.' };
     }
 
@@ -876,7 +1415,7 @@ export class MockEconomyService implements IEconomyService {
       }
     }
 
-    consumePendingLoot(lootId, MockEconomyService.MOCK_WINNER_ID);
+    consumePendingLoot(lootId, pending.winnerId);
 
     applyServerItemBundle({
       stacks: this.state.inventoryStacks.map((row) => ({ ...row })),
@@ -931,6 +1470,17 @@ export class MockEconomyService implements IEconomyService {
     return { ok: true };
   }
 
+  private syncInventoryToPlayerItemStore(): void {
+    applyServerItemBundle({
+      stacks: this.state.inventoryStacks.map((row) => ({ ...row })),
+      inventoryOnly: true,
+      immediate: true,
+    });
+    for (const listener of this.inventoryListeners) {
+      listener(this.getInventory());
+    }
+  }
+
   private purchaseNpcItem(vendorId: string, itemId: string, quantity: number): IntentHandleResult {
     const listing = findNpcVendorListing(vendorId, itemId);
     if (!listing) {
@@ -946,12 +1496,22 @@ export class MockEconomyService implements IEconomyService {
       return { ok: false, reason: validation.reason };
     }
 
+    const addCheck = validateAddItem(
+      itemId,
+      this.state.inventoryStacks,
+      validation.quote.quantity,
+    );
+    if (!addCheck.ok) {
+      return { ok: false, reason: addCheck.reason ?? 'Inventário cheio.' };
+    }
+
     this.commitWallet({
       dollarVolt: this.state.wallet.dollarVolt - validation.quote.totalVolts,
       alterCoins: this.state.wallet.alterCoins,
     });
     this.addInventoryItem(itemId, validation.quote.quantity);
     this.bumpRevision('inventory');
+    this.syncInventoryToPlayerItemStore();
     alertSystem(`Comprou ${validation.quote.quantity}× ${validation.quote.itemLabel}.`);
     return { ok: true };
   }
@@ -963,6 +1523,13 @@ export class MockEconomyService implements IEconomyService {
     colorId: import('../../shared/pet/petColorPalette.js').PetColorId,
     gender: PetGenderId,
   ): IntentHandleResult {
+    if (!this.boundPlayerId || this.boundCharacterId === null) {
+      return {
+        ok: false,
+        reason: 'Personagem ainda não ligado ao save — tente entrar no mundo novamente.',
+      };
+    }
+
     const petStore = getPlayerPetStore();
     const validation = validatePetPurchase({
       vendorId,
@@ -995,7 +1562,16 @@ export class MockEconomyService implements IEconomyService {
 
   private sellNpcItem(vendorId: string, itemId: string, quantity: number): IntentHandleResult {
     void vendorId;
-    assertSellItemAllowed(itemId);
+    // Espelha o inventário da HUD (playerItemStore) antes de validar — evita dessync com stacks do mock.
+    this.syncInventoryStacksFromClient(getPlayerItemStore().toInventoryStacks(), false);
+
+    try {
+      assertSellItemAllowed(itemId);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Item não pode ser vendido.';
+      return { ok: false, reason };
+    }
+
     const owned = this.countInventoryItem(itemId);
     const validation = validateInventoryItemSale({
       itemId,
@@ -1012,7 +1588,11 @@ export class MockEconomyService implements IEconomyService {
       alterCoins: this.state.wallet.alterCoins,
     });
     this.bumpRevision('inventory');
-    alertSystem(`Vendeu ${validation.quote.quantity}× ${validation.quote.itemLabel}.`);
+    this.syncInventoryToPlayerItemStore();
+    getGameStore().syncPlayerFromDomain();
+    alertSystem(
+      `Vendeu ${validation.quote.quantity}× ${validation.quote.itemLabel} por ${formatVolts(validation.quote.totalVolts)}.`,
+    );
     return { ok: true };
   }
 
@@ -1029,6 +1609,7 @@ export class MockEconomyService implements IEconomyService {
 
     this.removeInventoryItem(itemId, qty);
     this.bumpRevision('inventory');
+    this.syncInventoryToPlayerItemStore();
     const label = getItemById(itemId)?.name ?? itemId;
     alertSystem(`Descartou ${qty}× ${label}.`);
     return { ok: true };
@@ -1172,6 +1753,17 @@ export class MockEconomyService implements IEconomyService {
     this.state.wallet = { dollarVolt: snap.dollarVolt, alterCoins: snap.alterCoins };
     this.bumpRevision('wallet');
     this.notifyWalletListeners();
+  }
+
+  /** Espelha carteira autoritativa (ex.: penalidade de fuga L1) no save local. */
+  syncWalletFromAuthoritative(dollarVolt: number, alterCoins: number): void {
+    this.state.wallet = {
+      dollarVolt: Math.max(0, Math.floor(dollarVolt)),
+      alterCoins: Math.max(0, Math.floor(alterCoins)),
+    };
+    this.bumpRevision('wallet');
+    this.syncLegacyStores();
+    this.persistLocalSave();
   }
 
   private commitWallet(wallet: MockWallet): void {

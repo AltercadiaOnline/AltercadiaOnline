@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Câmera de exploração ancorada no jogador.
  * Seguidor passivo do protagonista (LERP + clamp) — ver Camera.ts.

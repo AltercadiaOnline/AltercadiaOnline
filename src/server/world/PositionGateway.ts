@@ -285,6 +285,8 @@ function resolveStepToward(
   const stepY = Math.sign(toY - fromY) as -1 | 0 | 1;
   if (stepX === 0 && stepY === 0) return null;
   if (Math.abs(toX - fromX) > 1 || Math.abs(toY - fromY) > 1) return null;
+  // Só N/S/L/O — rejeita diagonal.
+  if (stepX !== 0 && stepY !== 0) return null;
   return { stepX, stepY };
 }
 

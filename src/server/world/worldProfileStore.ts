@@ -44,3 +44,8 @@ export function saveWorldProfile(
 export function resetWorldProfileStore(): void {
   profiles.clear();
 }
+
+/** Remove perfil de mundo do personagem (delete / recriação de slot). */
+export function clearWorldProfile(playerId: string, characterId: number): void {
+  profiles.delete(profileKey(playerId, characterId));
+}

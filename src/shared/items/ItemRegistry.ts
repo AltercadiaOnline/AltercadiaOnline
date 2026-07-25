@@ -1,9 +1,9 @@
 import type { ItemDefinition } from './itemSchema.js';
 import { ItemCategory } from './itemSchema.js';
+import { isMarketplaceBrowseListableItem } from './marketplaceCatalogDefaults.js';
 
 function isRegistryItemMarketListable(item: ItemDefinition): boolean {
-  if (item.category === ItemCategory.Currency) return false;
-  return typeof item.valorBase === 'number' && item.valorBase > 0;
+  return isMarketplaceBrowseListableItem(item);
 }
 
 export const MarketBrowseCategory = {
@@ -89,10 +89,12 @@ class ItemRegistryStore {
   getMarketBrowseCategoryLabels(): ReadonlyArray<{
     readonly id: MarketBrowseCategoryId;
     readonly label: string;
+    readonly count: number;
   }> {
     return (Object.keys(CATEGORY_LABELS) as MarketBrowseCategoryId[]).map((id) => ({
       id,
       label: CATEGORY_LABELS[id],
+      count: this.listMarketBrowseItems(id).length,
     }));
   }
 

@@ -692,8 +692,20 @@ function totalMasteryFromResolved(prog: {
 
 let activeStore: PlayerDataStore | null = null;
 
+type GlobalWithPlayerDataStore = typeof globalThis & {
+  __ALTERCADIA_PLAYER_DATA_STORE__?: PlayerDataStore | null;
+};
+
+function getSharedDataStoreSlot(): GlobalWithPlayerDataStore {
+  return globalThis as GlobalWithPlayerDataStore;
+}
+
 export function initDataStore(): void {
-  if (!activeStore) activeStore = new PlayerDataStore();
+  const g = getSharedDataStoreSlot();
+  if (!g.__ALTERCADIA_PLAYER_DATA_STORE__) {
+    g.__ALTERCADIA_PLAYER_DATA_STORE__ = new PlayerDataStore();
+  }
+  activeStore = g.__ALTERCADIA_PLAYER_DATA_STORE__;
 }
 
 export function getDataStore(): IDataStore {
@@ -707,6 +719,8 @@ export function getMutableDataStore(): PlayerDataStore {
 }
 
 export function resetDataStore(): void {
+  const g = getSharedDataStoreSlot();
+  g.__ALTERCADIA_PLAYER_DATA_STORE__ = null;
   activeStore = null;
 }
 

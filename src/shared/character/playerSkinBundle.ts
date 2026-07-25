@@ -17,16 +17,17 @@ export type PlayerSkinBundleOption = {
 };
 
 export const PLAYER_SKIN_BUNDLE_OPTIONS: readonly PlayerSkinBundleOption[] = [
-  { id: 'player_male_1', label: 'Masculino — Techwear' },
-  { id: 'player_male_2', label: 'Masculino — Layered' },
-  { id: 'player_male_3', label: 'Masculino — Street' },
-  { id: 'player_male_4', label: 'Masculino — Teen' },
-  { id: 'player_female_1', label: 'Feminino — Urban' },
+  { id: 'player_male_1', label: 'Masculino — Design' },
+  { id: 'player_male_2', label: 'Masculino — Layered (provisório)' },
+  { id: 'player_male_3', label: 'Masculino — Street (provisório)' },
+  { id: 'player_male_4', label: 'Masculino — Teen (provisório)' },
+  { id: 'player_female_1', label: 'Feminino — Urban (provisório)' },
 ];
 
 /** Pasta `rotations` relativa ao bundle (nomes reais em disco, não confiar só no metadata). */
 const BUNDLE_ROTATIONS_BASE: Readonly<Record<PlayerSkinBundleId, string>> = {
-  player_male_1: '35x54pixel_topdown_chibi_Outfit_Oversized_techwear/rotations',
+  /** Arte oficial do game design (processada → 35×54). */
+  player_male_1: 'design/rotations',
   player_male_2: 'chibi_35x54pixel_topdown_Outfit_Layered/rotations',
   player_male_3: 'Pixel_art_character_sprite_front/rotations',
   player_male_4: '2D_game_sprite_asset_teenage/rotations',
