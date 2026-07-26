@@ -152,7 +152,7 @@ const requiredBundles = [
   path.join(publicDir, 'assets', 'urban', 'urbanAssetManifest.js'),
   path.join(publicDir, 'assets', 'creatures', 'zone1', 'aranha', 'manifest.json'),
   path.join(publicDir, 'assets', 'creatures', 'zone1', 'corvo', 'manifest.json'),
-  path.join(publicDir, 'app-ui', 'ui-runtime.js'),
+  // app-ui/ui-runtime.js é gerado por build:ui (depois do sync) — validado em audit-static-bundle.
 ];
 
 for (const bundlePath of requiredBundles) {
