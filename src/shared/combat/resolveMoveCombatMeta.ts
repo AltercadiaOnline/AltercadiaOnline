@@ -7,6 +7,8 @@ import {
 import { getMonsterSkillById } from './monsterSkillCatalog.js';
 import { MoveTargetType } from './battleTargeting.js';
 import { MoveCategory, MoveScalingStat, type MoveDefinition } from './moveTypes.js';
+import { applyMoveMasteryToSkillData } from '../progression/moveCombatScaling.js';
+import type { SkillData } from '../types.js';
 
 export type MoveCombatMeta = {
   readonly id: string;
@@ -103,10 +105,42 @@ export function isFluxAlignedMove(moveId: string): boolean {
   );
 }
 
-/** Tooltip / HUD — mesma forma que `MoveDefinition`. */
-export function resolveMoveDefinitionForUi(moveId: string): MoveDefinition | undefined {
+function resolveScaledMoveUiStats(
+  meta: MoveCombatMeta,
+  moveId: string,
+  masteryXp: number,
+): Pick<MoveDefinition, 'damage' | 'ppMax'> {
+  if (!isClassMoveId(moveId)) {
+    return {
+      damage: meta.basePower,
+      ...(meta.ppMax !== undefined ? { ppMax: meta.ppMax } : {}),
+    };
+  }
+
+  const template: SkillData = {
+    id: meta.id,
+    name: meta.name,
+    damage: meta.basePower,
+    basePower: meta.basePower,
+    cooldown: meta.cooldown,
+    ...(meta.priority !== undefined ? { priority: meta.priority } : {}),
+    ...(meta.ppMax !== undefined ? { ppMax: meta.ppMax, ppCurrent: meta.ppMax } : {}),
+  };
+  const scaled = applyMoveMasteryToSkillData(template, masteryXp);
+  return {
+    damage: scaled.basePower ?? scaled.damage ?? meta.basePower,
+    ...(scaled.ppMax !== undefined ? { ppMax: scaled.ppMax } : {}),
+  };
+}
+
+/** Tooltip / HUD — mesma forma que `MoveDefinition`, com domínio do moveset aplicado. */
+export function resolveMoveDefinitionForUi(
+  moveId: string,
+  masteryXp = 0,
+): MoveDefinition | undefined {
   const meta = resolveMoveCombatMeta(moveId);
   if (!meta) return undefined;
+  const scaledStats = resolveScaledMoveUiStats(meta, moveId, masteryXp);
   const move = isClassMoveId(moveId) ? getClassMoveById(moveId) : getMonsterSkillById(moveId);
   const description =
     move && 'effectSummary' in move
@@ -119,10 +153,10 @@ export function resolveMoveDefinitionForUi(moveId: string): MoveDefinition | und
     name: meta.name,
     category: meta.category,
     scalingStat: meta.scalingStat,
-    damage: meta.basePower,
+    damage: scaledStats.damage,
     cooldown: meta.cooldown,
     ...(meta.priority !== undefined ? { priority: meta.priority } : {}),
-    ...(meta.ppMax !== undefined ? { ppMax: meta.ppMax } : {}),
+    ...(scaledStats.ppMax !== undefined ? { ppMax: scaledStats.ppMax } : {}),
     ...(description ? { description } : {}),
   };
 

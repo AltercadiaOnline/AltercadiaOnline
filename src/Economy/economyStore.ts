@@ -1,4 +1,8 @@
-import { assertDeleteItemAllowed, assertAddItemAllowed, validateAddItem } from './InventoryService.js';
+import {
+  assertAddItemAllowed,
+  assertInventoryRemovalPolicyAllowed,
+  validateAddItem,
+} from './InventoryService.js';
 import type { ActiveBookBuff, EquippedSlots, InventoryStack } from '../shared/character/equipmentState.js';
 import type { BankCurrencyBalances } from '../shared/bank/bankTypes.js';
 import { addItemToInventoryStacks } from '../shared/character/inventoryStackOps.js';
@@ -339,7 +343,7 @@ export async function executeEconomyTransaction(
         return { added, overflow: qty - added };
       },
       removeInventoryItem(itemId, qty) {
-        assertDeleteItemAllowed(itemId);
+        assertInventoryRemovalPolicyAllowed(itemId);
 
         const rows = profile.inventory;
         const existing = rows.find((row) => row.itemId === itemId);

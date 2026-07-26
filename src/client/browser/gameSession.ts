@@ -26,6 +26,10 @@ import { isBattleEndedPayload } from '../../shared/combat/battleEnded.js';
 import { isBattleLootPackagePayload } from '../../shared/combat/battleLootPackage.js';
 import { captureBattleLootPackage } from '../combat/client/battleLootPackageBuffer.js';
 import { getPlayerPetStore, initPlayerPetStore } from '../ui/pet/playerPetStore.js';
+import {
+  consumeLegacyPetMemorialMirror,
+  getPetMemorialStore,
+} from '../ui/pet/petMemorialStore.js';
 import { canPetEnterBattle } from '../../shared/pet/petModel.js';
 import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
@@ -129,6 +133,7 @@ import { WORLD_MOUNT_ROOT_ID } from '../worldRender/worldRenderMount.js';
 import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBridge.js';
 import { deactivateGameDomain } from '../domains/executionDomain.js';
 import { resetServiceRegistry } from '../domains/ServiceRegistry.js';
+import { purgeClientGameSession } from '../player/purgeClientGameSession.js';
 import { warnIfStaleClientBuild } from './runtimeBuildIntegrity.js';
 import { shutdownWorldRender } from '../worldRender/bootOnlineWorldRender.js';
 import {
@@ -718,13 +723,27 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
       if (!bound) {
         throw new Error('Falha ao ligar o save local do personagem (itens/pets).');
       }
+    } else if (selected) {
+      // Online: memorial ainda é espelho cliente por personagem (até existir no servidor).
+      const memorial = getPetMemorialStore();
+      memorial.bindCharacter(
+        AppScreens.currentSession?.id ?? 'local-player',
+        selected.id,
+      );
+      if (memorial.getEntries().length === 0) {
+        const legacy = consumeLegacyPetMemorialMirror();
+        if (legacy && legacy.length > 0) {
+          memorial.hydrateFromEntries(legacy);
+        }
+      }
     }
     if (selected) {
       loadSelectedCharacterAppearance();
-      getPlayerProfileStore().setProfile(selected.name, selected.level);
-      getPlayerEquipmentStore().setPlayerInfo(selected.name, selected.level, {
-        classId: selected.class as never,
-      });
+      // SSOT: hub só define nome de apresentação. Level/XP/class vêm do save (local)
+      // ou do snapshot (online) — setProfile/setPlayerInfo(hub.level) zerava XP.
+      getPlayerProfileStore().setDisplayName(selected.name);
+      const equip = getPlayerEquipmentStore().getSnapshot();
+      getPlayerEquipmentStore().setPlayerInfo(selected.name, equip.level);
     }
     void prefetchItemCatalogExtra();
     const equipmentStore = getPlayerEquipmentStore();
@@ -768,7 +787,8 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
     }
 
     activeWorld.setPlayerDisplayName(selected.name);
-    activeWorld.setPlayerLevel(selected.level);
+    // Nametag level = espelho já hidratado (save/snapshot), não o nível do hub.
+    activeWorld.setPlayerLevel(getMutableDataStore().getCharacterLevel().level);
     activeWorld.setWorldIdentity(
       AppScreens.currentSession?.id ?? 'local-player',
       selected.id,
@@ -978,6 +998,9 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
 export function clearGameState(): void {
   hidePauseMenu();
   getHudBridge().resetSession();
+  // Flush final do save local (posição/vitals live) ANTES de desligar o provider —
+  // garante "salvou, depois limpou". No-op no modo online (servidor já persistiu).
+  getMockEconomyService()?.persistLocalSave();
   getMockEconomyService()?.setLocalWorldSnapshotProvider(null);
 
   teardownGlobalChat?.();
@@ -1052,4 +1075,7 @@ export function clearGameState(): void {
 
   deactivateGameDomain();
   resetServiceRegistry();
+
+  // Último passo: nenhum dado/imagem do personagem anterior sobrevive à saída.
+  purgeClientGameSession({ reason: 'character-switch' });
 }

@@ -95,10 +95,15 @@ export class BattleScreen {
   public ingestAuthoritativeVitals(
     combatants: Readonly<Record<string, CombatState['combatants'][string]>>,
     playerActorId: string,
+    battleType?: CombatState['battleType'],
   ): void {
     this.lastPlayerActorId = playerActorId;
     this.combatantVitals = buildCombatantVitalsMap(combatants);
-    this.boundOpponentId = resolveBattleOpponentActorId(combatants, playerActorId);
+    this.boundOpponentId = resolveBattleOpponentActorId(
+      combatants,
+      playerActorId,
+      battleType,
+    );
   }
 
   public async enterWithFade(): Promise<void> {
@@ -212,10 +217,33 @@ export class BattleScreen {
     return null;
   }
 
+  private resolvePortraitElements(): {
+    readonly player: HTMLElement | null;
+    readonly opponent: HTMLElement | null;
+  } {
+    const player =
+      this.els.playerPortrait
+      ?? (typeof document !== 'undefined'
+        ? document.querySelector<HTMLElement>('#battle-player-portrait')
+        : null);
+    const opponent =
+      this.els.opponentPortrait
+      ?? (typeof document !== 'undefined'
+        ? document.querySelector<HTMLElement>('#battle-opponent-portrait')
+        : null);
+    return { player, opponent };
+  }
+
   private resolvePortraitElement(combatantId: string): HTMLElement | null {
+    const { player, opponent } = this.resolvePortraitElements();
     const side = this.resolveCombatantSide(combatantId);
-    if (side === 'player') return this.els.playerPortrait ?? null;
-    if (side === 'opponent') return this.els.opponentPortrait ?? null;
+    if (side === 'player') return player;
+    if (side === 'opponent') return opponent;
+
+    if (combatantId.startsWith('pet_')) return null;
+    if (this.lastPlayerActorId && combatantId === this.lastPlayerActorId) return player;
+    if (this.boundOpponentId && combatantId === this.boundOpponentId) return opponent;
+    if (this.lastPlayerActorId && combatantId !== this.lastPlayerActorId) return opponent;
     return null;
   }
 

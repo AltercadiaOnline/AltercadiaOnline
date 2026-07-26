@@ -17,6 +17,21 @@ mkdirSync(outDir, { recursive: true });
 rmSync(chunksDir, { recursive: true, force: true });
 mkdirSync(chunksDir, { recursive: true });
 
+/** Stub: React HUD nunca embute Mock — simulador só via /client (dist) em localhost. */
+const mockStubPlugin = {
+  name: 'stub-mock-economy',
+  setup(buildApi) {
+    buildApi.onResolve({ filter: /MockEconomyService(\.js)?$/ }, () => ({
+      path: 'altercadia:mock-economy-stub',
+      namespace: 'altercadia-stub',
+    }));
+    buildApi.onLoad({ filter: /.*/, namespace: 'altercadia-stub' }, () => ({
+      contents: 'export class MockEconomyService { constructor() { throw new Error("MockEconomyService blocked in app-ui bundle"); } }\n',
+      loader: 'js',
+    }));
+  },
+};
+
 if (process.platform === 'win32') {
   execSync(
     `npm exec -- @tailwindcss/cli -i "${entryCss}" -o "${outCss}" --minify`,
@@ -46,6 +61,7 @@ await build({
   sourcemap: false,
   minify: true,
   logLevel: 'info',
+  plugins: [mockStubPlugin],
 });
 
 console.log('[build-react-ui] OK');

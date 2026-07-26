@@ -254,18 +254,38 @@ export function resolveHighlightedEdges(pathNodeIds: readonly string[]): Readonl
   return highlighted;
 }
 
+/**
+ * Ativa um nó **dentro** da trilha já confirmada.
+ * Starters (tier-1) **não** passam por aqui — só via `SELECT_MARCO_BRANCH` / `canSelectBranchStarter`.
+ */
 export function canChooseMarco(nodeId: string, ctx: MarcoTreePlayerContext): boolean {
   const node = getMarcoTreeNode(nodeId);
   if (!node) return false;
 
-  if (ctx.ramificacaoSelecionada) {
-    if (node.branch !== ctx.ramificacaoSelecionada) return false;
-  } else if (!isMarcoBranchStarter(nodeId)) {
-    return false;
-  }
+  // Escolha inicial de trilha é exclusiva do fluxo SELECT_MARCO_BRANCH.
+  if (isMarcoBranchStarter(nodeId)) return false;
+
+  if (!ctx.trilhaTravada || !ctx.ramificacaoSelecionada) return false;
+  if (node.branch !== ctx.ramificacaoSelecionada) return false;
 
   const view = resolveMarcoNodeStatus(node, ctx);
   return view.status === 'available';
+}
+
+/**
+ * Remove marcos órfãos: sem trilha confirmada → nenhum ativo;
+ * com trilha → só nós da ramificação escolhida.
+ */
+export function sanitizeActiveMarcosForTrail(
+  activeMarcos: readonly string[],
+  ramificacao: MarcoRamificacaoId | null,
+  trilhaTravada: boolean,
+): string[] {
+  if (!trilhaTravada || !ramificacao) return [];
+  return activeMarcos.filter((id) => {
+    const node = getMarcoTreeNode(id);
+    return node?.branch === ramificacao;
+  });
 }
 
 /** Mensagem para HUD quando o jogador tenta ativar um Marco sem cumprir requisitos. */
@@ -279,6 +299,13 @@ export function resolveMarcoChooseBlockedMessage(
 
   const node = getMarcoTreeNode(nodeId);
   if (!node) return 'Habilidade Marcos inválida.';
+
+  if (!ctx.trilhaTravada || !ctx.ramificacaoSelecionada) {
+    if (isMarcoBranchStarter(nodeId)) {
+      return 'Selecione a primeira habilidade de uma trilha e confirme no painel.';
+    }
+    return 'Escolha e confirme uma das 3 trilhas Marcos antes de avançar.';
+  }
 
   const view = resolveMarcoNodeStatus(node, ctx);
   const playerLevelReq = view.missingRequirements.find((token) => token.startsWith('playerLevel:'));

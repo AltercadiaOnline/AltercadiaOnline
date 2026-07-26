@@ -95,14 +95,14 @@ export async function runCombatFeedbackPipeline(context: CombatFeedbackPipelineC
         juiceHost.classList.remove('combat-hit-stop');
       }
 
-      // 3. Flash
+      // 3. Flash de arena — hit no fighter fica no passo damage_impact (junto com o número).
       juiceHost.dataset.combatImpact = feedback.impactType;
       juiceHost.classList.add(impactParticleClass(feedback.impactType));
       juiceHost.classList.add('combat-flash--active');
-      if (flashTargetId && screen) {
-        await screen.playCombatCue(flashTargetId, feedback.impactType === 'HEAL' ? 'heal' : 'hit');
+      if (feedback.impactType === 'HEAL' && flashTargetId && screen) {
+        await screen.playCombatCue(flashTargetId, 'heal');
       } else {
-        await waitMs(120);
+        await waitMs(90);
       }
       juiceHost.classList.remove('combat-flash--active');
     } else if (!juiceHost) {
@@ -141,16 +141,25 @@ async function runDamageAnimationPhase(context: CombatFeedbackPipelineContext): 
   const entries = context.visualSteps ?? [];
   if (!controller || entries.length === 0) return;
 
-  for (const entry of entries) {
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (!entry) continue;
     const step = entry.step;
     try {
-      if (step.kind === 'wait') {
-        await controller.playFeedbackStep(step);
-        continue;
+      // Hit/shield já dispara junto com damage_impact — evita flash duplicado.
+      if (
+        step.kind === 'portrait_cue'
+        && (step.cue === 'hit' || step.cue === 'shield')
+      ) {
+        const previous = entries[index - 1]?.step;
+        if (
+          previous?.kind === 'damage_impact'
+          && previous.targetId === step.combatantId
+        ) {
+          continue;
+        }
       }
-      if (step.kind === 'portrait_stance' && step.stance === 'attack') {
-        continue;
-      }
+
       const stepDamageEvent = entry.damageEvent ?? context.damageEvent;
       await controller.playFeedbackStep(
         step,

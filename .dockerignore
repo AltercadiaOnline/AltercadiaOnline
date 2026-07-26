@@ -21,3 +21,26 @@ mcps
 terminals
 .dockerignore
 fly.toml
+
+# Bundle React regenerado no build:core — não precisa do cache local.
+public/app-ui/
+
+# Autoria / arquivo — runtime só precisa de .png/.js/.css/.json
+# (Railway clona via Git e já omite; builds locais `docker build` usam disco.)
+public/**/*.psd
+public/**/*.PSD
+public/**/*.psb
+public/**/*.ai
+public/**/*.xcf
+public/**/*.fig
+public/**/*.sketch
+public/**/*.tiff
+public/**/*.tif
+public/**/*.zip
+public/**/*.rar
+public/**/*.7z
+public/**/*.pdf
+public/**/*.tiled-session
+public/**/__MACOSX/
+public/**/._*
+**/.DS_Store

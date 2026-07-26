@@ -28,6 +28,8 @@ import {
   deleteAuthoritativeCharacter,
   fetchAuthoritativeCharacterHub,
 } from '../services/characterHubClient.js';
+import { clearLocalCharacterSave } from '../persistence/localCharacterSave.js';
+import { clearPetMemorialStorage } from '../ui/pet/petMemorialStore.js';
 import {
   clearLocalSession,
   getLocalSession,
@@ -52,6 +54,7 @@ import {
   initCharacterAppearancePersistence,
 } from '../services/characterAppearancePersistence.js';
 import { initializeAuthoritativePlayerSnapshot } from '../auth/playerProfileClient.js';
+import { shouldFetchHttpSnapshotBeforeEnterWorld } from '../player/enterWorldSsot.js';
 import {
   getCharSelectServerUiState,
   syncCharSelectServerSelector,
@@ -579,6 +582,11 @@ export const AppScreens = {
     if (this.selectedCharacterId === characterId) {
       this.selectedCharacterId = null;
     }
+
+    // Memorial / save local do slot — morrem com o personagem (não com a conta).
+    clearPetMemorialStorage(this.currentSession.id, characterId);
+    clearLocalCharacterSave(this.currentSession.id, characterId);
+
     this.renderCharacterSlots();
     this.syncCharacterSelectionUi();
 
@@ -652,16 +660,20 @@ export const AppScreens = {
     getCharSelectBridge().setEnterWorldBusy(true);
 
     this.clearCharacterHubError();
-    showPlayerInitLoading('Carregando perfil no servidor…');
 
     let enteredWorld = false;
     try {
-      const snapshot = await initializeAuthoritativePlayerSnapshot(character.id);
-      if (!snapshot.ok || !snapshot.ready) {
-        this.renderCharacterHubError(
-          snapshot.message ?? 'Erro ao conectar ao servidor de dados.',
-        );
-        return;
+      if (shouldFetchHttpSnapshotBeforeEnterWorld()) {
+        showPlayerInitLoading('Carregando perfil no servidor…');
+        const snapshot = await initializeAuthoritativePlayerSnapshot(character.id);
+        if (!snapshot.ok || !snapshot.ready) {
+          this.renderCharacterHubError(
+            snapshot.message ?? 'Erro ao conectar ao servidor de dados.',
+          );
+          return;
+        }
+      } else {
+        showPlayerInitLoading('Carregando save do personagem…');
       }
       updatePlayerInitLoadingMessage('Entrando no mundo…');
       onEnterWorld();

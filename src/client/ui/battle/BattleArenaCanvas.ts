@@ -6,9 +6,9 @@
  */
 import { DESIGN_CONFIG } from '../../../config/designConstants.js';
 import {
-  DEFAULT_PLAYER_EAST_ROTATION_URL,
-  DEFAULT_PLAYER_SOUTH_ROTATION_URL,
-} from '../../entities/player/playerConstants.js';
+  resolveBattlePlayerEastSpriteCandidates,
+  resolveBattlePlayerEastSpriteUrl,
+} from './battlePlayerSkin.js';
 import type { BattleBackgroundVariant } from '../../../shared/combat/city1BattleBackgroundCatalog.js';
 import {
   battleSpriteSrcCandidates,
@@ -33,9 +33,10 @@ type FighterSlot = {
 const VIEW_W = DESIGN_CONFIG.VIEWPORT.WIDTH;
 const VIEW_H = DESIGN_CONFIG.VIEWPORT.HEIGHT;
 
-/** Altura máxima do sprite na arena (px no viewport 640×360). */
+/** Altura máxima do sprite inimigo na arena (px no viewport 640×360). */
 const FOE_DRAW_H = 160;
-const ALLY_DRAW_H = 148;
+/** Jogador ~30% menor que a criatura — evita esticar e harmoniza side-view. */
+const ALLY_DRAW_H = Math.round(FOE_DRAW_H * 0.7);
 /** Mesma linha de chão; player sobe um pouco para alinhar com o pé da criatura (arte com padding). */
 const GROUND_Y = VIEW_H - 40;
 const ALLY_GROUND_LIFT = 14;
@@ -62,18 +63,13 @@ async function loadFirstAvailable(candidates: readonly string[]): Promise<HTMLIm
   return null;
 }
 
-function drawCover(
+function drawBackgroundFill(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   w: number,
   h: number,
 ): void {
-  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-  const dw = img.naturalWidth * scale;
-  const dh = img.naturalHeight * scale;
-  const dx = (w - dw) / 2;
-  const dy = h - dh; // ancora no chão (bottom)
-  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.drawImage(img, 0, 0, w, h);
 }
 
 function drawSpriteBottom(
@@ -112,6 +108,8 @@ function drawSpriteBottom(
 export class BattleArenaCanvas {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
+  private readonly backgroundCanvas: HTMLCanvasElement | null;
+  private readonly backgroundCtx: CanvasRenderingContext2D | null;
   private backgroundLayers: HTMLImageElement[] = [];
   private backgroundId = '';
   private readonly ally: FighterSlot = {
@@ -140,9 +138,14 @@ export class BattleArenaCanvas {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) throw new Error('BattleArenaCanvas: 2d context unavailable');
     this.ctx = ctx;
+    this.backgroundCanvas =
+      canvas.closest('.battle-stage-frame')
+        ?.querySelector<HTMLCanvasElement>('#battle-background-canvas')
+      ?? null;
+    this.backgroundCtx = this.backgroundCanvas?.getContext('2d', { alpha: false }) ?? null;
     this.resizeToDesign();
   }
 
@@ -150,6 +153,13 @@ export class BattleArenaCanvas {
     if (this.canvas.width !== VIEW_W || this.canvas.height !== VIEW_H) {
       this.canvas.width = VIEW_W;
       this.canvas.height = VIEW_H;
+    }
+    if (
+      this.backgroundCanvas
+      && (this.backgroundCanvas.width !== VIEW_W || this.backgroundCanvas.height !== VIEW_H)
+    ) {
+      this.backgroundCanvas.width = VIEW_W;
+      this.backgroundCanvas.height = VIEW_H;
     }
   }
 
@@ -184,6 +194,7 @@ export class BattleArenaCanvas {
     this.foe.idleSrc = null;
     this.foe.attackSrc = null;
     this.ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+    this.backgroundCtx?.clearRect(0, 0, VIEW_W, VIEW_H);
   }
 
   async applyBackground(variant: BattleBackgroundVariant): Promise<void> {
@@ -204,17 +215,16 @@ export class BattleArenaCanvas {
 
   async bindPlayer(): Promise<void> {
     const gen = ++this.ally.generation;
-    const img = await loadFirstAvailable([
-      DEFAULT_PLAYER_EAST_ROTATION_URL,
-      DEFAULT_PLAYER_SOUTH_ROTATION_URL,
-    ]);
+    const candidates = resolveBattlePlayerEastSpriteCandidates();
+    const img = await loadFirstAvailable(candidates);
     if (gen !== this.ally.generation) return;
     if (!img) {
-      console.warn('[BattleArenaCanvas] Sprite do player não carregou (east/south)');
+      console.warn('[BattleArenaCanvas] Sprite do player não carregou (skin east):', candidates);
     }
+    const eastUrl = resolveBattlePlayerEastSpriteUrl();
     this.ally.image = img;
-    this.ally.idleSrc = DEFAULT_PLAYER_EAST_ROTATION_URL;
-    this.ally.attackSrc = DEFAULT_PLAYER_EAST_ROTATION_URL;
+    this.ally.idleSrc = eastUrl;
+    this.ally.attackSrc = eastUrl;
     this.ally.label = 'Jogador';
     this.ally.stance = 'idle';
     this.paint();
@@ -305,14 +315,23 @@ export class BattleArenaCanvas {
 
   private paint(): void {
     const ctx = this.ctx;
+    const backgroundCtx = this.backgroundCtx;
     const now = performance.now();
     this.resizeToDesign();
 
-    ctx.fillStyle = '#0b1420';
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-
-    for (const layer of this.backgroundLayers) {
-      drawCover(ctx, layer, VIEW_W, VIEW_H);
+    if (backgroundCtx) {
+      backgroundCtx.fillStyle = '#0b1420';
+      backgroundCtx.fillRect(0, 0, VIEW_W, VIEW_H);
+      for (const layer of this.backgroundLayers) {
+        drawBackgroundFill(backgroundCtx, layer, VIEW_W, VIEW_H);
+      }
+      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+    } else {
+      ctx.fillStyle = '#0b1420';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      for (const layer of this.backgroundLayers) {
+        drawBackgroundFill(ctx, layer, VIEW_W, VIEW_H);
+      }
     }
 
     const groundY = GROUND_Y;

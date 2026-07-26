@@ -7,8 +7,6 @@ import { getMutableDataStore } from '../PlayerDataStore.js';
 import { getMockEconomyService } from '../economy/economyLayer.js';
 import { isLocalGameMode } from '../runtime/gameMode.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
-import { getPlayerProfileStore } from '../ui/character/playerProfileStore.js';
-import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerProgressionStore } from './playerProgressionStore.js';
 import { getBattleLogPanel } from '../ui/battle/BattleScreen.js';
 import { canApplyLocalGameplayMutations } from '../sync/intentPolicy.js';
@@ -18,8 +16,7 @@ let lastMirroredDeathPenaltyBattleId: string | null = null;
 
 /** Prévia local para overlay — não muta estado. */
 export function buildDeathPenaltyOutcome(): DeathPenaltyOutcome {
-  const profile = getPlayerProfileStore().getSnapshot();
-  const equipment = getPlayerEquipmentStore().getSnapshot();
+  const levelState = getMutableDataStore().getCharacterLevel();
   const loadout = getGlobalPlayerStore().getConfirmedLoadout();
   const progression = getPlayerProgressionStore();
 
@@ -27,8 +24,8 @@ export function buildDeathPenaltyOutcome(): DeathPenaltyOutcome {
 
   const snapshot = progression.getSnapshot();
   return applyDeathPenalty({
-    level: equipment.level || profile.level,
-    xpCurrent: profile.xpCurrent,
+    level: levelState.level,
+    xpCurrent: levelState.xpCurrent,
     equippedMovesetIds: loadout,
     movesetMastery: snapshot.movesetMastery,
     milestoneTotalProgress: snapshot.milestoneTotalProgress,
@@ -45,13 +42,7 @@ export function mirrorDeathPenaltyOutcome(
 
   if (!outcome.applied) return;
 
-  getPlayerProfileStore().setXpCurrent(outcome.player.xpCurrent);
-  const profile = getPlayerProfileStore().getSnapshot();
-  getPlayerEquipmentStore().setPlayerInfo(
-    getPlayerEquipmentStore().getSnapshot().displayName,
-    profile.level,
-    { resetVitals: false },
-  );
+  // SSOT: só o PDS — profile/equipment derivam o level.
   getMutableDataStore().applyCharacterLevelState(
     outcome.player.level,
     outcome.player.xpCurrent,
@@ -81,21 +72,14 @@ export function applyDeathPenaltyToPlayer(): DeathPenaltyOutcome {
     return outcome;
   }
 
-  getPlayerProfileStore().setXpCurrent(outcome.player.xpCurrent);
-  const profile = getPlayerProfileStore().getSnapshot();
-  getPlayerEquipmentStore().setPlayerInfo(
-    getPlayerEquipmentStore().getSnapshot().displayName,
-    profile.level,
-    { resetVitals: false },
-  );
-  getPlayerProgressionStore().applyPenaltyResult(
-    outcome.player.movesetMastery,
-    outcome.player.milestoneTotalProgress,
-  );
   getMutableDataStore().applyCharacterLevelState(
     outcome.player.level,
     outcome.player.xpCurrent,
     'death_penalty',
+  );
+  getPlayerProgressionStore().applyPenaltyResult(
+    outcome.player.movesetMastery,
+    outcome.player.milestoneTotalProgress,
   );
 
   return outcome;

@@ -8,7 +8,10 @@
  * 1. `?gameMode=local|online` na URL
  * 2. `localStorage.altercadia.gameMode`
  * 3. `window.__ALTERCADIA_GAME_MODE__`
- * 4. default: `online` (localhost monólito = Railway; simulador: `?gameMode=local`)
+ * 4. default: `online`
+ *
+ * Segurança: `local` só em localhost/127.0.0.1. Em produção (Vercel) sempre `online`,
+ * mesmo se a URL ou o localStorage pedirem local — evita Mock na CDN.
  */
 
 export type GameMode = 'local' | 'online';
@@ -19,6 +22,12 @@ declare global {
   interface Window {
     __ALTERCADIA_GAME_MODE__?: GameMode;
   }
+}
+
+function isLocalDevHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1';
 }
 
 function readQueryMode(): GameMode | null {
@@ -50,9 +59,15 @@ function readWindowMode(): GameMode | null {
 }
 
 function defaultModeForHost(): GameMode {
-  if (typeof window === 'undefined') return 'online';
-  // Localhost monólito = mesmo caminho online (WS local). Simulador: ?gameMode=local
   return 'online';
+}
+
+/** Força online fora de localhost — Mock nunca ativa na Vercel. */
+function clampModeForHost(mode: GameMode): GameMode {
+  if (mode === 'local' && !isLocalDevHost()) {
+    return 'online';
+  }
+  return mode;
 }
 
 let cachedMode: GameMode | null = null;
@@ -60,22 +75,24 @@ let cachedMode: GameMode | null = null;
 /** Modo ativo (cache por sessão de página). */
 export function getGameMode(): GameMode {
   if (cachedMode) return cachedMode;
-  cachedMode =
+  const resolved =
     readQueryMode()
     ?? readStorageMode()
     ?? readWindowMode()
     ?? defaultModeForHost();
+  cachedMode = clampModeForHost(resolved);
   return cachedMode;
 }
 
 /** Define modo e persiste preferência (exceto quando veio só da query). */
 export function setGameMode(mode: GameMode, options?: { readonly persist?: boolean }): void {
-  cachedMode = mode;
+  const next = clampModeForHost(mode);
+  cachedMode = next;
   if (typeof window !== 'undefined') {
-    window.__ALTERCADIA_GAME_MODE__ = mode;
+    window.__ALTERCADIA_GAME_MODE__ = next;
     if (options?.persist !== false) {
       try {
-        window.localStorage.setItem(STORAGE_KEY, mode);
+        window.localStorage.setItem(STORAGE_KEY, next);
       } catch {
         /* ignore */
       }

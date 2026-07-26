@@ -20,7 +20,7 @@ import {
   ACHIEVEMENT_CATEGORY_LABELS,
   type AchievementProgressSnapshot,
 } from '../../../shared/achievements/achievementTypes.js';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { getCarryCapacityStore } from '../../ui/capacity/carryCapacityStore.js';
 import { getPlayerProfileStore } from '../../ui/character/playerProfileStore.js';
 import { getPlayerSkinStore, type PlayerSkinState } from '../../ui/character/playerSkinStore.js';

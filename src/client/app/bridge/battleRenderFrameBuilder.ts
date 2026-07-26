@@ -10,9 +10,9 @@ import {
   resolveBattleSpriteFromMonsterId,
 } from '../../ui/battle/battleSpriteCatalog.js';
 import {
-  DEFAULT_PLAYER_SOUTH_ROTATION_URL,
-  PLAYER_ASSET_BUNDLE_ROOT,
-} from '../../entities/player/playerConstants.js';
+  resolveBattlePlayerEastSpriteCandidates,
+  resolveBattlePlayerEastSpriteUrl,
+} from '../../ui/battle/battlePlayerSkin.js';
 import type {
   BattleFighterRenderSlot,
   BattleFighterStance,
@@ -23,12 +23,11 @@ import type {
 } from './battleRenderBridge.js';
 
 function buildAllySlot(stance: BattleFighterStance): BattleFighterRenderSlot {
+  const eastUrl = resolveBattlePlayerEastSpriteUrl();
   return {
     side: 'ally',
-    spriteSrc: DEFAULT_PLAYER_SOUTH_ROTATION_URL,
-    spriteSrcFallbacks: [
-      `${PLAYER_ASSET_BUNDLE_ROOT}/Pixel_art_character_sprite_front/rotations/south.png`,
-    ],
+    spriteSrc: eastUrl,
+    spriteSrcFallbacks: [...resolveBattlePlayerEastSpriteCandidates()],
     stance,
     creatureId: null,
     monsterId: null,

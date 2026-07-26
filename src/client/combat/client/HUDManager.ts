@@ -363,11 +363,12 @@ export class HUDManager {
   public syncCombatantsFromState(
     combatants: TurnUpdate['combatants'],
     playerActorId?: string,
+    battleType?: CombatState['battleType'],
   ): void {
     setCombatSnapshot(combatants, this.lastTurn?.turn);
 
     if (this.battleScreen && playerActorId) {
-      this.battleScreen.ingestAuthoritativeVitals(combatants, playerActorId);
+      this.battleScreen.ingestAuthoritativeVitals(combatants, playerActorId, battleType);
       return;
     }
 

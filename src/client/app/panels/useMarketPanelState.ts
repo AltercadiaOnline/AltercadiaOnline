@@ -11,7 +11,7 @@ import {
 import type { InventorySnapshot } from '../../../shared/character/inventorySlots.js';
 import type { WalletSnapshot } from '../../../shared/playerDataSnapshots.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { alertSystem } from '../../ui/alertSystem.js';
 import {
   buildDefaultMarketOfferFormState,

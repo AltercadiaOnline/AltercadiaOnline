@@ -1,4 +1,4 @@
-import { mountBattleEffectBesideFighter } from './battleEffectsLayer.js';
+import { mountBattleEffectOnFighter } from './battleEffectsLayer.js';
 
 export type FloatingTextPosition = {
   readonly x: number;
@@ -20,7 +20,7 @@ export function showFloatingText(
   div.setAttribute('aria-hidden', 'true');
 
   if (anchor) {
-    mountBattleEffectBesideFighter(div, anchor, { gapPx: 14 });
+    mountBattleEffectOnFighter(div, anchor, { yFactor: 0.18 });
   } else {
     div.style.position = 'fixed';
     div.style.left = `${position.x}px`;

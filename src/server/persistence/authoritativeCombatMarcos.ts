@@ -3,9 +3,12 @@ import type { MarcoDominanceInput } from '../../shared/progression/estiloPersona
 import {
   MARCO_NODE_MAX_LEVEL,
   type MarcoNodeProgressSnapshot,
-  type MarcosNodeProgressionData,
 } from '../../shared/progression/marcoProgression.js';
-import { MARCO_TREE_NODES } from '../../shared/progression/milestoneTreeCatalog.js';
+import {
+  MARCO_TREE_NODES,
+  type MarcoRamificacaoId,
+} from '../../shared/progression/milestoneTreeCatalog.js';
+import { sanitizeActiveMarcosForTrail } from '../../shared/progression/milestoneTreeState.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 
 const VALID_MARCO_NODE_IDS = new Set(MARCO_TREE_NODES.map((node) => node.id));
@@ -18,12 +21,24 @@ export type AuthoritativeCombatMarcos = Pick<
 
 export function sanitizeAuthoritativeCombatMarcos(
   marcos: PersistedMarcosSlice,
+  ramificacaoSelecionada: MarcoRamificacaoId | null = null,
+  trilhaTravada = false,
 ): AuthoritativeCombatMarcos {
-  const activeMarcos = marcos.activeMarcos.filter((id) => VALID_MARCO_NODE_IDS.has(id));
+  const validIds = marcos.activeMarcos.filter((id) => VALID_MARCO_NODE_IDS.has(id));
+  const activeMarcos = sanitizeActiveMarcosForTrail(
+    validIds,
+    ramificacaoSelecionada,
+    trilhaTravada,
+  );
 
   const byNodeId: Record<string, MarcoNodeProgressSnapshot> = {};
   for (const [nodeId, snap] of Object.entries(marcos.nodeProgression.byNodeId)) {
     if (!VALID_MARCO_NODE_IDS.has(nodeId)) continue;
+    if (!activeMarcos.includes(nodeId) && !ramificacaoSelecionada) continue;
+    if (ramificacaoSelecionada) {
+      const node = MARCO_TREE_NODES.find((entry) => entry.id === nodeId);
+      if (!node || node.branch !== ramificacaoSelecionada) continue;
+    }
     if (!snap || typeof snap.level !== 'number') continue;
     byNodeId[nodeId] = {
       nodeId,
@@ -48,5 +63,9 @@ export function getAuthoritativeCombatMarcos(
   characterId: number,
 ): AuthoritativeCombatMarcos {
   const progressionState = getAuthoritativeProgression(playerId, characterId);
-  return sanitizeAuthoritativeCombatMarcos(progressionState.marcos);
+  return sanitizeAuthoritativeCombatMarcos(
+    progressionState.marcos,
+    progressionState.progression.ramificacaoSelecionada,
+    progressionState.progression.trilhaTravada,
+  );
 }

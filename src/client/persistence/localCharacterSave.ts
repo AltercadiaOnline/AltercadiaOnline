@@ -78,6 +78,7 @@ export function createLocalEmptySave(
       lastPetRationFeedAtMs: null,
       lastPetAffectionAtMs: null,
     },
+    petMemorial: [],
   };
 }
 

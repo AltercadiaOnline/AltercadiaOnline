@@ -39,6 +39,8 @@ import { showHealImpact, showTechnicalImpact, type TechnicalImpactPayload } from
 import { showBattleHitPop } from './battleEffectsLayer.js';
 
 import { sumAttackBreakdownTotal, sumDefenseBreakdownTotal } from '../../shared/combat/combatBreakdownBuilder.js';
+import type { CombatActionBreakdown } from '../../shared/combat/combatActionBreakdown.js';
+import { pickCombatHitMitigation } from '../../shared/combat/combatHitMitigation.js';
 
 import { BattleHealthBar } from './BattleHealthBar.js';
 
@@ -69,7 +71,15 @@ function showCombatHitImpactBundle(
   const mode = options.mode ?? 'damage';
 
   if (options.technical && mode === 'damage') {
-    showTechnicalImpact(anchor, options.technical, { compactScene: true });
+    // Número no PNG do alvo; math autodidata ao lado (sem sobrepor o −N).
+    showTechnicalImpact(anchor, options.technical, {
+      compactScene: true,
+      suppressFinalDamage: options.amount > 0,
+      lessonMath: true,
+    });
+    if (options.amount > 0) {
+      showBattleHitPop(anchor, options.amount, mode);
+    }
     return;
   }
 
@@ -80,6 +90,42 @@ function showCombatHitImpactBundle(
   if (options.technical) {
     showTechnicalImpact(anchor, options.technical, { compactScene: mode === 'shield' });
   }
+}
+
+function buildTechnicalImpactPayload(options: {
+  readonly amount: number;
+  readonly attackBreakdown?: CombatActionBreakdown;
+  readonly defenseBreakdown?: CombatActionBreakdown;
+  readonly attackTotal?: number;
+  readonly defenseTotal?: number;
+  readonly moveName?: string;
+  readonly skillId?: string;
+  readonly damagePayload?: DamageDealtEvent['payload'];
+}): TechnicalImpactPayload {
+  const mitigation = options.damagePayload
+    ? pickCombatHitMitigation(options.damagePayload)
+    : undefined;
+
+  return {
+    damageTotal: options.amount,
+    ...(options.attackBreakdown
+      ? {
+          attackBreakdown: options.attackBreakdown,
+          ...(options.attackTotal !== undefined ? { attackTotal: options.attackTotal } : {}),
+        }
+      : {}),
+    ...(options.defenseBreakdown
+      ? {
+          defenseBreakdown: options.defenseBreakdown,
+          ...(options.defenseTotal !== undefined
+            ? { protectionTotal: options.defenseTotal, defenseTotal: options.defenseTotal }
+            : {}),
+        }
+      : {}),
+    ...(options.moveName ? { moveName: options.moveName } : {}),
+    ...(options.skillId ? { skillId: options.skillId } : {}),
+    ...(mitigation ? { mitigation } : {}),
+  };
 }
 
 
@@ -294,51 +340,30 @@ export class BattleController {
       if (popAmount > 0 || mode !== 'damage' || hasTechnical) {
 
         showCombatHitImpactBundle(targetPortrait, {
-
           amount: popAmount,
-
           mode,
-
           ...(hasTechnical
-
             ? {
-
-                technical: {
-
-                  damageTotal: amount,
-
+                technical: buildTechnicalImpactPayload({
+                  amount,
                   ...(attackBreakdown
-
-                    ? { attackBreakdown, ...(attackTotal !== undefined ? { attackTotal } : {}) }
-
-                    : {}),
-
-                  ...(defenseBreakdown
-
                     ? {
-
-                        defenseBreakdown,
-
-                        ...(defenseTotal !== undefined
-
-                          ? { protectionTotal: defenseTotal, defenseTotal }
-
-                          : {}),
-
+                        attackBreakdown,
+                        ...(attackTotal !== undefined ? { attackTotal } : {}),
                       }
-
                     : {}),
-
+                  ...(defenseBreakdown
+                    ? {
+                        defenseBreakdown,
+                        ...(defenseTotal !== undefined ? { defenseTotal } : {}),
+                      }
+                    : {}),
                   ...(moveName ? { moveName } : {}),
-
                   ...(skillId ? { skillId } : {}),
-
-                },
-
+                  damagePayload: event.payload,
+                }),
               }
-
             : {}),
-
         });
 
       }
@@ -540,7 +565,17 @@ export class BattleController {
       case 'damage_impact': {
         const damageEvent = context?.damageEvent;
         const payload = damageEvent?.payload;
-        const targetPortrait = screen?.getPortraitElement(step.targetId);
+        // O evento DAMAGE_DEALT é a autoridade: o atacante só anima o ataque;
+        // flash, conta e −N pertencem sempre ao combatente que recebeu o dano.
+        const impactTargetId = payload?.targetId ?? step.targetId;
+        let targetPortrait = screen?.getPortraitElement(impactTargetId) ?? null;
+        if (!targetPortrait && typeof document !== 'undefined') {
+          const isPlayerTarget =
+            Boolean(screen?.getPlayerActorId() && impactTargetId === screen.getPlayerActorId());
+          targetPortrait = document.querySelector<HTMLElement>(
+            isPlayerTarget ? '#battle-player-portrait' : '#battle-opponent-portrait',
+          );
+        }
         if (!targetPortrait) return;
 
         const amount = step.amount;
@@ -557,32 +592,44 @@ export class BattleController {
         const popAmount = amount > 0 ? amount : defenseTotal ?? 0;
         const hasTechnical = Boolean(attackBreakdown || defenseBreakdown || amount >= 0);
 
+        // Hit flash + número/math no mesmo beat — casado com o PNG do alvo.
+        const hitCuePromise =
+          amount > 0
+            ? screen?.playCombatCue(impactTargetId, 'hit')
+            : defenseBreakdown
+              ? screen?.playCombatCue(impactTargetId, 'shield')
+              : Promise.resolve();
+
         if (popAmount > 0 || mode !== 'damage' || hasTechnical) {
           showCombatHitImpactBundle(targetPortrait, {
             amount: popAmount,
             mode,
             ...(hasTechnical
               ? {
-                  technical: {
-                    damageTotal: amount,
+                  technical: buildTechnicalImpactPayload({
+                    amount,
                     ...(attackBreakdown
-                      ? { attackBreakdown, ...(attackTotal !== undefined ? { attackTotal } : {}) }
+                      ? {
+                          attackBreakdown,
+                          ...(attackTotal !== undefined ? { attackTotal } : {}),
+                        }
                       : {}),
                     ...(defenseBreakdown
                       ? {
                           defenseBreakdown,
-                          ...(defenseTotal !== undefined
-                            ? { protectionTotal: defenseTotal, defenseTotal }
-                            : {}),
+                          ...(defenseTotal !== undefined ? { defenseTotal } : {}),
                         }
                       : {}),
                     ...(moveName ? { moveName } : {}),
                     ...(skillId ? { skillId } : {}),
-                  },
+                    ...(payload ? { damagePayload: payload } : {}),
+                  }),
                 }
               : {}),
           });
         }
+
+        await hitCuePromise;
         return;
       }
 

@@ -1,1 +1,0 @@
-import{m as o}from"./chunk-2FX4OA6Y.js";var n="Este item \xE9 parte da sua alma e n\xE3o pode ser descartado.";function r(e){let t=o(e);return t?.isIndestructible===!0&&t?.isUnique===!0}function u(e){return r(e)?{ok:!1,reason:n}:{ok:!0}}export{n as a,r as b,u as c};

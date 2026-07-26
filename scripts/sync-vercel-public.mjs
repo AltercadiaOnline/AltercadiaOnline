@@ -112,6 +112,14 @@ const assetsJsonSrc = path.join(root, 'src', 'assets');
 const gsapSrc = path.join(root, 'node_modules', 'gsap');
 
 copyDir(clientSrc, path.join(publicDir, 'client'));
+
+// Mock / testing NUNCA sobe na CDN (Vercel). Em localhost o staticServer
+// prefere dist/ em development e serve Mock de dist/client/testing.
+const testingPublic = path.join(publicDir, 'client', 'testing');
+if (existsSync(testingPublic)) {
+  rmSync(testingPublic, { recursive: true, force: true });
+  console.log('[sync-vercel-public] removido public/client/testing (Mock fora da CDN)');
+}
 copyDir(sharedSrc, path.join(publicDir, 'shared'));
 copyDir(configSrc, path.join(publicDir, 'config'));
 

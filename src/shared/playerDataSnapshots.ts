@@ -108,6 +108,12 @@ export type AuthoritativePlayerSnapshot = {
   readonly movesProgression?: MovesProgressionData & { readonly revision?: number };
   /** Classe autoritativa — espelho player → classe → moveset no cliente. */
   readonly classId?: ClassType;
+  /** Nível / XP / nome — SSOT do personagem (não vem do hub de slots). */
+  readonly characterProfile?: {
+    readonly level: number;
+    readonly xpCurrent: number;
+    readonly displayName?: string;
+  };
   /** Loadout de combate confirmado (sessionSync.activeMovesets). */
   readonly activeMovesets?: readonly string[];
   readonly petRoster?: Omit<PetRosterDataSnapshot, 'revision'> & { readonly revision?: number };

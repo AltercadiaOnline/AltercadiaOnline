@@ -18,7 +18,7 @@ import {
 } from '../../../shared/bank/bankVaultPagination.js';
 import { emitItemTooltip } from '../../ui/tooltip/emitItemTooltip.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { getPendingIntentRegistry } from '../../sync/pendingIntentRegistry.js';
 import { alertSystem } from '../../ui/alertSystem.js';
 import { uiEvents, UIEventType } from '../../ui/uiEvents.js';

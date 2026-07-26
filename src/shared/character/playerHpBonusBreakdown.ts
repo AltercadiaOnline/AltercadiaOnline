@@ -5,7 +5,7 @@ import {
 } from '../items/itemCatalog.js';
 import { ItemBuffType } from '../items/itemTypes.js';
 import type { EquippedSlots } from './equipmentState.js';
-import { BASE_PLAYER_HP, computePlayerHpMax } from './playerVitals.js';
+import { computePlayerHpMax, PLAYER_HP_PER_LEVEL, resolvePlayerBaseHpForLevel } from './playerVitals.js';
 
 /** Uma fonte de bônus de vida — sempre percentual sobre a base. */
 export type PlayerHpBonusLine = {
@@ -48,6 +48,7 @@ function pushLine(
  */
 export function resolvePlayerHpBonusBreakdownFromEquipped(
   equipped: EquippedSlots,
+  level = 1,
 ): PlayerHpBonusBreakdown {
   const lines: PlayerHpBonusLine[] = [];
 
@@ -89,10 +90,11 @@ export function resolvePlayerHpBonusBreakdownFromEquipped(
   }
 
   const totalBonusPercent = lines.reduce((sum, line) => sum + line.percent, 0);
+  const baseHp = resolvePlayerBaseHpForLevel(level);
   return {
-    baseHp: BASE_PLAYER_HP,
+    baseHp,
     totalBonusPercent,
-    hpMax: computePlayerHpMax(totalBonusPercent),
+    hpMax: computePlayerHpMax(level, totalBonusPercent),
     lines,
   };
 }

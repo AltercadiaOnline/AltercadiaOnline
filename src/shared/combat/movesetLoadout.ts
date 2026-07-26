@@ -65,9 +65,7 @@ export function moveIdToSkillData(
     const withParams = combat.effectParams
       ? { ...skill, effectParams: combat.effectParams }
       : skill;
-    return totalMasteryXp > 0
-      ? applyMoveMasteryToSkillData(withParams, totalMasteryXp)
-      : withParams;
+    return applyMoveMasteryToSkillData(withParams, totalMasteryXp);
   }
 
   if (getMonsterSkillById(moveId)) {

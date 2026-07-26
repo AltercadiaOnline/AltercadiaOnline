@@ -2,8 +2,6 @@ import { ALQUIMISTA_NPC, VENDEDOR_NPC } from '../world/npcBuildingAnchors.js';
 import { ANCIAO_CAEL_NPC_ID } from './caelPetService.js';
 import { getAuthoritativeItemById } from '../items/itemCatalogAuthoritative.js';
 import { ItemCategory } from '../items/itemSchema.js';
-import { resolveItemValorBase } from './itemValorEconomy.js';
-import { calculateTradePrice } from './ShopManager.js';
 
 /** Tabela de preços do NPC — compra, revenda e âncora de mercado (editável). */
 export type NpcVendorListing = {
@@ -51,33 +49,33 @@ export const NPC_VENDOR_CATALOG: readonly NpcVendorCatalogEntry[] = [
     listings: [
       {
         itemId: 'potion_suporte_menor',
-        npcBuyPriceVolts: 120,
-        npcSellPriceVolts: 75,
-        marketValueVolts: 95,
+        npcBuyPriceVolts: 30,
+        npcSellPriceVolts: 10,
+        marketValueVolts: 20,
       },
       {
         itemId: 'potion_suporte_media',
-        npcBuyPriceVolts: 280,
-        npcSellPriceVolts: 175,
-        marketValueVolts: 240,
+        npcBuyPriceVolts: 55,
+        npcSellPriceVolts: 18,
+        marketValueVolts: 37,
       },
       {
         itemId: 'potion_suporte_maior',
-        npcBuyPriceVolts: 450,
-        npcSellPriceVolts: 280,
-        marketValueVolts: null,
+        npcBuyPriceVolts: 75,
+        npcSellPriceVolts: 25,
+        marketValueVolts: 50,
       },
       {
         itemId: 'tonico_fluxo_menor',
-        npcBuyPriceVolts: 150,
-        npcSellPriceVolts: 90,
-        marketValueVolts: 130,
+        npcBuyPriceVolts: 55,
+        npcSellPriceVolts: 18,
+        marketValueVolts: 37,
       },
       {
         itemId: 'tonico_fluxo_maior',
-        npcBuyPriceVolts: 320,
-        npcSellPriceVolts: 200,
-        marketValueVolts: 285,
+        npcBuyPriceVolts: 65,
+        npcSellPriceVolts: 21,
+        marketValueVolts: 43,
       },
       {
         itemId: 'runa_furia',
@@ -130,12 +128,8 @@ export function findNpcVendorListing(
   return getNpcVendorListings(vendorId).find((listing) => listing.itemId === itemId);
 }
 
-/** Spread NPC (compra − revenda) — visível na UI para educar o jogador. */
+/** Spread NPC (compra − revenda) — espelha a listagem da loja. */
 export function resolveNpcPriceSpread(listing: NpcVendorListing): number {
-  const valorBase = resolveItemValorBase(listing.itemId);
-  if (valorBase !== null) {
-    return calculateTradePrice(valorBase, 'BUY') - calculateTradePrice(valorBase, 'SELL');
-  }
   return listing.npcBuyPriceVolts - listing.npcSellPriceVolts;
 }
 

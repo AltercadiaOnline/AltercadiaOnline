@@ -87,5 +87,6 @@ export function initPlayerHudHpMaxSync(): void {
   uiEvents.on(UIEventType.EQUIPMENT_UPDATED, refresh);
   uiEvents.on(UIEventType.MARCOS_UPDATED, refresh);
   uiEvents.on(UIEventType.LOADOUT_SAVED, refresh);
+  uiEvents.on(UIEventType.CHARACTER_LEVEL_UPDATED, refresh);
   refresh();
 }

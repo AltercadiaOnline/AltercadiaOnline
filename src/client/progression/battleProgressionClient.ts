@@ -47,6 +47,10 @@ export function mirrorBattleProgressionGrant(
   );
   dataStore.bumpRevision('movesProgression');
 
+  void import('../ui/equipment/playerHudHpMax.js').then(({ refreshHudPlayerHpMax }) => {
+    refreshHudPlayerHpMax();
+  });
+
   if (applied.movesetMasteryCapBlocked.length > 0) {
     alertSystem(MOVE_MASTERY_CAP_NOTIFICATION);
   }

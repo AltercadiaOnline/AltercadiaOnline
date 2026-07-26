@@ -505,8 +505,8 @@ export class ExplorationScene implements Disposable {
 
 
   setPlayerLevel(level: number): void {
+    // Visual / nametag only — level+XP SSOT is PlayerDataStore (save ou snapshot).
     this.player.setLevel(level);
-    getMutableDataStore().applyCharacterLevelState(level, 0, 'server_sync');
     if ('setPlayerLevel' in this.worldSocket && typeof this.worldSocket.setPlayerLevel === 'function') {
       this.worldSocket.setPlayerLevel(level);
     }
@@ -558,22 +558,44 @@ export class ExplorationScene implements Disposable {
     resetPortalConfirmationSession();
     this.setPaused(false);
 
-    this.syncMockWorldAuthority(snapshot);
-    this.player.forceAuthoritativePosition({
+    const mapId = snapshot.mapId as MapId;
+    const spawn = {
       x: snapshot.x,
       y: snapshot.y,
       facing: snapshot.facing,
       mapId: snapshot.mapId,
-    });
-    this.playerAvatar.setFacing(this.player.facing);
+    };
+
+    if (this.mapManager.currentMapId !== mapId) {
+      this.mapManager.loadMap(mapId, spawn);
+      this.npcManager.setMapId(mapId);
+      this.pointClickController.setMapId(mapId);
+      this.worldMap.loadMap(mapId);
+    } else {
+      this.syncMockWorldAuthority(spawn);
+      this.player.forceAuthoritativePosition(spawn);
+      this.playerAvatar.setFacing(snapshot.facing);
+    }
+
     this.petFollow.snapBehindPlayer(
       { x: snapshot.x, y: snapshot.y },
       snapshot.facing,
     );
     this.pointClickController.refreshInteractables();
-    this.worldMap.loadMap(snapshot.mapId);
-    this.syncSceneCamera(snapshot.mapId);
+    this.syncSceneCamera(mapId);
     this.cameraManager.snapToPlayer({ x: snapshot.x, y: snapshot.y });
+
+    applyConstructMapLoad({
+      mapId: snapshot.mapId,
+      x: snapshot.x,
+      y: snapshot.y,
+      facing: snapshot.facing,
+    });
+
+    if (isHuntZoneMapId(mapId)) {
+      ensureClientZone(mapId);
+    }
+
     evaluatePortalProximityForPlayer(
       this.player.x,
       this.player.y,

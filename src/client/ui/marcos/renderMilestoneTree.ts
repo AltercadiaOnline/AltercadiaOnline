@@ -139,6 +139,7 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
     ? MARCO_TREE_NODES.find((n) => n.id === model.selectedNodeId)?.branch ?? null
     : null;
   const focusBranch = model.ramificacaoSelecionada ?? pendingBranch;
+  const isChoosingTrail = !model.ramificacaoSelecionada && !model.trilhaTravada;
 
   return sorted
     .map((nodeView) => {
@@ -150,24 +151,34 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
       const displayLevel = status === 'active' ? effectiveProgressionLevel || progressionLevel : tierLevel;
       const isHovered = model.hoverNodeId === def.id;
       const isFreeChoiceStarter =
-        isBranchStarter && !model.ramificacaoSelecionada && !model.trilhaTravada;
+        isBranchStarter
+        && status === 'available'
+        && isChoosingTrail;
+      const isBranchPickHighlight =
+        isFreeChoiceStarter
+        && (model.selectedNodeId === def.id || (isHovered && !model.selectedNodeId));
       const isPendingTrail = Boolean(pendingBranch && def.branch === pendingBranch && !model.trilhaTravada);
       const isConfirmedTrail = Boolean(model.ramificacaoSelecionada && def.branch === model.ramificacaoSelecionada);
-      const isSoftDimmed =
-        Boolean(focusBranch && def.branch !== focusBranch) && !isDimmedBranch;
+      // Sem trilha: só os 3 starters ficam em foco; com pending/confirmada, ofusca as outras colunas.
+      const isSoftDimmed = isChoosingTrail
+        ? !isBranchStarter
+        : Boolean(focusBranch && def.branch !== focusBranch) && !isDimmedBranch;
 
-      const statusClass =
-        status === 'active'
+      const statusClass = isFreeChoiceStarter
+        ? 'marcos-node--trail-choice'
+        : status === 'active'
           ? 'marcos-node--active'
           : status === 'available'
             ? 'marcos-node--available'
             : 'marcos-node--locked';
 
-      const icon = status === 'locked' && !isDimmedBranch && !isSoftDimmed
-        ? '🔒'
-        : status === 'active'
-          ? '◆'
-          : '○';
+      const icon = isFreeChoiceStarter
+        ? '◇'
+        : status === 'locked' && !isDimmedBranch && !isSoftDimmed
+          ? '🔒'
+          : status === 'active'
+            ? '◆'
+            : '○';
       const bonus = def.shortBonus ?? (def.speedFlat !== undefined ? `+${def.speedFlat}` : '');
 
       const levelLine =
@@ -185,7 +196,7 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
       return `
         <button
           type="button"
-          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isSelected ? ' marcos-node--selected' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isPendingTrail ? ' marcos-node--pending-trail' : ''}${isFreeChoiceStarter ? ' marcos-node--branch-pick' : ''}${isFreeChoiceStarter && isHovered ? ' marcos-node--branch-pick-hover' : ''}${isBranchStarter && (isConfirmedTrail || isPendingTrail) ? ' marcos-node--branch-root' : ''}"
+          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isSelected ? ' marcos-node--selected' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isPendingTrail ? ' marcos-node--pending-trail' : ''}${isFreeChoiceStarter ? ' marcos-node--branch-pick' : ''}${isBranchPickHighlight && isHovered ? ' marcos-node--branch-pick-hover' : ''}${isBranchStarter && (isConfirmedTrail || isPendingTrail) ? ' marcos-node--branch-root' : ''}"
           data-marco-node="${def.id}"
           style="grid-column:${def.layout.col + 1};grid-row:${def.layout.row + 1}"
           aria-pressed="${isSelected}"
@@ -251,7 +262,7 @@ export function renderMarcoGrid(model: MarcoTreeRenderModel): string {
   const headerFocus = model.ramificacaoSelecionada ?? pendingBranch;
 
   return `
-    <div class="marcos-grid${model.ramificacaoSelecionada ? ' marcos-grid--trail-locked' : ''}${pendingBranch && !model.trilhaTravada ? ' marcos-grid--trail-pending' : ''}" data-marcos-grid>
+    <div class="marcos-grid${model.ramificacaoSelecionada ? ' marcos-grid--trail-locked' : ''}${pendingBranch && !model.trilhaTravada ? ' marcos-grid--trail-pending' : ''}${!model.ramificacaoSelecionada && !model.trilhaTravada ? ' marcos-grid--trail-choice' : ''}" data-marcos-grid>
       <div class="marcos-grid__headers">
         ${renderMarcoGridHeaders(headerFocus)}
       </div>

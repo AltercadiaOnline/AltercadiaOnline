@@ -88,15 +88,18 @@ export function finalizeAuthoritativeBattleEnd(
       xpGain: scaledGrant.totalBattleXp,
     };
 
-    const marcoEvents = session.getMarcoProgressEvents(true);
-    if (marcoEvents.length > 0) {
-      const marcoResult = progressMarcoAuthoritative(
-        playerActorId,
-        characterId,
-        marcoEvents,
-      );
-      if (marcoResult.ok) {
-        marcosUpdated = marcoResult.marcosState;
+    const battleType = payload.state.battleType ?? BattleType.PVE;
+    if (battleType === BattleType.PVE) {
+      const marcoEvents = session.getMarcoProgressEvents(true);
+      if (marcoEvents.length > 0) {
+        const marcoResult = progressMarcoAuthoritative(
+          playerActorId,
+          characterId,
+          marcoEvents,
+        );
+        if (marcoResult.ok) {
+          marcosUpdated = marcoResult.marcosState;
+        }
       }
     }
   } else if (!finishedEvent.payload.victory && endReason !== 'FORFEIT') {
@@ -127,13 +130,13 @@ export function finalizeAuthoritativeBattleEnd(
         playerActorId,
         characterId,
         playerCombatant,
-        // Derrota → respawn no centro da cidade com vitals cheios.
-        victory
+        // Só derrota (HP=0) → cidade + HP baixo. Fuga (FORFEIT) e vitória → mesma posição da farm.
+        victory || endReason === 'FORFEIT'
           ? undefined
           : (() => {
               const spawn = buildCitySafeSpawnPayload();
               return {
-                fullRestore: true,
+                defeatRespawn: true,
                 respawn: {
                   mapId: spawn.mapId,
                   x: spawn.x,

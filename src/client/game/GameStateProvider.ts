@@ -398,8 +398,8 @@ export async function returnToExplorationFromBattle(
 
   getGameStateProviderSlot().pendingCombatJoin = false;
 
-  // Derrota → sempre voltar ao centro da cidade (espelha o respawn autoritativo do servidor).
-  if (!options.victory) {
+  // Derrota (não fuga) → centro da cidade (espelha respawn autoritativo do servidor).
+  if (!options.victory && options.endReason !== 'FORFEIT') {
     const citySpawn = buildCitySafeSpawnPayload();
     if (isMapId(citySpawn.mapId)) {
       hooks.persistence.saveExplorationSnapshot({
@@ -438,7 +438,9 @@ export async function returnToExplorationFromBattle(
     creatureId: '',
   };
 
-  persistBattleEndVitals();
+  persistBattleEndVitals(
+    options.endReason !== undefined ? { endReason: options.endReason } : undefined,
+  );
   if (!options.victory && options.endReason !== 'FORFEIT') {
     handleBattleDefeatPenalty();
   }
@@ -461,7 +463,7 @@ export function publishBattleFinished(
   victory: boolean,
   endReason?: BattleEndReason,
 ): void {
-  persistBattleEndVitals();
+  persistBattleEndVitals(endReason !== undefined ? { endReason } : undefined);
 
   if (!victory && endReason !== 'FORFEIT') {
     handleBattleDefeatPenalty();

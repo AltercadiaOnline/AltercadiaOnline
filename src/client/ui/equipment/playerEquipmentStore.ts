@@ -28,6 +28,7 @@ import { alertSystem } from '../alertSystem.js';
 import { getPlayerItemStore } from '../items/playerItemStore.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { BASE_PLAYER_HP } from '../../../shared/character/playerVitals.js';
+import { getMutableDataStore } from '../../PlayerDataStore.js';
 
 export type PlayerVitals = {
   hpCurrent: number;
@@ -96,15 +97,20 @@ function canPlaceInUiSlot(itemId: string, uiSlotId: EquipmentUiSlotId): boolean 
 }
 
 /**
- * Espelho local do SET — emite eventos; futuro: sincronizar via economyGateway no servidor.
+ * Espelho local do SET (grade + vitals + class).
+ * Level NÃO é SSOT aqui — lê de PlayerDataStore (mesmo padrão do profile store).
  */
 export class PlayerEquipmentStore {
   private displayName = 'Operative';
-  private level = 1;
   private classId: ClassType = 'IMPETUS';
   private vitals: PlayerVitals = vitalsForLevel(1);
   private slots: EquipmentUiGridState = createEmptyEquipmentUiGrid();
   private readonly listeners = new Set<Listener>();
+
+  /** Level autoritativo — PlayerDataStore é a única fonte. */
+  private readAuthoritativeLevel(): number {
+    return Math.max(1, getMutableDataStore().getCharacterLevel().level);
+  }
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
@@ -115,7 +121,7 @@ export class PlayerEquipmentStore {
   getSnapshot(): PlayerEquipmentSnapshot {
     return {
       displayName: this.displayName,
-      level: this.level,
+      level: this.readAuthoritativeLevel(),
       classId: this.classId,
       vitals: { ...this.vitals },
       equipment: { ...this.slots },
@@ -132,22 +138,39 @@ export class PlayerEquipmentStore {
     if (options?.classId) {
       this.classId = options.classId;
     }
-    const nextLevel = Math.max(1, Math.floor(level));
-    const levelChanged = nextLevel !== this.level;
-    this.level = nextLevel;
+    // Level arg só escala MP/vitals se o PDS ainda não hidratou; snapshot sempre lê o PDS.
+    const nextLevel = Math.max(1, this.readAuthoritativeLevel(), Math.floor(level));
 
     if (options?.resetVitals) {
-      this.vitals = vitalsForLevel(this.level);
-    } else if (levelChanged) {
-      const nextMp = mpVitalsForLevel(this.level);
-      this.vitals = {
-        ...this.vitals,
-        mpMax: nextMp.mpMax,
-        mpCurrent: Math.min(this.vitals.mpCurrent, nextMp.mpMax),
-      };
+      this.vitals = vitalsForLevel(nextLevel);
+    } else {
+      const nextMp = mpVitalsForLevel(nextLevel);
+      if (nextMp.mpMax !== this.vitals.mpMax) {
+        this.vitals = {
+          ...this.vitals,
+          mpMax: nextMp.mpMax,
+          mpCurrent: Math.min(this.vitals.mpCurrent, nextMp.mpMax),
+        };
+      }
     }
 
     this.publish();
+  }
+
+  /** Chamado pelo PDS após level-up — ajusta MP derivado sem regravar level. */
+  syncLevelDerivedVitals(level: number): void {
+    const nextLevel = Math.max(1, Math.floor(level));
+    const nextMp = mpVitalsForLevel(nextLevel);
+    if (nextMp.mpMax === this.vitals.mpMax) {
+      this.publish({ equipmentChanged: false });
+      return;
+    }
+    this.vitals = {
+      ...this.vitals,
+      mpMax: nextMp.mpMax,
+      mpCurrent: Math.min(this.vitals.mpCurrent, nextMp.mpMax),
+    };
+    this.publish({ equipmentChanged: false });
   }
 
   setVitals(vitals: Partial<PlayerVitals>): void {

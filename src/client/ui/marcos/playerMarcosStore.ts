@@ -1,6 +1,6 @@
 import { uiEvents, UIEventType } from '../uiEvents.js';
+import { getDataStore } from '../../economy/economyLayer.js';
 import { getPlayerProgressionStore } from '../../progression/playerProgressionStore.js';
-import { getPlayerEquipmentStore } from '../equipment/playerEquipmentStore.js';
 import {
   canChooseMarco,
   canSelectBranchStarter,
@@ -46,11 +46,12 @@ class PlayerMarcosStore {
 
   getPlayerContext(): MarcoTreePlayerContext {
     const progression = getPlayerProgressionStore().getSnapshot();
+    const playerLevel = Math.max(1, getDataStore().getCharacterLevel().level);
     return {
       activeMarcos: this.activeMarcos,
       flowSpeedBase: this.flowSpeedBase,
       milestoneTotalProgress: progression.milestoneTotalProgress,
-      playerLevel: getPlayerEquipmentStore().getSnapshot().level,
+      playerLevel: Math.floor(playerLevel),
       ramificacaoSelecionada: resolveRamificacaoFromContext(progression.ramificacaoSelecionada),
       trilhaTravada: progression.trilhaTravada,
       nodeProgression: this.nodeProgression,
@@ -63,7 +64,7 @@ class PlayerMarcosStore {
   }
 
   /**
-   * Escolha inicial de trilha — trava ramificação e ativa a 1ª instância.
+   * Escolha inicial de trilha — trava ramificação e ativa só a 1ª instância escolhida.
    * Não passa por canChooseMarco (requisitos de fluxo/marco não bloqueiam o starter).
    */
   selectBranch(starterNodeId: string): boolean {
@@ -76,9 +77,8 @@ class PlayerMarcosStore {
     progression.setRamificacaoSelecionada(ramificacao);
     progression.setTrilhaTravada(true);
 
-    if (!this.activeMarcos.includes(starterNodeId)) {
-      this.activeMarcos = [...this.activeMarcos, starterNodeId];
-    }
+    // Uma trilha por vez — descarta starters/nós órfãos de outras colunas.
+    this.activeMarcos = [starterNodeId];
     this.publish();
     uiEvents.emit(UIEventType.MARCO_CHOSEN, { nodeId: starterNodeId });
     return true;

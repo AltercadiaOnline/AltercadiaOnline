@@ -160,6 +160,7 @@ export class GlobalStateSynchronizer {
 
     applyGameTimeFromPlayerSnapshot(state);
 
+    // SSOT enter-world: snapshot é a única escrita de class/loadout/economia.
     // Classe autoritativa ANTES da progressão/loadout — evita espelho preso em IMPETUS.
     if (isClassType(state.classId)) {
       const equip = getPlayerEquipmentStore().getSnapshot();

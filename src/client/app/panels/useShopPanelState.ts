@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { getPlayerSkinStore } from '../../ui/character/playerSkinStore.js';
 import { SKIN_SHOP_CATALOG } from '../../../shared/character/skinShopCatalog.js';
 import type { SkinShopItem } from '../../../shared/character/skinShopCatalog.js';

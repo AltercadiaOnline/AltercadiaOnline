@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ACTIVE_MOVESET_SLOT_COUNT } from '../../../shared/combat/moveTypes.js';
 import type { ClassType } from '../../../shared/types/classes.js';
 import type { MovesProgressionSnapshot } from '../../../shared/playerDataSnapshots.js';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { getBattleStore } from '../../combat/client/battleStore.js';
 import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
 import {

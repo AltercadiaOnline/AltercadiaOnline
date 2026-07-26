@@ -47,6 +47,8 @@ export type DamageCalculationResult = {
   readonly logLines: readonly string[];
   readonly attackBreakdown: CombatActionBreakdown;
   readonly defenseBreakdown: CombatActionBreakdown;
+  readonly vulnerableApplied?: boolean;
+  readonly minDamageFloorApplied?: boolean;
 };
 
 export function isPhysicalMove(moveId: string): boolean {
@@ -80,10 +82,10 @@ export function resolveCombatantDefense(
 }
 
 export function resolveMovePower(moveId: string, attacker: Combatant): number {
-  const fromMeta = resolveMoveCombatMeta(moveId)?.basePower;
-  if (fromMeta !== undefined) return fromMeta;
   const fromSkill = attacker.skills.find((skill) => skill.id === moveId);
-  return fromSkill?.basePower ?? fromSkill?.damage ?? 0;
+  const skillPower = fromSkill?.basePower ?? fromSkill?.damage;
+  if (skillPower !== undefined && skillPower > 0) return skillPower;
+  return resolveMoveCombatMeta(moveId)?.basePower ?? 0;
 }
 
 export function resolveMoveName(moveId: string, attacker: Combatant): string {
@@ -131,14 +133,19 @@ export function calculateDamage(
   const logLines: string[] = [];
 
   const withBreakdown = (
-    result: Omit<DamageCalculationResult, 'attackBreakdown' | 'defenseBreakdown'>,
+    result: Omit<DamageCalculationResult, 'attackBreakdown' | 'defenseBreakdown' | 'vulnerableApplied' | 'minDamageFloorApplied'>,
+    extra?: Pick<DamageCalculationResult, 'minDamageFloorApplied'>,
   ): DamageCalculationResult => ({
     ...result,
     attackBreakdown,
     defenseBreakdown,
+    ...(vulnerableApplied ? { vulnerableApplied: true } : {}),
+    ...(extra?.minDamageFloorApplied ? { minDamageFloorApplied: true } : {}),
   });
 
   const turn = ctx.turn ?? 1;
+
+  let vulnerableApplied = false;
 
   if (
     defenderMonster?.specialAbility?.id === MonsterSpecialAbilityId.PhaseShift
@@ -176,6 +183,7 @@ export function calculateDamage(
 
   const statusMult = vulnerableDamageMultiplierFromStatuses(ctx.defenderActiveStatuses ?? [], turn);
   if (statusMult > 1) {
+    vulnerableApplied = true;
     raw = Math.floor(raw * statusMult);
     logLines.push(`${defender.name} está vulnerável (+20%)!`);
   }
@@ -200,7 +208,7 @@ export function calculateDamage(
       blocked: false,
       isCritical: false,
       logLines,
-    });
+    }, { minDamageFloorApplied: true });
   }
 
   const dodgePercent = defender.combatStats?.dodgePercent ?? 0;

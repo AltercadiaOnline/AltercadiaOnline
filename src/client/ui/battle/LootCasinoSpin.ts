@@ -6,11 +6,14 @@ import { formatVolts } from '../../../shared/economy/premiumCurrency.js';
 
 import {
 
-  resolveInventoryItemAbbrev,
-
   resolveInventoryItemLabel,
 
 } from '../inventory/inventoryItemDisplay.js';
+
+import {
+  bindDelegatedItemIconFallback,
+  renderItemIconHtml,
+} from '../items/itemIconDisplay.js';
 
 
 
@@ -162,20 +165,25 @@ function buildSlotFace(slot: LootRevealSlot): {
 
   if (slot.kind === 'GOLD') {
     const amount = slot.voltAmount ?? 0;
+    const iconHtml = renderItemIconHtml('dollar_volt', {
+      className: 'loot-casino__icon loot-casino__icon--item loot-casino__icon--gold',
+    });
     return {
-      html: `<span class="loot-casino__icon loot-casino__icon--gold">⚡</span><span class="loot-casino__label">${formatVolts(amount)} V</span>`,
+      html: `${iconHtml}<span class="loot-casino__label">${formatVolts(amount)} V</span>`,
       classes: ['loot-casino__cell--gold'],
       label: `${formatVolts(amount)} Volts`,
     };
   }
 
   const itemId = slot.itemId ?? 'unknown';
-  const abbrev = resolveInventoryItemAbbrev(itemId);
   const name = resolveInventoryItemLabel(itemId);
   const rarity = slot.rarity ?? 'common';
+  const iconHtml = renderItemIconHtml(itemId, {
+    className: 'loot-casino__icon loot-casino__icon--item',
+  });
 
   return {
-    html: `<span class="loot-casino__icon loot-casino__icon--item">${abbrev}</span><span class="loot-casino__label">${name}</span>`,
+    html: `${iconHtml}<span class="loot-casino__label">${name}</span>`,
     classes: ['loot-casino__cell--item', `loot-casino__cell--rarity-${rarity}`],
     label: name,
     itemId,
@@ -485,8 +493,8 @@ export function mountLootCasinoSpin(options: LootCasinoSpinOptions): LootCasinoS
 
 
   root.appendChild(row);
-
   options.mountRoot.appendChild(root);
+  bindDelegatedItemIconFallback(root);
 
 
 

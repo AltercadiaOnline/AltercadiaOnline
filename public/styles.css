@@ -206,12 +206,31 @@ body[data-react-battle-hud-ui="1"] #scene-combat .battle-screen--terminal.battle
   max-height: min(46vh, 320px);
 }
 
+:root {
+  --battle-top-chrome-px: 72px;
+  --battle-bottom-chrome-px: 152px;
+}
+
+#game-react-hud-root .battle-hud-top-chrome {
+  flex: 0 0 auto;
+  width: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 8, 6, 0.98) 0%,
+    rgba(6, 8, 6, 0.9) 100%
+  );
+  border-bottom: 1px solid var(--battle-neon-dim, rgba(222, 255, 154, 0.35));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.42);
+  box-sizing: border-box;
+}
+
 #game-react-hud-root .battle-vitals-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: start;
   gap: 0.5rem;
-  padding: 0.35rem 0.75rem 0;
+  /* Compensa as fontes maiores sem aumentar a altura da faixa superior. */
+  padding: 0.22rem 0.75rem 0.24rem;
   width: 100%;
   max-width: none;
   margin: 0;
@@ -220,11 +239,67 @@ body[data-react-battle-hud-ui="1"] #scene-combat .battle-screen--terminal.battle
 #game-react-hud-root .battle-vitals-row__ally {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.12rem;
 }
 
 #game-react-hud-root .battle-pet-fighter__vitals--compact {
   padding-left: 0.25rem;
+}
+
+/* HUD superior: tipografia +20%, sem alterar barras nem dimensões da chrome. */
+#game-react-hud-root .battle-hud-top-chrome .battle-fighter-name {
+  font-size: 1.26rem;
+  line-height: 1;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-fighter-class {
+  margin-bottom: 0.12rem;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-hp-text,
+#game-react-hud-root .battle-hud-top-chrome .battle-pet-fighter__name {
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-turn-phase {
+  font-size: 0.94rem;
+  line-height: 1;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-turn-waiting {
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-turn-timer {
+  font-size: 1.62rem;
+  line-height: 1;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-turn-hub {
+  gap: 0.16rem;
+  padding-top: 0;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-status-badge {
+  font-size: 0.78rem;
+}
+
+#game-react-hud-root .battle-hud-top-chrome .battle-mirror-bot-badge {
+  font-size: 0.74rem;
+}
+
+/* Oponente encostado à margem direita útil, antes da sidebar fixa. */
+#game-react-hud-root .battle-vitals-row > .battle-sprite-hud--foe {
+  display: flex;
+  width: min(220px, 100%);
+  flex-direction: column;
+  align-items: flex-end;
+  justify-self: end;
+  text-align: right;
 }
 
 .battle-command-bar.is-battle-command-locked {
@@ -5008,6 +5083,17 @@ body > .loot-casino-screen.loot-casino-screen--force-viewport,
 .loot-casino__icon {
   font-size: 1.1rem;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.loot-casino__icon[data-item-icon="true"] {
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .loot-casino__icon--gold {
@@ -5516,6 +5602,7 @@ body > .battle-result-overlay,
   max-width: min(calc(100% - 1.25rem), 22rem);
   box-sizing: border-box;
   pointer-events: none;
+  z-index: 22;
 }
 
 .technical-impact--scene .technical-impact__formula {
@@ -5574,6 +5661,64 @@ body > .battle-result-overlay,
   gap: 0.12rem;
 }
 
+/* Conta autodidata ao lado do PNG — moveset + build, sem cobrir o −N do hit-pop. */
+.technical-impact--scene.technical-impact--lesson-math {
+  gap: 0.1rem;
+  padding: 0.28rem 0.4rem;
+  max-width: min(11.5rem, calc(100% - 1rem));
+  border-radius: 0.35rem;
+  background: rgba(6, 10, 16, 0.72);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  z-index: 23;
+}
+
+.technical-impact--scene.technical-impact--lesson-math .technical-impact__move-name {
+  font-size: clamp(0.62rem, 1.8vw, 0.72rem);
+  margin-bottom: 0.08rem;
+  opacity: 0.95;
+}
+
+.technical-impact--scene .technical-impact__math-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  font-family: var(--battle-mono, 'Courier New', Courier, monospace);
+  font-size: clamp(0.58rem, 1.7vw, 0.68rem);
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: rgba(230, 236, 242, 0.92);
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+}
+
+.technical-impact--scene .technical-impact__math-line {
+  white-space: nowrap;
+}
+
+.technical-impact--scene .technical-impact__math-sum {
+  margin-top: 0.08rem;
+  padding-top: 0.08rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  font-weight: 800;
+  color: rgba(255, 200, 140, 0.95);
+}
+
+.technical-impact--scene .technical-impact__math-result {
+  margin-top: 0.06rem;
+  font-family: var(--battle-mono, 'Courier New', Courier, monospace);
+  font-size: clamp(0.68rem, 2vw, 0.78rem);
+  font-weight: 800;
+  color: #ff6b4a;
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 10px rgba(255, 80, 40, 0.55),
+    0 1px 5px rgba(0, 0, 0, 0.9);
+}
+
+.technical-impact--scene.technical-impact--lesson-math .technical-impact__defense-hint {
+  font-size: 0.56rem;
+  opacity: 0.9;
+}
+
 .technical-impact--scene .technical-impact__move-name,
 .technical-impact--scene .technical-impact__moveset-power,
 .technical-impact--scene .technical-impact__damage-final {
@@ -5604,6 +5749,16 @@ body > .battle-result-overlay,
   letter-spacing: 0.06em;
 }
 
+.technical-impact--scene .technical-impact__mitigation-trail {
+  margin-top: 0.25rem;
+  font-size: 0.58rem;
+  line-height: 1.25;
+  text-align: center;
+  color: rgba(200, 220, 255, 0.88);
+  max-width: 11rem;
+  letter-spacing: 0.04em;
+}
+
 .technical-impact--scene .technical-impact__protection-final {
   font-size: clamp(1.35rem, 4.2vw, 1.85rem);
   font-weight: 800;
@@ -5613,6 +5768,7 @@ body > .battle-result-overlay,
 
 .battle-hit-pop {
   position: absolute;
+  z-index: 24;
   transform: translate(-50%, -100%) scale(0.82);
   opacity: 0;
   font-family: var(--battle-mono, 'Courier New', Courier, monospace);
@@ -5671,22 +5827,22 @@ body > .battle-result-overlay,
 @keyframes battle-hit-pop-rise {
   0% {
     opacity: 0;
-    transform: translate(-50%, 10px) scale(0.7);
+    transform: translate(-50%, calc(-100% + 4px)) scale(0.7);
   }
   18% {
     opacity: 1;
-    transform: translate(-50%, -6px) scale(1.12);
+    transform: translate(-50%, calc(-100% - 10px)) scale(1.12);
   }
   100% {
     opacity: 0.92;
-    transform: translate(-50%, -34px) scale(1);
+    transform: translate(-50%, calc(-100% - 34px)) scale(1);
   }
 }
 
 @keyframes battle-hit-pop-fade {
   to {
     opacity: 0;
-    transform: translate(-50%, -48px) scale(0.94);
+    transform: translate(-50%, calc(-100% - 48px)) scale(0.94);
   }
 }
 
@@ -5736,7 +5892,7 @@ body > .battle-result-overlay,
 
 .damage-number--scene {
   position: absolute;
-  z-index: 13;
+  z-index: 24;
   font-size: clamp(1.25rem, 4vw, 1.65rem);
   animation: damage-number-float-scene 1s ease-out forwards;
 }
@@ -6689,18 +6845,18 @@ body > .battle-result-overlay,
   flex: 1 1 auto;
   min-height: 0;
   padding: 0.55rem 0.65rem 0.65rem;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .marcos-panel__tree-area {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  justify-content: center;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .marcos-grid {
@@ -6962,6 +7118,23 @@ body > .battle-result-overlay,
   animation: marcos-branch-pick-pulse 2s ease-in-out infinite;
 }
 
+.marcos-node--trail-choice {
+  border-color: rgba(0, 255, 204, 0.45);
+  background: rgba(0, 40, 36, 0.55);
+  color: #b8fff0;
+  cursor: pointer;
+}
+
+.marcos-grid--trail-choice .marcos-node--soft-dim {
+  opacity: 0.28;
+  filter: grayscale(0.55);
+  pointer-events: none;
+}
+
+.marcos-legend--choice {
+  color: #7dffd0;
+}
+
 .marcos-node--branch-pick-hover {
   border-color: #00ffcc;
   transform: scale(1.03);
@@ -7057,11 +7230,13 @@ body > .battle-result-overlay,
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  margin-top: 0.55rem;
+  margin-top: 0.45rem;
   padding: 0.65rem 0.7rem;
   border: 1px solid rgba(0, 255, 204, 0.35);
   background: linear-gradient(180deg, rgba(0, 255, 204, 0.08) 0%, rgba(8, 8, 8, 0.92) 100%);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  position: relative;
+  z-index: 2;
 }
 
 .marcos-panel__confirm-bar--idle {
@@ -9450,8 +9625,17 @@ body > .battle-result-overlay,
   flex-shrink: 0;
 }
 
+.ui-panel--marcos.ui-panel--movable > div:not(.ui-panel__header) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .ui-panel--marcos.ui-panel--movable .marcos-panel__body {
   padding: calc(var(--hud-ui-pad, 0.8rem) * 0.75) calc(var(--hud-ui-pad, 0.8rem) * 0.9);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Pet Love — override do style guide móvel (dimensões próprias + arraste). */
@@ -12241,9 +12425,24 @@ body > .battle-result-overlay,
 }
 
 /* â”€â”€ Loja NPC (Vendedor) â€” tabela compra/venda + hub central â”€â”€ */
-.ui-panel--vendor-shop {
-  width: min(720px, 96vw);
-  max-height: min(86vh, 680px);
+.ui-panel--vendor-shop.ui-panel--movable {
+  width: min(880px, 98vw) !important;
+  max-width: min(880px, 98vw) !important;
+  min-width: min(680px, 94vw) !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+  background: rgba(10, 8, 6, 0.98);
+}
+
+.ui-panel--vendor-shop .ui-panel__header {
+  flex-shrink: 0;
+}
+
+.ui-panel--vendor-shop.ui-panel--movable > div:not(.ui-panel__header) {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+  padding: 0.65rem 0.75rem 0.75rem;
 }
 
 .vendor-shop__header {
@@ -12283,32 +12482,38 @@ body > .battle-result-overlay,
   color: #9ef7e8;
 }
 
+.vendor-shop__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
 .vendor-shop__hint {
   margin: 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
+  font-size: 0.68rem;
+  line-height: 1.3;
   color: rgba(200, 196, 188, 0.75);
 }
 
 .vendor-shop__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 252px);
   gap: 0.55rem;
-  align-items: stretch;
-  min-height: 300px;
+  align-items: start;
 }
 
 .vendor-shop__lists {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.45rem;
   min-width: 0;
 }
 
 .vendor-shop__section-title {
   margin: 0;
-  padding: 0.4rem 0.5rem 0.25rem;
-  font-size: 0.68rem;
+  padding: 0.32rem 0.45rem 0.2rem;
+  font-size: 0.64rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(212, 180, 131, 0.9);
@@ -12335,9 +12540,9 @@ body > .battle-result-overlay,
 
 .vendor-shop__list-head {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) 0.8fr 0.8fr;
-  gap: 0.35rem;
-  padding: 0.35rem 0.5rem;
+  grid-template-columns: minmax(0, 1.4fr) 0.75fr 0.75fr;
+  gap: 0.3rem;
+  padding: 0.28rem 0.45rem;
   border-bottom: 1px dashed rgba(94, 74, 48, 0.55);
   font-size: 0.62rem;
   letter-spacing: 0.1em;
@@ -12357,23 +12562,21 @@ body > .battle-result-overlay,
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 180px;
-  overflow-y: auto;
 }
 
 .vendor-shop__row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) 0.8fr 0.8fr;
-  gap: 0.35rem;
+  grid-template-columns: minmax(0, 1.4fr) 0.75fr 0.75fr;
+  gap: 0.3rem;
   align-items: center;
-  padding: 0.45rem 0.5rem;
+  padding: 0.32rem 0.45rem;
   border: none;
   border-bottom: 1px solid rgba(94, 74, 48, 0.35);
   background: transparent;
   color: #d4b483;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   text-align: left;
   cursor: pointer;
   transition: background 0.12s ease, box-shadow 0.12s ease;
@@ -12443,6 +12646,7 @@ body > .battle-result-overlay,
 
 .vendor-shop__market-value--inline {
   display: block;
+  font-size: 0.54rem;
 }
 
 .vendor-shop__market-value span {
@@ -12481,8 +12685,8 @@ body > .battle-result-overlay,
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding: 0.55rem 0.5rem;
-  gap: 0.45rem;
+  padding: 0.45rem 0.45rem;
+  gap: 0.35rem;
 }
 
 .vendor-shop__trade-hub-inner--idle {
@@ -12699,14 +12903,23 @@ body > .battle-result-overlay,
   pointer-events: none;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
+  .ui-panel--vendor-shop.ui-panel--movable {
+    min-width: min(360px, 94vw) !important;
+    width: min(480px, 96vw) !important;
+    max-width: min(480px, 96vw) !important;
+  }
+
+  .vendor-shop__lists {
+    grid-template-columns: 1fr;
+  }
+
   .vendor-shop__layout {
     grid-template-columns: 1fr;
-    min-height: 0;
   }
 
   .vendor-shop__trade-hub {
-    min-height: 220px;
+    min-height: 0;
   }
 
   .vendor-shop__list-head {
@@ -15124,13 +15337,17 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   padding: 0;
   border: none;
   overflow: hidden;
-  background: #0b1420;
+  /* Transparente: o PNG fica no canvas irmão (#battle-background-canvas). */
+  background: transparent;
 }
 
-/* Frame letterbox da arena — coluna #scene-combat já exclui a sidebar. */
+/* Frame da arena — entre HUD superior e faixa inferior. */
 .battle-stage-frame {
   position: absolute;
-  inset: 0;
+  top: var(--battle-top-chrome-px, 72px);
+  bottom: var(--battle-bottom-chrome-px, 152px);
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15138,17 +15355,34 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   background: #05080c;
 }
 
+/*
+ * Background independente dos lutadores: preenche exatamente o frame disponível.
+ * Só o PNG recebe o pequeno stretch necessário; sprites/VFX mantêm proporção 640×360.
+ */
+.battle-stage-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  image-rendering: pixelated;
+  background: #0b1420;
+}
+
 .battle-stage-scale {
   position: relative;
   flex-shrink: 0;
   width: 640px;
   height: 360px;
-  overflow: hidden;
+  overflow: visible;
   transform-origin: center center;
   z-index: 1;
+  background: transparent;
 }
 
-/* Canvas 2D — buffer 640×360; escala via #battle-stage-scale (contain). */
+/* Lutadores/VFX — buffer 640×360 preservado via contain. */
 .battle-arena__canvas {
   position: absolute;
   inset: 0;
@@ -15158,7 +15392,7 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   display: block;
   object-fit: fill;
   image-rendering: pixelated;
-  background: #0b1420;
+  background: transparent;
 }
 
 .battle-arena__fighters--sr-only {
@@ -15172,6 +15406,38 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   white-space: nowrap;
   border: 0;
   pointer-events: none;
+}
+
+/** Ancoras de VFX — mesmas proporções do BattleArenaCanvas (ally 22%, foe 78%, chão ~320px). */
+.battle-arena__fighters--hit-anchors {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.battle-arena--canvas .battle-arena__fighters--hit-anchors #battle-player-portrait {
+  position: absolute;
+  left: 22%;
+  bottom: 15%;
+  width: 26%;
+  height: 42%;
+  transform: translateX(-50%);
+  opacity: 0;
+  border: none;
+  background: transparent;
+}
+
+.battle-arena--canvas .battle-arena__fighters--hit-anchors #battle-opponent-portrait {
+  position: absolute;
+  left: 78%;
+  bottom: 11%;
+  width: 28%;
+  height: 45%;
+  transform: translateX(-50%);
+  opacity: 0;
+  border: none;
+  background: transparent;
 }
 
 .battle-arena__background {
@@ -15196,11 +15462,13 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   pointer-events: none;
 }
 
-.battle-arena--side-view .battle-arena__effects {
+.battle-arena--side-view .battle-arena__effects,
+.battle-arena--canvas .battle-arena__effects {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
+  overflow: visible;
 }
 
 .battle-screen--side-view .battle-portrait {

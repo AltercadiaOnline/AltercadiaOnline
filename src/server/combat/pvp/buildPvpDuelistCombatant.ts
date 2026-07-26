@@ -26,7 +26,7 @@ export function buildPvpDuelistCombatant(entry: PvpDuelistRegistryEntry): Combat
     equipped: {},
     flowSpeedBase: 32,
   });
-  const maxHp = computePlayerHpMax(resolved.modifiers.maxHpBonusPercent);
+  const maxHp = computePlayerHpMax(entry.level, resolved.modifiers.maxHpBonusPercent);
 
   return {
     id: actorId,

@@ -4,6 +4,7 @@ import { getMonsterSkillById } from '../../../shared/combat/monsterSkillCatalog.
 import type { TooltipPlacement } from './tooltipPlacement.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
 import { showHintTooltip } from './showGameTooltip.js';
+import { getPlayerProgressionStore } from '../../progression/playerProgressionStore.js';
 
 /**
  * Tooltip de move — moveset / batalha / ficha.
@@ -14,8 +15,13 @@ export function showMoveTooltipAt(
   clientX: number,
   clientY: number,
   placement: TooltipPlacement = 'above',
+  masteryXp?: number,
 ): void {
-  const move = resolveMoveDefinitionForUi(moveId);
+  const resolvedMastery =
+    masteryXp
+    ?? getPlayerProgressionStore().getSnapshot().movesetMastery[moveId]
+    ?? 0;
+  const move = resolveMoveDefinitionForUi(moveId, resolvedMastery);
   if (move) {
     uiEvents.emit(UIEventType.SHOW_TOOLTIP, {
       data: { kind: 'move', data: move },

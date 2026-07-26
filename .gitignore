@@ -10,16 +10,29 @@ public/shared/
 public/config/
 public/game/
 public/vendor/
+# Bundle React HUD gerado pelo esbuild (build:ui) — regerado no deploy.
+# Versionar só churn de chunks hasheados; index.html usa nomes estáveis.
+public/app-ui/
 
 # Assets pesados de AUTORIA (fonte do designer) — NÃO versionar.
 # Mantemos a estrutura de pastas intacta; só ignoramos os arquivos que não
 # são consumidos em runtime e que pesam (PSD/ZIP/PDF) ou lixo de SO.
 # O runtime usa apenas .png/.tsx/.tmj/.json — esses continuam versionados.
-public/assets/**/*.psd
-public/assets/**/*.PSD
-public/assets/**/*.zip
-public/assets/**/*.pdf
-public/assets/**/*.tiled-session
+# Guard ativo: scripts/audit-public-assets.mjs (roda no deploy:check).
+public/**/*.psd
+public/**/*.PSD
+public/**/*.psb
+public/**/*.ai
+public/**/*.xcf
+public/**/*.fig
+public/**/*.sketch
+public/**/*.tiff
+public/**/*.tif
+public/**/*.zip
+public/**/*.rar
+public/**/*.7z
+public/**/*.pdf
+public/**/*.tiled-session
 
 # Lixo de sistema operacional (macOS / arquivos AppleDouble)
 public/assets/**/__MACOSX/
@@ -37,3 +50,7 @@ construct/**/Backups/
 
 # Fonte oficial de credenciais Supabase/Postgres — JAMAIS commitar
 .env
+
+# Fontes de autoria (PSD/ZIP/PDF…) — fora de public/, só no disco do designer.
+# Runtime continua em public/assets/**/*.png (esses SIM sobem no Git).
+art-source/

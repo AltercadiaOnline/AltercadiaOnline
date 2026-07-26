@@ -77,6 +77,12 @@ export interface DamageDealtEvent {
     /** Move que originou o golpe — exibido no impacto visual da arena. */
     readonly skillId?: string;
     readonly skillName?: string;
+    /** Pós-golpe: reconciliação visual (escudo, redução %, vuln, crítico). */
+    readonly vulnerableApplied?: boolean;
+    readonly minDamageFloorApplied?: boolean;
+    readonly damageBeforeMitigation?: number;
+    readonly shieldAbsorbed?: number;
+    readonly incomingReductionPercent?: number;
   };
 }
 

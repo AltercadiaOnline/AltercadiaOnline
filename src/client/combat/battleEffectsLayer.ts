@@ -69,6 +69,23 @@ export function mountBattleEffectBesideFighter(
   return host;
 }
 
+/** Pop de hit acima do sprite atingido — nunca cobrindo o PNG. */
+export function mountBattleEffectOnFighter(
+  overlay: HTMLElement,
+  anchor: HTMLElement,
+  options: { yFactor?: number; clampPadding?: number } = {},
+): HTMLElement {
+  const host = mountBattleEffectOnAnchor(overlay, anchor, {
+    xFactor: 0.5,
+    yFactor: options.yFactor ?? 0.16,
+    clampPadding: options.clampPadding ?? 8,
+  });
+  overlay.style.transform = 'translate(-50%, -100%)';
+  overlay.style.setProperty('--hit-anchor-x', '-50%');
+  overlay.style.setProperty('--hit-anchor-y', '-100%');
+  return host;
+}
+
 /** Camada de VFX dentro da arena — não cortada pelo overflow do cenário. */
 export function resolveBattleEffectsHost(anchor: HTMLElement): HTMLElement {
   const arena = anchor.closest('.battle-arena');
@@ -176,7 +193,7 @@ export function showBattleHitPop(
     pop.textContent = `-${value}`;
   }
 
-  mountBattleEffectBesideFighter(pop, anchor, { gapPx: 14 });
+  mountBattleEffectOnFighter(pop, anchor, { yFactor: 0 });
 
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => pop.classList.add('is-visible'));

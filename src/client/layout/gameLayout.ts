@@ -110,7 +110,10 @@ export function updateScale(): number {
   return scale;
 }
 
-/** Letterbox 640×360 da arena dentro de #scene-combat (já sem sidebar). */
+/**
+ * Lutadores/VFX permanecem em contain; o canvas de background irmão preenche o frame
+ * separadamente, sem deformar personagens nem cortar o PNG.
+ */
 export function updateBattleStageScale(): number {
   const battleScaleHost = document.getElementById(BATTLE_STAGE_SCALE_ID);
   if (!battleScaleHost) return 1;

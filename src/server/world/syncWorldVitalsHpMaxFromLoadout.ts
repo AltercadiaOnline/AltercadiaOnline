@@ -28,7 +28,7 @@ export function syncWorldVitalsHpMaxFromLoadout(
     flowSpeedBase: loadout.flowSpeedBase,
   });
 
-  const nextHpMax = computePlayerHpMax(resolved.modifiers.maxHpBonusPercent);
+  const nextHpMax = computePlayerHpMax(loadout.level, resolved.modifiers.maxHpBonusPercent);
   const profile = getWorldProfile(playerId, characterId);
   const prev = profile.sessionSync?.worldVitals;
   const previousHpMax = prev && prev.hpMax > 0 ? prev.hpMax : nextHpMax;

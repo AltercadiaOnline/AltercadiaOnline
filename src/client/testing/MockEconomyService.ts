@@ -22,6 +22,11 @@ import { validatePetPurchase, buildAdoptedPet } from '../../shared/economy/petTr
 import type { PetKindId } from '../../shared/pet/petCatalog.js';
 import type { PetGenderId } from '../../shared/pet/petGender.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
+import {
+  clearPetMemorialStorage,
+  consumeLegacyPetMemorialMirror,
+  getPetMemorialStore,
+} from '../ui/pet/petMemorialStore.js';
 import { validateInventoryDeleteIntent } from '../../shared/economy/inventoryPolicy.js';
 import { isMarketplaceListableItem } from '../../shared/economy/itemValorEconomy.js';
 import { getMarketplaceBuyOrderStore, resetMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
@@ -92,7 +97,11 @@ import {
 } from '../ui/equipment/equipFromInventory.js';
 import { toggleItemSlot } from '../ui/equipment/toggleItemSlot.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
-import { assertDeleteItemAllowed, assertSellItemAllowed, validateAddItem } from '../../Economy/InventoryService.js';
+import {
+  assertInventoryRemovalPolicyAllowed,
+  assertSellItemAllowed,
+  validateAddItem,
+} from '../../Economy/InventoryService.js';
 import { validateSoulboundRetention } from '../../shared/economy/soulboundInventoryPolicy.js';
 import { addItemToInventoryStacks } from '../../shared/character/inventoryStackOps.js';
 import { stageBattleLoot as gatewayStageBattleLoot } from '../../Economy/economyGateway.js';
@@ -204,6 +213,7 @@ export class MockEconomyService implements IDevMockEconomyService {
 
   private bankTransactionPending = false;
   private petCharacterPersistUnsub: (() => void) | null = null;
+  private petMemorialPersistUnsub: (() => void) | null = null;
   /** Posição/mapa hidratados do save — atualizado por snapshot live no persist. */
   private cachedWorldProfile: PlayerWorldProfile = createDefaultWorldProfile();
   private worldSnapshotProvider:
@@ -452,10 +462,15 @@ export class MockEconomyService implements IDevMockEconomyService {
 
     this.applyPersistenceRecord(record);
     this.ensurePetCharacterPersistBridge();
+    this.ensurePetMemorialPersistBridge();
 
     const migratedLegacyPets = this.migrateLegacyPetRosterIfNeeded(record);
     const migratedLegacyAffinity = this.migrateLegacyPetAffinityIfNeeded(record);
-    if ((!loaded || migratedLegacyPets || migratedLegacyAffinity) && isLocalGameMode()) {
+    const migratedLegacyMemorial = this.migrateLegacyPetMemorialIfNeeded(record);
+    if (
+      (!loaded || migratedLegacyPets || migratedLegacyAffinity || migratedLegacyMemorial)
+      && isLocalGameMode()
+    ) {
       this.persistLocalSave();
     }
     console.info('[LocalSave] Personagem ligado', {
@@ -492,6 +507,7 @@ export class MockEconomyService implements IDevMockEconomyService {
   clearLocalSave(): void {
     if (!this.boundPlayerId || this.boundCharacterId === null) return;
     clearLocalCharacterSave(this.boundPlayerId, this.boundCharacterId);
+    clearPetMemorialStorage(this.boundPlayerId, this.boundCharacterId);
   }
 
   /**
@@ -607,6 +623,7 @@ export class MockEconomyService implements IDevMockEconomyService {
       },
       petRoster: getPlayerPetStore().getRoster(),
       petAffinity: getPlayerPetStore().getPetAffinitySnapshot(),
+      petMemorial: getPetMemorialStore().getEntries(),
       ownedSkins: cloneOwnedSkins(this.state.ownedSkins),
     };
   }
@@ -618,6 +635,14 @@ export class MockEconomyService implements IDevMockEconomyService {
   private ensurePetCharacterPersistBridge(): void {
     if (this.petCharacterPersistUnsub) return;
     this.petCharacterPersistUnsub = getPlayerPetStore().registerCharacterPersistHandler(() => {
+      if (!isLocalGameMode() || this.boundCharacterId === null) return;
+      this.persistLocalSave();
+    });
+  }
+
+  private ensurePetMemorialPersistBridge(): void {
+    if (this.petMemorialPersistUnsub) return;
+    this.petMemorialPersistUnsub = getPetMemorialStore().registerCharacterPersistHandler(() => {
       if (!isLocalGameMode() || this.boundCharacterId === null) return;
       this.persistLocalSave();
     });
@@ -654,6 +679,21 @@ export class MockEconomyService implements IDevMockEconomyService {
     const legacy = getPlayerPetStore().consumeLegacyAffinityMirror();
     if (!legacy) return false;
     getPlayerPetStore().applyPetAffinityFromServer(legacy);
+    return true;
+  }
+
+  /**
+   * Migra livro de memórias global legado (`altercadia.petMemorialBook.v1`)
+   * para o save do personagem ligado — um companion = um personagem.
+   */
+  private migrateLegacyPetMemorialIfNeeded(record: CharacterPersistenceRecord): boolean {
+    if (getPetMemorialStore().getEntries().length > 0) return false;
+    if (record.petMemorial && record.petMemorial.length > 0) return false;
+
+    const legacy = consumeLegacyPetMemorialMirror();
+    if (!legacy || legacy.length === 0) return false;
+
+    getPetMemorialStore().hydrateFromEntries(legacy);
     return true;
   }
 
@@ -752,6 +792,11 @@ export class MockEconomyService implements IDevMockEconomyService {
       lastPetRationFeedAtMs: record.petAffinity?.lastPetRationFeedAtMs ?? null,
       lastPetAffectionAtMs: record.petAffinity?.lastPetAffectionAtMs ?? null,
     });
+    getPetMemorialStore().bindCharacter(
+      record.playerId,
+      record.characterId,
+      record.petMemorial,
+    );
     getPlayerProgressionStore().loadFromProgressionData({
       ...createDefaultPlayerProgressionData(),
       ...record.progression,
@@ -951,6 +996,8 @@ export class MockEconomyService implements IDevMockEconomyService {
           level,
         );
         getPlayerProfileStore().setLevel(level);
+        getMutableDataStore().applyCharacterLevelState(level, 0, 'server_sync');
+        refreshHudPlayerHpMax();
         this.bumpRevision('characterLevel');
         return { ok: true };
       }
@@ -1031,9 +1078,8 @@ export class MockEconomyService implements IDevMockEconomyService {
 
     this.state.marcos.ramificacaoSelecionada = ramificacao;
     this.state.marcos.trilhaTravada = true;
-    if (!this.state.marcos.activeMarcos.includes(starterNodeId)) {
-      this.state.marcos.activeMarcos = [...this.state.marcos.activeMarcos, starterNodeId];
-    }
+    // Uma trilha por vez — só o starter confirmado fica ativo.
+    this.state.marcos.activeMarcos = [starterNodeId];
     this.bumpRevision('marcosState');
     return { ok: true };
   }
@@ -1716,7 +1762,7 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private removeInventoryItem(itemId: string, quantity: number): void {
-    assertDeleteItemAllowed(itemId);
+    assertInventoryRemovalPolicyAllowed(itemId);
 
     let remaining = Math.max(1, Math.floor(quantity));
     const next: InventoryStack[] = [];
@@ -1778,7 +1824,11 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private buildMarcoContext(): MarcoTreePlayerContext {
-    return { ...this.state.marcos, playerLevel: 100 };
+    const level = getPlayerEquipmentStore().getSnapshot().level;
+    return {
+      ...this.state.marcos,
+      playerLevel: Number.isFinite(level) && level > 0 ? Math.floor(level) : 1,
+    };
   }
 
   private bumpRevision(slice: DataStoreSlice): void {

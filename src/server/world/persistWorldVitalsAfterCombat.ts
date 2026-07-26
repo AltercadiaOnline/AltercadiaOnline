@@ -6,7 +6,7 @@
 import type { Combatant } from '../../shared/types.js';
 import type { PlayerWorldVitals } from '../../shared/character/equipmentState.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
-import { clampPlayerHpCurrent, computePlayerHpMax } from '../../shared/character/playerVitals.js';
+import { clampPlayerHpCurrent, computePlayerHpMax, resolveDefeatRespawnHpCurrent } from '../../shared/character/playerVitals.js';
 import { resolveCombatantHp } from '../../shared/pet/petCombatRules.js';
 import { EconomyEventType } from '../../shared/economy/events.js';
 import { globalEventBus } from '../../Economy/EventBus.js';
@@ -28,8 +28,10 @@ export type PostCombatRespawn = {
 };
 
 export type PersistWorldVitalsOptions = {
-  /** Derrota → respawn com vitals cheios (evita voltar à cidade com 0 HP). */
+  /** Vitória / cura total — preenche HP e MP. */
   readonly fullRestore?: boolean;
+  /** Derrota PVE — respawn na cidade com HP baixo (~10% do máximo). */
+  readonly defeatRespawn?: boolean;
   /** Derrota → reposiciona o perfil de mundo (centro da cidade). */
   readonly respawn?: PostCombatRespawn;
 };
@@ -48,11 +50,13 @@ export function persistWorldVitalsAfterCombat(
 
   const hpMax = Math.max(
     1,
-    Math.floor(playerCombatant.hpMax ?? playerCombatant.maxHp ?? computePlayerHpMax()),
+    Math.floor(playerCombatant.hpMax ?? playerCombatant.maxHp ?? computePlayerHpMax(level)),
   );
   const hpCurrent = options?.fullRestore
     ? hpMax
-    : clampPlayerHpCurrent(resolveCombatantHp(playerCombatant), hpMax);
+    : options?.defeatRespawn
+      ? resolveDefeatRespawnHpCurrent(hpMax)
+      : clampPlayerHpCurrent(resolveCombatantHp(playerCombatant), hpMax);
   const mpMax = existing?.mpMax ?? defaultMp.mpMax;
   const mpCurrent = options?.fullRestore
     ? mpMax

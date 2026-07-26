@@ -29,7 +29,7 @@ export function buildCombatantFromLoadout(
     flowSpeedBase: loadout.flowSpeedBase,
   });
 
-  const maxHp = computePlayerHpMax(resolved.modifiers.maxHpBonusPercent);
+  const maxHp = computePlayerHpMax(loadout.level, resolved.modifiers.maxHpBonusPercent);
   const persisted = loadout.worldVitals;
   const hpCurrent = persisted
     ? applyPlayerHpMaxChange(

@@ -11,6 +11,8 @@ import {
 import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.js';
 import { resolveNpcVendorRarityBlockReason } from '../../../../../shared/economy/npcSellRarityPolicy.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
+import { isSyncPending } from '../../../../core/gameStoreSelectors.js';
+import { alertSystem } from '../../../../ui/alertSystem.js';
 import {
   resolveInventoryItemKindClass,
   resolveInventoryItemLabel,
@@ -252,6 +254,10 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
 
   const handleSell = useCallback(() => {
     if (!state.selectedItemId || state.tradeMode !== 'inventory') return undefined;
+    if (isSyncPending()) {
+      alertSystem('Aguarde a sincronização do inventário.');
+      return { ok: false as const, reason: 'Aguarde a sincronização do inventário.' };
+    }
     return getActionDispatcher().dispatch({
       type: 'SELL_NPC_ITEM',
       payload: {
@@ -279,19 +285,20 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--vendor-shop ui-panel--vendor-shop"
-      panelStyle={{ width: 'min(720px, 98vw)' }}
+      bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('vendorShop')}
       onClose={() => tryCloseReactWorldPanel('vendorShop')}
     >
       <div className="vendor-shop">
-        <p className="vendor-shop__tag">LOJA NPC // SUPRIMENTOS</p>
-        <p className="vendor-shop__balance">
-          Saldo: <strong>{state.gold.voltsFormatted}</strong>
-        </p>
-        <p className="vendor-shop__hint">
-          Revenda: só <strong>drops/materiais</strong> Comum e Incomum (escamas, ossos, etc.) —
-          50% do valor base. Set, poções e Raros+ vão ao <strong>Marketplace</strong>.
-        </p>
+        <div className="vendor-shop__intro">
+          <p className="vendor-shop__tag">LOJA NPC // SUPRIMENTOS</p>
+          <p className="vendor-shop__balance">
+            Saldo: <strong>{state.gold.voltsFormatted}</strong>
+          </p>
+          <p className="vendor-shop__hint">
+            Revenda drops Comum/Incomum (50% valor base). Set, poções e Raros+ → Marketplace.
+          </p>
+        </div>
 
         <div className="vendor-shop__layout">
           <div className="vendor-shop__lists">

@@ -4,12 +4,21 @@ import type { MarcosStateSnapshot } from '../shared/playerDataSnapshots.js';
 import {
   canChooseMarco,
   canSelectBranchStarter,
+  sanitizeActiveMarcosForTrail,
   type MarcoTreePlayerContext,
 } from '../shared/progression/milestoneTreeState.js';
-import { resolveRamificacaoFromStarter } from '../shared/progression/milestoneTreeCatalog.js';
+import {
+  isNodeOnRamificacao,
+  resolveRamificacaoFromStarter,
+  type MarcoRamificacaoId,
+} from '../shared/progression/milestoneTreeCatalog.js';
 import { applyMarcoProgressEvents } from '../shared/progression/marcoProgressEngine.js';
 import type { MarcoProgressEvent } from '../shared/progression/marcoProgressEngine.js';
-import { emptyMarcosNodeProgression } from '../shared/progression/marcoProgression.js';
+import {
+  emptyMarcosNodeProgression,
+  type MarcoNodeProgressSnapshot,
+  type MarcosNodeProgressionData,
+} from '../shared/progression/marcoProgression.js';
 import { createDefaultPlayerProgressionData } from '../shared/progression/playerProgressionData.js';
 import {
   getAuthoritativeProgression,
@@ -20,30 +29,65 @@ export type ProgressionMutationResult =
   | { readonly ok: true; readonly marcosState: Omit<MarcosStateSnapshot, 'revision'> }
   | { readonly ok: false; readonly message: string };
 
+function filterNodeProgressionToTrail(
+  nodeProgression: MarcosNodeProgressionData,
+  ramificacao: MarcoRamificacaoId | null,
+  trilhaTravada: boolean,
+): MarcosNodeProgressionData {
+  if (!trilhaTravada || !ramificacao) {
+    return emptyMarcosNodeProgression();
+  }
+  const byNodeId: Record<string, MarcoNodeProgressSnapshot> = {};
+  for (const [nodeId, snap] of Object.entries(nodeProgression.byNodeId)) {
+    if (isNodeOnRamificacao(nodeId, ramificacao)) {
+      byNodeId[nodeId] = snap;
+    }
+  }
+  return { byNodeId };
+}
+
 function buildMarcoContext(playerId: string, characterId: number): MarcoTreePlayerContext {
   const auth = getAuthoritativeProgression(playerId, characterId);
+  const ramificacao = auth.progression.ramificacaoSelecionada;
+  const trilhaTravada = auth.progression.trilhaTravada;
   return {
-    activeMarcos: auth.marcos.activeMarcos,
+    activeMarcos: sanitizeActiveMarcosForTrail(
+      auth.marcos.activeMarcos,
+      ramificacao,
+      trilhaTravada,
+    ),
     flowSpeedBase: auth.marcos.flowSpeedBase,
     milestoneTotalProgress: auth.progression.milestoneTotalProgress,
     playerLevel: auth.characterProfile.level ?? 1,
-    ramificacaoSelecionada: auth.progression.ramificacaoSelecionada,
-    trilhaTravada: auth.progression.trilhaTravada,
-    nodeProgression: auth.marcos.nodeProgression,
+    ramificacaoSelecionada: ramificacao,
+    trilhaTravada,
+    nodeProgression: filterNodeProgressionToTrail(
+      auth.marcos.nodeProgression,
+      ramificacao,
+      trilhaTravada,
+    ),
   };
 }
 
 function readMarcosState(playerId: string, characterId: number): Omit<MarcosStateSnapshot, 'revision'> {
   const auth = getAuthoritativeProgression(playerId, characterId);
+  const ramificacao = auth.progression.ramificacaoSelecionada;
+  const trilhaTravada = auth.progression.trilhaTravada;
   return {
-    activeMarcos: [...auth.marcos.activeMarcos],
+    activeMarcos: sanitizeActiveMarcosForTrail(
+      auth.marcos.activeMarcos,
+      ramificacao,
+      trilhaTravada,
+    ),
     flowSpeedBase: auth.marcos.flowSpeedBase,
     milestoneTotalProgress: auth.progression.milestoneTotalProgress,
-    ramificacaoSelecionada: auth.progression.ramificacaoSelecionada,
-    trilhaTravada: auth.progression.trilhaTravada,
-    nodeProgression: {
-      byNodeId: { ...auth.marcos.nodeProgression.byNodeId },
-    },
+    ramificacaoSelecionada: ramificacao,
+    trilhaTravada,
+    nodeProgression: filterNodeProgressionToTrail(
+      auth.marcos.nodeProgression,
+      ramificacao,
+      trilhaTravada,
+    ),
   };
 }
 
@@ -83,16 +127,20 @@ export function selectMarcoBranchAuthoritative(
   }
 
   const current = getAuthoritativeProgression(playerId, characterId);
-  const activeMarcos = current.marcos.activeMarcos.includes(starterNodeId)
-    ? current.marcos.activeMarcos
-    : [...current.marcos.activeMarcos, starterNodeId];
+  // Confirmar 1 trilha: só o starter escolhido fica ativo; limpa órfãos de outras colunas.
+  const activeMarcos = [starterNodeId];
+  const nodeProgression = filterNodeProgressionToTrail(
+    current.marcos.nodeProgression,
+    ramificacao,
+    true,
+  );
 
   patchAuthoritativeProgression(playerId, characterId, {
     progression: {
       ramificacaoSelecionada: ramificacao,
       trilhaTravada: true,
     },
-    marcos: { activeMarcos },
+    marcos: { activeMarcos, nodeProgression },
   });
 
   const marcosState = readMarcosState(playerId, characterId);
@@ -111,12 +159,24 @@ export function chooseMarcoAuthoritative(
   }
 
   const current = getAuthoritativeProgression(playerId, characterId);
-  const activeMarcos = current.marcos.activeMarcos.includes(nodeId)
-    ? current.marcos.activeMarcos
-    : [...current.marcos.activeMarcos, nodeId];
+  const ramificacao = current.progression.ramificacaoSelecionada;
+  const trilhaTravada = current.progression.trilhaTravada;
+  const sanitized = sanitizeActiveMarcosForTrail(
+    current.marcos.activeMarcos,
+    ramificacao,
+    trilhaTravada,
+  );
+  const activeMarcos = sanitized.includes(nodeId) ? sanitized : [...sanitized, nodeId];
 
   patchAuthoritativeProgression(playerId, characterId, {
-    marcos: { activeMarcos },
+    marcos: {
+      activeMarcos,
+      nodeProgression: filterNodeProgressionToTrail(
+        current.marcos.nodeProgression,
+        ramificacao,
+        trilhaTravada,
+      ),
+    },
   });
 
   const marcosState = readMarcosState(playerId, characterId);
@@ -154,9 +214,14 @@ export function progressMarcoAuthoritative(
   }
 
   const auth = getAuthoritativeProgression(playerId, characterId);
+  const activeMarcos = sanitizeActiveMarcosForTrail(
+    auth.marcos.activeMarcos,
+    auth.progression.ramificacaoSelecionada,
+    auth.progression.trilhaTravada,
+  );
   const result = applyMarcoProgressEvents(
     auth.marcos.nodeProgression,
-    auth.marcos.activeMarcos,
+    activeMarcos,
     events,
   );
 
@@ -165,7 +230,7 @@ export function progressMarcoAuthoritative(
   }
 
   patchAuthoritativeProgression(playerId, characterId, {
-    marcos: { nodeProgression: result.progression },
+    marcos: { nodeProgression: result.progression, activeMarcos },
   });
 
   const marcosState = readMarcosState(playerId, characterId);

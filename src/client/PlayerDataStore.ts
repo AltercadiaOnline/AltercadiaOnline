@@ -1,4 +1,4 @@
-import { resolveRamificacaoFromContext } from '../shared/progression/milestoneTreeState.js';
+import { resolveRamificacaoFromContext, sanitizeActiveMarcosForTrail } from '../shared/progression/milestoneTreeState.js';
 import {
   attachRevision,
   compareRevision,
@@ -356,18 +356,21 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
     if (decision === 'duplicate') return 'duplicate';
 
     const progression = getPlayerProgressionStore();
-    if (state.ramificacaoSelecionada) {
-      progression.setRamificacaoSelecionada(state.ramificacaoSelecionada);
-    } else {
-      progression.clearMarcosTrailSelection();
-    }
-    progression.setTrilhaTravada(state.trilhaTravada);
+    // Aplicar trilha de forma atômica — evita trilhaTravada=true com ramificação null.
     progression.loadFromProgressionData({
       milestoneTotalProgress: state.milestoneTotalProgress,
+      ramificacaoSelecionada: state.ramificacaoSelecionada,
+      trilhaTravada: state.trilhaTravada,
     });
 
-    getPlayerMarcosStore().applyAuthoritativeSnapshot(
+    const sanitizedActive = sanitizeActiveMarcosForTrail(
       state.activeMarcos,
+      state.ramificacaoSelecionada,
+      state.trilhaTravada,
+    );
+
+    getPlayerMarcosStore().applyAuthoritativeSnapshot(
+      sanitizedActive,
       state.flowSpeedBase,
       state.nodeProgression,
     );
@@ -440,6 +443,22 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
 
     if (state.petRoster || state.petAffinity) {
       this.applyPetStateFromServer(state.petRoster, state.petAffinity);
+    }
+
+    if (state.characterProfile) {
+      this.applyCharacterLevelState(
+        state.characterProfile.level,
+        state.characterProfile.xpCurrent,
+        'server_sync',
+      );
+      const displayName = state.characterProfile.displayName?.trim();
+      if (displayName) {
+        getPlayerProfileStore().setDisplayName(displayName);
+        const equipment = getPlayerEquipmentStore().getSnapshot();
+        if (equipment.displayName !== displayName) {
+          getPlayerEquipmentStore().setPlayerInfo(displayName, equipment.level);
+        }
+      }
     }
 
     this.globalRevision = state.revision;
@@ -653,12 +672,8 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
       snapshot.xpCurrent,
       snapshot.xpToNext,
     );
-    const equipment = getPlayerEquipmentStore().getSnapshot();
-    if (equipment.level !== snapshot.level) {
-      getPlayerEquipmentStore().setPlayerInfo(equipment.displayName, snapshot.level, {
-        resetVitals: false,
-      });
-    }
+    // Equipment.level é derivado do PDS — só sincroniza MP/HUD.
+    getPlayerEquipmentStore().syncLevelDerivedVitals(snapshot.level);
   }
 
   private notifyCharacterLevel(

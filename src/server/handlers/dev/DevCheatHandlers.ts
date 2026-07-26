@@ -9,6 +9,7 @@ import {
   devResetPlayerEconomy,
 } from '../../../Economy/economyGateway.js';
 import { patchAuthoritativeProgression, loadAuthoritativeProgression, getAuthoritativeProgression } from '../../progression/authoritativeProgressionStore.js';
+import { syncWorldVitalsHpMaxFromLoadout } from '../../world/syncWorldVitalsHpMaxFromLoadout.js';
 import { createDefaultPlayerProgressionData } from '../../../shared/progression/playerProgressionData.js';
 import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
 import { loadServerEnv } from '../../config/env.js';
@@ -107,6 +108,7 @@ export class DevSetLevelHandler extends BaseIntentHandler<{ readonly level: numb
     patchAuthoritativeProgression(playerId, this.characterId, {
       characterProfile: { level, xpCurrent: 0 },
     });
+    syncWorldVitalsHpMaxFromLoadout(playerId, this.characterId, intentId);
 
     this.sendResponse(playerId, intentId, true, { level });
   }

@@ -72,13 +72,14 @@ function appendMarcosLines(
       });
     }
     if (sources.marcoDamageReductionPercent > 0) {
-      const percent = sources.marcoDamageReductionPercent;
+      // Redução % aplica multiplicativamente pós-golpe (CombatEngine.applyDirectDamage) —
+      // não entra na soma subtrativa de defesa (evita contagem dupla).
       lines.push({
         source: 'marcos',
         statKind: 'damage_reduction',
-        percent,
-        value: Math.floor(classStat * percent / 100),
-        includeInTotal: true,
+        percent: sources.marcoDamageReductionPercent,
+        value: 0,
+        includeInTotal: false,
       });
     }
   }

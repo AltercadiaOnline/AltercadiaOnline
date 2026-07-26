@@ -119,6 +119,13 @@ export function buildAuthoritativePlayerSnapshot(
       revision,
     },
     classId,
+    characterProfile: {
+      level: Math.max(1, Math.floor(progressionState.characterProfile.level || 1)),
+      xpCurrent: Math.max(0, Math.floor(progressionState.characterProfile.xpCurrent || 0)),
+      ...(progressionState.characterProfile.displayName
+        ? { displayName: progressionState.characterProfile.displayName }
+        : {}),
+    },
     activeMovesets,
     petRoster: {
       ...getPetRosterSnapshot(playerId, characterId),

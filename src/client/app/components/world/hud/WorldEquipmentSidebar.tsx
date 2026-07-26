@@ -7,7 +7,11 @@ import {
 import { resolveCharacterLevelXpBar } from '../../../../../shared/character/characterLevelProgression.js';
 import { resolveLoadoutPpBudget } from '../../../../../shared/combat/loadoutPpBudget.js';
 import { emitItemTooltip } from '../../../../ui/tooltip/emitItemTooltip.js';
-import { selectPlayerEquipment } from '../../../../services/index.js';
+import {
+  InventoryService,
+  isSyncPending,
+  selectPlayerEquipment,
+} from '../../../../services/index.js';
 import { dispatchUnequipFromSlot } from '../../../../ui/equipment/equipItemAction.js';
 import { getPlayerEquipmentStore } from '../../../../ui/equipment/playerEquipmentStore.js';
 import { getPlayerItemStore } from '../../../../ui/items/playerItemStore.js';

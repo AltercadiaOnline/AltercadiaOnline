@@ -1,27 +1,40 @@
-import { getItemMechanicalById } from '../shared/items/itemCatalog.js';
+import { getItemById, getItemMechanicalById } from '../shared/items/itemCatalog.js';
+import { ItemCategory } from '../shared/items/itemSchema.js';
 import type { InventoryStack } from '../shared/character/equipmentState.js';
 import {
   SOULBOUND_DISCARD_MESSAGE,
   validateSoulboundRetention,
 } from '../shared/economy/soulboundInventoryPolicy.js';
-import { validateInventoryDeleteIntent } from '../shared/economy/inventoryPolicy.js';
+import { INDESTRUCTIBLE_DISCARD_MESSAGE } from '../shared/economy/inventoryPolicy.js';
 
 export { SOULBOUND_DISCARD_MESSAGE };
-
 export type InventoryServiceResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: string };
 
-function validateRemoval(itemId: string): InventoryServiceResult {
+/** Soulbound / indestrutível / moeda — quantidade é validada pelo caller (store/gateway). */
+export function validateInventoryRemovalPolicy(itemId: string): InventoryServiceResult {
+  if (!getItemById(itemId)) {
+    return { ok: false, reason: 'Item desconhecido.' };
+  }
+
   const soulbound = validateSoulboundRetention(itemId);
   if (!soulbound.ok) return soulbound;
 
-  const policy = validateInventoryDeleteIntent({ itemId, quantity: 1 });
-  if (!policy.ok) {
-    return { ok: false, reason: policy.reason };
+  const mechanical = getItemMechanicalById(itemId);
+  if (mechanical?.isIndestructible) {
+    return { ok: false, reason: INDESTRUCTIBLE_DISCARD_MESSAGE };
+  }
+
+  if (mechanical?.category === ItemCategory.Currency) {
+    return { ok: false, reason: 'Moedas não podem ser descartadas.' };
   }
 
   return { ok: true };
+}
+
+function validateRemoval(itemId: string): InventoryServiceResult {
+  return validateInventoryRemovalPolicy(itemId);
 }
 
 /** Bloqueia descarte/destruição de itens soulbound (únicos + indestrutíveis). */
@@ -87,6 +100,14 @@ export function validateAddItem(
 
 export function assertDeleteItemAllowed(itemId: string): void {
   const result = validateDeleteItem(itemId);
+  if (!result.ok) {
+    throw new Error(result.reason);
+  }
+}
+
+/** Transações que já validaram quantidade (venda, marketplace, removeInventoryItem). */
+export function assertInventoryRemovalPolicyAllowed(itemId: string): void {
+  const result = validateInventoryRemovalPolicy(itemId);
   if (!result.ok) {
     throw new Error(result.reason);
   }

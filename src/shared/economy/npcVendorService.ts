@@ -41,10 +41,9 @@ export function resolveEffectiveNpcBuyUnitPrice(
   itemId: string,
   listing?: NpcVendorListing,
 ): number | null {
-  const fromValorBase = resolveNpcBuyPriceForItem(itemId);
-  if (fromValorBase !== null) return fromValorBase;
+  // Catálogo do NPC (listagem) é a tabela editável da loja — tem prioridade.
   if (listing) return listing.npcBuyPriceVolts;
-  return null;
+  return resolveNpcBuyPriceForItem(itemId);
 }
 
 export function resolveNpcPurchaseQuote(
@@ -176,12 +175,10 @@ export function validateInventoryItemSale(params: {
   return { ok: true, quote };
 }
 
-/** Preço de revenda (jogador vende ao NPC) — derivado do valorBase × 0.5. */
+/** Preço de revenda na listagem do NPC — listagem explícita tem prioridade. */
 export function resolveEffectiveNpcSellUnitPrice(itemId: string, listing?: NpcVendorListing): number | null {
-  const fromValorBase = resolveNpcSellPriceForItem(itemId);
-  if (fromValorBase !== null) return fromValorBase;
   if (listing) return listing.npcSellPriceVolts;
-  return null;
+  return resolveNpcSellPriceForItem(itemId);
 }
 
 export function resolveNpcSellSpreadFromValorBase(valorBase: number, buyPrice: number): number {

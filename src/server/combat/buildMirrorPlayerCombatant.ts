@@ -31,7 +31,7 @@ export function buildMirrorPlayerCombatant(seed?: number): Combatant {
     equipped: {},
     flowSpeedBase: 32,
   });
-  const maxHp = computePlayerHpMax(resolved.modifiers.maxHpBonusPercent);
+  const maxHp = computePlayerHpMax(12, resolved.modifiers.maxHpBonusPercent);
 
   return {
     id: actorId,

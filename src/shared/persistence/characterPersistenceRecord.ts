@@ -9,6 +9,7 @@ import { createDefaultWorldProfile } from '../world/playerWorldProfile.js';
 
 import type { PlayerPetRosterSnapshot } from '../pet/petRoster.js';
 import { createEmptyPetRoster } from '../pet/petRoster.js';
+import type { MemorialEntry } from '../pet/petMemorial.js';
 import type { SkinSlotId } from '../character/playerSkin.js';
 import type { ClassType } from '../types/classes.js';
 
@@ -98,6 +99,8 @@ export type CharacterPersistenceRecord = {
   readonly characterProfile: PersistedCharacterProfileSlice;
   readonly petRoster?: PlayerPetRosterSnapshot;
   readonly petAffinity?: PersistedPetAffinitySlice;
+  /** Livro de memórias — mesmo escopo do roster (personagem, não conta). */
+  readonly petMemorial?: readonly MemorialEntry[];
   readonly ownedSkins?: PersistedOwnedSkinsSlice;
   readonly marketplace?: PersistedMarketplaceSlice;
 };
@@ -148,6 +151,7 @@ export function createEmptyCharacterPersistenceRecord(
       lastPetRationFeedAtMs: null,
       lastPetAffectionAtMs: null,
     },
+    petMemorial: [],
   };
 }
 

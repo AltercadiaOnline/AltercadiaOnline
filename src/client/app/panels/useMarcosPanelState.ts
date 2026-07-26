@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { MarcosStateSnapshot } from '../../../shared/playerDataSnapshots.js';
 import { MARCO_BRANCH_LABELS } from '../../../shared/progression/milestoneTreeCatalog.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL } from '../../../shared/progression/marcoProgression.js';
 import {
   buildMarcosRenderModel,
+  buildMarcosPlayerContext,
   handleMarcosPanelClick,
   showMarcoNodeTooltip,
 } from './marcosPanelHandlers.js';
@@ -26,6 +27,13 @@ export function useMarcosPanelState() {
   const [pendingBranchNodeId, setPendingBranchNodeId] = useState<string | null>(null);
   const [confirmSuccess, setConfirmSuccess] = useState(false);
   const [progressTick, setProgressTick] = useState(0);
+
+  useEffect(() => {
+    const unsubLevel = getDataStore().subscribe('characterLevel', () => {
+      setProgressTick((tick) => tick + 1);
+    });
+    return () => unsubLevel();
+  }, []);
 
   useEffect(() => {
     let currentStructuralKey = buildMarcosStructuralKey(getDataStore().getMarcosState());
@@ -136,10 +144,14 @@ export function useMarcosPanelState() {
 
   const confirmBarMode = useMemo(() => {
     if (model.trilhaTravada && confirmedBranchLabel) return 'confirmed' as const;
+    const playerLevel = buildMarcosPlayerContext().playerLevel;
+    if (playerLevel < MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL[0]!) {
+      return 'hidden' as const;
+    }
     if (pendingNode && pendingBranchLabel && !model.trilhaTravada) return 'pending' as const;
     if (!model.trilhaTravada) return 'idle' as const;
     return 'hidden' as const;
-  }, [confirmedBranchLabel, model.trilhaTravada, pendingBranchLabel, pendingNode]);
+  }, [confirmedBranchLabel, model.trilhaTravada, pendingBranchLabel, pendingNode, progressTick]);
 
   return {
     gridHtml,

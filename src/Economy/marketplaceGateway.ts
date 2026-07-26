@@ -8,7 +8,7 @@ import { resolveMarketplaceNetFromGross } from '../shared/economy/marketplaceEco
 import { equippedToEquipmentUiGrid } from '../shared/character/equipmentUiSlots.js';
 import { computeInventoryChecksumFromStacks } from '../shared/character/inventoryChecksum.js';
 import { getItemById } from '../shared/items/itemCatalog.js';
-import { assertDeleteItemAllowed } from './InventoryService.js';
+import { assertInventoryRemovalPolicyAllowed } from './InventoryService.js';
 import {
   executeEconomyTransaction,
   getAuthoritativePlayerLoadout,
@@ -173,7 +173,7 @@ export async function createMarketListingAuthoritative(
   }
 
   try {
-    assertDeleteItemAllowed(itemId);
+    assertInventoryRemovalPolicyAllowed(itemId);
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : 'Item não pode ser listado.' };
   }

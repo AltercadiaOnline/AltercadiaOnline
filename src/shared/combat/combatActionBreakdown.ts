@@ -12,6 +12,11 @@ import {
 
 } from './combatBuffSnapshot.js';
 
+import {
+  buildCombatHitResultLine,
+  type CombatHitMitigationSnapshot,
+} from './combatHitMitigation.js';
+
 
 
 export type CombatBreakdownStatKind = ItemBuffTypeId | 'damage_reduction';
@@ -212,6 +217,30 @@ export function formatCombatBreakdownSumEquation(breakdown: CombatActionBreakdow
   return `${terms.join(' + ')} = ${Math.round(total)}`;
 }
 
+/**
+ * Linhas autodidatas para o hit na arena — moveset + peças da build.
+ * Ex.: "Moveset: 42", "Amuleto: +4", "Runa: +3", "Marcos: +5"
+ */
+export function formatCombatSceneMathLines(
+  breakdown: CombatActionBreakdown,
+): readonly string[] {
+  const visible = getSumBreakdownLines(breakdown);
+  const lines: string[] = [];
+
+  for (const line of visible) {
+    if (isPrimaryLine(line)) {
+      lines.push(`${resolveCombatBreakdownLineLabel(line)}: ${Math.round(line.value)}`);
+      continue;
+    }
+    const value = Math.round(line.value);
+    if (value === 0) continue;
+    const source = COMBAT_BREAKDOWN_SOURCE_LABELS[line.source];
+    lines.push(`${source}: +${value}`);
+  }
+
+  return lines;
+}
+
 /** Build completa — todos os buffs (% do catálogo). */
 export function formatCombatBuildRoster(breakdown: CombatActionBreakdown): string {
   const visible = getDisplayBreakdownLines(breakdown);
@@ -226,6 +255,11 @@ export function formatCombatBreakdownEquation(breakdown: CombatActionBreakdown):
 
 
 
+export type { CombatHitMitigationSnapshot } from './combatHitMitigation.js';
+export { pickCombatHitMitigation } from './combatHitMitigation.js';
+
+
+
 export type CombatHitSummaryInput = {
 
   readonly attackBreakdown?: CombatActionBreakdown;
@@ -237,6 +271,8 @@ export type CombatHitSummaryInput = {
   readonly defenseTotal?: number;
 
   readonly damageReceived: number;
+
+  readonly mitigation?: CombatHitMitigationSnapshot;
 
 };
 
@@ -304,15 +340,12 @@ export function formatCombatHitSummary(input: CombatHitSummaryInput): {
 
   if (attackTotal !== undefined && defenseTotal !== undefined) {
 
-    const baseNet = Math.max(0, Math.round(attackTotal) - Math.round(defenseTotal));
-
-    resultLine = `Golpe ${Math.round(attackTotal)} − Defesa ${Math.round(defenseTotal)} → Dano recebido = ${damage}`;
-
-    if (damage > 0 && baseNet !== damage) {
-
-      resultLine += ' (crítico ou efeito)';
-
-    }
+    resultLine = buildCombatHitResultLine(
+      attackTotal,
+      defenseTotal,
+      damage,
+      input.mitigation,
+    );
 
   } else if (attackTotal !== undefined) {
 

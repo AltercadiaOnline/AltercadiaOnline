@@ -3,11 +3,17 @@ import {
   formatCombatActionBreakdown,
   formatCombatBreakdownSumEquation,
   formatCombatHitSummary,
+  formatCombatSceneMathLines,
   type CombatHitSummaryInput,
 } from '../../shared/combat/combatActionBreakdown.js';
+import {
+  formatCombatHitMitigationSteps,
+  type CombatHitMitigationSnapshot,
+} from '../../shared/combat/combatHitMitigation.js';
 import { formatCompactHitMoveLabel, resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels.js';
+import { sumAttackBreakdownTotal } from '../../shared/combat/combatBreakdownBuilder.js';
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
-import { mountBattleEffectBesideFighter } from './battleEffectsLayer.js';
+import { mountBattleEffectBesideFighter, mountBattleEffectOnFighter } from './battleEffectsLayer.js';
 
 export const TECHNICAL_IMPACT_DURATION_MS = 2600;
 
@@ -15,6 +21,10 @@ export type TechnicalImpactShowOptions = {
   readonly durationMs?: number;
   /** Arena: moveset + dano final em vermelho, sem soma segmentada nem pop flutuante. */
   readonly compactScene?: boolean;
+  /** Quando o pop flutuante já exibe o dano final, omitir a linha duplicada. */
+  readonly suppressFinalDamage?: boolean;
+  /** Mostra a conta autodidata (moveset + amuleto + runa + …) ao lado do sprite. */
+  readonly lessonMath?: boolean;
 };
 
 export type TechnicalImpactPayload = {
@@ -27,11 +37,23 @@ export type TechnicalImpactPayload = {
   /** Nome do move exibido no hit compacto da arena. */
   readonly moveName?: string;
   readonly skillId?: string;
+  readonly mitigation?: CombatHitMitigationSnapshot;
 };
 
 /** Monta na arena de combate — VFX integrado ao cenário. */
-function mountOverlayAtAnchor(overlay: HTMLElement, anchor: HTMLElement): void {
-  mountBattleEffectBesideFighter(overlay, anchor, { clampPadding: 12, gapPx: 14 });
+function mountOverlayAtAnchor(
+  overlay: HTMLElement,
+  anchor: HTMLElement,
+  options: { readonly compactScene: boolean; readonly lessonMath: boolean },
+): void {
+  if (options.compactScene && options.lessonMath) {
+    // Conta autodidata ao lado do PNG — o −N fica no centro via battle-hit-pop.
+    mountBattleEffectBesideFighter(overlay, anchor, { clampPadding: 10, gapPx: 10 });
+  } else if (options.compactScene) {
+    mountBattleEffectOnFighter(overlay, anchor, { yFactor: 0.06 });
+  } else {
+    mountBattleEffectBesideFighter(overlay, anchor, { clampPadding: 12, gapPx: 14 });
+  }
   overlay.classList.add('technical-impact--scene');
 }
 
@@ -139,17 +161,22 @@ function appendCompactSceneDamage(
   doc: Document,
   overlay: HTMLElement,
   payload: TechnicalImpactPayload,
+  suppressFinalDamage = false,
+  lessonMath = false,
 ): boolean {
   const movesetPower = resolveMovesetPower(payload.attackBreakdown);
   const moveLabel = resolveCompactMoveLabel(payload);
   const damage = Math.max(0, Math.round(payload.damageTotal ?? 0));
   const defenseTotal = Math.round(payload.defenseTotal ?? payload.protectionTotal ?? 0);
 
-  if (moveLabel === undefined && damage <= 0 && defenseTotal <= 0) {
+  if (moveLabel === undefined && damage <= 0 && defenseTotal <= 0 && !payload.attackBreakdown) {
     return false;
   }
 
   overlay.classList.add('technical-impact--compact-damage');
+  if (lessonMath) {
+    overlay.classList.add('technical-impact--lesson-math');
+  }
 
   if (moveLabel !== undefined) {
     const moveRow = doc.createElement('div');
@@ -158,18 +185,62 @@ function appendCompactSceneDamage(
     overlay.appendChild(moveRow);
   }
 
-  if (damage > 0) {
+  if (lessonMath && payload.attackBreakdown) {
+    const mathLines = formatCombatSceneMathLines(payload.attackBreakdown);
+    if (mathLines.length > 0) {
+      const mathBlock = doc.createElement('div');
+      mathBlock.className = 'technical-impact__math-block';
+      for (const line of mathLines) {
+        const row = doc.createElement('div');
+        row.className = 'technical-impact__math-line';
+        row.textContent = line;
+        mathBlock.appendChild(row);
+      }
+      const attackTotal = payload.attackTotal
+        ?? sumAttackBreakdownTotal(payload.attackBreakdown);
+      const sumRow = doc.createElement('div');
+      sumRow.className = 'technical-impact__math-sum';
+      sumRow.textContent = `= ${Math.round(attackTotal)}`;
+      mathBlock.appendChild(sumRow);
+      overlay.appendChild(mathBlock);
+    }
+  }
+
+  if (damage > 0 && !suppressFinalDamage) {
     const finalRow = doc.createElement('div');
     finalRow.className = 'technical-impact__damage-final';
     finalRow.textContent = `−${damage}`;
     overlay.appendChild(finalRow);
   }
 
-  if (defenseTotal > 0 && damage > 0 && movesetPower !== undefined && movesetPower > damage) {
+  if (defenseTotal > 0 && (lessonMath || (damage > 0 && movesetPower !== undefined && movesetPower > damage))) {
     const defenseHint = doc.createElement('div');
     defenseHint.className = 'technical-impact__defense-hint';
-    defenseHint.textContent = `Defesa ${defenseTotal}`;
+    defenseHint.textContent = lessonMath
+      ? `− Defesa ${defenseTotal}`
+      : `Defesa ${defenseTotal}`;
     overlay.appendChild(defenseHint);
+  }
+
+  if (lessonMath && damage > 0) {
+    const resultRow = doc.createElement('div');
+    resultRow.className = 'technical-impact__math-result';
+    resultRow.textContent = `→ −${damage}`;
+    overlay.appendChild(resultRow);
+  }
+
+  const attackTotal = payload.attackTotal
+    ?? (payload.attackBreakdown ? sumAttackBreakdownTotal(payload.attackBreakdown) : undefined);
+  const defenseTotalResolved = payload.defenseTotal ?? payload.protectionTotal;
+  if (payload.mitigation && attackTotal !== undefined && defenseTotalResolved !== undefined) {
+    const baseNet = Math.max(0, Math.round(attackTotal) - Math.round(defenseTotalResolved));
+    const steps = formatCombatHitMitigationSteps(baseNet, payload.mitigation);
+    if (steps.length > 0) {
+      const trail = doc.createElement('div');
+      trail.className = 'technical-impact__mitigation-trail';
+      trail.textContent = steps.join(' → ');
+      overlay.appendChild(trail);
+    }
   }
 
   return true;
@@ -192,13 +263,21 @@ function mountCompactSceneImpact(
   overlay: HTMLElement,
   payload: TechnicalImpactPayload,
   defenseDisplay: ReturnType<typeof resolveDefenseDisplay>,
+  suppressFinalDamage = false,
+  lessonMath = false,
 ): boolean {
   const damage = Math.max(0, Math.round(payload.damageTotal ?? 0));
   const hasAttackSide = Boolean(payload.attackBreakdown) || damage > 0;
   let mounted = false;
 
   if (hasAttackSide) {
-    mounted = appendCompactSceneDamage(doc, overlay, payload) || mounted;
+    mounted = appendCompactSceneDamage(
+      doc,
+      overlay,
+      payload,
+      suppressFinalDamage,
+      lessonMath,
+    ) || mounted;
   }
 
   if (defenseDisplay && damage <= 0) {
@@ -214,7 +293,8 @@ export function showTechnicalImpact(
   payload: TechnicalImpactPayload,
   options: TechnicalImpactShowOptions = {},
 ): void {
-  const durationMs = options.durationMs ?? TECHNICAL_IMPACT_DURATION_MS;
+  const durationMs = options.durationMs
+    ?? (options.lessonMath ? Math.max(TECHNICAL_IMPACT_DURATION_MS, 3200) : TECHNICAL_IMPACT_DURATION_MS);
   const doc = anchor.ownerDocument;
 
   const overlay = doc.createElement('div');
@@ -229,6 +309,7 @@ export function showTechnicalImpact(
     ...(payload.attackTotal !== undefined ? { attackTotal: payload.attackTotal } : {}),
     ...(payload.defenseBreakdown ? { defenseBreakdown: payload.defenseBreakdown } : {}),
     ...(defenseTotal !== undefined ? { defenseTotal } : {}),
+    ...(payload.mitigation ? { mitigation: payload.mitigation } : {}),
   } as CombatHitSummaryInput;
 
   const summary = formatCombatHitSummary(hitInput);
@@ -244,7 +325,16 @@ export function showTechnicalImpact(
   if (!hasAttack && !hasDefense && !hasDamage && !summary.resultLine) return;
 
   if (options.compactScene) {
-    if (!mountCompactSceneImpact(doc, overlay, payload, defenseDisplay)) return;
+    if (!mountCompactSceneImpact(
+      doc,
+      overlay,
+      payload,
+      defenseDisplay,
+      options.suppressFinalDamage === true,
+      options.lessonMath === true,
+    )) {
+      return;
+    }
   } else {
     if (hasAttack || hasDamage) {
       const attackSum =
@@ -285,7 +375,10 @@ export function showTechnicalImpact(
     }
   }
 
-  mountOverlayAtAnchor(overlay, anchor);
+  mountOverlayAtAnchor(overlay, anchor, {
+    compactScene: options.compactScene === true,
+    lessonMath: options.lessonMath === true,
+  });
 
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => overlay.classList.add('is-visible'));
@@ -328,7 +421,7 @@ export function showHealImpact(anchor: HTMLElement, amount: number): void {
   hint.textContent = 'HP restaurado';
   overlay.appendChild(hint);
 
-  mountOverlayAtAnchor(overlay, anchor);
+  mountOverlayAtAnchor(overlay, anchor, { compactScene: true, lessonMath: false });
 
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => overlay.classList.add('is-visible'));

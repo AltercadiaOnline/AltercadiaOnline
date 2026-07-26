@@ -51,3 +51,9 @@ export function preloadNpcAssetImage(npcId: string): Promise<HTMLImageElement | 
 export function preloadAllNpcDefinitionAssets(): Promise<void> {
   return Promise.all(listNpcAssetBundleIds().map((id) => preloadNpcAssetImage(id))).then(() => undefined);
 }
+
+/** Libera imagens de NPC — purge de sessão (logout / troca de personagem). */
+export function resetNpcAssetImageCache(): void {
+  cache.clear();
+  pending.clear();
+}

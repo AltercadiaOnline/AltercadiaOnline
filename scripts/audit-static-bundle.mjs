@@ -3,7 +3,7 @@
  * Auditoria pós-build — garante que módulos ES críticos existem em public/
  * (evita login morto na Vercel quando um import 404 retorna index.html).
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,3 +67,32 @@ if (!npcDefinitionSource.includes('NPC_ASSET_BUNDLES')) {
 }
 
 console.log(`[audit-static-bundle] OK — ${REQUIRED_STATIC_MODULES.length} módulos críticos presentes.`);
+
+// MockEconomyService não pode ir para a CDN — só dist/ (dev localhost).
+const forbiddenMockPaths = [
+  path.join(publicDir, 'client', 'testing', 'MockEconomyService.js'),
+];
+const forbiddenMockFound = forbiddenMockPaths.filter((p) => existsSync(p));
+if (forbiddenMockFound.length > 0) {
+  console.error('[audit-static-bundle] MockEconomyService vazou para public/ (bloqueado):');
+  for (const entry of forbiddenMockFound) {
+    console.error(`  - ${path.relative(path.join(publicDir, '..'), entry)}`);
+  }
+  process.exit(1);
+}
+
+const appUiChunks = path.join(publicDir, 'app-ui', 'chunks');
+if (existsSync(appUiChunks)) {
+  const mockChunks = readdirSync(appUiChunks).filter((name) =>
+    name.startsWith('MockEconomyService-') && name.endsWith('.js'),
+  );
+  if (mockChunks.length > 0) {
+    console.error('[audit-static-bundle] Chunk MockEconomyService no app-ui (bloqueado):');
+    for (const name of mockChunks) console.error(`  - app-ui/chunks/${name}`);
+    console.error('  Use dataStoreAccess.ts nos painéis React — não economyLayer.ts.');
+    process.exit(1);
+  }
+}
+
+console.log('[audit-static-bundle] OK — Mock fora de public/client/testing e app-ui.');
+

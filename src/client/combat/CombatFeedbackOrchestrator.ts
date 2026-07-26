@@ -58,8 +58,7 @@ function collectPipelineVisualSteps(
     }
 
     for (const step of segment.steps) {
-      if (step.kind === 'portrait_stance' && step.stance === 'attack') continue;
-      if (step.kind === 'portrait_cue' && step.cue === 'attack') continue;
+      // Mantém ataque → impacto → hit: a ordem autoritativa casa o gameplay.
       steps.push({
         step,
         ...(step.kind === 'damage_impact' && segmentDamageEvent

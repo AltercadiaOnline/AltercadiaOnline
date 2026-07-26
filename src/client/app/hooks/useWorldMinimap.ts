@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from 'react';
 import { getGameStateManager } from '../../../shared/state/GameStateManager.js';
-import { getDataStore } from '../../economy/economyLayer.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { buildMinimapTerrain } from '../../world/minimap/buildMinimapTerrain.js';
 import { loadMinimapOverview } from '../../world/minimap/loadMinimapOverview.js';
 import { minimapClientClickToWorldTarget } from '../../world/minimap/minimapClickCoords.js';

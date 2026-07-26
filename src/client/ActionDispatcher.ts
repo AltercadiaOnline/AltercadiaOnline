@@ -649,6 +649,7 @@ export class ActionDispatcher {
     this.clearIntentTimeout(intentId);
     confirmTransaction(intentId);
     getPendingIntentRegistry().resolve(intentId);
+    getGameStore().clearPendingAction(intentId);
     this.intentWaiters.get(intentId)?.(true);
     this.intentWaiters.delete(intentId);
   }
@@ -657,6 +658,7 @@ export class ActionDispatcher {
     this.clearIntentTimeout(intentId);
     rejectTransaction(intentId, error, 'Ação rejeitada pelo servidor.', options);
     getPendingIntentRegistry().reject(intentId);
+    getGameStore().clearPendingAction(intentId);
     this.intentWaiters.get(intentId)?.(false);
     this.intentWaiters.delete(intentId);
   }
@@ -708,7 +710,7 @@ export class ActionDispatcher {
 
     let localFailure: DispatchResult | null = null;
 
-    getGameStore().performServerAction(intent.intentId, 'player-intent', () => {
+    getGameStore().performServerAction(intent.intentId, this.resolvePendingKind(action), () => {
       if (!isLocalItemMutation) return;
 
       const applied = this.applyItemMutationLocally(action);

@@ -20,6 +20,7 @@ import {
   scheduleInventoryUpdatedPayload,
 } from '../game/PlayerItemSession.js';
 import { getGameStore } from '../state/GameStore.js';
+import { confirmTransaction, rejectTransaction } from '../core/GameTransactionCoordinator.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
@@ -340,7 +341,12 @@ export function handleIntentResultPayload(raw: unknown): void {
   if (!isIntentResult(raw)) return;
 
   const registry = getPendingIntentRegistry();
-  if (!registry.isIntentPending(raw.intentId)) return;
+  const store = getGameStore();
+  const pendingIntent = registry.get(raw.intentId);
+  const pendingInRegistry = registry.isIntentPending(raw.intentId);
+  const pendingInStore = store.hasPendingAction(raw.intentId);
+
+  if (!pendingInRegistry && !pendingInStore) return;
 
   if (raw.success) {
     tryNotifyActivateBookSuccess(raw.intentId, raw.data);
@@ -356,18 +362,40 @@ export function handleIntentResultPayload(raw: unknown): void {
 
     if (isCombatActionIntentResultData(raw.data) && isProjectileCombatAction(raw.data.action)) {
       void playCombatAttackVfx(raw.data).finally(() => {
-        getActionDispatcher().confirmIntent(raw.intentId);
+        if (pendingInRegistry) {
+          getActionDispatcher().confirmIntent(raw.intentId);
+        } else if (pendingInStore) {
+          confirmTransaction(raw.intentId);
+        }
       });
       return;
     }
 
-    getActionDispatcher().confirmIntent(raw.intentId);
+    if (pendingInRegistry) {
+      getActionDispatcher().confirmIntent(raw.intentId);
+    } else if (pendingInStore) {
+      confirmTransaction(raw.intentId);
+    }
     return;
   }
 
   tryNotifyBattleLootCollect(raw.intentId, false, raw.data);
   tryNotifyRefractionResult(raw.intentId, false, { reason: raw.error ?? 'INTENT_REJECTED' });
-  getActionDispatcher().rejectIntent(raw.intentId, raw.error ?? 'INTENT_REJECTED');
+
+  if (pendingInRegistry) {
+    getActionDispatcher().rejectIntent(raw.intentId, raw.error ?? 'INTENT_REJECTED');
+  } else if (pendingInStore) {
+    rejectTransaction(raw.intentId, raw.error, 'Ação rejeitada pelo servidor.');
+  }
+
+  const failedActionType = pendingIntent?.action.type;
+  if (
+    failedActionType === 'SELL_NPC_ITEM'
+    || failedActionType === 'PURCHASE_NPC_ITEM'
+    || failedActionType === 'COLLECT_BATTLE_LOOT'
+  ) {
+    getGlobalStateSynchronizer().requestFullState();
+  }
 }
 
 /** @deprecated Compat — converte intent-failed legado para IntentResult. */

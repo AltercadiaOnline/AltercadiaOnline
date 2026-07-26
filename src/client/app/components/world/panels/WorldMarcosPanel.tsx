@@ -51,63 +51,13 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
           <p className="marcos-panel__legend" data-hud-fit-secondary>
             <span className="marcos-legend marcos-legend--active">◆ Ativo</span>
             <span className="marcos-legend marcos-legend--available">○ Disponível</span>
+            <span className="marcos-legend marcos-legend--choice">◇ Escolher trilha</span>
             <span className="marcos-legend marcos-legend--locked">🔒 Bloqueado</span>
             <span className="marcos-legend marcos-legend--gates">
               Nv. habilidade 1–5: personagem {legendLevels}
             </span>
           </p>
         </div>
-
-        {confirmBarMode === 'idle' ? (
-          <footer className="marcos-panel__confirm-bar marcos-panel__confirm-bar--idle" role="region" aria-label="Escolher trilha Marcos">
-            <div className="marcos-panel__confirm-copy">
-              <p className="marcos-panel__confirm-title">Escolher trilha</p>
-              <p className="marcos-panel__confirm-text">
-                Selecione a <strong>primeira instância</strong> de uma trilha (Nv. 10+) e confirme abaixo.
-              </p>
-            </div>
-          </footer>
-        ) : null}
-
-        {confirmBarMode === 'pending' && pendingNode && pendingBranchLabel ? (
-          <footer className="marcos-panel__confirm-bar" role="region" aria-label="Confirmar trilha Marcos">
-            <div className="marcos-panel__confirm-copy">
-              <p className="marcos-panel__confirm-title">Confirmar trilha</p>
-              <p className="marcos-panel__confirm-text">
-                Travar <strong>{pendingBranchLabel}</strong> com{' '}
-                <strong>{pendingNode.def.name}</strong>?
-              </p>
-              <p className="marcos-panel__confirm-hint">
-                Após confirmar, as outras trilhas ficam ofuscadas até falar com o Mestre de Trilhas.
-              </p>
-            </div>
-            <div className="marcos-panel__confirm-actions">
-              <button
-                type="button"
-                className="marcos-panel__confirm-btn marcos-panel__confirm-btn--yes"
-                disabled={confirmBranchGateway.pending}
-                aria-busy={confirmBranchGateway.pending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  confirmBranchGateway.submit();
-                }}
-              >
-                {confirmBranchGateway.buttonLabel}
-              </button>
-              <button
-                type="button"
-                className="marcos-panel__confirm-btn marcos-panel__confirm-btn--no"
-                disabled={confirmBranchGateway.pending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  cancelBranchSelection();
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </footer>
-        ) : null}
 
         {confirmBarMode === 'confirmed' && confirmedBranchLabel ? (
           <footer
@@ -124,6 +74,62 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
               <p className="marcos-panel__confirm-hint">
                 Clique nos próximos nós disponíveis da sua trilha para avançar.
               </p>
+            </div>
+          </footer>
+        ) : confirmBarMode !== 'hidden' ? (
+          <footer
+            className={[
+              'marcos-panel__confirm-bar',
+              confirmBarMode === 'idle' ? 'marcos-panel__confirm-bar--idle' : '',
+            ].filter(Boolean).join(' ')}
+            role="region"
+            aria-label={confirmBarMode === 'pending' ? 'Confirmar trilha Marcos' : 'Escolher trilha Marcos'}
+          >
+            <div className="marcos-panel__confirm-copy">
+              <p className="marcos-panel__confirm-title">
+                {confirmBarMode === 'pending' ? 'Confirmar trilha' : 'Escolher trilha'}
+              </p>
+              {confirmBarMode === 'pending' && pendingNode && pendingBranchLabel ? (
+                <>
+                  <p className="marcos-panel__confirm-text">
+                    Travar <strong>{pendingBranchLabel}</strong> com{' '}
+                    <strong>{pendingNode.def.name}</strong>?
+                  </p>
+                  <p className="marcos-panel__confirm-hint">
+                    Após confirmar, as outras trilhas ficam ofuscadas até falar com o Mestre de Trilhas.
+                  </p>
+                </>
+              ) : (
+                <p className="marcos-panel__confirm-text">
+                  Selecione <strong>uma</strong> das 3 primeiras habilidades (Nv. 10+) e confirme
+                  aqui. Só uma trilha pode ficar ativa.
+                </p>
+              )}
+            </div>
+            <div className="marcos-panel__confirm-actions">
+              <button
+                type="button"
+                className="marcos-panel__confirm-btn marcos-panel__confirm-btn--yes"
+                disabled={confirmBarMode !== 'pending' || confirmBranchGateway.pending}
+                aria-busy={confirmBranchGateway.pending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  confirmBranchGateway.submit();
+                }}
+              >
+                {confirmBranchGateway.buttonLabel}
+              </button>
+              <button
+                type="button"
+                className="marcos-panel__confirm-btn marcos-panel__confirm-btn--no"
+                disabled={confirmBarMode !== 'pending' || confirmBranchGateway.pending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cancelBranchSelection();
+                }}
+              >
+                Cancelar
+              </button>
             </div>
           </footer>
         ) : null}

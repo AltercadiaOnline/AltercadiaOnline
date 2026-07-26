@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Altercadia.online</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=e2bc57f" />
-    <link rel="stylesheet" href="/app-ui/ui-runtime.css?v=e2bc57f" />
+    <link rel="stylesheet" href="/styles.css?v=310ddca" />
+    <link rel="stylesheet" href="/app-ui/ui-runtime.css?v=310ddca" />
     <link rel="modulepreload" href="/app-ui/ui-runtime.js?v=86000eb" />
     <script>
       (function () {
@@ -40,7 +40,7 @@
         }
       })();
     </script>
-      <script>window.__ALTERCADIA_BUILD__="e2bc57f";</script>
+      <script>window.__ALTERCADIA_BUILD__="310ddca";</script>
   </head>
   <body data-ui-architecture="online-react-v1">
     <div id="login-screen" class="screen hidden" aria-hidden="true" hidden></div>
@@ -90,6 +90,13 @@
         >
           <section class="battle-combat-top" aria-label="Área de combate">
             <div id="battle-stage-frame" class="battle-stage-frame">
+              <canvas
+                id="battle-background-canvas"
+                class="battle-stage-background"
+                width="640"
+                height="360"
+                aria-hidden="true"
+              ></canvas>
               <div id="battle-stage-scale" class="battle-stage-scale">
                 <div class="battle-arena battle-arena--side-view battle-arena--canvas" aria-label="Cenário de combate">
                   <canvas
@@ -99,10 +106,10 @@
                     height="360"
                     aria-label="Arena de batalha"
                   ></canvas>
-                  <!-- Slots invisíveis: ponte de cues/labels do BattleScreen legado -->
-                  <div class="battle-arena__fighters battle-arena__fighters--sr-only" aria-hidden="true">
-                    <div id="battle-player-portrait" class="battle-portrait battle-portrait--player"></div>
-                    <div id="battle-opponent-portrait" class="battle-portrait battle-portrait--opponent"></div>
+                  <!-- Ancoras invisíveis alinhadas aos sprites do canvas (VFX de hit) -->
+                  <div class="battle-arena__fighters battle-arena__fighters--hit-anchors" aria-hidden="true">
+                    <div id="battle-player-portrait" class="battle-portrait battle-portrait--player" data-side="player"></div>
+                    <div id="battle-opponent-portrait" class="battle-portrait battle-portrait--opponent" data-side="opponent"></div>
                   </div>
                   <div class="battle-arena__effects" data-battle-effects-layer aria-hidden="true"></div>
                 </div>
@@ -134,7 +141,7 @@
     </script>
     <script>(function(){var b=window.__ALTERCADIA_BUILD__;if(!b)return;fetch("/config/deploy-manifest.json",{cache:"no-store"}).then(function(r){return r.json();}).then(function(m){var e=(m.commitShort||m.commit||"").slice(0,12);if(!e||e===b)return;var k="altercadia.boot-reload."+e;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("build",e);location.replace(u.href);}).catch(function(){});})();</script>
 
-    <script type="module" src="/app-ui/ui-runtime.js?v=e2bc57f"></script>
-    <script type="module" src="/client/browser/main.js?v=e2bc57f"></script>
+    <script type="module" src="/app-ui/ui-runtime.js?v=310ddca"></script>
+    <script type="module" src="/client/browser/main.js?v=310ddca"></script>
   </body>
 </html>

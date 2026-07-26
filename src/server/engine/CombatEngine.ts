@@ -1329,6 +1329,8 @@ export class CombatEngine {
           attackBreakdown: damageResult.attackBreakdown,
           defenseBreakdown: damageResult.defenseBreakdown,
           ...skillMeta,
+          ...(damageResult.vulnerableApplied ? { vulnerableApplied: true } : {}),
+          ...(damageResult.minDamageFloorApplied ? { minDamageFloorApplied: true } : {}),
         },
       });
       return 0;
@@ -1336,6 +1338,7 @@ export class CombatEngine {
     let finalDamage = Math.max(this.balance.hpElasticity.guards.minDamagePerHit, damageResult.finalDamage);
 
     const turn = this.state.turn;
+    const damageBeforeShields = finalDamage;
     const ignoreBarrierPercent = options.ignoreBarrierPercent ?? 0;
     if (ignoreBarrierPercent < 100) {
       const shields = [...getShields(target)].filter((shield) => isRuntimeShieldActive(turn, shield));
@@ -1355,11 +1358,19 @@ export class CombatEngine {
       this.updateCombatant(targetId, (current) => ({ ...current, activeShields: nextShields }));
     }
 
+    const shieldAbsorbed = Math.max(0, damageBeforeShields - finalDamage);
     const incomingReduction =
       resolveModifierPercent(target, RuntimeModifierKind.IncomingDamageReduction, turn)
       + resolveModifierPercent(target, RuntimeModifierKind.Defense, turn)
       + (target.combatStats?.damageReductionPercent ?? 0);
     finalDamage = Math.max(0, Math.floor(finalDamage * (1 - incomingReduction / 100)));
+    const hitMitigationFields = {
+      ...(damageResult.vulnerableApplied ? { vulnerableApplied: true } : {}),
+      ...(damageResult.minDamageFloorApplied ? { minDamageFloorApplied: true } : {}),
+      damageBeforeMitigation: damageBeforeShields,
+      ...(shieldAbsorbed > 0 ? { shieldAbsorbed } : {}),
+      ...(incomingReduction > 0 ? { incomingReductionPercent: incomingReduction } : {}),
+    };
     const hpAfter = Math.max(0, getHp(target) - finalDamage);
     const updatedTarget = isPetCombatant(target)
       ? applyPetCombatHp(target, hpAfter)
@@ -1381,6 +1392,7 @@ export class CombatEngine {
         attackBreakdown: damageResult.attackBreakdown,
         defenseBreakdown: damageResult.defenseBreakdown,
         ...skillMeta,
+        ...hitMitigationFields,
       },
     });
 

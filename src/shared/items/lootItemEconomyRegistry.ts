@@ -226,15 +226,15 @@ export const LOOT_ECONOMY_REGISTRY: Record<string, LootEconomyMeta> = {
 
   // ── Poções / tônicos ─────────────────────────────────────────────────────
 
-  potion_suporte_menor: { valorBase: 100, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Uncommon },
+  potion_suporte_menor: { valorBase: 20, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Uncommon },
 
-  potion_suporte_media: { valorBase: 250, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Uncommon },
+  potion_suporte_media: { valorBase: 37, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Uncommon },
 
-  potion_suporte_maior: { valorBase: 450, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+  potion_suporte_maior: { valorBase: 50, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 
-  tonico_fluxo_menor: { valorBase: 120, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Uncommon },
+  tonico_fluxo_menor: { valorBase: 37, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Uncommon },
 
-  tonico_fluxo_maior: { valorBase: 300, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+  tonico_fluxo_maior: { valorBase: 43, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 
 
 

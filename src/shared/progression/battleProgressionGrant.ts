@@ -8,8 +8,8 @@
  * ## Trilhas de progressão (independentes entre si)
  * | Trilha | Store / persistência | Curva | Como ganha em batalha |
  * |--------|----------------------|-------|------------------------|
- * | Nível do personagem | `PlayerDataStore` (`characterLevel`) | `getRequiredXpForNextLevel` | PVE, quests, exploração — não mistura com domínio |
- * | Domínio de moveset | `movesetMastery` → `moveProgression.ts` | `CharacterProgressionService.getRequiredXp` (1.15^n) | XP por uso; +10% se ≥8 usos; catch-up ×1.5; **mastery cap** char×1.5 |
+ * | Nível do personagem | `PlayerDataStore` (`characterLevel`) | `getRequiredXpForNextLevel` | PVE × `BATTLE_LEVEL_XP_RATIO` × `BATTLE_LEVEL_XP_PACE` (35% mais lento) |
+ * | Domínio de moveset | `movesetMastery` → `moveProgression.ts` | `CharacterProgressionService.getRequiredXp` (1.15^n) | PVE × `BATTLE_MOVESET_XP_RATIO` × `BATTLE_MOVESET_XP_PACE` (25% mais rápido); +10% se ≥8 usos; catch-up ×1.5 |
  * | Progresso meta (árvore) | `milestoneTotalProgress` | Degraus 10, 25, 40… | +1 por vitória PVE (farm lento) |
  * | Habilidades Marco | `nodeProgression` via `marcoProgressEngine` | Triggers por uso | **Separado** — telemetria de combate (`marcoCombatTelemetry`) |
  *
@@ -31,11 +31,23 @@ import {
 import { BattleType } from '../combat/battleType.js';
 import { applyMoveSyncBonusToMovesetGrant } from './battleMoveSyncBonus.js';
 
-/** Fração do pool PVE que alimenta o nível do personagem (farm mais rápido). */
+/** Fração do pool PVE que alimenta o nível do personagem (antes do pace). */
 export const BATTLE_LEVEL_XP_RATIO = 0.6;
 
-/** Fração do pool PVE repartida entre moves usados na luta (farm moderado). */
+/** Fração do pool PVE repartida entre moves usados na luta (antes do pace). */
 export const BATTLE_MOVESET_XP_RATIO = 0.4;
+
+/**
+ * Ritmo do nível do personagem (1 = baseline).
+ * 0.65 = ~35% mais lento (precisa de mais lutas para upar).
+ */
+export const BATTLE_LEVEL_XP_PACE = 0.65;
+
+/**
+ * Ritmo do domínio de moveset (1 = baseline).
+ * 1.25 = ~25% mais rápido (menos lutas para subir domínio).
+ */
+export const BATTLE_MOVESET_XP_PACE = 1.25;
 
 /** Progresso meta incremental por vitória PVE — desbloqueio lento da árvore de marcos. */
 export const BATTLE_MILESTONE_PROGRESS_PER_VICTORY = 1;
@@ -188,8 +200,12 @@ export function resolveBattleProgressionGrant(
     };
   }
 
-  const levelXp = Math.floor(totalBattleXp * BATTLE_LEVEL_XP_RATIO);
-  const baseMovesetPool = totalBattleXp - levelXp;
+  const levelXp = Math.floor(
+    totalBattleXp * BATTLE_LEVEL_XP_RATIO * BATTLE_LEVEL_XP_PACE,
+  );
+  const baseMovesetPool = Math.floor(
+    totalBattleXp * BATTLE_MOVESET_XP_RATIO * BATTLE_MOVESET_XP_PACE,
+  );
   const movesUsedInBattle = input.movesUsedInBattle ?? [];
   const movesetPool = applyMoveSpecializationBonusToPool(baseMovesetPool, movesUsedInBattle);
   const baseMovesetGrant = distributeMovesetXp(movesetPool, movesUsedInBattle);

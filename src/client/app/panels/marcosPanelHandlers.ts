@@ -1,6 +1,5 @@
 import { getActionDispatcher } from '../../ActionDispatcher.js';
-import { getDataStore } from '../../economy/economyLayer.js';
-import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
+import { getDataStore } from '../../economy/dataStoreAccess.js';
 import {
   buildMarcoTreeView,
   buildMarcoTooltipPayload,
@@ -16,14 +15,19 @@ import { findMarcoNodeView } from '../../ui/marcos/renderMilestoneTree.js';
 import { uiEvents, UIEventType } from '../../ui/uiEvents.js';
 import type { MarcoTreeRenderModel } from '../../ui/marcos/renderMilestoneTree.js';
 
+function resolveMarcosPanelPlayerLevel(): number {
+  const level = getDataStore().getCharacterLevel().level;
+  if (Number.isFinite(level) && level > 0) return Math.floor(level);
+  return 1;
+}
+
 export function buildMarcosPlayerContext(): MarcoTreePlayerContext {
   const marcosState = getDataStore().getMarcosState();
-  const playerLevel = getPlayerEquipmentStore().getSnapshot().level;
   return {
     activeMarcos: marcosState.activeMarcos,
     flowSpeedBase: marcosState.flowSpeedBase,
     milestoneTotalProgress: marcosState.milestoneTotalProgress,
-    playerLevel,
+    playerLevel: resolveMarcosPanelPlayerLevel(),
     ramificacaoSelecionada: resolveRamificacaoFromContext(marcosState.ramificacaoSelecionada),
     trilhaTravada: marcosState.trilhaTravada,
     nodeProgression: marcosState.nodeProgression,

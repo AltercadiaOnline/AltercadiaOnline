@@ -15,7 +15,7 @@ import { buildPvpDuelistCombatant } from './buildPvpDuelistCombatant.js';
 function resolveBattleSkills(loadout: PlayerCombatLoadout) {
   const normalized = normalizeClassActiveLoadout(loadout.classId, loadout.equippedSkillIds);
   const moveIds = normalized ?? getDefaultClassActiveLoadout(loadout.classId);
-  return moveIdsToSkillData(moveIds);
+  return moveIdsToSkillData(moveIds, loadout.movesetMastery ?? {});
 }
 
 /** Bootstrap exclusivo PVP — sem criaturas ENEMY. */

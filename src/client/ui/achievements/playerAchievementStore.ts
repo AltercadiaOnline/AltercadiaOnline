@@ -148,3 +148,8 @@ export function resetPlayerAchievementStore(): void {
   store?.reset();
   store = null;
 }
+
+/** Solta o singleton sem apagar o storage — usado no purge de sessão. */
+export function releasePlayerAchievementStore(): void {
+  store = null;
+}
