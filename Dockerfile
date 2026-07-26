@@ -21,6 +21,16 @@ COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
 
+# Commit SHA no manifesto (Docker sem .git). Railway injeta RAILWAY_GIT_* no build.
+ARG RAILWAY_GIT_COMMIT_SHA
+ARG RAILWAY_GIT_BRANCH
+ARG SOURCE_COMMIT
+ARG VERCEL_GIT_COMMIT_SHA
+ENV RAILWAY_GIT_COMMIT_SHA=$RAILWAY_GIT_COMMIT_SHA \
+    RAILWAY_GIT_BRANCH=$RAILWAY_GIT_BRANCH \
+    SOURCE_COMMIT=$SOURCE_COMMIT \
+    VERCEL_GIT_COMMIT_SHA=$VERCEL_GIT_COMMIT_SHA
+
 # Railway/Vercel backend: só build:core — verify-vercel-static-routing exige vercel.json (só na Vercel).
 RUN npm run build:core
 

@@ -2,9 +2,10 @@
  * Socket de combate in-memory — mesmo contrato BrowserCombatSocket, sem WebSocket.
  * Roteia o mesmo protocolo online:
  * - pve-encounter-accept / flee / request
+ * - pvp-ranked-join / leave / ready / unready
  * - combat-join / combat-action / combat-forfeit
  * - portal-transition-request
- * para LocalCombatAuthority + runtime PVE local.
+ * para LocalCombatAuthority + LocalPvpRankedAuthority + runtime PVE local.
  */
 
 import type { ActionRequest } from '../../../shared/events.js';
@@ -34,6 +35,18 @@ import {
   localCombatForfeit,
   resetLocalCombatAuthority,
 } from './localCombatAuthority.js';
+import {
+  bindLocalPvpRankedEmitter,
+  bindLocalPvpLoadoutProvider,
+  hasLocalPvpPracticeSession,
+  localPvpRankedDispatchAction,
+  localPvpRankedForfeit,
+  localPvpRankedJoin,
+  localPvpRankedLeave,
+  localPvpRankedReady,
+  localPvpRankedUnready,
+  resetLocalPvpRankedAuthority,
+} from './localPvpRankedAuthority.js';
 
 export type LocalCombatLoadoutProvider = () => PlayerCombatLoadout | null;
 
@@ -86,6 +99,8 @@ export function createLocalCombatSocket(
   };
 
   bindLocalCombatEmitter(emitToHandlers);
+  bindLocalPvpRankedEmitter(emitToHandlers);
+  bindLocalPvpLoadoutProvider(getLoadout);
 
   queueMicrotask(() => {
     if (closed) return;
@@ -101,6 +116,10 @@ export function createLocalCombatSocket(
       if (closed) return;
 
       if (type === 'combat-action') {
+        if (hasLocalPvpPracticeSession()) {
+          void localPvpRankedDispatchAction(payload as ActionRequest);
+          return;
+        }
         void localCombatDispatchAction(payload as ActionRequest);
         return;
       }
@@ -112,7 +131,41 @@ export function createLocalCombatSocket(
           && 'battleId' in payload
             ? String((payload as { battleId?: unknown }).battleId ?? '')
             : '';
+        if (hasLocalPvpPracticeSession()) {
+          void localPvpRankedForfeit(battleId);
+          return;
+        }
         void localCombatForfeit(battleId);
+        return;
+      }
+
+      if (
+        type === 'pvp-ranked-join'
+        || type === 'pvp-ranked-leave'
+        || type === 'pvp-ranked-ready'
+        || type === 'pvp-ranked-unready'
+      ) {
+        const stationPayload =
+          typeof payload === 'object' && payload !== null
+            ? payload as {
+              readonly stationId: string;
+              readonly displayName?: string;
+              readonly skinBundleId?: string;
+            }
+            : { stationId: 'combate_pvp' };
+        if (type === 'pvp-ranked-join') {
+          localPvpRankedJoin(stationPayload);
+          return;
+        }
+        if (type === 'pvp-ranked-leave') {
+          localPvpRankedLeave(stationPayload);
+          return;
+        }
+        if (type === 'pvp-ranked-ready') {
+          localPvpRankedReady(stationPayload);
+          return;
+        }
+        localPvpRankedUnready(stationPayload);
         return;
       }
 
@@ -243,6 +296,9 @@ export function createLocalCombatSocket(
     close() {
       closed = true;
       resetLocalCombatAuthority();
+      resetLocalPvpRankedAuthority();
+      bindLocalPvpLoadoutProvider(null);
+      bindLocalPvpRankedEmitter(null);
       notifyPhase('disconnected');
       for (const handler of closeHandlers) {
         handler(USER_WS_CONNECT_FAILED);

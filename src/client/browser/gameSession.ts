@@ -53,10 +53,11 @@ import {
 import { applyWorldPeersPayload } from '../world/worldPeersStore.js';
 import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
 import { bindPveEncounterWsSender, sendPveEncounterRequest } from '../app/panels/pveEncounterBridge.js';
-import { bindPvpRankedQueueWsSender } from '../app/panels/pvpRankedQueueBridge.js';
-import { getPvpQueueStore } from '../app/panels/pvpQueueStore.js';
+import { formatPvpRankedQueueError } from '../../shared/combat/pvp/pvpRankedQueueErrors.js';
 import { isPvpRankedQueueSnapshot } from '../../shared/combat/pvp/pvpRankedQueueProtocol.js';
 import { resolveWorldLoreCredentials } from '../services/worldLoreCredentials.js';
+import { bindPvpRankedQueueWsSender } from '../app/panels/pvpRankedQueueBridge.js';
+import { getPvpQueueStore } from '../app/panels/pvpQueueStore.js';
 import {
   resetLocalPveEncounterRuntime,
   startLocalPveEncounterRuntime,
@@ -630,8 +631,7 @@ function connectSocket(): void {
     }, 2_500);
   });
 
-  // Estrutura única Local × Online: HUD → socket → autoridade.
-  // Online: CombatWsHub. Local: LocalCombatSocket (tryAccept / flee / request).
+  // Front só espelha: PVE + PvP rankeado → socket → autoridade (Railway | local authority).
   bindPveEncounterWsSender((type, payload) => {
     socket?.send(type, payload);
   });
@@ -655,6 +655,7 @@ function connectSocket(): void {
     const reason = (raw as { reason?: unknown }).reason;
     if (typeof reason !== 'string') return;
     console.warn('[PvP ranked queue]', reason);
+    alertSystem(formatPvpRankedQueueError(reason));
   });
 
   socket.onOpen(() => {

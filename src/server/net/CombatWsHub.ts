@@ -648,8 +648,18 @@ export class CombatWsHub implements CombatWsRouteHost {
 
   touchBattleSessionActivity(connectionId: string): void {
     const session = this.sessions.get(connectionId);
-    if (!session) return;
-    touchBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
+    if (session) {
+      touchBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
+      return;
+    }
+    const rankedBattleId = this.rankedBattleByConnectionId.get(connectionId);
+    const ranked = rankedBattleId
+      ? this.rankedSessionsByBattleId.get(rankedBattleId)
+      : undefined;
+    if (!ranked) return;
+    const peer = ranked.getPeerByConnection(connectionId);
+    if (!peer) return;
+    touchBattleSessionLease(peer.playerId, peer.characterId);
   }
 
   private expireStaleBattleSessionLeases(): void {
@@ -666,6 +676,15 @@ export class CombatWsHub implements CombatWsRouteHost {
         idleMs: nowMs - lease.lastActivityMs,
         ageMs: nowMs - lease.startedAtMs,
       });
+
+      const rankedBattleId = this.rankedBattleByConnectionId.get(lease.connectionId);
+      const ranked = rankedBattleId
+        ? this.rankedSessionsByBattleId.get(rankedBattleId)
+        : undefined;
+      if (ranked) {
+        void this.handleRankedDisconnect(lease.connectionId);
+        continue;
+      }
 
       const session = this.sessions.get(lease.connectionId);
       if (session) {
@@ -690,8 +709,10 @@ export class CombatWsHub implements CombatWsRouteHost {
     if (!isPlayerInBattle(playerId, characterId)) return;
 
     const lease = getBattleSessionLease(playerId, characterId);
-    const hasLiveSession = lease !== undefined && this.sessions.has(lease.connectionId);
-    if (hasLiveSession) return;
+    const hasLivePve = lease !== undefined && this.sessions.has(lease.connectionId);
+    const hasLiveRanked = lease !== undefined
+      && this.rankedBattleByConnectionId.has(lease.connectionId);
+    if (hasLivePve || hasLiveRanked) return;
 
     console.warn('[WS] Flag BATTLE órfã liberada', { playerId, characterId });
     clearBattleSessionLease(playerId, characterId);
@@ -945,7 +966,13 @@ export class CombatWsHub implements CombatWsRouteHost {
   }
 
   private async bootstrapRankedPvpMatch(match: PvpRankedMatchPair): Promise<void> {
-    if (this.rankedMatchBootstrapInFlight) return;
+    if (this.rankedMatchBootstrapInFlight) {
+      console.warn('[WS] bootstrapRankedPvpMatch ignorado — já em andamento', {
+        matchId: match.matchId,
+      });
+      this.failRankedMatchStart(match, 'MATCH_START_FAILED');
+      return;
+    }
     this.rankedMatchBootstrapInFlight = true;
     const queue = getPvpRankedQueueManager();
     try {
