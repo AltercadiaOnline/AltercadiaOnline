@@ -62,7 +62,25 @@ function parseEquipmentSnapshot(value: unknown): EquippedSlots | undefined {
 
 export type WsOutboundMessage =
 
-  | { readonly type: 'START_COMBAT'; readonly payload: { readonly battleId: string; readonly monsterInstanceId?: string } }
+  | {
+      readonly type: 'START_COMBAT';
+      readonly payload: {
+        readonly battleId: string;
+        readonly monsterInstanceId?: string;
+        readonly matchId?: string;
+        readonly battleType?: 'PVE' | 'PVP';
+      };
+    }
+  | {
+      readonly type: 'pvp-ranked-queue-snapshot';
+      readonly payload: import('./combat/pvp/pvpRankedQueueProtocol.js').PvpRankedQueueSnapshot;
+    }
+  | {
+      readonly type: 'pvp-ranked-queue-error';
+      readonly payload: {
+        readonly reason: import('./combat/pvp/pvpRankedQueueProtocol.js').PvpRankedQueueErrorCode;
+      };
+    }
 
   | { readonly type: 'combat-event'; readonly payload: CombatDispatchPayload }
 
@@ -335,9 +353,18 @@ export type WsInboundMessage =
   | {
       readonly type: 'pve-encounter-flee';
       readonly payload: { readonly monsterInstanceId: string };
-    };
-
-
+    }
+  | {
+      readonly type: 'pvp-ranked-join';
+      readonly payload: {
+        readonly stationId: string;
+        readonly displayName?: string;
+        readonly skinBundleId?: string;
+      };
+    }
+  | { readonly type: 'pvp-ranked-leave'; readonly payload: { readonly stationId: string } }
+  | { readonly type: 'pvp-ranked-ready'; readonly payload: { readonly stationId: string } }
+  | { readonly type: 'pvp-ranked-unready'; readonly payload: { readonly stationId: string } };
 
 export function parseWsInbound(raw: string): WsInboundMessage | null {
 
@@ -848,6 +875,30 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
         };
       }
       return { type, payload: { monsterInstanceId } };
+    }
+
+    if (
+      type === 'pvp-ranked-join'
+      || type === 'pvp-ranked-leave'
+      || type === 'pvp-ranked-ready'
+      || type === 'pvp-ranked-unready'
+    ) {
+      const payload = record.payload;
+      if (typeof payload !== 'object' || payload === null) return null;
+      const p = payload as Record<string, unknown>;
+      const stationId = p.stationId;
+      if (typeof stationId !== 'string' || stationId.trim().length === 0) return null;
+      if (type === 'pvp-ranked-join') {
+        return {
+          type,
+          payload: {
+            stationId: stationId.trim(),
+            ...(typeof p.displayName === 'string' ? { displayName: p.displayName } : {}),
+            ...(typeof p.skinBundleId === 'string' ? { skinBundleId: p.skinBundleId } : {}),
+          },
+        };
+      }
+      return { type, payload: { stationId: stationId.trim() } };
     }
 
     return null;

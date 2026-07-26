@@ -1,9 +1,8 @@
 /**
  * Contrato da fila PvP ranqueada 1x1 no púlpito da cidade.
  *
- * Base (cliente espelho): HUD + slots locais.
- * Próximo passo: servidor linka os dois jogadores no mesmo stationId,
- * sincroniza ready e dispara countdown autoritativo → batalha rankeada.
+ * Servidor: PvpRankedQueueManager + RankedPvpCombatSession.
+ * Cliente: espelho via pvp-ranked-queue-snapshot (HUD React).
  */
 
 /** Marker Construct / npcId do púlpito. */
@@ -19,6 +18,6 @@ export const PVP_RANKED_QUEUE_SLOT_COUNT = 2;
 
 /**
  * Após ambos clicarem "Entrar na batalha rankeada", countdown destacado → tela de batalha.
- * Autoridade futura: servidor; cliente só espelha o restante.
+ * Autoridade: servidor (`PVP_RANKED_ACCEPT_COUNTDOWN_MS`); cliente só espelha o restante.
  */
 export const PVP_RANKED_ACCEPT_COUNTDOWN_MS = 10_000;

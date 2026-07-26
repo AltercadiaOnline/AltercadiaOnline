@@ -1,8 +1,5 @@
 /**
- * Fila PvP ranqueada 1x1 — espelho local no púlpito.
- *
- * Abrir sozinho = espera oponente. 1 sessão por vez (slots cheios / countdown = exclusivo).
- * Sair / fechar HUD = cancela o link. Ambos "Entrar" → countdown 10s → batalha.
+ * Fila PvP ranqueada 1x1 — espelho do snapshot autoritativo (online) + fallback local.
  */
 
 import {
@@ -11,17 +8,20 @@ import {
   PVP_RANKED_STATION_ID,
   PVP_RANKED_STATION_LABEL,
 } from '../../../shared/combat/pvp/pvpRankedQueueConfig.js';
+import type { PvpRankedQueueSnapshot as WireSnapshot } from '../../../shared/combat/pvp/pvpRankedQueueProtocol.js';
 import type { PlayerSkinBundleId } from '../../../shared/character/playerSkinBundle.js';
+import { isLocalGameMode } from '../../runtime/gameMode.js';
 
 export type PvpQueueSlot = {
   readonly playerId: string;
+  readonly characterId?: number;
   readonly displayName: string;
   readonly ready: boolean;
   readonly isLocal: boolean;
   readonly skinBundleId: PlayerSkinBundleId;
 };
 
-export type PvpQueuePhase = 'idle' | 'waiting' | 'countdown' | 'starting';
+export type PvpQueuePhase = 'idle' | 'waiting' | 'countdown' | 'starting' | 'in_battle';
 
 export type PvpQueueSnapshot = {
   readonly objectId: string;
@@ -31,8 +31,8 @@ export type PvpQueueSnapshot = {
   readonly statusMessage: string;
   readonly countdownEndsAtMs: number | null;
   readonly countdownSecondsRemaining: number | null;
-  /** True enquanto a sessão está “rolando” — ninguém mais entra (base local). */
   readonly exclusive: boolean;
+  readonly matchId: string | null;
 };
 
 type Listener = (snapshot: PvpQueueSnapshot) => void;
@@ -52,12 +52,8 @@ function emptySnapshot(
     countdownEndsAtMs: null,
     countdownSecondsRemaining: null,
     exclusive: false,
+    matchId: null,
   };
-}
-
-function bothSlotsReady(slots: PvpQueueSnapshot['slots']): boolean {
-  const filled = slots.filter(Boolean) as PvpQueueSlot[];
-  return filled.length === PVP_RANKED_QUEUE_SLOT_COUNT && filled.every((slot) => slot.ready);
 }
 
 function remainingSeconds(endsAtMs: number | null, now = Date.now()): number | null {
@@ -65,21 +61,19 @@ function remainingSeconds(endsAtMs: number | null, now = Date.now()): number | n
   return Math.max(0, Math.ceil((endsAtMs - now) / 1000));
 }
 
-function isExclusivePhase(phase: PvpQueuePhase, slots: PvpQueueSnapshot['slots']): boolean {
-  if (phase === 'countdown' || phase === 'starting') return true;
-  return slots.some(Boolean);
+function bothSlotsReady(slots: PvpQueueSnapshot['slots']): boolean {
+  const filled = slots.filter(Boolean) as PvpQueueSlot[];
+  return filled.length === PVP_RANKED_QUEUE_SLOT_COUNT && filled.every((slot) => slot.ready);
 }
 
 class PvpQueueStore {
   private snapshot: PvpQueueSnapshot = emptySnapshot();
-
   private readonly listeners = new Set<Listener>();
-
   private countdownInterval: ReturnType<typeof setInterval> | null = null;
-
   private readonly matchListeners = new Set<(snapshot: PvpQueueSnapshot) => void>();
-
   private readonly cancelListeners = new Set<() => void>();
+  private localPlayerId: string | null = null;
+  private lastMatchIdSeen: string | null = null;
 
   getSnapshot(): PvpQueueSnapshot {
     return this.snapshot;
@@ -90,9 +84,70 @@ class PvpQueueStore {
     return () => this.listeners.delete(listener);
   }
 
-  /**
-   * Abre / foca a estação sem resetar fila ativa (evita Strict Mode limpar o slot).
-   */
+  setLocalPlayerId(playerId: string): void {
+    this.localPlayerId = playerId;
+  }
+
+  /** Online: aplica snapshot do servidor (fonte da verdade). */
+  applyAuthoritativeSnapshot(wire: WireSnapshot, localPlayerId?: string): void {
+    if (localPlayerId) this.localPlayerId = localPlayerId;
+    const localId = this.localPlayerId;
+
+    const slots: PvpQueueSnapshot['slots'] = [
+      wire.slots[0]
+        ? {
+            playerId: wire.slots[0].playerId,
+            characterId: wire.slots[0].characterId,
+            displayName: wire.slots[0].displayName,
+            ready: wire.slots[0].ready,
+            isLocal: localId !== null && wire.slots[0].playerId === localId,
+            skinBundleId: wire.slots[0].skinBundleId,
+          }
+        : null,
+      wire.slots[1]
+        ? {
+            playerId: wire.slots[1].playerId,
+            characterId: wire.slots[1].characterId,
+            displayName: wire.slots[1].displayName,
+            ready: wire.slots[1].ready,
+            isLocal: localId !== null && wire.slots[1].playerId === localId,
+            skinBundleId: wire.slots[1].skinBundleId,
+          }
+        : null,
+    ];
+
+    const prevPhase = this.snapshot.phase;
+    this.clearCountdownTimerOnly();
+    this.snapshot = {
+      objectId: wire.stationId,
+      label: wire.label,
+      phase: wire.phase,
+      slots,
+      statusMessage: wire.statusMessage,
+      countdownEndsAtMs: wire.countdownEndsAtMs,
+      countdownSecondsRemaining: remainingSeconds(wire.countdownEndsAtMs),
+      exclusive: wire.exclusive,
+      matchId: wire.matchId,
+    };
+    this.emit();
+
+    if (wire.phase === 'countdown' && wire.countdownEndsAtMs !== null) {
+      this.startDisplayCountdownTicks();
+    }
+
+    if (
+      (wire.phase === 'starting' || wire.phase === 'in_battle')
+      && wire.matchId
+      && wire.matchId !== this.lastMatchIdSeen
+      && (prevPhase === 'countdown' || prevPhase === 'waiting' || prevPhase === 'starting')
+    ) {
+      this.lastMatchIdSeen = wire.matchId;
+      for (const listener of this.matchListeners) {
+        listener(this.snapshot);
+      }
+    }
+  }
+
   openStation(objectId: string, label: string): void {
     if (
       this.snapshot.objectId === objectId
@@ -118,29 +173,33 @@ class PvpQueueStore {
   reset(): void {
     this.clearCountdownTimerOnly();
     this.snapshot = emptySnapshot(this.snapshot.objectId, this.snapshot.label);
+    this.lastMatchIdSeen = null;
     this.emit();
   }
 
-  /** Ocupa slot (espelho local) — skin de exploração + nome. */
+  /**
+   * Local-only: ocupa slot sem servidor.
+   * Online: no-op (join via WS).
+   */
   ensureLocalPresent(
     playerId: string,
     displayName: string,
     skinBundleId: PlayerSkinBundleId,
   ): void {
+    this.localPlayerId = playerId;
+    if (!isLocalGameMode()) return;
+
     const existingIndex = this.snapshot.slots.findIndex((slot) => slot?.playerId === playerId);
     if (existingIndex >= 0) {
       const current = this.snapshot.slots[existingIndex]!;
       const slots = [...this.snapshot.slots] as [PvpQueueSlot | null, PvpQueueSlot | null];
-      slots[existingIndex] = { ...current, displayName, skinBundleId };
-      this.snapshot = { ...this.snapshot, slots, exclusive: isExclusivePhase(this.snapshot.phase, slots) };
+      slots[existingIndex] = { ...current, displayName, skinBundleId, isLocal: true };
+      this.snapshot = { ...this.snapshot, slots, exclusive: true };
       this.emit();
       return;
     }
 
-    if (this.snapshot.phase === 'countdown' || this.snapshot.phase === 'starting') {
-      return;
-    }
-
+    if (this.snapshot.phase === 'countdown' || this.snapshot.phase === 'starting') return;
     const freeIndex = this.snapshot.slots.findIndex((slot) => slot === null);
     if (freeIndex < 0) return;
 
@@ -162,11 +221,22 @@ class PvpQueueStore {
       exclusive: true,
       countdownEndsAtMs: null,
       countdownSecondsRemaining: null,
+      matchId: null,
     };
     this.emit();
   }
 
   leaveLocal(playerId: string): void {
+    if (!isLocalGameMode()) {
+      // Online: leave via WS; limpa espelho se o painel fechou sem snapshot.
+      if (this.snapshot.slots.some((s) => s?.playerId === playerId)) {
+        this.clearCountdownTimerOnly();
+        this.snapshot = emptySnapshot(this.snapshot.objectId, this.snapshot.label);
+        this.emit();
+      }
+      return;
+    }
+
     const wasPresent = this.snapshot.slots.some((slot) => slot?.playerId === playerId);
     if (!wasPresent) return;
 
@@ -180,23 +250,21 @@ class PvpQueueStore {
     this.emit();
 
     if (hadLinkedSession) {
-      for (const listener of this.cancelListeners) {
-        listener();
-      }
+      for (const listener of this.cancelListeners) listener();
     }
   }
 
-  /** Clica "Entrar na batalha rankeada" — marca aceite local. */
   requestEnterRanked(playerId: string): void {
+    if (!isLocalGameMode()) return;
     const slots = this.snapshot.slots.map((slot) => {
       if (!slot || slot.playerId !== playerId) return slot;
       return { ...slot, ready: true };
     }) as [PvpQueueSlot | null, PvpQueueSlot | null];
-
-    this.applyReadyState(slots);
+    this.applyLocalReadyState(slots);
   }
 
   cancelEnterRanked(playerId: string): void {
+    if (!isLocalGameMode()) return;
     const slots = this.snapshot.slots.map((slot) => {
       if (!slot || slot.playerId !== playerId) return slot;
       return { ...slot, ready: false };
@@ -210,18 +278,18 @@ class PvpQueueStore {
       statusMessage: 'Aceite cancelado — ambos precisam clicar em Entrar na batalha rankeada.',
       countdownEndsAtMs: null,
       countdownSecondsRemaining: null,
-      exclusive: isExclusivePhase('waiting', slots),
+      exclusive: true,
+      matchId: null,
     };
     this.emit();
   }
 
-  /**
-   * Stub local do oponente — testa HUD 2 lados sem matchmaking online.
-   */
+  /** Local/Dev only — simula oponente. */
   fillOpponentStub(
     displayName = 'Oponente',
     skinBundleId: PlayerSkinBundleId = 'player_male_2',
   ): void {
+    if (!isLocalGameMode()) return;
     if (this.snapshot.slots[1]) return;
     if (this.snapshot.phase === 'countdown' || this.snapshot.phase === 'starting') return;
 
@@ -243,18 +311,20 @@ class PvpQueueStore {
       exclusive: true,
       countdownEndsAtMs: null,
       countdownSecondsRemaining: null,
+      matchId: null,
     };
     this.emit();
   }
 
   setOpponentReady(ready = true): void {
+    if (!isLocalGameMode()) return;
     const opponent = this.snapshot.slots[1];
     if (!opponent || opponent.isLocal) return;
     const slots: PvpQueueSnapshot['slots'] = [
       this.snapshot.slots[0],
       { ...opponent, ready },
     ];
-    this.applyReadyState(slots);
+    this.applyLocalReadyState(slots);
   }
 
   onRankedMatchStart(listener: (snapshot: PvpQueueSnapshot) => void): () => void {
@@ -267,7 +337,7 @@ class PvpQueueStore {
     return () => this.cancelListeners.delete(listener);
   }
 
-  private applyReadyState(slots: PvpQueueSnapshot['slots']): void {
+  private applyLocalReadyState(slots: PvpQueueSnapshot['slots']): void {
     const filled = slots.filter(Boolean) as PvpQueueSlot[];
     const ready = bothSlotsReady(slots);
 
@@ -283,6 +353,7 @@ class PvpQueueStore {
         countdownEndsAtMs: null,
         countdownSecondsRemaining: null,
         exclusive: true,
+        matchId: null,
       };
       this.emit();
       return;
@@ -297,12 +368,30 @@ class PvpQueueStore {
       countdownEndsAtMs: endsAt,
       countdownSecondsRemaining: remainingSeconds(endsAt),
       exclusive: true,
+      matchId: null,
     };
     this.emit();
-    this.startCountdownTicks();
+    this.startLocalCountdownTicks();
   }
 
-  private startCountdownTicks(): void {
+  private startDisplayCountdownTicks(): void {
+    this.clearCountdownTimerOnly();
+    this.countdownInterval = setInterval(() => {
+      const endsAt = this.snapshot.countdownEndsAtMs;
+      if (endsAt === null || this.snapshot.phase !== 'countdown') {
+        this.clearCountdownTimerOnly();
+        return;
+      }
+      const seconds = remainingSeconds(endsAt);
+      this.snapshot = {
+        ...this.snapshot,
+        countdownSecondsRemaining: seconds,
+      };
+      this.emit();
+    }, 200);
+  }
+
+  private startLocalCountdownTicks(): void {
     this.clearCountdownTimerOnly();
     this.countdownInterval = setInterval(() => {
       const endsAt = this.snapshot.countdownEndsAtMs;
@@ -310,38 +399,35 @@ class PvpQueueStore {
         this.clearCountdownTimerOnly();
         return;
       }
-
       const seconds = remainingSeconds(endsAt);
       if (seconds === null || seconds <= 0) {
-        this.finishCountdown();
+        this.finishLocalCountdown();
         return;
       }
-
       this.snapshot = {
         ...this.snapshot,
         phase: 'countdown',
         countdownSecondsRemaining: seconds,
-        statusMessage: 'Ambos aceitaram — entrando na batalha rankeada…',
       };
       this.emit();
     }, 200);
   }
 
-  private finishCountdown(): void {
+  private finishLocalCountdown(): void {
     this.clearCountdownTimerOnly();
     this.snapshot = {
       ...this.snapshot,
       phase: 'starting',
       countdownEndsAtMs: null,
       countdownSecondsRemaining: 0,
-      statusMessage: 'Entrando na batalha rankeada…',
+      statusMessage: 'Entrando na batalha rankeada… (local — sem duelo online)',
       exclusive: true,
+      matchId: `local-${Date.now()}`,
     };
     this.emit();
     for (const listener of this.matchListeners) {
       listener(this.snapshot);
     }
-    // Limpa sessão local após disparar — servidor fará a autoridade depois.
     this.snapshot = emptySnapshot(this.snapshot.objectId, this.snapshot.label);
     this.emit();
   }

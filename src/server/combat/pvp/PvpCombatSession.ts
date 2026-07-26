@@ -43,6 +43,8 @@ export type PvpCombatSessionOptions = {
 
 /**
  * Sessão PVP 1×1 — isolada do PVE. Turnos alternados jogador ↔ bot da arena.
+ *
+ * @deprecated Practice/bot only. Ranked human 1v1 uses {@link RankedPvpCombatSession}.
  */
 export class PvpCombatSession {
   private readonly gateway: CombatGateway;

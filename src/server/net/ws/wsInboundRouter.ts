@@ -109,6 +109,34 @@ export type CombatWsRouteHost = {
     payload: { readonly monsterInstanceId: string },
   ): void;
 
+  handlePvpRankedJoin(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: {
+      readonly stationId: string;
+      readonly displayName?: string;
+      readonly skinBundleId?: string;
+    },
+  ): void;
+
+  handlePvpRankedLeave(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly stationId: string },
+  ): void;
+
+  handlePvpRankedReady(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly stationId: string },
+  ): void;
+
+  handlePvpRankedUnready(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly stationId: string },
+  ): void;
+
   handleCollectLoot(
     ws: LiveSocket,
     connectionId: string,

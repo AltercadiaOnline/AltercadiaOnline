@@ -66,6 +66,24 @@ import type { StagedBattleLootResult } from '../../Economy/economyGateway.js';
 import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
 import { resolveDefeatedCreatureLevel } from '../../shared/combat/battleXpRewards.js';
 import { finalizeAuthoritativeBattleEnd } from '../combat/finalizeAuthoritativeBattleEnd.js';
+import { finalizeAuthoritativeRankedPvpEnd } from '../combat/finalizeAuthoritativeRankedPvpEnd.js';
+import {
+  getPvpRankedQueueManager,
+  type PvpRankedMatchPair,
+} from '../combat/pvp/PvpRankedQueueManager.js';
+import { createPvpRankedBattleBootstrap } from '../combat/pvp/buildPvpRankedBattle.js';
+import { RankedPvpCombatSession } from '../combat/pvp/RankedPvpCombatSession.js';
+import {
+  DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  isValidPlayerSkinBundleId,
+  type PlayerSkinBundleId,
+} from '../../shared/character/playerSkinBundle.js';
+import { PVP_RANKED_STATION_ID } from '../../shared/combat/pvp/pvpRankedQueueConfig.js';
+import type { PvpRankedQueueSnapshot } from '../../shared/combat/pvp/pvpRankedQueueProtocol.js';
+import {
+  getAuthoritativeProgression,
+  patchAuthoritativeProgression,
+} from '../progression/authoritativeProgressionStore.js';
 import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
 import { getInventoryPersistenceBridge } from '../supabase/inventoryPersistenceBridge.js';
 import { getPersistenceManager } from '../supabase/persistenceManagerRegistry.js';
@@ -123,7 +141,6 @@ import {
   persistPendingLootSnapshot,
   touchCharacterPersistenceDirty,
 } from '../persistence/PersistenceGateway.js';
-import { patchAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { reconcileAuthoritativeCharacterClassLink } from '../progression/reconcileCharacterClassLink.js';
 import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
 import { resolveMinorAccountNotice, buildAvisoMenor } from '../../shared/auth/accountAgePolicy.js';
@@ -176,6 +193,10 @@ type PveMonsterJoinAuthorization =
 export class CombatWsHub implements CombatWsRouteHost {
   private readonly wss: WebSocketServer;
   private readonly sessions = new Map<string, CombatSession>();
+  /** Duelos PVP rankeados — battleId → sessão dual. */
+  private readonly rankedSessionsByBattleId = new Map<string, RankedPvpCombatSession>();
+  private readonly rankedBattleByConnectionId = new Map<string, string>();
+  private rankedMatchBootstrapInFlight = false;
   private readonly socketsByPlayerId = new Map<string, WebSocket>();
   private readonly socketsByConnectionId = new Map<string, WebSocket>();
   private readonly combatTurnController: CombatTurnController;
@@ -260,6 +281,13 @@ export class CombatWsHub implements CombatWsRouteHost {
       }
       return null;
     });
+    const rankedQueue = getPvpRankedQueueManager();
+    rankedQueue.subscribe((snapshot) => {
+      this.broadcastPvpRankedQueueSnapshot(snapshot);
+    });
+    rankedQueue.onMatchReady((match) => {
+      void this.bootstrapRankedPvpMatch(match);
+    });
     console.log('[WS] CombatWsHub ativo — path=/ws (tick 20Hz)');
   }
 
@@ -295,6 +323,8 @@ export class CombatWsHub implements CombatWsRouteHost {
     ws.on('close', () => {
       this.combatTurnController.clearTurnTimer(connectionId);
       this.socketsByConnectionId.delete(connectionId);
+      void this.handleRankedDisconnect(connectionId);
+      getPvpRankedQueueManager().onDisconnect(connectionId);
       const session = this.sessions.get(connectionId);
       if (session) {
         clearBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
@@ -415,6 +445,11 @@ export class CombatWsHub implements CombatWsRouteHost {
     connectionId: string,
     payload: { readonly battleId: string },
   ): Promise<void> {
+    const rankedBattleId = this.rankedBattleByConnectionId.get(connectionId);
+    if (rankedBattleId) {
+      await this.routeRankedCombatForfeit(ws, connectionId, payload.battleId);
+      return;
+    }
     const session = this.sessions.get(connectionId);
     if (!session) {
       this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
@@ -451,6 +486,11 @@ export class CombatWsHub implements CombatWsRouteHost {
     connectionId: string,
     payload: ActionRequest,
   ): Promise<void> {
+    const rankedBattleId = this.rankedBattleByConnectionId.get(connectionId);
+    if (rankedBattleId) {
+      await this.routeRankedCombatAction(ws, connectionId, payload);
+      return;
+    }
     const session = this.sessions.get(connectionId);
     if (!session) {
       this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
@@ -799,6 +839,313 @@ export class CombatWsHub implements CombatWsRouteHost {
         world.playerId,
       );
     }
+  }
+
+  handlePvpRankedJoin(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: {
+      readonly stationId: string;
+      readonly displayName?: string;
+      readonly skinBundleId?: string;
+    },
+  ): void {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+
+    if (this.sessions.has(connectionId) || this.rankedBattleByConnectionId.has(connectionId)) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: 'PLAYER_BUSY' } });
+      return;
+    }
+
+    const progression = getAuthoritativeProgression(world.playerId, world.characterId);
+    const skinRaw = payload.skinBundleId ?? progression.characterProfile.skinBundleId;
+    const skinBundleId: PlayerSkinBundleId = isValidPlayerSkinBundleId(skinRaw ?? '')
+      ? skinRaw as PlayerSkinBundleId
+      : DEFAULT_PLAYER_SKIN_BUNDLE_ID;
+    const displayName =
+      payload.displayName?.trim()
+      || progression.characterProfile.displayName?.trim()
+      || world.displayName
+      || 'Jogador';
+
+    const queue = getPvpRankedQueueManager();
+    queue.addViewer(connectionId);
+    const result = queue.join(
+      {
+        connectionId,
+        playerId: world.playerId,
+        characterId: world.characterId,
+        displayName,
+        skinBundleId,
+      },
+      payload.stationId || PVP_RANKED_STATION_ID,
+    );
+    if (!result.ok) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
+      this.send(ws, { type: 'pvp-ranked-queue-snapshot', payload: queue.getSnapshot() });
+      return;
+    }
+    this.broadcastPvpRankedQueueSnapshot(result.snapshot);
+  }
+
+  handlePvpRankedLeave(
+    ws: LiveSocket,
+    connectionId: string,
+    _payload: { readonly stationId: string },
+  ): void {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+    const queue = getPvpRankedQueueManager();
+    const result = queue.leave(connectionId);
+    if (!result.ok) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
+      return;
+    }
+    this.broadcastPvpRankedQueueSnapshot(result.snapshot);
+  }
+
+  handlePvpRankedReady(
+    ws: LiveSocket,
+    connectionId: string,
+    _payload: { readonly stationId: string },
+  ): void {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+    const result = getPvpRankedQueueManager().setReady(connectionId, true);
+    if (!result.ok) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
+      return;
+    }
+    this.broadcastPvpRankedQueueSnapshot(result.snapshot);
+  }
+
+  handlePvpRankedUnready(
+    ws: LiveSocket,
+    connectionId: string,
+    _payload: { readonly stationId: string },
+  ): void {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+    const result = getPvpRankedQueueManager().setReady(connectionId, false);
+    if (!result.ok) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
+      return;
+    }
+    this.broadcastPvpRankedQueueSnapshot(result.snapshot);
+  }
+
+  private broadcastPvpRankedQueueSnapshot(snapshot: PvpRankedQueueSnapshot): void {
+    const queue = getPvpRankedQueueManager();
+    for (const connectionId of queue.listBroadcastConnectionIds()) {
+      const peerWs = this.socketsByConnectionId.get(connectionId);
+      if (!peerWs) continue;
+      this.send(peerWs, { type: 'pvp-ranked-queue-snapshot', payload: snapshot });
+    }
+  }
+
+  private async bootstrapRankedPvpMatch(match: PvpRankedMatchPair): Promise<void> {
+    if (this.rankedMatchBootstrapInFlight) return;
+    this.rankedMatchBootstrapInFlight = true;
+    const queue = getPvpRankedQueueManager();
+    try {
+      const [memberA, memberB] = match.peers;
+      for (const member of match.peers) {
+        if (this.sessions.has(member.connectionId) || isPlayerInBattle(member.playerId, member.characterId)) {
+          this.failRankedMatchStart(match, 'PLAYER_BUSY');
+          return;
+        }
+      }
+
+      await consumeChargedEquipmentBattleParticipation(memberA.playerId, memberA.characterId);
+      await consumeChargedEquipmentBattleParticipation(memberB.playerId, memberB.characterId);
+
+      const loadoutA = resolveAuthoritativeCombatLoadout(memberA.playerId, memberA.characterId);
+      const loadoutB = resolveAuthoritativeCombatLoadout(memberB.playerId, memberB.characterId);
+      const bootstrap = createPvpRankedBattleBootstrap(loadoutA, loadoutB, match.matchId);
+
+      const session = new RankedPvpCombatSession(bootstrap.state, {
+        matchId: match.matchId,
+        firstActorId: bootstrap.firstActorId,
+        ruleManifest: bootstrap.ruleManifest,
+        peerA: {
+          connectionId: memberA.connectionId,
+          playerId: memberA.playerId,
+          characterId: memberA.characterId,
+          actorId: bootstrap.actorAId,
+          loadout: loadoutA,
+        },
+        peerB: {
+          connectionId: memberB.connectionId,
+          playerId: memberB.playerId,
+          characterId: memberB.characterId,
+          actorId: bootstrap.actorBId,
+          loadout: loadoutB,
+        },
+      });
+
+      const battleId = session.getBattleId();
+      this.rankedSessionsByBattleId.set(battleId, session);
+      for (const peer of session.listPeers()) {
+        this.rankedBattleByConnectionId.set(peer.connectionId, battleId);
+        this.movementIntentHandler.clearConnection(peer.connectionId);
+        setPlayerInBattle(peer.playerId, peer.characterId, true);
+        this.gameState.setStatus(peer.connectionId, 'battle');
+        registerBattleSessionLease(peer.connectionId, peer.playerId, peer.characterId);
+        const peerWs = this.socketsByConnectionId.get(peer.connectionId);
+        if (peerWs) this.socketsByPlayerId.set(peer.playerId, peerWs);
+      }
+
+      queue.markInBattle(match.matchId);
+      const startPayloads = session.start();
+
+      for (const peer of session.listPeers()) {
+        const peerWs = this.socketsByConnectionId.get(peer.connectionId);
+        if (!peerWs) continue;
+        this.send(peerWs, {
+          type: 'START_COMBAT',
+          payload: {
+            battleId,
+            matchId: match.matchId,
+            battleType: 'PVP',
+          },
+        });
+        const payload = startPayloads.get(peer.connectionId);
+        if (payload) {
+          this.send(peerWs, { type: 'combat-event', payload });
+        }
+      }
+
+      console.log('[WS] PVP rankeado iniciado', {
+        matchId: match.matchId,
+        battleId,
+        a: memberA.playerId,
+        b: memberB.playerId,
+      });
+    } catch (error) {
+      console.error('[WS] bootstrapRankedPvpMatch falhou', { matchId: match.matchId, error });
+      this.failRankedMatchStart(match, 'MATCH_START_FAILED');
+    } finally {
+      this.rankedMatchBootstrapInFlight = false;
+    }
+  }
+
+  private failRankedMatchStart(
+    match: PvpRankedMatchPair,
+    reason: 'PLAYER_BUSY' | 'MATCH_START_FAILED',
+  ): void {
+    const queue = getPvpRankedQueueManager();
+    queue.clearAfterBattle();
+    for (const member of match.peers) {
+      const peerWs = this.socketsByConnectionId.get(member.connectionId);
+      if (!peerWs) continue;
+      this.send(peerWs, { type: 'pvp-ranked-queue-error', payload: { reason } });
+      this.send(peerWs, { type: 'pvp-ranked-queue-snapshot', payload: queue.getSnapshot() });
+    }
+  }
+
+  private async routeRankedCombatAction(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: ActionRequest,
+  ): Promise<void> {
+    const battleId = this.rankedBattleByConnectionId.get(connectionId);
+    const session = battleId ? this.rankedSessionsByBattleId.get(battleId) : undefined;
+    if (!session) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'NO_SESSION' } });
+      return;
+    }
+    const result = await session.dispatchAction(connectionId, payload);
+    if (!result.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
+    await this.deliverRankedCombatPayloads(session, result.payloads);
+  }
+
+  private async routeRankedCombatForfeit(
+    ws: LiveSocket,
+    connectionId: string,
+    battleId: string,
+  ): Promise<void> {
+    const mapped = this.rankedBattleByConnectionId.get(connectionId);
+    const session = mapped ? this.rankedSessionsByBattleId.get(mapped) : undefined;
+    if (!session || session.getBattleId() !== battleId) {
+      this.send(ws, { type: 'combat-error', payload: { reason: 'INVALID_BATTLE' } });
+      return;
+    }
+    const result = await session.forfeit(connectionId);
+    if (!result.ok) {
+      this.send(ws, { type: 'combat-error', payload: { reason: result.reason } });
+      return;
+    }
+    await this.deliverRankedCombatPayloads(session, result.payloads, {
+      forfeitingConnectionId: connectionId,
+    });
+  }
+
+  private async handleRankedDisconnect(connectionId: string): Promise<void> {
+    const battleId = this.rankedBattleByConnectionId.get(connectionId);
+    if (!battleId) return;
+    const session = this.rankedSessionsByBattleId.get(battleId);
+    if (!session) {
+      this.rankedBattleByConnectionId.delete(connectionId);
+      return;
+    }
+    if (session.getState().phase === 'ENDED') {
+      this.cleanupRankedBattle(session);
+      return;
+    }
+    const result = await session.forfeit(connectionId);
+    if (!result.ok) {
+      this.cleanupRankedBattle(session);
+      return;
+    }
+    await this.deliverRankedCombatPayloads(session, result.payloads, {
+      forfeitingConnectionId: connectionId,
+    });
+  }
+
+  private async deliverRankedCombatPayloads(
+    session: RankedPvpCombatSession,
+    payloads: ReadonlyMap<string, import('../../shared/combatWire.js').CombatDispatchPayload>,
+    endOptions?: { readonly forfeitingConnectionId?: string },
+  ): Promise<void> {
+    const sample = payloads.values().next().value;
+    if (!sample) return;
+
+    if (sample.state.phase !== 'ENDED' && !endOptions?.forfeitingConnectionId) {
+      for (const [connectionId, payload] of payloads) {
+        const peerWs = this.socketsByConnectionId.get(connectionId);
+        if (!peerWs) continue;
+        this.send(peerWs, { type: 'combat-event', payload });
+      }
+      return;
+    }
+
+    const finalized = finalizeAuthoritativeRankedPvpEnd(session, payloads, endOptions);
+    for (const peerResult of finalized.peers) {
+      const peerWs = this.socketsByConnectionId.get(peerResult.peer.connectionId);
+      if (peerWs) {
+        this.send(peerWs, { type: 'combat-event', payload: peerResult.enriched });
+        this.send(peerWs, { type: 'BATTLE_ENDED', payload: peerResult.battleEnded });
+      }
+      this.scheduleCharacterPersist(peerResult.peer.playerId, peerResult.peer.characterId);
+    }
+    this.cleanupRankedBattle(session);
+  }
+
+  private cleanupRankedBattle(session: RankedPvpCombatSession): void {
+    const battleId = session.getBattleId();
+    for (const peer of session.listPeers()) {
+      this.rankedBattleByConnectionId.delete(peer.connectionId);
+      clearBattleSessionLease(peer.playerId, peer.characterId);
+      setPlayerInBattle(peer.playerId, peer.characterId, false);
+      this.combatTurnController.clearTurnTimer(peer.connectionId);
+      this.combatTurnController.clearChoiceWindow(peer.connectionId);
+    }
+    this.rankedSessionsByBattleId.delete(battleId);
+    getPvpRankedQueueManager().clearAfterBattle();
   }
 
   private dispatchPveEncounterOutbound(message: PveEncounterOutbound): void {

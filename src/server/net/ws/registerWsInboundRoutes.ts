@@ -120,6 +120,26 @@ function ensureWsInboundRoutesRegistered(): void {
     host.handlePveEncounterFlee(ws, connectionId, message.payload);
   });
 
+  registerWsInboundRoute('pvp-ranked-join', (host, ws, connectionId, message) => {
+    if (message.type !== 'pvp-ranked-join') return;
+    host.handlePvpRankedJoin(ws, connectionId, message.payload);
+  });
+
+  registerWsInboundRoute('pvp-ranked-leave', (host, ws, connectionId, message) => {
+    if (message.type !== 'pvp-ranked-leave') return;
+    host.handlePvpRankedLeave(ws, connectionId, message.payload);
+  });
+
+  registerWsInboundRoute('pvp-ranked-ready', (host, ws, connectionId, message) => {
+    if (message.type !== 'pvp-ranked-ready') return;
+    host.handlePvpRankedReady(ws, connectionId, message.payload);
+  });
+
+  registerWsInboundRoute('pvp-ranked-unready', (host, ws, connectionId, message) => {
+    if (message.type !== 'pvp-ranked-unready') return;
+    host.handlePvpRankedUnready(ws, connectionId, message.payload);
+  });
+
   registerWsInboundRoute('combat-forfeit', async (host, ws, connectionId, message) => {
     if (message.type !== 'combat-forfeit') return;
     await host.routeCombatForfeit(ws, connectionId, message.payload);

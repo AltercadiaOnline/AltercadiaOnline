@@ -35,6 +35,10 @@ export type PersistedCharacterProfileSlice = {
   readonly skinBundleId?: string;
   /** Classe escolhida na criação — autoridade player → classe → moveset. */
   readonly classId?: ClassType;
+  /** Rating PVP rankeado (púlpito) — default 1000 no servidor se ausente. */
+  readonly pvpRating?: number;
+  readonly pvpWins?: number;
+  readonly pvpLosses?: number;
 };
 
 export type PersistedMarcosSlice = {

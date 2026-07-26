@@ -51,7 +51,7 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     role: 'pvp_queue',
     constructMarker: WORLD_TERMINAL_IDS.COMBATE_PVP,
     status: 'active',
-    notes: 'Púlpito (pulpito.pvp.png): HUD React 1x1 — dois slots, aceite mútuo, countdown 30s → batalha rankeada.',
+    notes: 'Púlpito (pulpito.pvp.png): HUD React 1x1 — dois slots, aceite mútuo, countdown 10s → batalha rankeada autoritativa.',
   },
   {
     id: WORLD_TERMINAL_IDS.ZONE_1,

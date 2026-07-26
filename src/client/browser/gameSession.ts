@@ -53,6 +53,10 @@ import {
 import { applyWorldPeersPayload } from '../world/worldPeersStore.js';
 import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
 import { bindPveEncounterWsSender, sendPveEncounterRequest } from '../app/panels/pveEncounterBridge.js';
+import { bindPvpRankedQueueWsSender } from '../app/panels/pvpRankedQueueBridge.js';
+import { getPvpQueueStore } from '../app/panels/pvpQueueStore.js';
+import { isPvpRankedQueueSnapshot } from '../../shared/combat/pvp/pvpRankedQueueProtocol.js';
+import { resolveWorldLoreCredentials } from '../services/worldLoreCredentials.js';
 import {
   resetLocalPveEncounterRuntime,
   startLocalPveEncounterRuntime,
@@ -631,6 +635,27 @@ function connectSocket(): void {
   bindPveEncounterWsSender((type, payload) => {
     socket?.send(type, payload);
   });
+  bindPvpRankedQueueWsSender((type, payload) => {
+    socket?.send(type, payload);
+  });
+
+  socket.on('pvp-ranked-queue-snapshot', (raw) => {
+    if (!isPvpRankedQueueSnapshot(raw)) return;
+    let localPlayerId: string | undefined;
+    try {
+      localPlayerId = resolveWorldLoreCredentials().playerId;
+    } catch {
+      localPlayerId = undefined;
+    }
+    getPvpQueueStore().applyAuthoritativeSnapshot(raw, localPlayerId);
+  });
+
+  socket.on('pvp-ranked-queue-error', (raw) => {
+    if (!raw || typeof raw !== 'object') return;
+    const reason = (raw as { reason?: unknown }).reason;
+    if (typeof reason !== 'string') return;
+    console.warn('[PvP ranked queue]', reason);
+  });
 
   socket.onOpen(() => {
     if (getGameMode() === 'online') {
@@ -1030,6 +1055,7 @@ export function clearGameState(): void {
     socket = null;
   }
   bindPveEncounterWsSender(null);
+  bindPvpRankedQueueWsSender(null);
   stopLocalPveEncounterRuntime();
   resetLocalPveEncounterRuntime();
   getPveEncounterStore().reset();
