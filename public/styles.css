@@ -1303,7 +1303,11 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   object-fit: contain;
   width: 48px;
   height: 48px;
-  background: rgba(255, 255, 255, 0.06);
+  /* Fundo um pouco mais claro — male_1 (hoodie escuro 35×54) some no preto puro. */
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%) 0 0 / 8px 8px,
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%) 0 4px / 8px 8px,
+    rgba(18, 28, 34, 0.95);
   border-radius: 2px;
 }
 

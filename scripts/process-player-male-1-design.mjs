@@ -128,6 +128,20 @@ for (const [dir, src] of Object.entries(staticMap)) {
   writeFileSync(path.join(rotationsDir, `${dir}.png`), await sharp(src).png().toBuffer());
 }
 
+// Preview UI 96×96 — char create/select (frame 35×54 some no picker escuro).
+const previewDir = path.join(designRoot, 'preview');
+mkdirSync(previewDir, { recursive: true });
+const previewSouth = await sharp(path.join(rotationsDir, 'south.png'))
+  .ensureAlpha()
+  .resize(96, 96, {
+    fit: 'contain',
+    background: { r: 0, g: 0, b: 0, alpha: 0 },
+    kernel: sharp.kernel.nearest,
+  })
+  .png()
+  .toBuffer();
+writeFileSync(path.join(previewDir, 'south.png'), previewSouth);
+
 // Diagonais → cardinal mais próximo (arte ainda sem 8-way).
 const diagonalAlias = {
   'south-east': 'south',

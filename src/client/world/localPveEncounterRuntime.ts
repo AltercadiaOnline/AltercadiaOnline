@@ -1,6 +1,8 @@
 /**
- * Espelho local do encontro PVE — mesma UX do servidor (HUD / fuga 50% / abandono / respawn).
- * Só ativo em GAME_MODE=local.
+ * Espelho local do encontro PVE + wander de criaturas.
+ * Mesma UX/AI do servidor (HUD / fuga / respawn / leash ~2 tiles).
+ * Só ativo em GAME_MODE=local — poses via applyServerWorldCreatureSnapshots
+ * (mesmo caminho do state-sync online).
  */
 
 import {
@@ -10,6 +12,10 @@ import {
   isPlayerInMonsterEncounterRange,
   resolveCreatureWanderProfile,
 } from '../../shared/world/creatureWanderConfig.js';
+import {
+  clearCreatureAiRuntime,
+  tickCreatureWanderAi,
+} from '../../shared/world/creatureAiTick.js';
 import { isMapId, type MapId } from '../../shared/world/mapRegistry.js';
 import type { MonsterRegistryEntry } from '../../shared/world/monsterRegistry.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
@@ -133,6 +139,38 @@ function beginForcedBattle(monster: MonsterRegistryEntry): void {
   void startLocalBattle(monster.id);
 }
 
+/** Espelho de claim online — pending HUD congela o monstro no wander. */
+function isLocalEncounterClaimed(monsterInstanceId: string): boolean {
+  return pending?.monsterInstanceId === monsterInstanceId;
+}
+
+function publishLocalCreatureSnapshots(mapId: MapId): void {
+  const snapshots = getActiveMonstersForMap(mapId).map(monsterEntryToCreatureSnapshot);
+  applyServerWorldCreatureSnapshots(mapId, snapshots);
+}
+
+/** Mesmo tick online + publish como se viesse state-sync. */
+function tickLocalCreatureWander(nowMs: number, pose: LocalPvePlayerPose): void {
+  if (!isMapId(pose.mapId)) return;
+
+  const stepped = tickCreatureWanderAi(
+    nowMs,
+    [
+      {
+        playerId: 'local-player',
+        characterId: 1,
+        mapId: pose.mapId,
+        worldX: pose.worldX,
+        worldY: pose.worldY,
+      },
+    ],
+    { isEncounterClaimed: isLocalEncounterClaimed },
+  );
+  if (stepped > 0) {
+    publishLocalCreatureSnapshots(pose.mapId);
+  }
+}
+
 function tickLocalEncounters(nowMs: number): void {
   if (getGameMode() !== 'local') return;
   if (!exploringProvider?.()) return;
@@ -141,17 +179,17 @@ function tickLocalEncounters(nowMs: number): void {
   for (const [id, entry] of [...respawnAtById]) {
     if (nowMs < entry.atMs) continue;
     respawnAtById.delete(id);
+    clearCreatureAiRuntime(id);
     restoreWorldMonsterAfterRespawn(entry.template);
     if (isMapId(entry.template.mapId)) {
-      const snapshots = getActiveMonstersForMap(entry.template.mapId).map(
-        monsterEntryToCreatureSnapshot,
-      );
-      applyServerWorldCreatureSnapshots(entry.template.mapId, snapshots);
+      publishLocalCreatureSnapshots(entry.template.mapId);
     }
   }
 
   const pose = poseProvider?.();
   if (!pose || !isMapId(pose.mapId)) return;
+
+  tickLocalCreatureWander(nowMs, pose);
 
   const tileSize = resolveMapTileSize(pose.mapId);
 
@@ -212,6 +250,7 @@ export function resetLocalPveEncounterRuntime(): void {
   forceBattleNext = false;
   fleeCooldownUntil.clear();
   respawnAtById.clear();
+  clearCreatureAiRuntime();
   getPveEncounterStore().reset();
 }
 
@@ -308,5 +347,6 @@ export function scheduleLocalMonsterRespawn(monsterId: string, nowMs: number = D
     facing: 'south',
   };
   stashWorldMonsterForRespawn(monsterId);
+  clearCreatureAiRuntime(monsterId);
   respawnAtById.set(monsterId, { template, atMs: nowMs + CREATURE_RESPAWN_MS });
 }

@@ -115,7 +115,7 @@ export function setWorldMonsterPoseDirtyListener(
   onMonsterPoseChanged = listener;
 }
 
-/** Atualiza pose autoritativa (movimento / AI) — só servidor deve chamar. */
+/** Atualiza pose autoritativa (movimento / AI) — servidor ou simulação local. */
 export function updateWorldMonsterPose(
   monsterId: string,
   patch: {

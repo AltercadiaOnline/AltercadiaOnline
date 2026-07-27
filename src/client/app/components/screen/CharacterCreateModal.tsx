@@ -1,14 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { CLASS_CATALOG } from '../../../../shared/types/classes.js';
 import type { ClassType } from '../../../../shared/types/classes.js';
 import { validateCreateCharacterInput } from '../../../../shared/characterCreation.js';
 import {
   DEFAULT_PLAYER_SKIN_BUNDLE_ID,
   PLAYER_SKIN_BUNDLE_OPTIONS,
+  resolvePlayerSkinBundleSouthPreviewCandidates,
   resolvePlayerSkinBundleSouthPreviewUrl,
   type PlayerSkinBundleId,
 } from '../../../../shared/character/playerSkinBundle.js';
 import { getCharSelectBridge } from '../../bridge/charSelectBridge.js';
+
+function onSkinPreviewImgError(event: SyntheticEvent<HTMLImageElement>, bundleId: PlayerSkinBundleId): void {
+  const img = event.currentTarget;
+  const candidates = resolvePlayerSkinBundleSouthPreviewCandidates(bundleId);
+  const tried = Number(img.dataset.previewTry ?? '0');
+  const next = candidates[tried + 1];
+  if (!next) {
+    img.style.visibility = 'hidden';
+    return;
+  }
+  img.dataset.previewTry = String(tried + 1);
+  img.src = next;
+}
 
 const CLASS_ORDER: ClassType[] = ['IMPETUS', 'COGITOR', 'TUTATOR', 'DISSOLUTUS'];
 
@@ -280,6 +294,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
                         height={64}
                         loading="lazy"
                         decoding="async"
+                        onError={(event) => onSkinPreviewImgError(event, option.id)}
                       />
                       <span className="char-skin-option__label">{option.label}</span>
                     </button>
@@ -313,6 +328,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
                   height={96}
                   loading="lazy"
                   decoding="async"
+                  onError={(event) => onSkinPreviewImgError(event, selectedSkinBundleId)}
                 />
               </div>
               <dl className="char-create-summary__list">

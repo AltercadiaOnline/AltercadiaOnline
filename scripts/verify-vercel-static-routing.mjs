@@ -23,6 +23,7 @@ const REQUIRED_JS = [
 
 /** Previews de char-select — falha de deploy = slot sem avatar (leve, 1 PNG por skin). */
 const REQUIRED_PLAYER_PREVIEWS = [
+  'assets/player/player_male_1/design/preview/south.png',
   'assets/player/player_male_1/design/rotations/south.png',
   'assets/player/player_male_2/chibi_35x54pixel_topdown_Outfit_Layered/rotations/south.png',
   'assets/player/player_male_3/Pixel_art_character_sprite_front/rotations/south.png',

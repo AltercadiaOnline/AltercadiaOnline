@@ -34,6 +34,14 @@ const BUNDLE_ROTATIONS_BASE: Readonly<Record<PlayerSkinBundleId, string>> = {
   player_female_1: '35x54_pixel_art_game_character/rotations',
 };
 
+/**
+ * Preview de UI (char create/select) — pode ser maior que o frame de mundo.
+ * male_1: 96×96 padded (35×54 no mundo fica quase invisível no picker escuro).
+ */
+const BUNDLE_SOUTH_PREVIEW_RELATIVE: Readonly<Partial<Record<PlayerSkinBundleId, string>>> = {
+  player_male_1: 'design/preview/south.png',
+};
+
 const PLAYER_ASSET_PUBLIC_BASE = '/assets/player';
 
 export function isValidPlayerSkinBundleId(value: string): value is PlayerSkinBundleId {
@@ -53,22 +61,32 @@ export function resolvePlayerSkinBundleId(
 export function resolvePlayerSkinBundleSouthPreviewUrl(
   bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
 ): string {
+  const override = BUNDLE_SOUTH_PREVIEW_RELATIVE[bundleId];
+  if (override) {
+    return `${PLAYER_ASSET_PUBLIC_BASE}/${bundleId}/${override}`;
+  }
   return resolvePlayerSkinBundleRotationUrl(bundleId, 'south');
 }
 
 /**
  * URLs candidatas p/ preview (char select / create) — leve, sem metadata fetch.
- * Ordem: bundle pedido → default (se diferente). Evita hard-fail em migração de pasta.
+ * Ordem: preview UI → frame south do bundle → default male_1.
  */
 export function resolvePlayerSkinBundleSouthPreviewCandidates(
   bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
 ): readonly string[] {
-  const primary = resolvePlayerSkinBundleSouthPreviewUrl(bundleId);
-  if (bundleId === DEFAULT_PLAYER_SKIN_BUNDLE_ID) {
-    return [primary];
+  const urls: string[] = [resolvePlayerSkinBundleSouthPreviewUrl(bundleId)];
+  const worldSouth = resolvePlayerSkinBundleRotationUrl(bundleId, 'south');
+  if (!urls.includes(worldSouth)) {
+    urls.push(worldSouth);
   }
-  const fallback = resolvePlayerSkinBundleSouthPreviewUrl(DEFAULT_PLAYER_SKIN_BUNDLE_ID);
-  return primary === fallback ? [primary] : [primary, fallback];
+  if (bundleId !== DEFAULT_PLAYER_SKIN_BUNDLE_ID) {
+    const fallback = resolvePlayerSkinBundleSouthPreviewUrl(DEFAULT_PLAYER_SKIN_BUNDLE_ID);
+    if (!urls.includes(fallback)) {
+      urls.push(fallback);
+    }
+  }
+  return urls;
 }
 
 export type PlayerCardinalDirection = 'south' | 'east' | 'north' | 'west';
