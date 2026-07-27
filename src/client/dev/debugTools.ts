@@ -1,12 +1,13 @@
 import { initDebugMenu, type DebugMenuInitOptions } from './DebugMenu.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 
 const PRODUCTION_HOSTS = new Set([
   'altercadia-online.vercel.app',
 ]);
 
 /**
- * Ferramentas de debug/cheat ficam desligadas em hosts de produção.
- * Em ambientes locais, o DebugMenu ainda exige allowlist de e-mail.
+ * Shift+D / cheats só no local de verdade (localhost → GAME_MODE=local por padrão).
+ * Vercel / online = espelho oficial — sem menu de debug.
  */
 export function isDevDebugToolsEnabled(): boolean {
   if (typeof window === 'undefined') return false;
@@ -14,12 +15,15 @@ export function isDevDebugToolsEnabled(): boolean {
   const host = window.location.hostname.trim().toLowerCase();
   if (PRODUCTION_HOSTS.has(host)) return false;
 
-  return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+  const localHost = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+  if (!localHost) return false;
+
+  return isLocalGameMode();
 }
 
 export function initDebugMenuIfAllowed(options: DebugMenuInitOptions): (() => void) | null {
   if (!isDevDebugToolsEnabled()) {
-    console.info('[DebugTools] Desativado neste ambiente.');
+    console.info('[DebugTools] Desativado — Shift+D só no localhost (modo local).');
     return null;
   }
 

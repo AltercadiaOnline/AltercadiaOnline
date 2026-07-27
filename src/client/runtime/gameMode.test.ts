@@ -32,7 +32,22 @@ describe('gameMode production lock', () => {
     expect(allowsOfflineGameplayFallback('altercadia-online.vercel.app')).toBe(false);
   });
 
-  it('allows local on localhost', () => {
+  it('defaults to local on localhost without query', () => {
+    vi.stubGlobal('window', {
+      location: { hostname: 'localhost', search: '' },
+      localStorage: {
+        getItem: () => null,
+        setItem: () => undefined,
+        removeItem: () => undefined,
+      },
+      __ALTERCADIA_GAME_MODE__: undefined,
+    });
+    resetGameModeCache();
+    expect(getGameMode()).toBe('local');
+    expect(allowsOfflineGameplayFallback('localhost')).toBe(true);
+  });
+
+  it('allows local on localhost via query', () => {
     vi.stubGlobal('window', {
       location: { hostname: 'localhost', search: '?gameMode=local' },
       localStorage: {

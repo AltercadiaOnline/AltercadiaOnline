@@ -19,6 +19,7 @@ import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
 import { AppScreens } from '../browser/appScreens.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 
 export type DebugMenuInitOptions = {
   readonly onLevelChanged?: (level: number) => void;
@@ -620,6 +621,12 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
       return;
     }
 
+    // Online: nunca abre — front só espelho.
+    if (!isLocalGameMode()) {
+      if (visible) setVisible(false);
+      return;
+    }
+
     if (isTypingInForeignField(event.target)) return;
 
     if (event.target instanceof HTMLInputElement && event.target.id === 'dev-debug-item-input') {
@@ -634,7 +641,7 @@ function mountDebugMenu(options?: DebugMenuInitOptions): () => void {
   window.addEventListener('keydown', onKeyDown, true);
   refreshUi();
 
-  console.info('[DebugMenu] Ativo — Shift+D. Grants via ActionDispatcher/online intents.');
+  console.info('[DebugMenu] Ativo — Shift+D só em GAME_MODE=local.');
 
   return () => {
     window.removeEventListener('keydown', onKeyDown, true);

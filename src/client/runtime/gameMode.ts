@@ -5,10 +5,10 @@
  * Online: ActionDispatcher emite player-intent; Zustand só após confirmação/snapshot.
  *
  * Resolução (primeira que bater):
- * 1. `?gameMode=local|online` na URL
+ * 1. `?gameMode=local|online` na URL (escape hatch raro)
  * 2. `localStorage.altercadia.gameMode`
  * 3. `window.__ALTERCADIA_GAME_MODE__`
- * 4. default: `online`
+ * 4. default: **localhost → local** | **produção → online**
  *
  * Segurança: `local` só em localhost/127.0.0.1. Em produção (Vercel) sempre `online`,
  * mesmo se a URL ou o localStorage pedirem local — evita Mock na CDN.
@@ -58,8 +58,9 @@ function readWindowMode(): GameMode | null {
   return raw === 'local' || raw === 'online' ? raw : null;
 }
 
+/** Um local no PC; internet = Vercel/Railway. */
 function defaultModeForHost(): GameMode {
-  return 'online';
+  return isLocalDevHost() ? 'local' : 'online';
 }
 
 /** Força online fora de localhost — Mock nunca ativa na Vercel. */

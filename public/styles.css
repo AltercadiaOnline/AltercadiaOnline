@@ -516,6 +516,13 @@ body[data-react-game-hud-ui='1'] #scene-transition {
   pointer-events: none;
 }
 
+/* Construct nunca captura clique/foco — WASD vive no parent (#world-mount-root).
+ * Overlay de entidades e WorldMapRenderer usam o mount; iframe só pinta o tilemap. */
+.construct-world-viewport iframe,
+.world-mount-root iframe {
+  pointer-events: none !important;
+}
+
 /* React HUD (#game-ui-overlay) permanece acima — z-index 920+ */
 .game-render-host[data-render-engine='construct'] .world-mount-root {
   /* Sem isolation:isolate — em alguns GPUs WebGL do iframe ficava preto

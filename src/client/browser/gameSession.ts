@@ -273,6 +273,14 @@ function beginWorldLoginHandshake(): void {
     setStatus('GAME_MODE=local — personagem limpo / save local.');
     return;
   }
+  // Online: só reseta o gate aqui. Retry de world-login começa depois de
+  // PositionGateway + socket (ver startOnlineWorldLoginHandshake).
+}
+
+/** Agenda world-login só quando gateway + Exploration já existem (desbloqueia WASD). */
+function startOnlineWorldLoginHandshake(): void {
+  if (getGameMode() !== 'online') return;
+  if (isWorldSessionReady()) return;
   scheduleWorldLoginRetry(requestWorldLoginIfPossible);
 }
 
@@ -284,6 +292,8 @@ function syncExplorationOnlineFromSocket(): void {
   setExplorationOnlineMode(true);
 }
 
+let teardownWorldInputFocus: (() => void) | null = null;
+
 function focusGameRenderSurfaceForInput(): void {
   const surface = document.getElementById(WORLD_MOUNT_ROOT_ID);
   if (!(surface instanceof HTMLElement)) return;
@@ -291,6 +301,27 @@ function focusGameRenderSurfaceForInput(): void {
   if (!surface.hasAttribute('role')) {
     surface.setAttribute('role', 'application');
   }
+  // WASD escuta window no parent — precisa do foco fora do iframe Construct.
+  try {
+    surface.focus({ preventScroll: true });
+  } catch {
+    surface.focus();
+  }
+}
+
+function bindWorldInputFocusSurface(): void {
+  teardownWorldInputFocus?.();
+  teardownWorldInputFocus = null;
+  const surface = document.getElementById(WORLD_MOUNT_ROOT_ID);
+  if (!(surface instanceof HTMLElement)) return;
+  focusGameRenderSurfaceForInput();
+  const onPointerDown = (): void => {
+    focusGameRenderSurfaceForInput();
+  };
+  surface.addEventListener('pointerdown', onPointerDown);
+  teardownWorldInputFocus = () => {
+    surface.removeEventListener('pointerdown', onPointerDown);
+  };
 }
 
 function handleWorldAuthError(reason: string): void {
@@ -406,7 +437,7 @@ function connectSocket(): void {
       return;
     }
     if (world && !isWorldSessionReady()) {
-      void positionGateway?.requestWorldLogin(world.captureExplorationSnapshot());
+      startOnlineWorldLoginHandshake();
     }
     return;
   }
@@ -664,7 +695,7 @@ function connectSocket(): void {
       setExplorationOnlineMode(true);
       setStatus('Sincronizando personagem… (WASD após conectar)');
       wirePortalTransitionBridge();
-      requestWorldLoginIfPossible();
+      startOnlineWorldLoginHandshake();
     } else {
       setWorldSessionReady(true);
       setWorldSessionActive(true);
@@ -932,7 +963,11 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
 
     connectSocket();
     wirePortalTransitionBridge();
-    focusGameRenderSurfaceForInput();
+    bindWorldInputFocusSurface();
+    // Online: gateway já existe — se o socket já estiver aberto, inicia handshake agora.
+    if (getGameMode() === 'online' && socket?.readyState === 1) {
+      startOnlineWorldLoginHandshake();
+    }
 
     enableWorldRenderForOnlineSession();
 
@@ -966,16 +1001,35 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
       updatePlayerInitLoadingMessage('Sincronizando personagem…');
       const sessionReady = await waitForWorldSessionReady();
       if (!sessionReady) {
-        console.warn('[Altercadia] Timeout no world-login — revelando mundo mesmo assim.');
+        // Revelar sem ready deixa WASD morto (emergencyStop todo frame). Abortar.
+        console.error('[Altercadia] Timeout no world-login — abortando boot (WASD ficaria bloqueado).');
+        clearWorldLoginRetry();
+        resetWorldSessionGate();
+        setWorldSessionActive(false);
+        updatePlayerInitLoadingMessage(
+          'Não foi possível sincronizar com o servidor. Volte e tente de novo.',
+        );
+        window.setTimeout(() => {
+          hidePlayerInitLoading();
+          clearGameState();
+          AppScreens.abortGameWorldBootShell();
+          void AppScreens.showCharSelect();
+          AppScreens.renderCharacterHubError(
+            'Timeout ao sincronizar personagem no mundo. Verifique a conexão e tente novamente.',
+          );
+        }, 1600);
+        return;
       }
 
       updatePlayerInitLoadingMessage('Quase pronto…');
       world.prepareFrame(0);
       world.syncWorldDomOverlay(performance.now());
       await waitForWorldPaintSettle();
+      focusGameRenderSurfaceForInput();
 
       // Só agora: sai da tela de personagem e mostra o jogo já renderizado.
       AppScreens.revealGameWorldAfterBoot();
+      focusGameRenderSurfaceForInput();
       console.info('[Altercadia] Instância pronta — jogo revelado.');
     } catch (error) {
       console.error('[Altercadia] Falha no boot da instância:', error);
@@ -991,8 +1045,10 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
       character: selected,
     });
 
-    if (selected) {
+    if (selected && !isWorldSessionReady()) {
       setStatus(`Sincronizando ${selected.name}…`);
+    } else if (selected && isWorldSessionReady()) {
+      setStatus('Conectado');
     }
 
     const loreCreds = {
@@ -1049,6 +1105,8 @@ export function clearGameState(): void {
 
   resetWorldSessionGate();
   clearWorldLoginRetry();
+  teardownWorldInputFocus?.();
+  teardownWorldInputFocus = null;
 
   if (socket) {
     socket.removeAllListeners();
