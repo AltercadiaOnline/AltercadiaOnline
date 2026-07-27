@@ -2,11 +2,11 @@
  * Fila autoritativa 1x1 no púlpito — join/ready/countdown; Hub inicia o duelo.
  */
 
-import { randomUUID } from 'node:crypto';
 import {
   DEFAULT_PLAYER_SKIN_BUNDLE_ID,
   type PlayerSkinBundleId,
 } from '../../../shared/character/playerSkinBundle.js';
+import { createIntentId } from '../../../shared/intent/clientIntent.js';
 import {
   PVP_RANKED_ACCEPT_COUNTDOWN_MS,
   PVP_RANKED_QUEUE_SLOT_COUNT,
@@ -258,7 +258,7 @@ export class PvpRankedQueueManager {
       return;
     }
 
-    const matchId = randomUUID();
+    const matchId = createIntentId();
     this.phase = 'starting';
     this.matchId = matchId;
     this.countdownEndsAtMs = null;
