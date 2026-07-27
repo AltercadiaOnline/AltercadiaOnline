@@ -1,7 +1,7 @@
 import type { PlayerSkin } from '../../../shared/character/playerSkin.js';
 import { getSkinOption } from '../../../shared/character/playerSkin.js';
 import {
-  resolvePlayerSkinBundleSouthPreviewUrl,
+  resolvePlayerSkinBundleSouthPreviewCandidates,
   type PlayerSkinBundleId,
 } from '../../../shared/character/playerSkinBundle.js';
 import type { PlayerFacing } from '../../../shared/world/playerFacing.js';
@@ -99,6 +99,21 @@ function loadPreviewImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Tenta candidatas em ordem; null se todas falharem (UI segue sem throw). */
+async function loadPreviewImageFromCandidates(
+  urls: readonly string[],
+): Promise<HTMLImageElement | null> {
+  for (const url of urls) {
+    try {
+      return await loadPreviewImage(url);
+    } catch {
+      // próxima candidata
+    }
+  }
+  console.warn('[AvatarPreview] Nenhuma URL de preview carregou:', urls.join(' → '));
+  return null;
+}
+
 /**
  * Preview estático do bundle top-down — mesma URL do modal de criação (`<img>`).
  * Usado na seleção de personagem para espelhar a aparência escolhida na criação.
@@ -127,7 +142,13 @@ export async function paintCharacterBundleSouthPreview(
   clearFrame();
   disableCanvasImageSmoothing(ctx);
 
-  const image = await loadPreviewImage(resolvePlayerSkinBundleSouthPreviewUrl(bundleId));
+  const image = await loadPreviewImageFromCandidates(
+    resolvePlayerSkinBundleSouthPreviewCandidates(bundleId),
+  );
+  if (!image) {
+    // Soft-fail: slot continua utilizável (sem uncaught Preview image failed).
+    return;
+  }
   clearFrame();
 
   // Recorta a margem transparente para normalizar o tamanho VISÍVEL do sprite entre

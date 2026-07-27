@@ -9,6 +9,7 @@ import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getMutableDataStore, initDataStore, resetDataStore } from '../PlayerDataStore.js';
 import {
   activateGameStoreAfterAuth,
+  getGameStore,
   initGameStore,
   resetGameStore,
   resetGameStoreState,
@@ -44,6 +45,10 @@ function wireMockEconomyService(mock: IDevMockEconomyService): void {
   const dispatcher = getActionDispatcher();
   dispatcher.setEconomyService(mock);
   dispatcher.setMode('mock');
+  // Assinatura inventário → UI; não resetar sessão se já autenticado.
+  if (!getGameStore().isAuthenticated()) {
+    activateGameStoreAfterAuth();
+  }
   getGlobalStateSynchronizer().setRequestTransport(() => {
     mock.requestFullState();
   });

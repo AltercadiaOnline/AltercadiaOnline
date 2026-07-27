@@ -21,6 +21,15 @@ const REQUIRED_JS = [
   'app-ui/ui-runtime.js',
 ];
 
+/** Previews de char-select — falha de deploy = slot sem avatar (leve, 1 PNG por skin). */
+const REQUIRED_PLAYER_PREVIEWS = [
+  'assets/player/player_male_1/design/rotations/south.png',
+  'assets/player/player_male_2/chibi_35x54pixel_topdown_Outfit_Layered/rotations/south.png',
+  'assets/player/player_male_3/Pixel_art_character_sprite_front/rotations/south.png',
+  'assets/player/player_male_4/2D_game_sprite_asset_teenage/rotations/south.png',
+  'assets/player/player_female_1/35x54_pixel_art_game_character/rotations/south.png',
+];
+
 let failed = false;
 
 for (const relative of REQUIRED_JS) {
@@ -33,6 +42,14 @@ for (const relative of REQUIRED_JS) {
   const head = readFileSync(absolute, 'utf8').slice(0, 40);
   if (head.trimStart().startsWith('<!DOCTYPE') || head.trimStart().startsWith('<html')) {
     console.error(`[verify:vercel-static] HTML em vez de JS: public/${relative}`);
+    failed = true;
+  }
+}
+
+for (const relative of REQUIRED_PLAYER_PREVIEWS) {
+  const absolute = path.join(publicDir, relative);
+  if (!existsSync(absolute)) {
+    console.error(`[verify:vercel-static] AUSENTE preview PNG: public/${relative}`);
     failed = true;
   }
 }
@@ -56,6 +73,6 @@ if (failed) {
 }
 
 console.log(
-  `[verify:vercel-static] OK — ${REQUIRED_JS.length} módulos em public/`
+  `[verify:vercel-static] OK — ${REQUIRED_JS.length} módulos + ${REQUIRED_PLAYER_PREVIEWS.length} previews em public/`
   + (existsSync(vercelConfigPath) ? ' + regra SPA segura' : ' (rewrite SPA não verificado)'),
 );

@@ -106,7 +106,13 @@ function dispatchDevGrantItem(itemId: string, quantity = 1): string {
     payload: { itemId, quantity: qty },
   });
   if (!result.ok) return result.reason;
-  return `+${qty} ${definition.name} (${itemId}) → inventário [${getActionDispatcher().getMode()}].`;
+
+  const stacks = getPlayerItemStore().toInventoryStacks();
+  const owned = stacks.find((row) => row.itemId === itemId)?.quantity ?? 0;
+  if (owned <= 0) {
+    return `Intent OK, mas inventário ainda sem ${definition.name} — reabra o painel ou recarregue.`;
+  }
+  return `+${qty} ${definition.name} → inventário (agora x${owned}) [${getActionDispatcher().getMode()}].`;
 }
 
 function dispatchDevGrantCurrency(volts: number, alterCoins: number): string {

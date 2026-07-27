@@ -56,6 +56,21 @@ export function resolvePlayerSkinBundleSouthPreviewUrl(
   return resolvePlayerSkinBundleRotationUrl(bundleId, 'south');
 }
 
+/**
+ * URLs candidatas p/ preview (char select / create) — leve, sem metadata fetch.
+ * Ordem: bundle pedido → default (se diferente). Evita hard-fail em migração de pasta.
+ */
+export function resolvePlayerSkinBundleSouthPreviewCandidates(
+  bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+): readonly string[] {
+  const primary = resolvePlayerSkinBundleSouthPreviewUrl(bundleId);
+  if (bundleId === DEFAULT_PLAYER_SKIN_BUNDLE_ID) {
+    return [primary];
+  }
+  const fallback = resolvePlayerSkinBundleSouthPreviewUrl(DEFAULT_PLAYER_SKIN_BUNDLE_ID);
+  return primary === fallback ? [primary] : [primary, fallback];
+}
+
 export type PlayerCardinalDirection = 'south' | 'east' | 'north' | 'west';
 
 export function resolvePlayerSkinBundleRotationUrl(

@@ -480,6 +480,10 @@ export class ActionDispatcher {
       return this.dispatchViaEconomyService(action);
     }
 
+    if (this.isDevCheatAction(action) && canApplyLocalGameplayMutations(this.mode)) {
+      return { ok: false, reason: 'Cheats DEV: MockEconomyService não ligado — reentre no mundo (local).' };
+    }
+
     if (shouldWaitForServer(action, this.mode)) {
       return this.dispatchPending(action);
     }
@@ -732,6 +736,13 @@ export class ActionDispatcher {
     }
 
     this.economyService!.handleIntent(action, intent.intentId);
+    // Cheats locais aplicam no mesmo tick (applyIntentNow) — UI não espera delay.
+    if (
+      this.isDevCheatAction(action)
+      && !getPendingIntentRegistry().isPending(intent.intentId)
+    ) {
+      return { ok: true, status: 'applied' };
+    }
     return { ok: true, status: 'pending', intentId: intent.intentId };
   }
 
@@ -1040,7 +1051,7 @@ export class ActionDispatcher {
       case 'DEV_SET_LEVEL':
       case 'DEV_SET_MOVESET_MASTERY':
       case 'DEV_RESET_PLAYER':
-        return { ok: false, reason: 'Cheats DEV requerem servidor online (localhost).' };
+        return { ok: false, reason: 'Cheats DEV: MockEconomyService não ligado — reentre no mundo (local).' };
 
       case 'CHAT_GLOBAL_SEND': {
         if (!getGlobalMessageBus().applyLocalChat(action.payload.text)) {

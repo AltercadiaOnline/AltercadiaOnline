@@ -361,6 +361,11 @@ export class MockEconomyService implements IDevMockEconomyService {
       || action.type === 'EQUIP_FROM_INVENTORY'
       || action.type === 'EQUIP_ITEM'
       || action.type === 'STAGE_BATTLE_LOOT'
+      || action.type === 'DEV_GRANT_ITEM'
+      || action.type === 'DEV_GRANT_CURRENCY'
+      || action.type === 'DEV_SET_LEVEL'
+      || action.type === 'DEV_SET_MOVESET_MASTERY'
+      || action.type === 'DEV_RESET_PLAYER'
     ) {
       this.applyIntentNow(action, intentId);
       return;
@@ -473,6 +478,9 @@ export class MockEconomyService implements IDevMockEconomyService {
     ) {
       this.persistLocalSave();
     }
+    // UI React (Zustand) só espelha GameStore — marca hidratado após save local.
+    getGameStore().markHydrated();
+    getGameStore().syncPlayerFromDomain();
     console.info('[LocalSave] Personagem ligado', {
       playerId,
       characterId,
@@ -969,12 +977,8 @@ export class MockEconomyService implements IDevMockEconomyService {
         }
         this.state.inventoryStacks = result.stacks.map((row) => ({ ...row }));
         this.bumpRevision('inventory');
-        applyServerItemBundle({
-          stacks: this.state.inventoryStacks,
-          inventoryOnly: true,
-          immediate: true,
-        });
-        for (const listener of this.inventoryListeners) listener(this.getInventory());
+        this.syncInventoryToPlayerItemStore();
+        getGameStore().syncPlayerFromDomain();
         return { ok: true };
       }
       case 'DEV_GRANT_CURRENCY': {
