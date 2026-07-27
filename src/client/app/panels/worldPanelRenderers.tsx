@@ -226,7 +226,18 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
     <LazyWorldMarketPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   )),
   characters: withSuspense(({ entry, focused }) => (
-    <LazyWorldCharactersPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+    <HudErrorBoundary
+      key={entry.windowId}
+      fallback={(
+        <div
+          className="p-3 text-[10px] text-[#ecdcc4]"
+        >
+          Falha ao abrir a Ficha. Feche e tente de novo.
+        </div>
+      )}
+    >
+      <LazyWorldCharactersPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+    </HudErrorBoundary>
   )),
   bank: withSuspense(({ entry, focused }) => (
     <LazyWorldBankPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />

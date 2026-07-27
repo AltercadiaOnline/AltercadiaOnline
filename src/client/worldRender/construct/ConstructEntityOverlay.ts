@@ -91,15 +91,17 @@ export class ConstructEntityOverlay {
       renderPetSprite(ctx, pet, frame.timestampMs);
     }
 
-    renderPlayer(
-      ctx,
-      {
-        x: frame.playerX,
-        y: frame.playerY,
-        facing: frame.facing,
-      },
-      frame.timestampMs,
-    );
+    if (Number.isFinite(frame.playerX) && Number.isFinite(frame.playerY)) {
+      renderPlayer(
+        ctx,
+        {
+          x: frame.playerX,
+          y: frame.playerY,
+          facing: frame.facing,
+        },
+        frame.timestampMs,
+      );
+    }
 
     if (pet?.visible && !drawPetBeforePlayer) {
       renderPetSprite(ctx, pet, frame.timestampMs);

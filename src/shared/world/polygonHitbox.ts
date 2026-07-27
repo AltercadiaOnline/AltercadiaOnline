@@ -1,6 +1,6 @@
 import type { AxisAlignedHitbox } from './axisAlignedHitbox.js';
-import type { CircleHitbox } from './circleHitbox.js';
-import { circleOverlapsAabb } from './circleHitbox.js';
+import type { CircleHitbox, CircleSeparationOptions } from './circleHitbox.js';
+import { circleMayHitAabb } from './circleHitbox.js';
 
 /** Vértice de polígono em coordenadas de mundo (pixels). */
 export type PolygonVertex = {
@@ -91,27 +91,30 @@ function closestPointOnPolygon(
 
 /**
  * Círculo × polígono Construct (Solid).
- * Broadphase AABB → narrow: centro dentro OU distância à aresta ≤ raio.
+ * Broadphase AABB → narrow: centro dentro OU penetração > slop.
  */
 export function circleOverlapsPolygon(
   circle: CircleHitbox,
   polygon: PolygonHitbox,
+  options: CircleSeparationOptions = {},
 ): boolean {
-  if (!circleOverlapsAabb(circle, polygon.bounds)) return false;
-  if (pointInPolygon(circle.cx, circle.cy, polygon.points)) return true;
-  const closest = closestPointOnPolygon(circle.cx, circle.cy, polygon.points);
-  return closest.distSq <= circle.radius * circle.radius;
+  return resolveCirclePolygonSeparation(circle, polygon, options) !== null;
 }
 
 /**
  * MTV mínimo para separar círculo do polígono.
- * Null quando não há overlap.
+ * Null quando não há overlap (ou só contato raso ≤ slop).
  */
 export function resolveCirclePolygonSeparation(
   circle: CircleHitbox,
   polygon: PolygonHitbox,
+  options: CircleSeparationOptions = {},
 ): { readonly dx: number; readonly dy: number } | null {
-  if (!circleOverlapsAabb(circle, polygon.bounds)) return null;
+  if (!circleMayHitAabb(circle, polygon.bounds)) return null;
+
+  const slopPx = Math.max(0, options.slopPx ?? 0);
+  const skinPx = Math.max(0, options.skinPx ?? 0);
+  const separationRadius = circle.radius + skinPx;
 
   const inside = pointInPolygon(circle.cx, circle.cy, polygon.points);
   const closest = closestPointOnPolygon(circle.cx, circle.cy, polygon.points);
@@ -120,7 +123,6 @@ export function resolveCirclePolygonSeparation(
   if (!inside && distSq > circle.radius * circle.radius) return null;
 
   if (distSq <= 1e-8) {
-    // Centro sobre vértice/aresta — empurra pelo centro do AABB.
     const midX = polygon.bounds.x + polygon.bounds.width / 2;
     const midY = polygon.bounds.y + polygon.bounds.height / 2;
     let nx = circle.cx - midX;
@@ -129,25 +131,29 @@ export function resolveCirclePolygonSeparation(
     nx /= len;
     ny /= len;
     return {
-      dx: nx * circle.radius,
-      dy: ny * circle.radius,
+      dx: nx * separationRadius,
+      dy: ny * separationRadius,
     };
   }
 
   const dist = Math.sqrt(distSq);
-  let nx = (circle.cx - closest.x) / dist;
-  let ny = (circle.cy - closest.y) / dist;
 
   if (inside) {
-    // Empurra para fora: inverte a normal (do centro para o ponto da borda).
+    let nx = (circle.cx - closest.x) / dist;
+    let ny = (circle.cy - closest.y) / dist;
     nx = -nx;
     ny = -ny;
-    const push = dist + circle.radius;
+    const push = dist + separationRadius;
     return { dx: nx * push, dy: ny * push };
   }
 
-  const overlap = circle.radius - dist;
-  return { dx: nx * overlap, dy: ny * overlap };
+  const penetration = circle.radius - dist;
+  if (penetration <= slopPx) return null;
+
+  const push = separationRadius - dist;
+  const nx = (circle.cx - closest.x) / dist;
+  const ny = (circle.cy - closest.y) / dist;
+  return { dx: nx * push, dy: ny * push };
 }
 
 /** Empurra o círculo para fora de todos os polígonos sobrepostos. */
@@ -155,6 +161,7 @@ export function depenetrateCircleFromPolygons(
   circle: CircleHitbox,
   polygons: readonly PolygonHitbox[],
   maxIterations = 4,
+  options: CircleSeparationOptions = {},
 ): CircleHitbox {
   let cx = circle.cx;
   let cy = circle.cy;
@@ -163,7 +170,7 @@ export function depenetrateCircleFromPolygons(
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
     let moved = false;
     for (const polygon of polygons) {
-      const mtv = resolveCirclePolygonSeparation({ cx, cy, radius }, polygon);
+      const mtv = resolveCirclePolygonSeparation({ cx, cy, radius }, polygon, options);
       if (!mtv) continue;
       cx += mtv.dx;
       cy += mtv.dy;

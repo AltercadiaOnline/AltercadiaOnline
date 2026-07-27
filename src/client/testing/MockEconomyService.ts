@@ -70,7 +70,7 @@ import {
 } from '../persistence/localCharacterSave.js';
 import type { CharacterPersistenceRecord } from '../../shared/persistence/characterPersistenceRecord.js';
 import { CHARACTER_PERSISTENCE_SCHEMA_VERSION } from '../../shared/persistence/characterPersistenceRecord.js';
-import { createDefaultWorldProfile, type PlayerWorldProfile } from '../../shared/world/playerWorldProfile.js';
+import { createDefaultWorldProfile, sanitizePlayerWorldProfile, type PlayerWorldProfile } from '../../shared/world/playerWorldProfile.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import { isValidClassActiveLoadout } from '../../shared/combat/movesetLoadout.js';
 import { createDefaultPlayerProgressionData } from '../../shared/progression/playerProgressionData.js';
@@ -749,20 +749,19 @@ export class MockEconomyService implements IDevMockEconomyService {
     getPlayerProfileStore().setProfile(name, level);
     getMutableDataStore().applyCharacterLevelState(level, xpCurrent, 'server_sync');
 
+    const safeWorld = sanitizePlayerWorldProfile(record.world);
     this.cachedWorldProfile = {
-      currentMapId: record.world.currentMapId,
-      lastPosition: { ...record.world.lastPosition },
-      facing: record.world.facing,
-      ...(record.world.sessionSync !== undefined
-        ? { sessionSync: record.world.sessionSync }
-        : {}),
-      ...(record.world.loadout !== undefined ? { loadout: record.world.loadout } : {}),
+      currentMapId: safeWorld.currentMapId,
+      lastPosition: { ...safeWorld.lastPosition },
+      facing: safeWorld.facing,
+      ...(safeWorld.sessionSync !== undefined ? { sessionSync: safeWorld.sessionSync } : {}),
+      ...(safeWorld.loadout !== undefined ? { loadout: safeWorld.loadout } : {}),
     };
 
     getMutableDataStore().applyWorldSpawnFromServer({
-      currentMapId: record.world.currentMapId,
-      lastPosition: { ...record.world.lastPosition },
-      facing: record.world.facing,
+      currentMapId: safeWorld.currentMapId,
+      lastPosition: { ...safeWorld.lastPosition },
+      facing: safeWorld.facing,
     });
 
     const equipmentUiGrid =

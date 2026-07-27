@@ -80,7 +80,7 @@ export { assetUrlCandidates };
  */
 export class PlayerSpriteLoader {
   private static cache = new Map<string, HTMLImageElement>();
-  private static catalogPromise: Promise<PlayerSpriteCatalog> | null = null;
+  private static catalogBySkinId = new Map<string, Promise<PlayerSpriteCatalog>>();
 
   /** Carrega spritesheet por skinId — retorna do cache se já carregado. */
   static async loadSprite(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<HTMLImageElement> {
@@ -122,13 +122,14 @@ export class PlayerSpriteLoader {
 
   /** Catálogo top-down — public/assets/player/{skinId}/metadata.json */
   static getCatalog(skinId: string = DEFAULT_PLAYER_SKIN_ID): Promise<PlayerSpriteCatalog> {
-    if (skinId === DEFAULT_PLAYER_SKIN_ID) {
-      if (!this.catalogPromise) {
-        this.catalogPromise = this.loadTopDownCatalog(skinId);
-      }
-      return this.catalogPromise;
-    }
-    return this.loadTopDownCatalog(skinId);
+    const existing = this.catalogBySkinId.get(skinId);
+    if (existing) return existing;
+    const promise = this.loadTopDownCatalog(skinId).catch((error) => {
+      this.catalogBySkinId.delete(skinId);
+      throw error;
+    });
+    this.catalogBySkinId.set(skinId, promise);
+    return promise;
   }
 
   /** Alias explícito para o bundle teenage top-down. */
@@ -147,7 +148,7 @@ export class PlayerSpriteLoader {
   /** Limpa cache de imagens e catálogo (testes / hot swap). */
   static resetCache(): void {
     this.cache.clear();
-    this.catalogPromise = null;
+    this.catalogBySkinId.clear();
   }
 
   static hasCached(skinId: string): boolean {

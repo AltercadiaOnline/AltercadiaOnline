@@ -161,13 +161,20 @@ export function moveByDelta(
   pixelHeight: number,
   maxSubStepPx = PLAYER_MOVE_COLLISION_SUBSTEP_PX,
 ): WorldPosition {
-  let { x, y } = position;
+  // Já encravado (spawn / desync) — libera antes de tentar andar.
+  let start = position;
+  if (isPlayerBlockedByObstacles(start)) {
+    start = depenetratePlayerMovementCircle(start);
+  }
+
+  let { x, y } = start;
   const totalDist = Math.hypot(deltaX, deltaY);
-  if (totalDist <= 0) return position;
+  if (totalDist <= 0) return start;
 
   const steps = Math.max(1, Math.ceil(totalDist / maxSubStepPx));
   const stepX = deltaX / steps;
   const stepY = deltaY / steps;
+  let moved = false;
 
   for (let i = 0; i < steps; i += 1) {
     const nextX = clamp(x + stepX, 0, pixelWidth);
@@ -178,16 +185,20 @@ export function moveByDelta(
     if (canPlayerStepTo(mapData, from, candidate)) {
       x = nextX;
       y = nextY;
+      moved = true;
       continue;
     }
 
+    // Slide por eixo — permite deslizar ao longo de paredes/quinas.
     if (stepX !== 0 && canPlayerStepTo(mapData, from, { x: nextX, y })) {
       x = nextX;
+      moved = true;
       continue;
     }
 
     if (stepY !== 0 && canPlayerStepTo(mapData, from, { x, y: nextY })) {
       y = nextY;
+      moved = true;
       continue;
     }
 
@@ -195,8 +206,13 @@ export function moveByDelta(
   }
 
   const result = { x, y };
+  // Só depenetrate se ainda há penetração real (slop). Contato flush não empurra pra trás.
   if (isPlayerBlockedByObstacles(result)) {
     return depenetratePlayerMovementCircle(result);
+  }
+  // Preserva referência estável quando nada mudou (útil p/ callers que comparam ===).
+  if (!moved && result.x === position.x && result.y === position.y) {
+    return position;
   }
   return result;
 }

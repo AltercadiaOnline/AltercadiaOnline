@@ -130,7 +130,9 @@ export class ExplorationScene implements Disposable {
 
   private readonly player: Player;
 
-  private readonly playerAvatar = getSharedPlayerSprite();
+  private get playerAvatar() {
+    return getSharedPlayerSprite();
+  }
 
   private readonly npcManager: NPCManager;
 

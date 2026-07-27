@@ -122,6 +122,10 @@ import {
 } from '../services/worldLoreClient.js';
 import type { WorldChroniclesRequest } from '../../shared/world/worldLoreTypes.js';
 import type { WorldLoginResult } from '../../shared/world/playerWorldProfile.js';
+import {
+  createDefaultWorldProfile,
+  sanitizePlayerWorldProfile,
+} from '../../shared/world/playerWorldProfile.js';
 import { hidePauseMenu, setWorldSessionActive } from '../components/pauseMenu.js';
 import { getHudBridge } from '../app/bridge/hudBridge.js';
 import { resolveGameWsUrl } from '../../shared/net/resolveWsUrl.js';
@@ -838,11 +842,24 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
       });
       const savedWorld = getMutableDataStore().getWorldPosition();
       if (savedWorld) {
-        activeWorld.applyServerWorldSpawn({
-          ok: true,
+        const safe = sanitizePlayerWorldProfile({
           currentMapId: savedWorld.mapId,
           lastPosition: { x: savedWorld.x, y: savedWorld.y },
           facing: savedWorld.facing,
+        });
+        activeWorld.applyServerWorldSpawn({
+          ok: true,
+          currentMapId: safe.currentMapId,
+          lastPosition: { ...safe.lastPosition },
+          facing: safe.facing,
+        });
+      } else {
+        const safe = createDefaultWorldProfile(DEFAULT_MAP_ID);
+        activeWorld.applyServerWorldSpawn({
+          ok: true,
+          currentMapId: safe.currentMapId,
+          lastPosition: { ...safe.lastPosition },
+          facing: safe.facing,
         });
       }
       bindLocalPveEncounterLayer(activeWorld);

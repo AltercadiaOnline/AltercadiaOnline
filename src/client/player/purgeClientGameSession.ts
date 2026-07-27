@@ -46,6 +46,7 @@ import { resetNpcAssetImageCache } from '../loaders/npcAssetImageLoader.js';
 import { NpcSpriteLoader } from '../loaders/NpcSpriteLoader.js';
 import { resetCreatureAssetLoaderSession } from '../loaders/CreatureAssetLoader.js';
 import { resetPlayerSpriteCatalogCache } from '../entities/player/PlayerSpriteLoader.js';
+import { resetSharedPlayerSprite } from '../entities/player/PlayerSprite.js';
 
 export type PurgeClientGameSessionReason = 'logout' | 'character-switch';
 
@@ -98,6 +99,7 @@ function purgeAssetCaches(): void {
   NpcSpriteLoader.resetCache();
   resetCreatureAssetLoaderSession();
   resetPlayerSpriteCatalogCache();
+  resetSharedPlayerSprite();
 }
 
 /**

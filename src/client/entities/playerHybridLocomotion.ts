@@ -224,7 +224,8 @@ export class PlayerHybridLocomotion {
     );
 
     if (next.x === from.x && next.y === from.y) {
-      this.snapEngine.reset();
+      // Parede à frente: mantém velocidade enquanto a tecla estiver pressionada.
+      // Reset aqui zerava isMoving e no online disparava snap idle → teleporte.
       return;
     }
 

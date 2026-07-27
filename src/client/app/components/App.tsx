@@ -41,7 +41,13 @@ export function App() {
       </HudErrorBoundary>
 
       {viewMode === 'world' ? (
-        <HudErrorBoundary>
+        <HudErrorBoundary
+          fallback={(
+            <div className="pointer-events-auto absolute left-2 top-2 z-[5] rounded border border-[#c9a227]/50 bg-[rgba(5,10,13,0.92)] px-3 py-2 text-[11px] text-[#ecdcc4]">
+              HUD do mundo falhou. Recarregue (Ctrl+Shift+R) se o Hub sumir.
+            </div>
+          )}
+        >
           <Suspense fallback={null}>
             <WorldSceneShell />
           </Suspense>

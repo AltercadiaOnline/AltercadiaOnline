@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, type CSSProperties, type MouseEvent } from 'react';
 import { formatSpriteMetaLine } from '../../../../../shared/character/combatClassDisplay.js';
 import { resolveMoveDefinitionForUi } from '../../../../../shared/combat/movesetLoadout.js';
-import { getPetDefinition } from '../../../../../shared/pet/petCatalog.js';
-import { getPetColorPalette } from '../../../../../shared/pet/petColorPalette.js';
+import { getPetDefinition, isPetKindId } from '../../../../../shared/pet/petCatalog.js';
+import { getPetColorPalette, isPetColorId } from '../../../../../shared/pet/petColorPalette.js';
 import { isPetDefeated } from '../../../../../shared/pet/petModel.js';
 import type { PetSnapshot } from '../../../../../shared/pet/petModel.js';
 import type { PlayerPetRosterSnapshot } from '../../../../../shared/pet/petRoster.js';
@@ -98,6 +98,19 @@ function CharacterPetSection({
   }
 
   const pet = petSnapshot;
+  if (!isPetKindId(pet.kindId) || !isPetColorId(pet.colorId)) {
+    return (
+      <section className="character-pets-block" aria-label="Companheiros" data-pet-section>
+        <header className="character-terminal-block__header">
+          <span className="character-terminal-block__tag">PETS</span>
+          <h3 className="character-terminal-block__title">Companheiro</h3>
+        </header>
+        <p className="character-pets-empty">
+          Companheiro sincronizado com dados incompletos — reabra Pet Love.
+        </p>
+      </section>
+    );
+  }
   const def = getPetDefinition(pet.kindId);
   const palette = getPetColorPalette(pet.colorId);
   const defeated = isPetDefeated(pet);

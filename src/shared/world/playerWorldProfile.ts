@@ -42,20 +42,23 @@ export type PositionSyncPayload = {
 };
 
 export function createDefaultWorldProfile(mapId: MapId = DEFAULT_MAP_ID): PlayerWorldProfile {
-  const def = getMapDefinition(mapId);
-  if (!def) {
+  const resolvedMapId = getMapDefinition(mapId) ? mapId : DEFAULT_MAP_ID;
+  const def = getMapDefinition(resolvedMapId);
+
+  const constructSpawn = resolveConstructPlayerSpawn(resolvedMapId);
+  if (constructSpawn) {
     return {
-      currentMapId: DEFAULT_MAP_ID,
-      lastPosition: { x: 0, y: 0 },
+      currentMapId: resolvedMapId,
+      lastPosition: { x: constructSpawn.worldX, y: constructSpawn.worldY },
       facing: 'south',
     };
   }
 
-  const constructSpawn = resolveConstructPlayerSpawn(mapId);
-  if (constructSpawn) {
+  if (!def) {
+    // Último recurso — nunca devolver NaN/undefined (invisível no overlay Construct).
     return {
-      currentMapId: mapId,
-      lastPosition: { x: constructSpawn.worldX, y: constructSpawn.worldY },
+      currentMapId: DEFAULT_MAP_ID,
+      lastPosition: { x: TILE_SIZE / 2, y: TILE_SIZE / 2 },
       facing: 'south',
     };
   }
@@ -65,7 +68,7 @@ export function createDefaultWorldProfile(mapId: MapId = DEFAULT_MAP_ID): Player
   const center = tileCenterToWorldPixel(tileX, tileY);
 
   return {
-    currentMapId: mapId,
+    currentMapId: resolvedMapId,
     lastPosition: { x: center.x, y: center.y },
     facing: 'south',
   };
@@ -73,4 +76,39 @@ export function createDefaultWorldProfile(mapId: MapId = DEFAULT_MAP_ID): Player
 
 export function isValidWorldPosition(position: WorldPosition): boolean {
   return Number.isFinite(position.x) && Number.isFinite(position.y);
+}
+
+const VALID_FACINGS = new Set<PlayerFacing>(['north', 'south', 'east', 'west']);
+
+function isValidFacing(value: unknown): value is PlayerFacing {
+  return typeof value === 'string' && VALID_FACINGS.has(value as PlayerFacing);
+}
+
+/**
+ * Hidrata save local / snapshot — se mapId ou lastPosition estiverem corrompidos,
+ * cai no spawn Construct default (evita NaN → PNG invisível no overlay).
+ */
+export function sanitizePlayerWorldProfile(
+  world: Partial<PlayerWorldProfile> | null | undefined,
+): PlayerWorldProfile {
+  const mapIdRaw = typeof world?.currentMapId === 'string' ? world.currentMapId : DEFAULT_MAP_ID;
+  const mapId = (getMapDefinition(mapIdRaw as MapId) ? mapIdRaw : DEFAULT_MAP_ID) as MapId;
+  const fallback = createDefaultWorldProfile(mapId);
+  const position = world?.lastPosition;
+
+  if (!position || !isValidWorldPosition(position)) {
+    return {
+      ...fallback,
+      ...(world?.sessionSync !== undefined ? { sessionSync: world.sessionSync } : {}),
+      ...(world?.loadout !== undefined ? { loadout: world.loadout } : {}),
+    };
+  }
+
+  return {
+    currentMapId: mapId,
+    lastPosition: { x: position.x, y: position.y },
+    facing: isValidFacing(world?.facing) ? world.facing : 'south',
+    ...(world?.sessionSync !== undefined ? { sessionSync: world.sessionSync } : {}),
+    ...(world?.loadout !== undefined ? { loadout: world.loadout } : {}),
+  };
 }
