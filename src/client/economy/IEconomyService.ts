@@ -27,7 +27,11 @@ export interface IDevMockEconomyService extends IEconomyService {
   bindLocalCharacter(
     playerId: string,
     characterId: number,
-    options?: { readonly displayName?: string },
+    options?: {
+      readonly displayName?: string;
+      /** Classe do hub (SSOT da criação) — obrigatória para não cair em IMPETUS. */
+      readonly classId?: import('../../shared/types/classes.js').ClassType;
+    },
   ): void;
   /** Persiste o estado atual no localStorage (mesmo schema do servidor). */
   persistLocalSave(): boolean;

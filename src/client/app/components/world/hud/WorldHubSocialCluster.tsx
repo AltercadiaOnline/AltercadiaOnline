@@ -40,7 +40,7 @@ export function WorldHubSocialCluster() {
       <button
         type="button"
         id="ui-hub-launcher"
-        className="ui-hub-launcher"
+        className="ui-hub-launcher ui-skin-hybrid"
         style={{ pointerEvents: 'auto' }}
         aria-expanded={hubOpen}
         aria-controls="world-hub-panel"

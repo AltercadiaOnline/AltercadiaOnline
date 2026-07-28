@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360" fill="none" aria-hidden="true">
+  <defs>
+    <!-- Rasura-base: pontas afiadas, corpo irregular, pico no topo (ref. do usuário) -->
+    <path
+      id="gash"
+      d="M0 22
+         L34 20.5
+         L62 19
+         L88 16.8
+         L112 11.2
+         L128 3.2
+         L138 13.5
+         L162 16
+         L192 17.8
+         L226 19.5
+         L260 21
+         L228 25.2
+         L196 27
+         L164 28.5
+         L138 26.8
+         L118 29.5
+         L100 25.2
+         L74 26.8
+         L46 25.8
+         L20 24.8
+         Z"
+    />
+  </defs>
+
+  <!-- Principal  diagonal suave, bem visível -->
+  <g transform="translate(48 78) rotate(-8)" opacity="0.92">
+    <use href="#gash" fill="#050607" transform="scale(1.35 1)" />
+  </g>
+
+  <!-- Secundária  mais rasa, oposta -->
+  <g transform="translate(210 168) rotate(6)" opacity="0.78">
+    <use href="#gash" fill="#070809" transform="scale(0.95 0.72)" />
+  </g>
+
+  <!-- Arranhão fino curto -->
+  <g transform="translate(36 248) rotate(3)" opacity="0.7">
+    <use href="#gash" fill="#060708" transform="scale(0.7 0.45)" />
+  </g>
+
+  <!-- Canto superior direito -->
+  <g transform="translate(300 42) rotate(-14)" opacity="0.65">
+    <use href="#gash" fill="#050607" transform="scale(0.62 0.55)" />
+  </g>
+
+  <!-- Rasura curta no meio-baixo -->
+  <g transform="translate(280 280) rotate(11)" opacity="0.58">
+    <use href="#gash" fill="#08090a" transform="scale(0.55 0.4)" />
+  </g>
+</svg>

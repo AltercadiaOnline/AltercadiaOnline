@@ -288,9 +288,16 @@ export class CombatFeedbackOrchestrator {
     await runCombatSafeVoid('battle-controller', async () => {
       const controller = this.getBattleController();
       for (const entry of visualSteps) {
-        const stepDamageEvent = entry.damageEvent ?? damageEvent;
+        const step = entry.step;
+        const candidate = entry.damageEvent ?? damageEvent;
+        const stepDamageEvent =
+          step.kind === 'damage_impact'
+          && candidate
+          && candidate.payload.targetId !== step.targetId
+            ? entry.damageEvent
+            : candidate;
         await controller.playFeedbackStep(
-          entry.step,
+          step,
           stepDamageEvent !== undefined ? { damageEvent: stepDamageEvent } : undefined,
         );
       }

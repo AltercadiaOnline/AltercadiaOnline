@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MarcosStateSnapshot } from '../../../shared/playerDataSnapshots.js';
 import { MARCO_BRANCH_LABELS } from '../../../shared/progression/milestoneTreeCatalog.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
@@ -23,10 +23,10 @@ function buildMarcosStructuralKey(state: MarcosStateSnapshot): string {
 }
 
 export function useMarcosPanelState() {
-  const [hoverNodeId, setHoverNodeId] = useState<string | null>(null);
   const [pendingBranchNodeId, setPendingBranchNodeId] = useState<string | null>(null);
   const [confirmSuccess, setConfirmSuccess] = useState(false);
   const [progressTick, setProgressTick] = useState(0);
+  const treeHostRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const unsubLevel = getDataStore().subscribe('characterLevel', () => {
@@ -61,7 +61,8 @@ export function useMarcosPanelState() {
     }
   }, []);
 
-  const model = buildMarcosRenderModel(hoverNodeId, pendingBranchNodeId);
+  // Hover NÃO entra no HTML — regenerar innerHTML no mouseover destruía o <button> no meio do clique.
+  const model = buildMarcosRenderModel(null, pendingBranchNodeId);
   const pendingNode = findMarcoNodeView(model.nodes, pendingBranchNodeId);
   const gridHtml = renderMarcoGrid(model);
 
@@ -93,47 +94,50 @@ export function useMarcosPanelState() {
     idleLabel: 'Confirmar trilha',
   });
 
-  const handleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    if (confirmBranchGateway.pending) return;
+  const selectPendingBranch = useCallback((nodeId: string | null) => {
+    if (getDataStore().getMarcosState().trilhaTravada) return;
+    setPendingBranchNodeId(nodeId);
+    if (nodeId) setConfirmSuccess(false);
+    setProgressTick((tick) => tick + 1);
+  }, []);
 
-    const result = handleMarcosPanelClick(target, pendingBranchNodeId);
-    if (!model.trilhaTravada) {
-      setPendingBranchNodeId(result.pendingBranchNodeId);
-      if (result.pendingBranchNodeId) {
-        setConfirmSuccess(false);
+  // Delegação nativa no host estável — não depende do botão sobreviver ao re-render.
+  useEffect(() => {
+    const host = treeHostRef.current;
+    if (!host) return undefined;
+
+    const onTreeClick = (event: MouseEvent): void => {
+      if (confirmBranchGateway.pending) return;
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const result = handleMarcosPanelClick(target, pendingBranchNodeId);
+      if (result.pendingBranchNodeId !== pendingBranchNodeId || result.refreshFull) {
+        selectPendingBranch(result.pendingBranchNodeId);
       }
-    }
-    if (result.refreshFull) {
-      setProgressTick((tick) => tick + 1);
-    }
-  }, [confirmBranchGateway.pending, model.trilhaTravada, pendingBranchNodeId]);
+    };
+
+    host.addEventListener('click', onTreeClick);
+    return () => host.removeEventListener('click', onTreeClick);
+  }, [confirmBranchGateway.pending, pendingBranchNodeId, selectPendingBranch]);
 
   const cancelBranchSelection = useCallback(() => {
     if (confirmBranchGateway.pending) return;
-    setPendingBranchNodeId(null);
-    setProgressTick((tick) => tick + 1);
-  }, [confirmBranchGateway.pending]);
+    selectPendingBranch(null);
+  }, [confirmBranchGateway.pending, selectPendingBranch]);
 
   const handleMouseOver = useCallback((event: React.MouseEvent<HTMLElement>) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
 
     const nodeBtn = target.closest<HTMLElement>('[data-marco-node]');
-    const nextHover = nodeBtn?.dataset.marcoNode ?? null;
-    if (nextHover === hoverNodeId) return;
-
-    setHoverNodeId(nextHover);
-    if (nextHover) {
-      showMarcoNodeTooltip(target, event.clientX, event.clientY);
-    }
-  }, [hoverNodeId]);
+    if (!nodeBtn?.dataset.marcoNode) return;
+    showMarcoNodeTooltip(target, event.clientX, event.clientY);
+  }, []);
 
   const handleMouseLeave = useCallback((event: React.MouseEvent<HTMLElement>) => {
     const grid = event.currentTarget.querySelector('[data-marcos-grid]');
     if (grid && !grid.contains(event.relatedTarget as Node)) {
-      setHoverNodeId(null);
       uiEvents.emit(UIEventType.HIDE_TOOLTIP, {});
     }
   }, []);
@@ -148,13 +152,22 @@ export function useMarcosPanelState() {
     if (playerLevel < MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL[0]!) {
       return 'hidden' as const;
     }
-    if (pendingNode && pendingBranchLabel && !model.trilhaTravada) return 'pending' as const;
+    if (pendingBranchNodeId && pendingNode && pendingBranchLabel && !model.trilhaTravada) {
+      return 'pending' as const;
+    }
     if (!model.trilhaTravada) return 'idle' as const;
     return 'hidden' as const;
-  }, [confirmedBranchLabel, model.trilhaTravada, pendingBranchLabel, pendingNode, progressTick]);
+  }, [
+    confirmedBranchLabel,
+    model.trilhaTravada,
+    pendingBranchLabel,
+    pendingBranchNodeId,
+    pendingNode,
+  ]);
 
   return {
     gridHtml,
+    treeHostRef,
     confirmBarMode,
     confirmSuccess: confirmSuccess || Boolean(model.trilhaTravada),
     pendingNode,
@@ -163,7 +176,6 @@ export function useMarcosPanelState() {
     confirmBranchGateway,
     cancelBranchSelection,
     progressTick,
-    handleClick,
     handleMouseOver,
     handleMouseLeave,
     legendLevels: MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL.join(' / '),

@@ -11,7 +11,7 @@ import {
 import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.js';
 import { resolveNpcVendorRarityBlockReason } from '../../../../../shared/economy/npcSellRarityPolicy.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
-import { isSyncPending } from '../../../../core/gameStoreSelectors.js';
+import { isInventoryUiSyncPending } from '../../../../sync/pendingIntentRegistry.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
 import {
   resolveInventoryItemKindClass,
@@ -254,7 +254,7 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
 
   const handleSell = useCallback(() => {
     if (!state.selectedItemId || state.tradeMode !== 'inventory') return undefined;
-    if (isSyncPending()) {
+    if (isInventoryUiSyncPending()) {
       alertSystem('Aguarde a sincronização do inventário.');
       return { ok: false as const, reason: 'Aguarde a sincronização do inventário.' };
     }

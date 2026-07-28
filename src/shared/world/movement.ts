@@ -37,8 +37,8 @@ function isInsideMapPixelBounds(mapData: number[][], position: WorldPosition): b
   return position.x >= 0 && position.y >= 0 && position.x < maxX && position.y < maxY;
 }
 
-/** Multiplicador da velocidade base de locomoção (+25% sobre o tuning atual). */
-export const PLAYER_BASE_MOVE_SPEED_MULTIPLIER = 1.3 * 1.35 * 1.25;
+/** Multiplicador da velocidade base de locomoção (×0.7 — ~30% mais lento p/ gameplay). */
+export const PLAYER_BASE_MOVE_SPEED_MULTIPLIER = 1.3 * 1.35 * 1.25 * 0.7;
 
 /** Tempo alvo para cruzar 1 tile (64px) — derivado do multiplicador acima. */
 export const PLAYER_TILE_CROSS_SECONDS = 0.5 / PLAYER_BASE_MOVE_SPEED_MULTIPLIER;
@@ -206,11 +206,8 @@ export function moveByDelta(
   }
 
   const result = { x, y };
-  // Só depenetrate se ainda há penetração real (slop). Contato flush não empurra pra trás.
-  if (isPlayerBlockedByObstacles(result)) {
-    return depenetratePlayerMovementCircle(result);
-  }
-  // Preserva referência estável quando nada mudou (útil p/ callers que comparam ===).
+  // Colisão = parar no último ponto válido. Sem MTV/skin push no hot path
+  // (empurrar pra trás = sensação de esbarrar e voltar). Depenetrate só no start se spawn stuck.
   if (!moved && result.x === position.x && result.y === position.y) {
     return position;
   }

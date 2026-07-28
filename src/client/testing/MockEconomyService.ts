@@ -73,6 +73,11 @@ import { CHARACTER_PERSISTENCE_SCHEMA_VERSION } from '../../shared/persistence/c
 import { createDefaultWorldProfile, sanitizePlayerWorldProfile, type PlayerWorldProfile } from '../../shared/world/playerWorldProfile.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import { isValidClassActiveLoadout } from '../../shared/combat/movesetLoadout.js';
+import {
+  ensureMovesetMasteryForClass,
+  isClassType,
+} from '../../shared/progression/movesetMasterySeed.js';
+import type { ClassType } from '../../shared/types/classes.js';
 import { createDefaultPlayerProgressionData } from '../../shared/progression/playerProgressionData.js';
 import {
   clampMoveMasteryXp,
@@ -455,15 +460,35 @@ export class MockEconomyService implements IDevMockEconomyService {
   bindLocalCharacter(
     playerId: string,
     characterId: number,
-    options?: { readonly displayName?: string },
+    options?: { readonly displayName?: string; readonly classId?: ClassType },
   ): void {
     this.boundPlayerId = playerId;
     this.boundCharacterId = characterId;
 
+    const hubClassId = isClassType(options?.classId) ? options.classId : undefined;
     const loaded = loadLocalCharacterSave(playerId, characterId);
-    const record = loaded ?? createLocalEmptySave(playerId, characterId, {
+    let record = loaded ?? createLocalEmptySave(playerId, characterId, {
       ...(options?.displayName ? { displayName: options.displayName } : {}),
+      ...(hubClassId ? { classId: hubClassId } : {}),
     });
+
+    // Hub é SSOT da classe na criação — corrige save local sem classId ou com IMPETUS residual.
+    if (hubClassId && record.characterProfile.classId !== hubClassId) {
+      record = {
+        ...record,
+        characterProfile: {
+          ...record.characterProfile,
+          classId: hubClassId,
+        },
+        progression: {
+          ...record.progression,
+          movesetMastery: ensureMovesetMasteryForClass(
+            record.progression.movesetMastery,
+            hubClassId,
+          ),
+        },
+      };
+    }
 
     this.applyPersistenceRecord(record);
     this.ensurePetCharacterPersistBridge();
@@ -472,8 +497,9 @@ export class MockEconomyService implements IDevMockEconomyService {
     const migratedLegacyPets = this.migrateLegacyPetRosterIfNeeded(record);
     const migratedLegacyAffinity = this.migrateLegacyPetAffinityIfNeeded(record);
     const migratedLegacyMemorial = this.migrateLegacyPetMemorialIfNeeded(record);
+    const classLinked = Boolean(hubClassId && loaded && loaded.characterProfile.classId !== hubClassId);
     if (
-      (!loaded || migratedLegacyPets || migratedLegacyAffinity || migratedLegacyMemorial)
+      (!loaded || migratedLegacyPets || migratedLegacyAffinity || migratedLegacyMemorial || classLinked)
       && isLocalGameMode()
     ) {
       this.persistLocalSave();
@@ -484,6 +510,7 @@ export class MockEconomyService implements IDevMockEconomyService {
     console.info('[LocalSave] Personagem ligado', {
       playerId,
       characterId,
+      classId: getPlayerEquipmentStore().getSnapshot().classId,
       source: loaded ? 'localStorage' : 'empty',
       inventoryStacks: record.economy.inventory.length,
       volts: record.wallet.dollarVolt,

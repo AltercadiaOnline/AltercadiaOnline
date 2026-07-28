@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 48" fill="none" aria-hidden="true">
+  <!-- Silhueta de rasura horizontal irregular (pontas finas + pico central) -->
+  <path
+    fill="#050607"
+    d="M2 26
+       L28 24.2
+       L52 22.8
+       L78 20.5
+       L102 14.2
+       L118 6.5
+       L128 15.8
+       L152 18.5
+       L178 20.2
+       L208 22.5
+       L238 24
+       L214 27.5
+       L186 29.2
+       L158 30.5
+       L132 28.8
+       L112 31.2
+       L96 27.5
+       L72 29
+       L48 28.2
+       L24 27.5
+       Z"
+  />
+</svg>

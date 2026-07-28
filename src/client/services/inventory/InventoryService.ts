@@ -17,7 +17,7 @@ import { findCompatibleEquipmentUiSlot } from '../../../shared/character/equipIt
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { reportTransactionFailure } from '../../core/GameTransactionCoordinator.js';
 import { getGameStore } from '../../state/GameStore.js';
-import { isSyncPending } from '../../core/gameStoreSelectors.js';
+import { isInventoryUiSyncPending } from '../../sync/pendingIntentRegistry.js';
 
 export type InventoryActionResult = {
   readonly ok: boolean;
@@ -29,7 +29,7 @@ function dispatchInventoryAction(
   action: Parameters<ReturnType<typeof getActionDispatcher>['dispatch']>[0],
   fallbackMessage: string,
 ): InventoryActionResult {
-  if (isSyncPending()) {
+  if (isInventoryUiSyncPending()) {
     const message = 'Aguarde a sincronização do inventário.';
     reportTransactionFailure(null, message, message);
     return { ok: false, reason: message };

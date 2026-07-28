@@ -1,0 +1,56 @@
+---
+description: Identidade do personagem (characterId→classe) vs estado sync — padrão MMO
+alwaysApply: true
+---
+
+# Identidade do personagem (padrão oficial)
+
+## Ideia
+
+`characterId` liga **para sempre** à classe (e aos poucos campos de identidade).  
+Não se “carrega” classe de novo no enter-world com fallback `IMPETUS`.
+
+```text
+login → seleciona slot → CharacterIdentity na sessão
+enter-world / combate / HUD → leem a identidade
+full-state-sync → ESTADO (itens, XP, posição, pets, skins…)
+```
+
+## Identidade (imutável após create*)
+
+| Campo | Fonte |
+|-------|--------|
+| `characterId` | hub slot |
+| `classId` | hub slot (criação) |
+| `displayName` | hub slot |
+| `serverId` / `slotIndex` | hub slot |
+
+\*Rename = intent dedicado que atualiza a identidade — não vem de “default de boot”.
+
+## Estado (sync / save) — inclui visual
+
+| Campo | Nota |
+|-------|------|
+| `skinBundleId` / `ownedSkins` | Loja e troca — flexível, não identidade |
+| level, XP, wallet, inventário, equip | |
+| posição, vitals, pets, marcos | |
+| mastery, activeMovesets | |
+
+## Contratos
+
+- Shared: `src/shared/character/characterIdentity.ts`
+- Cliente sessão: `src/client/character/activeCharacterIdentity.ts`
+- Ligar no `selectCharacter` / enter-world; limpar no `purgeClientGameSession`
+
+## Proibido
+
+- `classId || 'IMPETUS'` em path de personagem **novo** ou enter-world sem identidade
+- Re-inferir classe só por mastery quando o hub já tem `class`
+- Tratar equipment store como SSOT de classe (é espelho; identidade manda)
+- Tratar skin como identidade imutável (visual = estado / loja)
+
+## Checklist
+
+1. Create Cogitor → hub.class = COGITOR → select liga identidade → mundo/combate Cogitor
+2. Reload: identidade vem do hub no select, não do default do store
+3. Snapshot online confirma estado (inclui skin); não apaga classId válido da identidade

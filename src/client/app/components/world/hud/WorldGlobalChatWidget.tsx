@@ -24,7 +24,7 @@ export function WorldGlobalChatWidget() {
   };
 
   return (
-    <div className="chat-box vortex-panel" data-ui-widget="world-chat">
+    <div className="chat-box vortex-panel ui-skin-hybrid" data-ui-widget="world-chat">
       <div className="chat-header">Chat Global</div>
       <div ref={feedRef} className="chat-content">
         {chatLines.map((line) => (

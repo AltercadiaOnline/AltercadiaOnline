@@ -31,6 +31,7 @@ export function isSyncPending(state: GameStoreState = selectGameState()): boolea
   return Object.keys(state.pendingActions).length > 0;
 }
 
+/** @deprecated Prefer `isInventoryUiSyncPending` — não gira slots em ZONE_ENSURE/chat. */
 export function selectInventorySyncIndicatorHtml(
   state: GameStoreState = selectGameState(),
 ): string {

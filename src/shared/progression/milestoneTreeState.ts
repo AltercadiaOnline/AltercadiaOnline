@@ -302,6 +302,14 @@ export function resolveMarcoChooseBlockedMessage(
 
   if (!ctx.trilhaTravada || !ctx.ramificacaoSelecionada) {
     if (isMarcoBranchStarter(nodeId)) {
+      const view = resolveMarcoNodeStatus(node, ctx);
+      const playerLevelReq = view.missingRequirements.find((token) => token.startsWith('playerLevel:'));
+      if (playerLevelReq) {
+        const required = Number(playerLevelReq.slice('playerLevel:'.length));
+        if (Number.isFinite(required) && required > 0) {
+          return `Trilha disponível a partir do nível ${required}. Continue evoluindo o personagem.`;
+        }
+      }
       return 'Selecione a primeira habilidade de uma trilha e confirme no painel.';
     }
     return 'Escolha e confirme uma das 3 trilhas Marcos antes de avançar.';

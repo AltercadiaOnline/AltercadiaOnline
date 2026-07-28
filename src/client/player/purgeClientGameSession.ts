@@ -12,6 +12,7 @@
  * (diário, conquistas, market local) — são dados do jogador, não cache de sessão.
  */
 import { initializePlayerState } from './initializePlayerState.js';
+import { clearActiveCharacterIdentity } from '../character/activeCharacterIdentity.js';
 
 import { resetPlayerDiaryStore } from '../ui/diary/playerDiaryStore.js';
 import { resetPetMemorialStore } from '../ui/pet/petMemorialStore.js';
@@ -109,6 +110,7 @@ function purgeAssetCaches(): void {
 export function purgeClientGameSession(
   options: PurgeClientGameSessionOptions = {},
 ): void {
+  clearActiveCharacterIdentity();
   purgeCharacterMirror();
   purgeSessionState();
 

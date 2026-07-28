@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   EQUIPMENT_UI_SLOT_LABELS,
   EQUIPMENT_UI_SLOT_ORDER,
@@ -9,9 +9,12 @@ import { resolveLoadoutPpBudget } from '../../../../../shared/combat/loadoutPpBu
 import { emitItemTooltip } from '../../../../ui/tooltip/emitItemTooltip.js';
 import {
   InventoryService,
-  isSyncPending,
   selectPlayerEquipment,
 } from '../../../../services/index.js';
+import {
+  getPendingIntentRegistry,
+  isInventoryUiSyncPending,
+} from '../../../../sync/pendingIntentRegistry.js';
 import { dispatchUnequipFromSlot } from '../../../../ui/equipment/equipItemAction.js';
 import { getPlayerEquipmentStore } from '../../../../ui/equipment/playerEquipmentStore.js';
 import { getPlayerItemStore } from '../../../../ui/items/playerItemStore.js';
@@ -104,7 +107,7 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
   useEquipmentGridRevision();
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const pending = isSyncPending();
+  const [pending, setPending] = useState(() => isInventoryUiSyncPending());
   const equippedItems = selectPlayerEquipment();
   const loadout = getGlobalPlayerStore().getConfirmedLoadout();
   const { ppCurrent, ppMax } = resolveLoadoutPpBudget(loadout);
@@ -121,6 +124,12 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
 
   useEffect(() => {
     refreshHudPlayerHpMax();
+  }, []);
+
+  useEffect(() => {
+    return getPendingIntentRegistry().subscribeChange(() => {
+      setPending(isInventoryUiSyncPending());
+    });
   }, []);
 
   useEffect(() => {

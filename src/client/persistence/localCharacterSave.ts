@@ -5,6 +5,11 @@ import {
   type CharacterPersistenceRecord,
 } from '../../shared/persistence/characterPersistenceRecord.js';
 import { createEmptyPetRoster } from '../../shared/pet/petRoster.js';
+import {
+  ensureMovesetMasteryForClass,
+  isClassType,
+} from '../../shared/progression/movesetMasterySeed.js';
+import type { ClassType } from '../../shared/types/classes.js';
 import { isLocalGameMode } from '../runtime/gameMode.js';
 
 const STORAGE_PREFIX = 'altercadia.localSave.v2:';
@@ -63,14 +68,23 @@ export function clearLocalCharacterSave(playerId: string, characterId: number): 
 export function createLocalEmptySave(
   playerId: string,
   characterId: number,
-  options?: { readonly displayName?: string },
+  options?: { readonly displayName?: string; readonly classId?: ClassType },
 ): CharacterPersistenceRecord {
   const base = createEmptyCharacterPersistenceRecord(playerId, characterId);
+  const classId = isClassType(options?.classId) ? options.classId : undefined;
+  const movesetMastery = classId
+    ? ensureMovesetMasteryForClass(base.progression.movesetMastery, classId)
+    : base.progression.movesetMastery;
   return {
     ...base,
+    progression: {
+      ...base.progression,
+      movesetMastery,
+    },
     characterProfile: {
       ...base.characterProfile,
       ...(options?.displayName ? { displayName: options.displayName } : {}),
+      ...(classId ? { classId } : {}),
     },
     petRoster: createEmptyPetRoster(),
     petAffinity: {

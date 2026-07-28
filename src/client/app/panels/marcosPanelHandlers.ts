@@ -39,12 +39,14 @@ export function buildMarcosRenderModel(
   selectedNodeId: string | null = null,
 ): MarcoTreeRenderModel {
   const marcosState = getDataStore().getMarcosState();
+  const ctx = buildMarcosPlayerContext();
   return {
-    nodes: buildMarcoTreeView(buildMarcosPlayerContext()),
+    nodes: buildMarcoTreeView(ctx),
     selectedNodeId,
     hoverNodeId,
     ramificacaoSelecionada: resolveRamificacaoFromContext(marcosState.ramificacaoSelecionada),
     trilhaTravada: marcosState.trilhaTravada,
+    playerLevel: ctx.playerLevel,
   };
 }
 

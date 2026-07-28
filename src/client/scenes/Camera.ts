@@ -129,17 +129,18 @@ export class Camera {
     this.y += (this.targetY - this.y) * t;
 
     const clamped = clampCameraToMapBounds(this.x, this.y, this.getBounds());
-    this.x = clamped.x;
-    this.y = clamped.y;
+    // Pixel art: câmera em inteiros — float + sprite snapped = tremida/blur ao andar.
+    this.x = snapToPixel(clamped.x);
+    this.y = snapToPixel(clamped.y);
 
-    if (Math.abs(this.x - this.targetX) < 0.25) this.x = this.targetX;
-    if (Math.abs(this.y - this.targetY) < 0.25) this.y = this.targetY;
+    if (Math.abs(this.x - this.targetX) < 0.25) this.x = snapToPixel(this.targetX);
+    if (Math.abs(this.y - this.targetY) < 0.25) this.y = snapToPixel(this.targetY);
   }
 
   private syncTargetToFocus(): void {
     const target = computeCameraFollowTarget(this.buildFollowState());
-    this.targetX = target.x;
-    this.targetY = target.y;
+    this.targetX = snapToPixel(target.x);
+    this.targetY = snapToPixel(target.y);
   }
 
   private buildFollowState(): CameraFollowState {

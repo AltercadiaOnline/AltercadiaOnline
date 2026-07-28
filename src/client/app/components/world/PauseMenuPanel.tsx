@@ -17,7 +17,7 @@ export function PauseMenuPanel() {
       aria-label="Menu de pausa"
       aria-hidden="false"
     >
-      <div className="pause-menu-panel vortex-panel">
+      <div className="pause-menu-panel vortex-panel ui-skin-hybrid">
         <h2>PAUSA</h2>
         <button
           id="btn-pause-settings"

@@ -160,7 +160,18 @@ async function runDamageAnimationPhase(context: CombatFeedbackPipelineContext): 
         }
       }
 
-      const stepDamageEvent = entry.damageEvent ?? context.damageEvent;
+      const stepDamageEvent = (() => {
+        const candidate = entry.damageEvent ?? context.damageEvent;
+        if (
+          step.kind === 'damage_impact'
+          && candidate
+          && candidate.payload.targetId !== step.targetId
+        ) {
+          // Não reutilizar DAMAGE_DEALT de outro alvo (ex.: golpe do player no monstro).
+          return entry.damageEvent;
+        }
+        return candidate;
+      })();
       await controller.playFeedbackStep(
         step,
         stepDamageEvent !== undefined ? { damageEvent: stepDamageEvent } : undefined,

@@ -138,10 +138,16 @@ export function useCharactersPanelState() {
     setSpeedBonusTotal(speed.speedBonusTotal);
     setIsEncumbered(speed.isEncumbered);
 
-    setEstiloName(resolveEstiloName(
-      getGlobalPlayerStore().getConfirmedLoadout(),
-      dataStore.getMarcosState(),
-    ));
+    setEstiloName((() => {
+      try {
+        return resolveEstiloName(
+          getGlobalPlayerStore().getConfirmedLoadout(),
+          dataStore.getMarcosState(),
+        );
+      } catch {
+        return '—';
+      }
+    })());
 
     const unsubSkin = getPlayerSkinStore().subscribe(setSkinState);
 
@@ -202,10 +208,14 @@ export function useCharactersPanelState() {
   }, [dataStore]);
 
   useEffect(() => {
-    setEstiloName(resolveEstiloName(
-      getGlobalPlayerStore().getConfirmedLoadout(),
-      dataStore.getMarcosState(),
-    ));
+    try {
+      setEstiloName(resolveEstiloName(
+        getGlobalPlayerStore().getConfirmedLoadout(),
+        dataStore.getMarcosState(),
+      ));
+    } catch {
+      setEstiloName('—');
+    }
   }, [dataStore, loadoutTick]);
 
   const confirmedLoadout = useMemo(() => {

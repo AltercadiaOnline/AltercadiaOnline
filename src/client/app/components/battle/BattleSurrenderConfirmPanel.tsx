@@ -48,7 +48,7 @@ export function BattleSurrenderConfirmPanel() {
         aria-label="Continuar lutando"
         onClick={() => bridge.dismiss()}
       />
-      <div className="battle-surrender-confirm__card vortex-panel">
+      <div className="battle-surrender-confirm__card vortex-panel ui-skin-hybrid">
         <span className="battle-surrender-confirm__tag">COMBATE // FUGA</span>
         <h3 className="battle-surrender-confirm__title" id="battle-surrender-confirm-title">
           Fugir da batalha?

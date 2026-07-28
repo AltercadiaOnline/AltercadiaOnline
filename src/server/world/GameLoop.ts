@@ -93,7 +93,8 @@ export class GameLoop {
         x: profile.lastPosition.x,
         y: profile.lastPosition.y,
         facing: profile.facing as PlayerFacing,
-        ...(moveResult ? { moveSeq: moveResult.seq } : {}),
+        // Só confirma moveSeq em passo ACEITO — rejeição com seq+posição antiga = rubber-band.
+        ...(moveResult?.ok ? { moveSeq: moveResult.seq } : {}),
       };
 
       const aoiCreatures = isMapId(profile.currentMapId)

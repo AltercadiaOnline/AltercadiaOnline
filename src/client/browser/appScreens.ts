@@ -28,6 +28,7 @@ import {
   deleteAuthoritativeCharacter,
   fetchAuthoritativeCharacterHub,
 } from '../services/characterHubClient.js';
+import { bindActiveCharacterIdentityFromHubSlot } from '../character/activeCharacterIdentity.js';
 import { clearLocalCharacterSave } from '../persistence/localCharacterSave.js';
 import { clearPetMemorialStorage } from '../ui/pet/petMemorialStore.js';
 import {
@@ -527,6 +528,8 @@ export const AppScreens = {
 
   selectCharacter(characterId: number): void {
     this.selectedCharacterId = characterId;
+    const slot = this.getSelectedCharacter();
+    bindActiveCharacterIdentityFromHubSlot(slot);
     this.syncCharacterSelectionUi();
   },
 

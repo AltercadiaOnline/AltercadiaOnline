@@ -58,7 +58,10 @@ function wireMockEconomyService(mock: IDevMockEconomyService): void {
 export async function bindLocalGameCharacter(
   playerId: string,
   characterId: number,
-  options?: { readonly displayName?: string },
+  options?: {
+    readonly displayName?: string;
+    readonly classId?: import('../../shared/types/classes.js').ClassType;
+  },
 ): Promise<boolean> {
   if (!isLocalGameMode()) return false;
   const mock = await loadMockEconomyService();

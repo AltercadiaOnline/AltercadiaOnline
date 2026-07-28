@@ -71,7 +71,16 @@ export type WorldPanelRenderer = (props: WorldPanelRenderProps) => ReactNode;
 
 function withSuspense(renderer: WorldPanelRenderer): WorldPanelRenderer {
   return (props) => (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={(
+        <div
+          className="pointer-events-auto absolute left-4 top-4 z-[50] border border-[rgba(58,63,68,0.95)] bg-[rgba(13,14,16,0.94)] px-3 py-2 text-[10px] uppercase tracking-[0.14em] text-[#9ee8ec]"
+          role="status"
+        >
+          Carregando painel…
+        </div>
+      )}
+    >
       {renderer(props)}
     </Suspense>
   );
@@ -230,9 +239,21 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
       key={entry.windowId}
       fallback={(
         <div
-          className="p-3 text-[10px] text-[#ecdcc4]"
+          className="pointer-events-auto absolute left-1/2 top-1/2 z-[50] w-[min(420px,90vw)] -translate-x-1/2 -translate-y-1/2 border-2 border-[rgba(58,208,214,0.45)] bg-[rgba(13,14,16,0.96)] px-4 py-3 shadow-[0_0_18px_rgba(58,208,214,0.2)]"
+          role="alert"
+          style={{ zIndex: entry.zIndex }}
         >
-          Falha ao abrir a Ficha. Feche e tente de novo.
+          <p className="text-[11px] uppercase tracking-[0.14em] text-[#9ee8ec]">Ficha indisponível</p>
+          <p className="mt-2 text-[12px] leading-snug text-[#c8d4dc]">
+            Erro ao montar o painel. Pressione F de novo ou abra Hub → Personagens.
+          </p>
+          <button
+            type="button"
+            className="mt-3 border border-[rgba(58,63,68,0.95)] px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#a8b0b8] hover:border-[rgba(58,208,214,0.55)] hover:text-[#d7f6f8]"
+            onClick={() => tryFocusReactWorldPanel('characters')}
+          >
+            Tentar focar
+          </button>
         </div>
       )}
     >

@@ -10,7 +10,6 @@ import {
   showPlayerHpTooltip,
 } from '../../../ui/equipment/playerHpTooltip.js';
 import { WorldHUD } from './WorldHUD.js';
-import { WorldPanelsLayer } from './WorldPanelsLayer.js';
 import { WorldPveEncounterHud } from './WorldPveEncounterHud.js';
 
 function PlayerVitalsStrip() {
@@ -18,7 +17,7 @@ function PlayerVitalsStrip() {
   const hpPct = hpMax > 0 ? Math.round((hpCurrent / hpMax) * 100) : 0;
 
   return (
-    <div className="player-vitals-strip">
+    <div className="player-vitals-strip ui-skin-hybrid">
       <div className="player-vitals-strip__row">
         <div>
           <div className="player-vitals-strip__name">{displayName}</div>
@@ -101,7 +100,6 @@ export function WorldSceneShell() {
         </header>
 
         <WorldHUD />
-        <WorldPanelsLayer />
         <WorldPveEncounterHud />
       </div>
     </div>

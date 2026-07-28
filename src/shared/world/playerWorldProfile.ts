@@ -85,8 +85,8 @@ function isValidFacing(value: unknown): value is PlayerFacing {
 }
 
 /**
- * Hidrata save local / snapshot — se mapId ou lastPosition estiverem corrompidos,
- * cai no spawn Construct default (evita NaN → PNG invisível no overlay).
+ * Hidrata save local / snapshot — se mapId, lastPosition ou coords fora do mapa
+ * estiverem corrompidos, cai no spawn Construct default (evita PNG invisível / WASD morto).
  */
 export function sanitizePlayerWorldProfile(
   world: Partial<PlayerWorldProfile> | null | undefined,
@@ -95,8 +95,19 @@ export function sanitizePlayerWorldProfile(
   const mapId = (getMapDefinition(mapIdRaw as MapId) ? mapIdRaw : DEFAULT_MAP_ID) as MapId;
   const fallback = createDefaultWorldProfile(mapId);
   const position = world?.lastPosition;
+  const def = getMapDefinition(mapId);
 
-  if (!position || !isValidWorldPosition(position)) {
+  const inBounds = Boolean(
+    position
+    && isValidWorldPosition(position)
+    && def
+    && position.x >= 0
+    && position.y >= 0
+    && position.x < def.pixelWidth()
+    && position.y < def.pixelHeight(),
+  );
+
+  if (!inBounds) {
     return {
       ...fallback,
       ...(world?.sessionSync !== undefined ? { sessionSync: world.sessionSync } : {}),
@@ -106,7 +117,7 @@ export function sanitizePlayerWorldProfile(
 
   return {
     currentMapId: mapId,
-    lastPosition: { x: position.x, y: position.y },
+    lastPosition: { x: position!.x, y: position!.y },
     facing: isValidFacing(world?.facing) ? world.facing : 'south',
     ...(world?.sessionSync !== undefined ? { sessionSync: world.sessionSync } : {}),
     ...(world?.loadout !== undefined ? { loadout: world.loadout } : {}),

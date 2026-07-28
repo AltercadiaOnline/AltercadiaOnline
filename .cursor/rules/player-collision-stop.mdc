@@ -1,0 +1,45 @@
+---
+description: Colisão do jogador — parar no último ponto válido (sem rubber-band)
+alwaysApply: true
+---
+
+# Colisão — parar, não empurrar de volta
+
+**Regra de ouro (produto validado):** ao esbarrar em obstáculo, o jogador **para** na última posição válida. Sem “esbarra e volta”.
+
+## Contrato
+
+| Situação | Comportamento |
+|----------|----------------|
+| Passo válido | Aceita a nova pose |
+| Passo bloqueado | Mantém a pose anterior (STOP) |
+| Slide no eixo | OK se o eixo livre (`canPlayerStepTo`) |
+| Spawn/portal encravado | Depenetrate **só** no boot / unstuck — **não** no hot path de cada frame |
+
+## Obrigatório
+
+- Lógica canônica em `src/shared/world/movement.ts` (`moveByDelta` / `canPlayerStepTo`) — **local e online usam a mesma**.
+- Online: `moveSeq` no `state-sync` **somente** em passo **aceito** (`GameLoop` — nunca anexar seq + posição antiga em MOVE rejeitado).
+- Sanitize de spawn (`sanitizePlayerWorldProfile`): pose fora do mapa → spawn Construct default (evita player invisível / WASD morto).
+
+## Proibido
+
+```ts
+// ❌ BAD — MTV/skin push após o passo (sensação de rubber-band)
+if (isPlayerBlockedByObstacles(result)) {
+  return depenetratePlayerMovementCircle(result); // hot path
+}
+
+// ❌ BAD — confirmar rejeição como autoridade
+...(moveResult ? { moveSeq: moveResult.seq } : {})
+
+// ✅ GOOD — parar no último válido
+// substeps + slide; se bloqueado → break e return { x, y } já válidos
+// ✅ GOOD — seq só se ok
+...(moveResult?.ok ? { moveSeq: moveResult.seq } : {})
+```
+
+## Unificação local × online
+
+- Uma física (`shared`). Local = Mock; online = Railway. **Não** inventar segunda colisão no cliente.
+- Testar primeiro em `localhost` (GAME_MODE local); se ok → `npm run deploy` → confirmar na Vercel.

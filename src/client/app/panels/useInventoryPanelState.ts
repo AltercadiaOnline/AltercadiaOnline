@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react';
-import { isSyncPending } from '../../core/gameStoreSelectors.js';
-import { subscribeGameStore } from '../../state/GameStore.js';
+import {
+  getPendingIntentRegistry,
+  isInventoryUiSyncPending,
+} from '../../sync/pendingIntentRegistry.js';
 import { isNpcVendorShopOpen, subscribeNpcVendorShopOpen } from '../../ui/vendor/npcVendorSession.js';
 import { usePlayerInventoryAndGold } from '../store/gameStore.js';
 
 /** Estado reativo do inventário — espelha GameStore + sessão de vendedor NPC. */
 export function useInventoryPanelState() {
   const { inventory, gold } = usePlayerInventoryAndGold();
-  const [syncPending, setSyncPending] = useState(() => isSyncPending());
+  const [syncPending, setSyncPending] = useState(() => isInventoryUiSyncPending());
   const [vendorOpen, setVendorOpen] = useState(() => isNpcVendorShopOpen());
 
   useEffect(() => {
-    return subscribeGameStore((state, slice) => {
-      if (slice !== 'player' && slice !== 'pendingActions' && slice !== '*') return;
-      setSyncPending(isSyncPending(state));
+    return getPendingIntentRegistry().subscribeChange(() => {
+      setSyncPending(isInventoryUiSyncPending());
     });
   }, []);
 

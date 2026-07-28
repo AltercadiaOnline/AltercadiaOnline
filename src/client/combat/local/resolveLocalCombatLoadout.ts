@@ -8,6 +8,7 @@ import {
   resolvePlayerEquippedSkillIds,
 } from '../../../shared/combat/movesetLoadout.js';
 import { AppScreens } from '../../browser/appScreens.js';
+import { getActiveCharacterClassId } from '../../character/activeCharacterIdentity.js';
 import { getGlobalPlayerStore } from '../../ui/moveset/globalPlayerStore.js';
 import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
 import { getPlayerItemStore } from '../../ui/items/playerItemStore.js';
@@ -21,8 +22,12 @@ export function resolveLocalCombatLoadoutFromClient(): PlayerCombatLoadout | nul
   const characterId = selected?.id ?? 1;
   const playerId = `local_${characterId}`;
   const equipment = getPlayerEquipmentStore().getSnapshot();
-  // Preferir classe do store (sincronizada) sobre a do hub — evita moveset IMP residual.
-  const classId = equipment.classId || selected?.class || 'IMPETUS';
+  // Identidade da sessão → hub → equipment (sem inventar classe).
+  const classId =
+    getActiveCharacterClassId()
+    || selected?.class
+    || equipment.classId
+    || 'IMPETUS';
   const confirmed = getGlobalPlayerStore().getConfirmedLoadout();
   const equippedSkillIds = resolvePlayerEquippedSkillIds(classId, confirmed);
   const vitals = getGlobalPlayerStore().getWorldVitals();

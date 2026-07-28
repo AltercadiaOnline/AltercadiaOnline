@@ -11,6 +11,7 @@ import type {
 } from '../shared/IDataStore.js';
 import type { AuthoritativePositionDelta } from '../shared/world/movementIntent.js';
 import type { PlayerFacing } from '../shared/world/playerFacing.js';
+import { sanitizePlayerWorldProfile } from '../shared/world/playerWorldProfile.js';
 import {
   applyCharacterXpGain,
   getCharacterXpForNextLevel,
@@ -213,13 +214,18 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
     readonly lastPosition: { readonly x: number; readonly y: number };
     readonly facing: PlayerFacing;
   }): ApplySnapshotResult {
+    const safe = sanitizePlayerWorldProfile({
+      currentMapId: payload.currentMapId,
+      lastPosition: payload.lastPosition,
+      facing: payload.facing,
+    });
     this.worldMoveSeq = 0;
     this.worldPositionRevision += 1;
     this.worldPosition = {
-      mapId: payload.currentMapId,
-      x: payload.lastPosition.x,
-      y: payload.lastPosition.y,
-      facing: payload.facing,
+      mapId: safe.currentMapId,
+      x: safe.lastPosition.x,
+      y: safe.lastPosition.y,
+      facing: safe.facing,
     };
     this.syncGlobalRevision();
     this.notifyWorldPosition();

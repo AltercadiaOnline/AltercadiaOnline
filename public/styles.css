@@ -14,6 +14,17 @@
   --slot-cols: 10;
   --slot-rows: 4;
   --slot-padding: 2px;
+  /* Skin global: chapa metálica + holograma (login → HUD) */
+  --ui-metal-edge: #3a3f44;
+  --ui-metal-face-top: #1a1c1e;
+  --ui-metal-face-bottom: #0d0e10;
+  --ui-holo: #3ad0d6;
+  --ui-holo-dim: rgba(58, 208, 214, 0.35);
+  --ui-holo-soft: rgba(58, 208, 214, 0.12);
+  --ui-holo-glow: rgba(58, 208, 214, 0.4);
+  --ui-text: #d4dce8;
+  --ui-text-muted: rgba(160, 180, 188, 0.78);
+  --ui-text-holo: #9ee8ec;
 }
 
 * {
@@ -23,8 +34,8 @@
 }
 
 body {
-  background-color: #050a0d;
-  color: #d4b483;
+  background-color: #05080c;
+  color: var(--ui-text);
   font-family: 'Courier New', monospace;
   height: 100vh;
   overflow: hidden;
@@ -664,12 +675,22 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 .login-box button,
 .char-select-actions button {
   padding: 0.75rem 1rem;
-  border: 2px solid #5e4a30;
-  background: rgba(20, 15, 10, 0.95);
-  color: #d4b483;
+  border: 2px solid var(--ui-metal-edge);
+  background: linear-gradient(180deg, #2c3238 0%, #171a1d 100%);
+  color: var(--ui-text);
   font-family: inherit;
   font-size: 0.95rem;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(58, 208, 214, 0.08);
+}
+
+.login-box button:hover,
+.char-select-actions button:hover {
+  border-color: rgba(58, 208, 214, 0.55);
+  color: #d7f6f8;
+  box-shadow: 0 0 12px rgba(58, 208, 214, 0.22);
 }
 
 .auth-form {
@@ -685,7 +706,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 .auth-panel-hint {
   font-size: 0.82rem;
   line-height: 1.35;
-  color: #a89070;
+  color: var(--ui-text-muted);
   margin: 0 0 0.5rem;
 }
 
@@ -719,15 +740,18 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 .auth-google-btn {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 2px solid #5e4a30;
-  background: rgba(20, 15, 10, 0.95);
-  color: #d4b483;
+  border: 2px solid var(--ui-metal-edge);
+  background: linear-gradient(180deg, #2c3238 0%, #171a1d 100%);
+  color: var(--ui-text);
   font-size: 0.9rem;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .auth-google-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
+  border-color: rgba(58, 208, 214, 0.55);
+  color: #d7f6f8;
+  box-shadow: 0 0 12px rgba(58, 208, 214, 0.22);
 }
 
 .auth-google-btn:disabled,
@@ -746,14 +770,15 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 .auth-field input {
   width: 100%;
   padding: 0.65rem 0.75rem;
-  border: 1px solid #5e4a30;
+  border: 1px solid var(--ui-metal-edge);
   background: rgba(0, 0, 0, 0.45);
-  color: #d4b483;
+  color: var(--ui-text);
   font-family: inherit;
 }
 
 .auth-field input:focus {
-  outline: 1px solid #58a6ff;
+  outline: 1px solid var(--ui-holo);
+  box-shadow: 0 0 8px rgba(58, 208, 214, 0.2);
 }
 
 .auth-link-btn {
@@ -763,7 +788,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   padding: 0.35rem 0;
   border: none;
   background: transparent;
-  color: #58a6ff;
+  color: var(--ui-holo);
   font-family: inherit;
   font-size: 0.82rem;
   cursor: pointer;
@@ -927,10 +952,15 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   width: min(480px, 92vw);
   margin: 0.25rem auto 0.75rem;
   padding: 0.85rem 1rem 1rem;
-  border: 1px solid rgba(94, 74, 48, 0.55);
-  background: rgba(0, 0, 0, 0.38);
-  border-radius: 4px;
+  border: 1px solid var(--ui-metal-edge);
+  background:
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
+  border-radius: 2px;
   box-sizing: border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    0 0 12px rgba(58, 208, 214, 0.08);
 }
 
 .char-select-server-panel__title {
@@ -1015,8 +1045,10 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 
 .char-slot.is-selected {
   transform: scale(1.05);
-  border-color: #00ffcc;
-  box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+  border-color: var(--ui-holo);
+  box-shadow:
+    0 0 0 1px rgba(58, 208, 214, 0.35),
+    0 0 14px rgba(58, 208, 214, 0.35);
 }
 
 .char-slot-body {
@@ -2327,7 +2359,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 .sidebar,
 .game-layout__sidebar {
   width: var(--game-hud-sidebar-width);
-  background: #222;
+  background: var(--ui-metal-face-bottom, #0d0e10);
   flex-shrink: 0;
 }
 
@@ -2869,18 +2901,48 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   z-index: 1;
 }
 
+/* Painéis móveis no App (fora do frame 640×360) — mesmas âncoras do Hub. */
+[data-ui-surface='world-panels'] {
+  --ui-hub-anchor-top: 12px;
+  --ui-hub-cluster-height: 62px;
+  --ui-hub-gap-below-launcher: 10px;
+  overflow: visible;
+}
+
 /* Faixa de vitals (canto superior) — ~30% maior que o strip Tailwind antigo. */
 .player-vitals-strip-anchor {
   max-width: min(290px, 56%);
 }
 
 .player-vitals-strip {
-  border-radius: 0.5rem;
-  border: 1px solid rgba(0, 255, 204, 0.28);
-  background: rgba(10, 16, 18, 0.92);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 2px;
+  border: 2px solid var(--ui-metal-edge);
+  background:
+    radial-gradient(
+      circle at 10px 10px,
+      rgba(210, 220, 230, 0.22) 0 1px,
+      #5a6168 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.045) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.28) 100%
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   padding: 0.7rem 0.95rem;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(6px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 12px rgba(58, 208, 214, 0.1),
+    0 10px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: none;
   font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
 }
 
@@ -2889,6 +2951,8 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  position: relative;
+  z-index: 1;
 }
 
 .player-vitals-strip__name {
@@ -2896,14 +2960,15 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   line-height: 1.2;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #00ffcc;
+  color: var(--ui-holo);
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.28);
 }
 
 .player-vitals-strip__level {
   margin-top: 0.2rem;
   font-size: 0.75rem;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--ui-text-muted);
 }
 
 .player-vitals-strip__wallet {
@@ -2911,33 +2976,38 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   text-align: right;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--ui-text-muted);
 }
 
 .player-vitals-strip__bar-track {
   margin-top: 0.55rem;
   height: 0.5rem;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 1px;
+  border: 1px solid var(--ui-metal-edge);
   background: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.06);
 }
 
 .player-vitals-strip__hp-block {
   cursor: help;
+  position: relative;
+  z-index: 1;
 }
 
 .player-vitals-strip__bar-fill {
   height: 100%;
-  border-radius: 999px;
-  background: #00ffcc;
+  border-radius: 0;
+  background: linear-gradient(90deg, #1a5a5e, var(--ui-holo));
   transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(58, 208, 214, 0.25);
 }
 
 .player-vitals-strip__hp {
   margin-top: 0.3rem;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ui-text-muted);
 }
 
 [data-ui-surface='world-scene-shell'] {
@@ -2997,9 +3067,25 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 }
 
 .log-service-panel {
-  background: rgba(12, 10, 18, 0.94);
-  border: 1px solid #5e4a30;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.25) 100%
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
+  border: 2px solid var(--ui-metal-edge);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    0 0 10px rgba(58, 208, 214, 0.08),
+    0 2px 10px rgba(0, 0, 0, 0.4);
   max-height: 72px;
   display: flex;
   flex-direction: column;
@@ -3014,26 +3100,34 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   align-items: center;
   justify-content: space-between;
   padding: 2px 6px;
-  border-bottom: 1px solid rgba(94, 74, 48, 0.45);
+  border-bottom: 1px solid rgba(58, 63, 68, 0.95);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c8b890;
+  color: var(--ui-text-holo);
+  position: relative;
+  z-index: 1;
 }
 
 .log-service-panel__toggle {
   min-width: 1.5rem;
   padding: 0 0.35rem;
-  border: 1px solid rgba(94, 74, 48, 0.6);
-  background: rgba(20, 15, 10, 0.9);
-  color: #e8dcc8;
+  border: 1px solid var(--ui-metal-edge);
+  background: linear-gradient(180deg, #2a2e32 0%, #15181a 100%);
+  color: var(--ui-text);
   cursor: pointer;
   line-height: 1.2;
+  border-radius: 1px;
+}
+
+.log-service-panel__toggle:hover {
+  border-color: rgba(58, 208, 214, 0.55);
+  color: #d7f6f8;
 }
 
 .log-service-panel__toggle[data-unread]::after {
   content: ' (' attr(data-unread) ')';
-  color: #ffb347;
+  color: var(--ui-holo);
   font-size: 0.65rem;
 }
 
@@ -3104,10 +3198,61 @@ body[data-react-game-hud-ui='1'] #game-container {
   height: 100%;
   max-height: 100vh;
   z-index: 930;
-  background: rgba(8, 10, 14, 0.96);
-  border-left: 2px solid #5e4a30;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 12px 12px,
+      rgba(210, 220, 230, 0.22) 0 1px,
+      #5a6168 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 36%,
+      transparent 64%,
+      rgba(0, 0, 0, 0.3) 100%
+    ),
+    linear-gradient(180deg, var(--ui-metal-face-top) 0%, #121416 42%, var(--ui-metal-face-bottom) 100%);
+  border-left: 2px solid var(--ui-metal-edge);
+  box-shadow:
+    inset 1px 0 0 rgba(58, 208, 214, 0.18),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.06),
+    -8px 0 28px rgba(0, 0, 0, 0.45);
   box-sizing: border-box;
   pointer-events: auto;
+}
+
+/* Overlay holo da coluna fixa (brackets + grid fino) */
+.game-hud-sidebar--persistent.ui-skin-hybrid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 10px 10px / 14px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 10px 10px / 1.5px 14px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 10px) 10px / 14px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 10px) 10px / 1.5px 14px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 10px calc(100% - 10px) / 14px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 10px calc(100% - 10px) / 1.5px 14px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 10px) calc(100% - 10px) / 14px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 10px) calc(100% - 10px) / 1.5px 14px no-repeat,
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 10px,
+      rgba(58, 208, 214, 0.02) 10px 11px
+    ),
+    radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.07) 0%, transparent 42%);
+  opacity: 0.95;
+}
+
+.game-hud-sidebar--persistent.ui-skin-hybrid > * {
+  position: relative;
+  z-index: 1;
 }
 
 #sidebar.equipment-sidebar-host,
@@ -3119,8 +3264,8 @@ body[data-react-game-hud-ui='1'] #game-container {
   height: 100%;
   max-height: 100vh;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.92);
-  border-left: 2px solid #5e4a30;
+  background: transparent;
+  border-left: 2px solid var(--ui-metal-edge);
   padding: var(--sidebar-stack-gap);
   display: flex;
   flex-direction: column;
@@ -3143,9 +3288,9 @@ body[data-react-game-hud-ui='1'] #game-container {
 }
 
 .sidebar-wallet__slot {
-  background: #000000;
-  border: 1px solid #8b6d43;
-  color: #8b6d43;
+  background: linear-gradient(180deg, #1c1f22 0%, #0e1012 100%);
+  border: 1px solid var(--ui-metal-edge);
+  color: var(--ui-text-holo);
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.72rem;
   letter-spacing: 0.05em;
@@ -3155,6 +3300,9 @@ body[data-react-game-hud-ui='1'] #game-container {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.08);
 }
 
 .equipment-sidebar-host .sidebar-minimap {
@@ -3168,8 +3316,17 @@ body[data-react-game-hud-ui='1'] #game-container {
   height: auto;
   min-height: 0;
   padding: 5px;
-  border: 1px solid #5e4a30;
-  background: rgba(10, 8, 6, 0.75);
+  border: 1px solid var(--ui-metal-edge);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 7px,
+      rgba(58, 208, 214, 0.03) 7px 8px
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, var(--ui-metal-face-bottom) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    inset 0 2px 8px rgba(0, 0, 0, 0.45);
   box-sizing: border-box;
   align-self: center;
 }
@@ -3221,19 +3378,21 @@ body[data-react-game-hud-ui='1'] #game-container {
 .equipment-sidebar__header {
   text-align: center;
   padding-bottom: 0.28rem;
-  border-bottom: 1px solid rgba(94, 74, 48, 0.65);
+  border-bottom: 1px solid rgba(58, 63, 68, 0.95);
+  box-shadow: 0 1px 0 rgba(58, 208, 214, 0.12);
 }
 
 .equipment-sidebar__name {
   font-size: 0.9rem;
   letter-spacing: 0.08em;
-  color: #00ffcc;
+  color: var(--ui-holo);
   margin: 0;
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.25);
 }
 
 .equipment-sidebar__level {
   font-size: 0.72rem;
-  color: #d4b483;
+  color: var(--ui-text-muted);
   margin: 0.15rem 0 0;
   opacity: 0.9;
 }
@@ -3253,15 +3412,16 @@ body[data-react-game-hud-ui='1'] #game-container {
 }
 
 .vital-label {
-  color: #d4b483;
+  color: var(--ui-text-muted);
   font-weight: bold;
 }
 
 .vital-bar {
   height: 8px;
-  border: 1px solid #5e4a30;
+  border: 1px solid var(--ui-metal-edge);
   background: rgba(0, 0, 0, 0.45);
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.06);
 }
 
 .vital-bar__fill {
@@ -3279,7 +3439,7 @@ body[data-react-game-hud-ui='1'] #game-container {
 }
 
 .vital-bar--cap .vital-bar__fill {
-  background: linear-gradient(90deg, #6a5020, #d4b483);
+  background: linear-gradient(90deg, #1a5a5e, var(--ui-holo));
 }
 
 .vital-bar__fill--warning {
@@ -3304,21 +3464,21 @@ body[data-react-game-hud-ui='1'] #game-container {
 
 .vital-value {
   font-size: 0.62rem;
-  color: #d4b483;
+  color: var(--ui-text-muted);
   min-width: 2.8rem;
   text-align: right;
 }
 
 .equipment-sidebar__stats {
   padding: 0.28rem 0;
-  border-top: 1px solid rgba(94, 74, 48, 0.45);
-  border-bottom: 1px solid rgba(94, 74, 48, 0.45);
+  border-top: 1px solid rgba(58, 63, 68, 0.75);
+  border-bottom: 1px solid rgba(58, 63, 68, 0.75);
 }
 
 .equipment-sidebar__progression {
   padding: 0.28rem 0;
-  border-top: 1px solid rgba(94, 74, 48, 0.45);
-  border-bottom: 1px solid rgba(94, 74, 48, 0.45);
+  border-top: 1px solid rgba(58, 63, 68, 0.75);
+  border-bottom: 1px solid rgba(58, 63, 68, 0.75);
 }
 
 .equipment-sidebar__progression-level {
@@ -3326,19 +3486,20 @@ body[data-react-game-hud-ui='1'] #game-container {
   font-size: 0.82rem;
   font-weight: 700;
   text-align: center;
-  color: #00ffcc;
+  color: var(--ui-holo);
 }
 
 .equipment-sidebar__xp-bar {
   height: 7px;
-  border: 1px solid #5e4a30;
+  border: 1px solid var(--ui-metal-edge);
   background: rgba(0, 0, 0, 0.45);
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.06);
 }
 
 .equipment-sidebar__xp-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1a6e5a, #00ffcc);
+  background: linear-gradient(90deg, #1a6e5a, var(--ui-holo));
   transition: width 0.25s ease;
 }
 
@@ -3353,7 +3514,7 @@ body[data-react-game-hud-ui='1'] #game-container {
   margin: 0.1rem 0 0;
   font-size: 0.55rem;
   text-align: center;
-  color: #c9a86a;
+  color: var(--ui-text-muted);
   opacity: 0.85;
   line-height: 1.2;
 }
@@ -3363,7 +3524,7 @@ body[data-react-game-hud-ui='1'] #game-container {
   font-size: 0.64rem;
   letter-spacing: 0.1em;
   text-align: center;
-  color: #00ffcc;
+  color: var(--ui-holo);
   opacity: 0.85;
 }
 
@@ -3385,17 +3546,17 @@ body[data-react-game-hud-ui='1'] #game-container {
 }
 
 .equip-stat__label {
-  color: #d4b483;
+  color: var(--ui-text-muted);
 }
 
 .equip-stat__value {
-  color: #7dffb3;
+  color: var(--ui-text-holo);
   font-weight: bold;
 }
 
 .equip-stat--empty {
   justify-content: center;
-  color: #8a7a62;
+  color: rgba(160, 180, 188, 0.55);
   font-size: 0.68rem;
   opacity: 0.75;
 }
@@ -3406,8 +3567,8 @@ body[data-react-game-hud-ui='1'] #game-container {
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-align: center;
-  color: #d4b483;
-  opacity: 0.85;
+  color: var(--ui-text-muted);
+  opacity: 0.9;
 }
 
 .equip-grid {
@@ -3437,9 +3598,9 @@ body[data-react-game-hud-ui='1'] #game-container {
   justify-self: center;
   padding: 0;
   box-sizing: border-box;
-  border: 2px solid #5e4a30;
-  background: rgba(12, 10, 8, 0.92);
-  color: #d4b483;
+  border: 2px solid var(--ui-metal-edge);
+  background: linear-gradient(180deg, #1c1f22 0%, #121416 100%);
+  color: var(--ui-text-muted);
   font-family: inherit;
   cursor: pointer;
   /* Grid 1×1: placeholder e sprite compartilham a mesma célula central. */
@@ -3449,6 +3610,9 @@ body[data-react-game-hud-ui='1'] #game-container {
   gap: 0;
   position: relative;
   overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.45);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -3465,13 +3629,18 @@ body[data-react-game-hud-ui='1'] #game-container {
 
 .equip-slot:hover,
 .equip-slot--highlight {
-  border-color: #00ffcc;
-  box-shadow: 0 0 10px rgba(0, 255, 204, 0.35);
+  border-color: var(--ui-holo);
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 208, 214, 0.18),
+    0 0 10px rgba(58, 208, 214, 0.28);
 }
 
 .equip-slot--filled {
-  border-color: #c5a059;
-  background: rgba(20, 15, 10, 0.96);
+  border-color: rgba(58, 208, 214, 0.42);
+  background: linear-gradient(180deg, #22262a 0%, #16191c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 6px rgba(58, 208, 214, 0.08);
 }
 
 .equip-slot--pending,
@@ -3608,15 +3777,29 @@ img.equip-slot__sprite {
   }
 }
 
-/* MÃ³dulos genÃ©ricos da VORTEX */
+/* Módulos genéricos — chapa metálica + holo */
 .vortex-panel,
 .panel {
-  border: 2px solid #5e4a30;
-  background: rgba(20, 15, 10, 0.9);
+  border: 2px solid var(--ui-metal-edge);
+  background:
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.25) 100%
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    0 0 12px rgba(58, 208, 214, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
 .char-slot.vortex-panel {
-  background: rgba(0, 0, 0, 0.6);
+  background:
+    linear-gradient(165deg, #16191c 0%, #0c0e10 100%);
 }
 
 /* Chat global + log do jogo (stack inferior esquerdo) — React usa .chat-box */
@@ -3636,7 +3819,7 @@ img.equip-slot__sprite {
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #d4b483;
+  color: var(--ui-text-holo);
 }
 
 .chat-content {
@@ -3656,24 +3839,32 @@ img.equip-slot__sprite {
 }
 
 .chat-line--player {
-  color: #e8dcc8;
+  color: var(--ui-text);
 }
 
 #chat-box input,
 .chat-box input {
   width: 100%;
   padding: 5px 10px;
-  border: 1px solid #5e4a30;
-  background: rgba(10, 8, 6, 0.9);
-  color: #d4b483;
+  border: 1px solid var(--ui-metal-edge);
+  background: rgba(6, 8, 10, 0.9);
+  color: var(--ui-text);
   font-family: inherit;
   font-size: 13px;
   box-sizing: border-box;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.06);
+}
+
+#chat-box input:focus,
+.chat-box input:focus {
+  outline: 1px solid var(--ui-holo);
+  box-shadow: 0 0 8px rgba(58, 208, 214, 0.2);
 }
 
 #chat-box input::placeholder,
 .chat-box input::placeholder {
-  color: rgba(212, 180, 131, 0.45);
+  color: rgba(160, 180, 188, 0.45);
 }
 .combat-grid {
   display: grid;
@@ -6397,6 +6588,9 @@ body > .battle-result-overlay,
 }
 
 .world-game-clock {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex !important;
   flex-direction: column;
   justify-content: center;
@@ -6407,23 +6601,41 @@ body > .battle-result-overlay,
   height: auto;
   min-height: 62px;
   padding: 5px 10px;
-  border: 2px solid #3d5e4a;
-  border-radius: 4px;
+  border: 2px solid var(--ui-metal-edge);
+  border-radius: 2px;
   box-sizing: border-box;
   visibility: visible !important;
   opacity: 1 !important;
   background:
-    linear-gradient(180deg, rgba(6, 14, 10, 0.98) 0%, rgba(10, 18, 14, 0.94) 100%);
+    radial-gradient(
+      circle at 10px 10px,
+      rgba(210, 220, 230, 0.2) 0 1px,
+      #5a6168 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.25) 100%
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
-    inset 0 0 12px rgba(0, 255, 170, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 12px rgba(58, 208, 214, 0.1),
     0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
 .world-game-clock__label {
   font-size: 11px;
   letter-spacing: 0.14em;
-  color: #6a9a82;
+  color: var(--ui-text-muted);
   line-height: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .world-game-clock__time {
@@ -6431,16 +6643,20 @@ body > .battle-result-overlay,
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #5dffb0;
+  color: var(--ui-holo);
   line-height: 1.1;
-  text-shadow: 0 0 8px rgba(93, 255, 176, 0.3);
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .world-game-clock__phase {
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: #8ab89e;
+  color: var(--ui-text-muted);
   line-height: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .world-game-clock[data-phase='night'] .world-game-clock__time {
@@ -6463,11 +6679,19 @@ body > .battle-result-overlay,
   justify-content: center;
   min-height: 62px;
   padding: 0 1.02rem;
-  border: 2px solid #5e4a30;
-  border-radius: 4px;
+  border: 2px solid var(--ui-metal-edge);
+  border-radius: 2px;
   box-sizing: border-box;
-  background: rgba(20, 15, 10, 0.92);
-  color: #d4b483;
+  background:
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.25) 100%
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
+  color: var(--ui-text);
   font-family: inherit;
   font-size: 14px;
   letter-spacing: 0.12em;
@@ -6475,11 +6699,17 @@ body > .battle-result-overlay,
   cursor: pointer;
   visibility: visible !important;
   opacity: 1 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    0 0 10px rgba(58, 208, 214, 0.08);
 }
 
 .ui-hub-launcher:hover {
-  filter: brightness(1.08);
-  border-color: #00ffcc;
+  border-color: rgba(58, 208, 214, 0.65);
+  color: #d7f6f8;
+  box-shadow: 0 0 14px rgba(58, 208, 214, 0.28);
+  filter: none;
 }
 
 .ui-panel {
@@ -6489,9 +6719,21 @@ body > .battle-result-overlay,
   min-width: min(320px, 92vw);
   max-width: min(420px, 94vw);
   max-height: min(70vh, 520px);
-  border: 2px solid #5e4a30;
-  background: rgba(20, 15, 10, 0.94);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  border: 2px solid var(--ui-metal-edge);
+  background:
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.25) 100%
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    0 0 12px rgba(58, 208, 214, 0.08),
+    0 8px 28px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
 
@@ -6546,12 +6788,13 @@ body > .battle-result-overlay,
   min-height: min(480px, 72vh);
   max-height: min(560px, 82vh);
   flex-direction: column;
-  border-color: rgba(201, 168, 106, 0.55);
+  border-color: var(--ui-metal-edge);
   background:
-    linear-gradient(180deg, rgba(74, 56, 40, 0.35) 0%, rgba(12, 10, 8, 0.96) 28%),
-    rgba(16, 12, 8, 0.97);
+    linear-gradient(180deg, rgba(58, 208, 214, 0.06) 0%, rgba(12, 13, 15, 0.2) 28%),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
-    0 0 0 1px rgba(201, 162, 39, 0.12),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 14px rgba(58, 208, 214, 0.1),
     0 12px 36px rgba(0, 0, 0, 0.55);
 }
 
@@ -7121,19 +7364,35 @@ body > .battle-result-overlay,
   color: #d4b483;
 }
 
-.marcos-node--branch-pick {
-  border-color: rgba(0, 255, 204, 0.65);
-  box-shadow:
-    0 0 10px rgba(0, 255, 204, 0.35),
-    inset 0 0 10px rgba(0, 255, 204, 0.08);
-  animation: marcos-branch-pick-pulse 2s ease-in-out infinite;
+/* Disponíveis para escolha — neutras (não parecem pré-selecionadas). */
+.marcos-node--trail-choice {
+  border-color: rgba(160, 180, 188, 0.45);
+  border-style: dashed;
+  background: rgba(12, 14, 16, 0.88);
+  color: #b8c8cc;
+  cursor: pointer;
+  box-shadow: none;
+  animation: none;
 }
 
-.marcos-node--trail-choice {
-  border-color: rgba(0, 255, 204, 0.45);
+.marcos-node--trail-choice:hover {
+  border-style: solid;
+  border-color: rgba(58, 208, 214, 0.7);
+  color: #d7f6f8;
+  box-shadow: 0 0 10px rgba(58, 208, 214, 0.28);
+}
+
+/* Só a trilha já clicada (pending) — nunca nas 3 ao abrir o painel. */
+.marcos-node--branch-pick,
+.marcos-node--trail-choice.marcos-node--branch-pick {
+  border-style: solid;
+  border-color: rgba(0, 255, 204, 0.85);
+  box-shadow:
+    0 0 12px rgba(0, 255, 204, 0.45),
+    inset 0 0 12px rgba(0, 255, 204, 0.1);
+  animation: marcos-branch-pick-pulse 2s ease-in-out infinite;
+  color: #e8fff8;
   background: rgba(0, 40, 36, 0.55);
-  color: #b8fff0;
-  cursor: pointer;
 }
 
 .marcos-grid--trail-choice .marcos-node--soft-dim {
@@ -7142,11 +7401,20 @@ body > .battle-result-overlay,
   pointer-events: none;
 }
 
+/* Com uma trilha pendente, as outras starters ficam ofuscadas mas clicáveis (trocar escolha). */
+.marcos-grid--trail-choice.marcos-grid--trail-pending .marcos-node--soft-dim.marcos-node--branch-starter {
+  pointer-events: auto;
+  opacity: 0.42;
+  filter: grayscale(0.4);
+  cursor: pointer;
+}
+
 .marcos-legend--choice {
   color: #7dffd0;
 }
 
 .marcos-node--branch-pick-hover {
+  border-style: solid;
   border-color: #00ffcc;
   transform: scale(1.03);
   box-shadow:
@@ -7210,7 +7478,7 @@ body > .battle-result-overlay,
 }
 
 .marcos-node--selected {
-  outline: 1px solid #c9a86a;
+  outline: 2px solid #00ffcc;
   outline-offset: 2px;
 }
 
@@ -7403,11 +7671,11 @@ body > .battle-result-overlay,
 }
 
 .ui-panel--characters {
-  width: min(960px, 96vw);
-  max-width: min(960px, 96vw);
-  min-width: min(720px, 96vw);
-  max-height: min(92vh, 660px) !important;
-  height: min(92vh, 660px);
+  width: min(920px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px));
+  max-width: min(920px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px));
+  min-width: min(560px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px));
+  max-height: min(88vh, 620px) !important;
+  height: min(88vh, 620px);
 }
 
 .ui-panel--characters .ui-panel__body,
@@ -9956,14 +10224,12 @@ body > .battle-result-overlay,
   min-width: min(520px, 94vw) !important;
   min-height: min(260px, 42vh) !important;
   max-height: min(380px, 58vh) !important;
-  border: 2px solid #5e4a30;
-  background: rgba(20, 15, 10, 0.94);
+  /* visual industrial: ver bloco .ui-panel--inventory (metal) no final do ficheiro */
 }
 
 .ui-panel--inventory .ui-panel__header,
 .ui-panel--inventory .inventory-panel__header {
   padding: calc(0.65rem * var(--hud-ui-scale, 1)) calc(0.9rem * var(--hud-ui-scale, 1));
-  border-bottom: 1px solid rgba(94, 74, 48, 0.9);
 }
 
 .ui-panel--inventory .inventory-grid {
@@ -9996,18 +10262,21 @@ body > .battle-result-overlay,
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.65rem 0.85rem;
-  border-bottom: 1px solid #5e4a30;
+  border-bottom: 1px solid rgba(58, 63, 68, 0.95);
+  background: linear-gradient(180deg, rgba(48, 52, 56, 0.45) 0%, rgba(12, 13, 15, 0.2) 100%);
 }
 
 .ui-panel__title {
   font-size: 0.9rem;
   letter-spacing: 0.1em;
+  color: var(--ui-text);
+  text-transform: uppercase;
 }
 
 .ui-panel__close {
-  border: 1px solid #5e4a30;
-  background: transparent;
-  color: #d4b483;
+  border: 1px solid var(--ui-metal-edge);
+  background: linear-gradient(180deg, #2a2e32 0%, #15181a 100%);
+  color: var(--ui-text-muted);
   width: 1.75rem;
   height: 1.75rem;
   cursor: pointer;
@@ -10017,6 +10286,12 @@ body > .battle-result-overlay,
   z-index: 4;
   pointer-events: auto;
   touch-action: manipulation;
+}
+
+.ui-panel__close:hover {
+  border-color: rgba(58, 208, 214, 0.55);
+  color: #d7f6f8;
+  box-shadow: 0 0 10px rgba(58, 208, 214, 0.25);
 }
 
 .ui-panel__body {
@@ -15565,4 +15840,485 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 @keyframes battle-portrait-heal-glow {
   0% { filter: drop-shadow(0 0 14px rgba(126, 249, 216, 0.9)); }
   100% { filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55)); }
+}
+
+/* ── Inventário: híbrido chapa metálica + overlay holográfico (só .ui-panel--inventory) ──
+   Padrão das refs: metal = chassis físico; holo = UI emissiva projetada na chapa. */
+.ui-panel--inventory,
+.ui-panel--inventory.ui-panel--inventory-hybrid,
+.ui-panel--inventory.ui-panel--inventory-holo,
+.ui-panel--inventory.ui-panel--inventory-metal,
+.ui-panel--inventory.border-alter-accent\/70,
+.ui-panel--inventory.border-white\/15,
+.ui-panel--inventory.bg-\[rgba\(8\,14\,16\,0\.96\)\],
+.ui-panel--inventory.bg-\[rgba\(8\,12\,14\,0\.92\)\],
+.world-panel--inventory.ui-panel {
+  --inv-metal-edge: var(--ui-metal-edge);
+  --inv-metal-face-top: var(--ui-metal-face-top);
+  --inv-metal-face-bottom: var(--ui-metal-face-bottom);
+  --inv-holo: var(--ui-holo);
+  --inv-holo-glow: var(--ui-holo-glow);
+  position: relative;
+  isolation: isolate;
+  border-radius: 2px !important;
+  border: 3px solid var(--inv-metal-edge) !important;
+  background:
+    /* rebites TL / TR — hardware da chapa */
+    radial-gradient(
+      circle at 11px 11px,
+      rgba(210, 220, 230, 0.28) 0 1px,
+      #5a6168 1.5px 3.2px,
+      #1a1d20 3.5px 4.5px,
+      transparent 5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 11px) 11px,
+      rgba(210, 220, 230, 0.28) 0 1px,
+      #5a6168 1.5px 3.2px,
+      #1a1d20 3.5px 4.5px,
+      transparent 5px
+    ),
+    /* brilho de chapa */
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.045) 0%,
+      transparent 38%,
+      transparent 62%,
+      rgba(0, 0, 0, 0.28) 100%
+    ),
+    linear-gradient(165deg, var(--inv-metal-face-top) 0%, #121416 48%, var(--inv-metal-face-bottom) 100%)
+    !important;
+  background-color: #0d0e10 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -3px 10px rgba(0, 0, 0, 0.55),
+    /* reflexo holo fraco na moldura metálica */
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 14px rgba(58, 208, 214, 0.1),
+    0 16px 40px rgba(0, 0, 0, 0.58) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Camada holográfica: rasuras na chapa + grid/brackets emissivos por cima */
+.ui-panel--inventory::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 1;
+  background-image:
+    /* wear físico */
+    url('/assets/ui/metal-scratch-gash.svg'),
+    url('/assets/ui/metal-scratch-gash.svg'),
+    url('/assets/ui/inventory-metal-scratches.svg'),
+    /* brackets holo nos cantos */
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    linear-gradient(var(--inv-holo), var(--inv-holo)),
+    /* grid holo fino */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 8px,
+      rgba(58, 208, 214, 0.03) 8px 9px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 8px,
+      rgba(58, 208, 214, 0.022) 8px 9px
+    ),
+    radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.07) 0%, transparent 50%);
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat, no-repeat,
+    no-repeat, no-repeat,
+    no-repeat, no-repeat,
+    no-repeat, no-repeat,
+    repeat,
+    repeat,
+    no-repeat;
+  background-size:
+    55% auto,
+    38% auto,
+    100% 100%,
+    16px 1.5px, 1.5px 16px,
+    16px 1.5px, 1.5px 16px,
+    16px 1.5px, 1.5px 16px,
+    16px 1.5px, 1.5px 16px,
+    auto,
+    auto,
+    100% 60%;
+  background-position:
+    8% 24%,
+    54% 68%,
+    center,
+    10px 10px, 10px 10px,
+    calc(100% - 10px) 10px, calc(100% - 10px) 10px,
+    10px calc(100% - 10px), 10px calc(100% - 10px),
+    calc(100% - 10px) calc(100% - 10px), calc(100% - 10px) calc(100% - 10px),
+    0 0,
+    0 0,
+    center top;
+}
+
+/* Filete holo sob o header — “projeção” na junta da chapa */
+.ui-panel--inventory::after {
+  content: '';
+  position: absolute;
+  top: 2.55rem;
+  left: 50%;
+  z-index: 2;
+  width: calc(100% - 28px);
+  height: 1px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(58, 208, 214, 0.15) 12%,
+    rgba(58, 208, 214, 0.65) 50%,
+    rgba(58, 208, 214, 0.15) 88%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px rgba(58, 208, 214, 0.35);
+}
+
+.ui-panel--inventory > .ui-panel__header,
+.ui-panel--inventory > .ui-panel__body,
+.ui-panel--inventory > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ui-panel--inventory .ui-panel__header {
+  border-bottom: 1px solid rgba(58, 63, 68, 0.95) !important;
+  background:
+    linear-gradient(180deg, rgba(48, 52, 56, 0.5) 0%, rgba(12, 13, 15, 0.28) 100%) !important;
+  box-shadow:
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding-left: 1.15rem !important;
+  padding-right: 1rem !important;
+}
+
+.ui-panel--inventory .ui-panel__header h2,
+.ui-panel--inventory .ui-panel__title {
+  color: #c8ced0 !important;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85);
+}
+
+.ui-panel--inventory .ui-panel__title-meta {
+  color: rgba(58, 208, 214, 0.78) !important;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace !important;
+  font-size: 0.58rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: none !important;
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.35);
+}
+
+.ui-panel--inventory .ui-panel__title-text {
+  color: #d8e4ec !important;
+}
+
+.ui-panel--inventory .ui-panel__header button[data-action="close"],
+.ui-panel--inventory .ui-panel__close {
+  position: relative;
+  z-index: 8;
+  border: 1px solid #3a3f44 !important;
+  color: #a8b0b8 !important;
+  background: linear-gradient(180deg, #2a2e32 0%, #15181a 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+  border-radius: 1px !important;
+}
+
+.ui-panel--inventory .ui-panel__header button[data-action="close"]:hover,
+.ui-panel--inventory .ui-panel__close:hover {
+  border-color: rgba(58, 208, 214, 0.55) !important;
+  color: #d7f6f8 !important;
+  box-shadow: 0 0 10px rgba(58, 208, 214, 0.25);
+}
+
+.ui-panel--inventory .inventory-panel__meta {
+  color: rgba(160, 180, 188, 0.78) !important;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  letter-spacing: 0.08em;
+}
+
+/* Barra de seleção = módulo holo encaixado na chapa */
+.ui-panel--inventory .inventory-panel__selection-bar {
+  border: 1px solid #3a3f44 !important;
+  background:
+    linear-gradient(180deg, rgba(58, 208, 214, 0.07) 0%, rgba(10, 11, 12, 0.82) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 10px rgba(58, 208, 214, 0.08);
+}
+
+.ui-panel--inventory .inventory-panel__selection-abbrev {
+  border-color: rgba(58, 208, 214, 0.35) !important;
+  background: #121416 !important;
+}
+
+.ui-panel--inventory .inventory-panel__selection-label {
+  color: #d5dce6 !important;
+}
+
+.ui-panel--inventory .inventory-panel__confirm-btn {
+  border: 1px solid #3a3f44 !important;
+  background: linear-gradient(180deg, #2c3238 0%, #171a1d 100%) !important;
+  color: #b8c4cc !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.35);
+  border-radius: 1px;
+}
+
+.ui-panel--inventory .inventory-panel__confirm-btn:hover:not(:disabled) {
+  border-color: rgba(58, 208, 214, 0.65) !important;
+  color: #d7f0f4 !important;
+  box-shadow: 0 0 12px rgba(58, 208, 214, 0.28);
+}
+
+.ui-panel--inventory .inventory-panel__delete-btn {
+  border: 1px solid #4a3538 !important;
+  background: linear-gradient(180deg, #2a1c1e 0%, #140e10 100%) !important;
+  color: #d0a8a8 !important;
+  border-radius: 1px;
+}
+
+/* Poço metálico + vidro holo interno */
+.ui-panel--inventory .inventory-panel__frame {
+  border: 2px solid #3a3f44 !important;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 7px,
+      rgba(58, 208, 214, 0.028) 7px 8px
+    ),
+    linear-gradient(180deg, rgba(58, 208, 214, 0.04) 0%, transparent 35%),
+    linear-gradient(180deg, #15171a 0%, #0a0b0d 100%) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.7),
+    inset 0 2px 10px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Slots: cavidade metal + borda emissiva holo */
+.ui-panel--inventory .inventory-grid .slot-item {
+  border: 1px solid #2e3338 !important;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, #1c1f22 0%, #141618 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.45) !important;
+}
+
+.ui-panel--inventory .inventory-grid .slot-item--filled {
+  border-color: rgba(58, 208, 214, 0.32) !important;
+  background:
+    linear-gradient(180deg, #22262a 0%, #16191c 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.08),
+    0 0 5px rgba(58, 208, 214, 0.06) !important;
+}
+
+.ui-panel--inventory .inventory-grid .slot-item--filled:hover,
+.ui-panel--inventory .inventory-grid .slot-item--filled:focus-visible {
+  border-color: rgba(58, 208, 214, 0.6) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 10px rgba(58, 208, 214, 0.22) !important;
+}
+
+.ui-panel--inventory .inventory-grid .slot-item--selected {
+  border-color: var(--inv-holo) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 208, 214, 0.28),
+    0 0 0 1px rgba(58, 208, 214, 0.35),
+    0 0 12px rgba(58, 208, 214, 0.35) !important;
+}
+
+/* ── Skin global metal+holo (login, char-select, painéis, HUD chrome) ── */
+.ui-skin-hybrid:not(.game-hud-sidebar--persistent),
+.vortex-panel.ui-skin-hybrid,
+.ui-panel.ui-skin-hybrid,
+.ui-panel.ui-skin-hybrid.border-\[rgba\(58\,208\,214\,0\.55\)\],
+.ui-panel.ui-skin-hybrid.border-\[rgba\(58\,63\,68\,0\.95\)\],
+.ui-panel.ui-skin-hybrid.bg-\[rgba\(13\,14\,16\,0\.96\)\],
+.ui-panel.ui-skin-hybrid.bg-\[rgba\(13\,14\,16\,0\.92\)\] {
+  border-radius: 2px !important;
+  border-color: var(--ui-metal-edge) !important;
+  background:
+    radial-gradient(
+      circle at 10px 10px,
+      rgba(210, 220, 230, 0.22) 0 1px,
+      #5a6168 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 10px) 10px,
+      rgba(210, 220, 230, 0.22) 0 1px,
+      #5a6168 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.045) 0%,
+      transparent 38%,
+      transparent 62%,
+      rgba(0, 0, 0, 0.28) 100%
+    ),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%)
+    !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 14px rgba(58, 208, 214, 0.1),
+    0 14px 36px rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.ui-skin-hybrid.ui-skin-hybrid--focused {
+  border-color: rgba(58, 208, 214, 0.55) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.22),
+    0 0 18px rgba(58, 208, 214, 0.22),
+    0 14px 36px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Brackets holo — só em shells que não têm overlay próprio (inventário / sidebar fixa sobrescrevem) */
+.ui-skin-hybrid:not(.ui-panel--inventory):not(.game-hud-sidebar--persistent)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px 8px / 12px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px 8px / 1.5px 12px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) 8px / 12px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) 8px / 1.5px 12px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 12px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 1.5px 12px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 12px 1.5px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 1.5px 12px no-repeat,
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 9px,
+      rgba(58, 208, 214, 0.022) 9px 10px
+    );
+  opacity: 0.9;
+}
+
+.login-box.ui-skin-hybrid,
+.char-create-box.ui-skin-hybrid,
+.pause-menu-panel.ui-skin-hybrid,
+.char-select-server-panel.ui-skin-hybrid,
+.char-slot.ui-skin-hybrid,
+.chat-box.ui-skin-hybrid,
+.log-service-panel.ui-skin-hybrid,
+.player-vitals-strip.ui-skin-hybrid,
+.world-game-clock.ui-skin-hybrid,
+.ui-hub-launcher.ui-skin-hybrid,
+.battle-surrender-confirm__card.ui-skin-hybrid {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.ui-skin-hybrid > *,
+.login-box.ui-skin-hybrid > *,
+.char-create-box.ui-skin-hybrid > *,
+.pause-menu-panel.ui-skin-hybrid > *,
+.char-slot.ui-skin-hybrid > *,
+.chat-box.ui-skin-hybrid > *,
+.log-service-panel.ui-skin-hybrid > *,
+.player-vitals-strip.ui-skin-hybrid > *,
+.world-game-clock.ui-skin-hybrid > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ui-panel.ui-skin-hybrid .ui-panel__header {
+  border-bottom-color: rgba(58, 63, 68, 0.95) !important;
+  background: linear-gradient(180deg, rgba(48, 52, 56, 0.5) 0%, rgba(12, 13, 15, 0.25) 100%) !important;
+}
+
+.ui-panel.ui-skin-hybrid .ui-panel__title,
+.ui-panel.ui-skin-hybrid .ui-panel__title-text {
+  color: var(--ui-text) !important;
+  letter-spacing: 0.14em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85);
+}
+
+.ui-panel.ui-skin-hybrid .ui-panel__title-meta {
+  color: rgba(58, 208, 214, 0.78) !important;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.3);
+}
+
+.auth-panel-title,
+.login-box h1,
+[data-ui-surface='char-select-screen'] > h1 {
+  color: var(--ui-text);
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 12px rgba(58, 208, 214, 0.15);
+}
+
+.auth-form h1,
+.auth-panel-title,
+.auth-actions button,
+.auth-google-btn {
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+}
+
+/* Barra lateral fixa — reforço metal+holo (vence regras genéricas) */
+.game-hud-sidebar--persistent.ui-skin-hybrid {
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-left: 2px solid var(--ui-metal-edge) !important;
+  background:
+    radial-gradient(
+      circle at 12px 12px,
+      rgba(210, 220, 230, 0.22) 0 1px,
+      #5a6168 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035) 0%,
+      transparent 18%,
+      transparent 82%,
+      rgba(0, 0, 0, 0.35) 100%
+    ),
+    linear-gradient(180deg, var(--ui-metal-face-top) 0%, #121416 42%, var(--ui-metal-face-bottom) 100%)
+    !important;
+  box-shadow:
+    inset 1px 0 0 rgba(58, 208, 214, 0.2),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.06),
+    -10px 0 28px rgba(0, 0, 0, 0.5) !important;
 }

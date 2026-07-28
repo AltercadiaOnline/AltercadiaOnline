@@ -9,7 +9,7 @@ import { WorldWalletPanel } from '../world/hud/WorldWalletPanel.js';
 export function GameHudSidebar() {
   return (
     <aside
-      className="sidebar game-layout__sidebar hud-sidebar equipment-sidebar-host game-hud-sidebar--persistent pointer-events-auto"
+      className="sidebar game-layout__sidebar hud-sidebar equipment-sidebar-host game-hud-sidebar--persistent ui-skin-hybrid pointer-events-auto"
       aria-label="HUD lateral"
       data-ui-widget="game-sidebar"
       data-ui-surface="persistent-sidebar"

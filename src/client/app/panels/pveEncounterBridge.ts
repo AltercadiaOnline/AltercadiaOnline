@@ -6,6 +6,7 @@
  */
 
 import { resolvePlayerEquippedSkillIds } from '../../../shared/combat/movesetLoadout.js';
+import { getActiveCharacterClassId } from '../../character/activeCharacterIdentity.js';
 import { getGlobalPlayerStore } from '../../ui/moveset/globalPlayerStore.js';
 import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
 
@@ -28,7 +29,10 @@ function getSenderSlot(): GlobalWithPveEncounterBridge {
 }
 
 function resolveConfirmedActiveMovesets(): string[] {
-  const classId = getPlayerEquipmentStore().getSnapshot().classId || 'IMPETUS';
+  const classId =
+    getActiveCharacterClassId()
+    || getPlayerEquipmentStore().getSnapshot().classId
+    || 'IMPETUS';
   return resolvePlayerEquippedSkillIds(
     classId,
     getGlobalPlayerStore().getConfirmedLoadout(),

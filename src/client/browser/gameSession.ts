@@ -35,6 +35,10 @@ import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globa
 import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
 import { prefetchItemCatalogExtra } from '../../shared/items/itemCatalog.js';
 import { attachOnlineEconomyLayer, bindLocalGameCharacter, getDataStore, getMockEconomyService } from '../economy/economyLayer.js';
+import {
+  bindActiveCharacterIdentityFromHubSlot,
+  getActiveCharacterClassId,
+} from '../character/activeCharacterIdentity.js';
 import { getGameMode } from '../runtime/gameMode.js';
 import { requestReturnToExploration } from '../game/battleReturnToWorld.js';
 import {
@@ -774,17 +778,21 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
     initPlayerPetStore();
 
     const selected = AppScreens.getSelectedCharacter();
+    const identity = bindActiveCharacterIdentityFromHubSlot(selected);
     // Personagem existente: NÃO zerar inventário/carteira aqui — full-state-sync hidrata.
     // initializePlayerState fica só no DebugMenu (Reset Local Data).
     if (getGameMode() === 'local') {
-      if (!selected) {
-        throw new Error('Entrar no mundo exige personagem selecionado.');
+      if (!selected || !identity) {
+        throw new Error('Entrar no mundo exige personagem selecionado com classe válida.');
       }
       updatePlayerInitLoadingMessage('Carregando save do personagem…');
       const bound = await bindLocalGameCharacter(
         AppScreens.currentSession?.id ?? 'local-player',
-        selected.id,
-        ...(selected.name ? [{ displayName: selected.name }] as const : []),
+        identity.characterId,
+        {
+          displayName: identity.displayName,
+          classId: identity.classId,
+        },
       );
       if (!bound) {
         throw new Error('Falha ao ligar o save local do personagem (itens/pets).');
@@ -803,19 +811,22 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
         }
       }
     }
-    if (selected) {
+    if (selected && identity) {
       loadSelectedCharacterAppearance();
-      // SSOT: hub só define nome de apresentação. Level/XP/class vêm do save (local)
-      // ou do snapshot (online) — setProfile/setPlayerInfo(hub.level) zerava XP.
-      getPlayerProfileStore().setDisplayName(selected.name);
+      // Identidade do slot (nome/classe/skin) — Level/XP vêm do save ou snapshot.
+      getPlayerProfileStore().setDisplayName(identity.displayName);
       const equip = getPlayerEquipmentStore().getSnapshot();
-      getPlayerEquipmentStore().setPlayerInfo(selected.name, equip.level);
+      getPlayerEquipmentStore().setPlayerInfo(identity.displayName, equip.level, {
+        classId: identity.classId,
+      });
     }
     void prefetchItemCatalogExtra();
-    const equipmentStore = getPlayerEquipmentStore();
-    // Troca pool + invalida loadout de outra classe (seed IMPETUS do boot).
-    // full-state-sync / save local sobrescreve com o loadout confirmado logo em seguida.
-    getGlobalPlayerStore().ensureClassMovePool(equipmentStore.getSnapshot().classId);
+    // Pool/loadout seguem a identidade (nunca o seed IMPETUS do boot).
+    const linkedClassId =
+      getActiveCharacterClassId()
+      ?? identity?.classId
+      ?? getPlayerEquipmentStore().getSnapshot().classId;
+    getGlobalPlayerStore().ensureClassMovePool(linkedClassId);
     getBattleStore().resyncLoadout();
     initPlayerHudHpMaxSync();
     initCombatEquipmentBridge();
@@ -940,7 +951,11 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
         const pet = getPlayerPetStore().getSnapshot();
         const equipmentSnapshot = resolveClientCombatEquipmentSnapshot();
         const equipment = getPlayerEquipmentStore().getSnapshot();
-        const classId = equipment.classId || selectedCharacter?.class || 'IMPETUS';
+        const classId =
+          getActiveCharacterClassId()
+          || selectedCharacter?.class
+          || equipment.classId
+          || 'IMPETUS';
         const activeMovesets = resolvePlayerEquippedSkillIds(
           classId,
           getGlobalPlayerStore().getConfirmedLoadout(),

@@ -6,6 +6,7 @@ import { renderCreatureOnWorldMap } from '../../world/creatureWorldRenderer.js';
 import type { WorldNpcRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
 import { getResolvedNpcRegistry } from '../../../shared/world/npcRegistry.js';
 import { disableCanvasImageSmoothing } from '../../layout/gamePixelScale.js';
+import { snapToPixel } from '../../render/pixelSnap.js';
 import { renderWorldNpcSnapshot } from '../../world/npcRenderer.js';
 import { renderPetSprite } from '../../entities/pet/petRenderer.js';
 import { PetSpriteLoader } from '../../entities/pet/PetSpriteLoader.js';
@@ -73,7 +74,8 @@ export class ConstructEntityOverlay {
     ctx.clearRect(0, 0, VIEWPORT_W, VIEWPORT_H);
 
     ctx.save();
-    ctx.translate(-frame.cameraX, -frame.cameraY);
+    // Mesmo snap da Camera — Construct e overlay devem compartilhar pan inteiro.
+    ctx.translate(-snapToPixel(frame.cameraX), -snapToPixel(frame.cameraY));
 
     for (const actor of frame.worldActors) {
       if (actor.kind === 'npc') {

@@ -10,6 +10,7 @@ import { isPauseMenuOpen } from '../components/pauseMenu.js';
 import { isWorldSessionReady } from '../world/worldSessionGate.js';
 
 import { preloadPlayerSprites } from '../renderPlayer.js';
+import { snapToPixel } from '../render/pixelSnap.js';
 
 import type { MapTransitionPayload } from '../../shared/world/protocol.js';
 import type { ExplorationSnapshot } from '../../shared/game/gameState.js';
@@ -907,7 +908,11 @@ export class ExplorationScene implements Disposable {
 
 
   public prepareFrame(deltaMs = 16.67): void {
-    const drawPosition = { x: this.player.renderX, y: this.player.renderY };
+    // Foco/câmera em px inteiros — evita tremida/blur do sprite no overlay ao andar.
+    const drawPosition = {
+      x: snapToPixel(this.player.renderX),
+      y: snapToPixel(this.player.renderY),
+    };
 
     this.cameraManager.updateCamera(drawPosition, deltaMs);
 
@@ -924,10 +929,10 @@ export class ExplorationScene implements Disposable {
       const timestampMs = performance.now();
       publishExplorationRenderFrame({
         mapId: this.mapManager.currentMapId,
-        playerX: this.player.renderX,
-        playerY: this.player.renderY,
-        cameraX: this.camera.x,
-        cameraY: this.camera.y,
+        playerX: snapToPixel(this.player.renderX),
+        playerY: snapToPixel(this.player.renderY),
+        cameraX: snapToPixel(this.camera.x),
+        cameraY: snapToPixel(this.camera.y),
         facing: this.player.facing,
         timestampMs,
         playerSprite: this.playerAvatar.getAnimationSnapshot(),

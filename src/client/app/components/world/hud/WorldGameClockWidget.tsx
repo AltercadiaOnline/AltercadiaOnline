@@ -50,7 +50,7 @@ export function WorldGameClockWidget() {
     <div
       ref={rootRef}
       id="world-game-clock"
-      className="world-game-clock"
+      className="world-game-clock ui-skin-hybrid"
       style={{ pointerEvents: 'auto' }}
       aria-live="polite"
       aria-label="Hora do mundo"

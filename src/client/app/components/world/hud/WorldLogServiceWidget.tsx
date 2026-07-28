@@ -25,7 +25,7 @@ export function WorldLogServiceWidget() {
 
   return (
     <div
-      className={`log-service-panel ${expanded ? '' : 'log-service-panel--collapsed'}`}
+      className={`log-service-panel ui-skin-hybrid ${expanded ? '' : 'log-service-panel--collapsed'}`}
       data-ui-widget="world-log"
     >
       <div className="log-service-panel__header">

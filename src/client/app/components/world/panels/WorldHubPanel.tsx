@@ -13,7 +13,7 @@ export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) 
   return (
     <section
       id="world-hub-panel"
-      className="ui-panel ui-panel--hub ui-panel--hub-bar ui-panel--open pointer-events-auto"
+      className="ui-panel ui-panel--hub ui-panel--hub-bar ui-panel--open ui-skin-hybrid pointer-events-auto"
       style={{ zIndex }}
       role="dialog"
       aria-modal="false"

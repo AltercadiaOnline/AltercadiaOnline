@@ -131,9 +131,14 @@ export class PlayerAnimator {
     const frameDurationMs = this.resolveFrameDurationMs();
     this.accumulatorMs += deltaMs;
 
-    while (this.accumulatorMs >= frameDurationMs) {
+    // No máximo 1 frame por tick de render — vários passos no while embaralham o ciclo
+    // (hitch ou WASD contínuo com speed curto).
+    if (this.accumulatorMs >= frameDurationMs) {
       this.accumulatorMs -= frameDurationMs;
       this.frameIndex = (this.frameIndex + 1) % playableFrames;
+      if (this.accumulatorMs > frameDurationMs) {
+        this.accumulatorMs = 0;
+      }
     }
   }
 

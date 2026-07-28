@@ -178,9 +178,10 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
     <MovablePanelFrame
       windowId="inventory"
       title="Inventário"
+      titleMeta="// SYS/INV // 01"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--inventory ui-panel--inventory"
+      panelClassName="world-panel--inventory ui-panel--inventory ui-panel--inventory-hybrid"
       panelStyle={{ width: 'min(520px, 96vw)' }}
       onFocus={() => tryFocusReactWorldPanel('inventory')}
       onClose={() => tryCloseReactWorldPanel('inventory')}

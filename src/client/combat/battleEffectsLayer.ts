@@ -171,7 +171,7 @@ export function mountBattleEffectOnAnchor(
 
 export type BattleHitPopMode = 'damage' | 'heal' | 'shield';
 
-/** Número de impacto flutuante — parte do cenário, sem painel HUD. */
+/** Número de impacto flutuante — ao lado do PNG atingido (dano recebido). */
 export function showBattleHitPop(
   anchor: HTMLElement,
   amount: number,
@@ -193,7 +193,8 @@ export function showBattleHitPop(
     pop.textContent = `-${value}`;
   }
 
-  mountBattleEffectOnFighter(pop, anchor, { yFactor: 0 });
+  // Dano/cura/escudo: ao lado do fighter (aliado → direita do PNG; inimigo → esquerda).
+  mountBattleEffectBesideFighter(pop, anchor, { gapPx: 8, clampPadding: 8 });
 
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => pop.classList.add('is-visible'));

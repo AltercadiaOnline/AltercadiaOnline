@@ -26,10 +26,10 @@ export type PlayerSkinState = {
 
 function cloneOwned(owned: OwnedSkins): OwnedSkins {
   return {
-    hair: [...owned.hair],
-    shirt: [...owned.shirt],
-    pants: [...owned.pants],
-    shoes: [...owned.shoes],
+    hair: [...(owned.hair ?? [])],
+    shirt: [...(owned.shirt ?? [])],
+    pants: [...(owned.pants ?? [])],
+    shoes: [...(owned.shoes ?? [])],
   };
 }
 

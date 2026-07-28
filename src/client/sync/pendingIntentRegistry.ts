@@ -175,7 +175,13 @@ function isItemMutationAction(action: ClientAction): boolean {
     || action.type === 'EQUIP_FROM_INVENTORY'
     || action.type === 'UNEQUIP_TO_INVENTORY'
     || action.type === 'SYNC_LOADOUT'
+    || action.type === 'DELETE_ITEM'
   );
+}
+
+/** Pendências que devem girar slots de inventário/SET — nunca ZONE_ENSURE/chat/etc. */
+export function isInventoryUiSyncPending(): boolean {
+  return getPendingIntentRegistry().hasPendingItemMutation();
 }
 
 export function getPendingIntentRegistry(): PendingIntentRegistry {

@@ -17,13 +17,15 @@ export type PlayerAnimationConfig = {
 /**
  * Config central de animação top-down.
  * Quando o design mudar (ex.: 8 frames de walk), altere só aqui.
+ * male_1 design: walk com 6–8 frames — speed alto demais embaralha o ciclo contínuo.
  */
 export const PLAYER_ANIMATION_CONFIG: PlayerAnimationConfig = {
   frameWidth: 32,
   frameHeight: 32,
   walkAnimation: {
-    frameCount: 6,
-    speed: 0.12,
+    frameCount: 8,
+    /** ~180 ms/frame — ciclo legível ao segurar WASD (antes 120 ms embaralhava). */
+    speed: 0.18,
   },
   idleAnimation: {
     frameCount: 2,

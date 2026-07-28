@@ -297,13 +297,14 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
       title="Ficha do Personagem"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--characters ui-panel ui-panel--characters ui-panel--movable"
+      panelClassName="world-panel--characters ui-panel ui-panel--characters ui-panel--movable ui-skin-hybrid"
       bodyOverflow="hidden"
       panelStyle={{
-        width: 'min(960px, 96vw)',
-        minWidth: 'min(720px, 96vw)',
-        maxHeight: 'min(92vh, 660px)',
-        height: 'min(92vh, 660px)',
+        width: 'min(920px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
+        minWidth: 'min(560px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
+        maxWidth: 'min(920px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
+        maxHeight: 'min(88vh, 620px)',
+        height: 'min(88vh, 620px)',
       }}
       onFocus={() => tryFocusReactWorldPanel('characters')}
       onClose={() => tryCloseReactWorldPanel('characters')}
@@ -363,7 +364,7 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
                   const optionId = state.skinState.skin[slot];
                   const label = state.skinSlotLabels[slot];
                   const value = state.getSkinOptionLabel(slot, optionId);
-                  const ownedCount = state.skinState.ownedSkins[slot].length;
+                  const ownedCount = state.skinState.ownedSkins[slot]?.length ?? 0;
                   const isOpen = state.openSkinMenu === slot;
                   return (
                     <button
@@ -388,7 +389,7 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
                     {state.skinSlotLabels[state.openSkinMenu]}
                   </p>
                   <ul className="character-wardrobe__menu-list">
-                    {state.skinState.ownedSkins[state.openSkinMenu].map((optionId) => (
+                    {(state.skinState.ownedSkins[state.openSkinMenu] ?? []).map((optionId) => (
                       <li key={optionId}>
                         <button
                           type="button"

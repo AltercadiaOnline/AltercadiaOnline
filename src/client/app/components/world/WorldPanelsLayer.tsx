@@ -166,7 +166,7 @@ function renderPanelEntry(entry: OpenWorldPanelEntry, focusedWindowId: UiWindowI
 
 
 
-/** Camada de painéis móveis — acima do Construct, abaixo de overlays globais. */
+/** Camada de painéis móveis — irmã do WorldSceneShell no App (z 940 > sidebar 930). */
 
 export function WorldPanelsLayer() {
 

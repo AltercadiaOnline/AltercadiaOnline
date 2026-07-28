@@ -6,6 +6,8 @@ import { resolveWorldPanelTitle } from '../../panels/worldPanelRegistry.js';
 type MovablePanelFrameProps = {
   windowId: UiWindowId;
   title?: string;
+  /** Marcação industrial decorativa ao lado do título (ex.: inventário). */
+  titleMeta?: string;
   focused?: boolean;
   zIndex: number;
   panelClassName?: string;
@@ -25,6 +27,7 @@ type MovablePanelFrameProps = {
 export function MovablePanelFrame({
   windowId,
   title,
+  titleMeta,
   focused = false,
   zIndex,
   panelClassName = '',
@@ -68,11 +71,11 @@ export function MovablePanelFrame({
     <section
       ref={panelRef}
       className={[
-        'world-panel ui-panel ui-panel--open ui-panel--movable pointer-events-auto absolute left-0 top-0 flex max-h-[min(420px,82vh)] w-[min(360px,92vw)] flex-col overflow-hidden rounded-lg border shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm',
+        'world-panel ui-panel ui-panel--open ui-panel--movable ui-skin-hybrid pointer-events-auto absolute left-0 top-0 flex max-h-[min(420px,82vh)] w-[min(360px,92vw)] flex-col overflow-hidden border shadow-[0_12px_40px_rgba(0,0,0,0.45)]',
         panelClassName,
         focused
-          ? 'border-alter-accent/70 bg-[rgba(8,14,16,0.96)]'
-          : 'border-white/15 bg-[rgba(8,12,14,0.92)]',
+          ? 'ui-skin-hybrid--focused border-[rgba(58,208,214,0.55)] bg-[rgba(13,14,16,0.96)]'
+          : 'border-[rgba(58,63,68,0.95)] bg-[rgba(13,14,16,0.92)]',
       ].filter(Boolean).join(' ')}
       style={{
         zIndex,
@@ -88,12 +91,17 @@ export function MovablePanelFrame({
         className="ui-panel__header flex cursor-grab items-center justify-between gap-3 border-b border-white/10 px-3 py-2 active:cursor-grabbing"
         data-panel-drag-handle
       >
-        <h2 className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-alter-accent">
-          {resolvedTitle}
+        <h2 className="ui-panel__title flex min-w-0 items-center gap-2 truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-[#c8d4dc]">
+          {titleMeta ? (
+            <span className="ui-panel__title-meta shrink-0 font-medium tracking-[0.14em] text-[rgba(58,208,214,0.72)]">
+              {titleMeta}
+            </span>
+          ) : null}
+          <span className="ui-panel__title-text truncate">{resolvedTitle}</span>
         </h2>
         <button
           type="button"
-          className="rounded border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/70 hover:border-alter-accent/60 hover:text-alter-accent"
+          className="ui-panel__close rounded-none border border-[rgba(58,63,68,0.95)] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#a8b0b8] hover:border-[rgba(58,208,214,0.55)] hover:text-[#d7f6f8]"
           aria-label={`Fechar ${resolvedTitle}`}
           data-action="close"
           data-panel-no-drag

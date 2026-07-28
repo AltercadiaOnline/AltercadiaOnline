@@ -563,17 +563,27 @@ export class BattleController {
         return;
 
       case 'damage_impact': {
+        // Flash, −N e conta = dano RECEBIDO → sempre ao lado do PNG do alvo (step.targetId).
         const damageEvent = context?.damageEvent;
-        const payload = damageEvent?.payload;
-        // O evento DAMAGE_DEALT é a autoridade: o atacante só anima o ataque;
-        // flash, conta e −N pertencem sempre ao combatente que recebeu o dano.
-        const impactTargetId = payload?.targetId ?? step.targetId;
+        const payload =
+          damageEvent?.payload.targetId === step.targetId
+            ? damageEvent.payload
+            : undefined;
+        const impactTargetId = step.targetId;
         let targetPortrait = screen?.getPortraitElement(impactTargetId) ?? null;
         if (!targetPortrait && typeof document !== 'undefined') {
-          const isPlayerTarget =
-            Boolean(screen?.getPlayerActorId() && impactTargetId === screen.getPlayerActorId());
+          const playerId = screen?.getPlayerActorId();
+          const isAllyTarget =
+            impactTargetId.startsWith('pet_')
+            || Boolean(playerId && impactTargetId === playerId);
+          const isFoeTarget =
+            impactTargetId.startsWith('enemy_')
+            || impactTargetId.startsWith('mirror_')
+            || Boolean(playerId && impactTargetId !== playerId && !impactTargetId.startsWith('pet_'));
           targetPortrait = document.querySelector<HTMLElement>(
-            isPlayerTarget ? '#battle-player-portrait' : '#battle-opponent-portrait',
+            isAllyTarget || !isFoeTarget
+              ? '#battle-player-portrait'
+              : '#battle-opponent-portrait',
           );
         }
         if (!targetPortrait) return;

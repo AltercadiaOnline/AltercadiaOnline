@@ -39,6 +39,10 @@ public/assets/**/__MACOSX/
 public/assets/**/._*
 **/.DS_Store
 
+# Cópias acidentais do Explorer Windows ("arquivo (1).ts")
+**/* (1).*
+**/* (1)/
+
 # Segredos locais — nunca versionar
 .env
 .env.local

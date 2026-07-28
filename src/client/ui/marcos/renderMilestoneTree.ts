@@ -13,6 +13,7 @@ import { buildMarcoNodeProgressionTooltip } from '../../../shared/progression/pr
 import { renderProgressionTooltipAttrs } from '../tooltip/progressionTooltipAttrs.js';
 import {
   formatMarcoActiveXpLabel,
+  MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL,
   resolveMarcoProgressPercent,
 } from '../../../shared/progression/marcoProgression.js';
 import {
@@ -27,6 +28,8 @@ export type MarcoTreeRenderModel = {
   readonly hoverNodeId: string | null;
   readonly ramificacaoSelecionada: MarcoRamificacaoId | null;
   readonly trilhaTravada: boolean;
+  /** Nível do personagem — trilha só entra em modo escolha se >= Nv.10. */
+  readonly playerLevel: number;
 };
 
 const BRANCH_ORDER: readonly MarcoTreeBranch[] = ['fluxo', 'resiliencia', 'precisao'];
@@ -139,7 +142,12 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
     ? MARCO_TREE_NODES.find((n) => n.id === model.selectedNodeId)?.branch ?? null
     : null;
   const focusBranch = model.ramificacaoSelecionada ?? pendingBranch;
-  const isChoosingTrail = !model.ramificacaoSelecionada && !model.trilhaTravada;
+  const trailChoiceLevelMin = MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL[0] ?? 10;
+  // Só destaca as 3 trilhas quando o jogador PODE escolher (Nv.10+) e ainda não confirmou.
+  const isChoosingTrail =
+    !model.ramificacaoSelecionada
+    && !model.trilhaTravada
+    && model.playerLevel >= trailChoiceLevelMin;
 
   return sorted
     .map((nodeView) => {
@@ -149,19 +157,17 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
       const isBranchStarter = isMarcoBranchStarter(def.id);
       const tierLevel = def.layout.row + 1;
       const displayLevel = status === 'active' ? effectiveProgressionLevel || progressionLevel : tierLevel;
-      const isHovered = model.hoverNodeId === def.id;
       const isFreeChoiceStarter =
         isBranchStarter
         && status === 'available'
         && isChoosingTrail;
-      const isBranchPickHighlight =
-        isFreeChoiceStarter
-        && (model.selectedNodeId === def.id || (isHovered && !model.selectedNodeId));
+      // Glow forte só na trilha clicada (pending) — hover fica no CSS (:hover).
+      const isPendingPick = isFreeChoiceStarter && isSelected;
       const isPendingTrail = Boolean(pendingBranch && def.branch === pendingBranch && !model.trilhaTravada);
       const isConfirmedTrail = Boolean(model.ramificacaoSelecionada && def.branch === model.ramificacaoSelecionada);
-      // Sem trilha: só os 3 starters ficam em foco; com pending/confirmada, ofusca as outras colunas.
+      // Sem escolha: só starters em foco. Com pending: ofusca as outras colunas (starters incluídos).
       const isSoftDimmed = isChoosingTrail
-        ? !isBranchStarter
+        ? (pendingBranch ? def.branch !== pendingBranch : !isBranchStarter)
         : Boolean(focusBranch && def.branch !== focusBranch) && !isDimmedBranch;
 
       const statusClass = isFreeChoiceStarter
@@ -172,13 +178,15 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
             ? 'marcos-node--available'
             : 'marcos-node--locked';
 
-      const icon = isFreeChoiceStarter
-        ? '◇'
-        : status === 'locked' && !isDimmedBranch && !isSoftDimmed
-          ? '🔒'
-          : status === 'active'
-            ? '◆'
-            : '○';
+      const icon = isPendingPick
+        ? '◆'
+        : isFreeChoiceStarter
+          ? '◇'
+          : status === 'locked' && !isDimmedBranch && !isSoftDimmed
+            ? '🔒'
+            : status === 'active'
+              ? '◆'
+              : '○';
       const bonus = def.shortBonus ?? (def.speedFlat !== undefined ? `+${def.speedFlat}` : '');
 
       const levelLine =
@@ -196,7 +204,7 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
       return `
         <button
           type="button"
-          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isSelected ? ' marcos-node--selected' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isPendingTrail ? ' marcos-node--pending-trail' : ''}${isFreeChoiceStarter ? ' marcos-node--branch-pick' : ''}${isBranchPickHighlight && isHovered ? ' marcos-node--branch-pick-hover' : ''}${isBranchStarter && (isConfirmedTrail || isPendingTrail) ? ' marcos-node--branch-root' : ''}"
+          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isBranchStarter ? ' marcos-node--branch-starter' : ''}${isSelected ? ' marcos-node--selected' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isPendingTrail ? ' marcos-node--pending-trail' : ''}${isPendingPick ? ' marcos-node--branch-pick' : ''}${isBranchStarter && (isConfirmedTrail || isPendingTrail) ? ' marcos-node--branch-root' : ''}"
           data-marco-node="${def.id}"
           style="grid-column:${def.layout.col + 1};grid-row:${def.layout.row + 1}"
           aria-pressed="${isSelected}"
@@ -260,9 +268,14 @@ export function renderMarcoGrid(model: MarcoTreeRenderModel): string {
     ? MARCO_TREE_NODES.find((n) => n.id === model.selectedNodeId)?.branch ?? null
     : null;
   const headerFocus = model.ramificacaoSelecionada ?? pendingBranch;
+  const trailChoiceLevelMin = MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL[0] ?? 10;
+  const isChoosingTrail =
+    !model.ramificacaoSelecionada
+    && !model.trilhaTravada
+    && model.playerLevel >= trailChoiceLevelMin;
 
   return `
-    <div class="marcos-grid${model.ramificacaoSelecionada ? ' marcos-grid--trail-locked' : ''}${pendingBranch && !model.trilhaTravada ? ' marcos-grid--trail-pending' : ''}${!model.ramificacaoSelecionada && !model.trilhaTravada ? ' marcos-grid--trail-choice' : ''}" data-marcos-grid>
+    <div class="marcos-grid${model.ramificacaoSelecionada ? ' marcos-grid--trail-locked' : ''}${pendingBranch && !model.trilhaTravada ? ' marcos-grid--trail-pending' : ''}${isChoosingTrail ? ' marcos-grid--trail-choice' : ''}" data-marcos-grid>
       <div class="marcos-grid__headers">
         ${renderMarcoGridHeaders(headerFocus)}
       </div>

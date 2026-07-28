@@ -162,7 +162,7 @@ export class BattleScreen {
     cue: 'attack' | 'hit' | 'rune' | 'heal' | 'shield',
   ): Promise<void> {
     const side = this.resolveCombatantSide(combatantId);
-    if (side === 'player') {
+    if (side === 'player' || side === 'pet') {
       triggerBattleRenderCue('ally', cue);
       triggerBattleArenaCue('ally', cue);
     }
@@ -190,7 +190,7 @@ export class BattleScreen {
   setPortraitStance(combatantId: string, stance: 'idle' | 'attack'): void {
     const side = this.resolveCombatantSide(combatantId);
     if (side === 'opponent') setBattlePortraitStance('foe', stance);
-    if (side === 'player') setBattlePortraitStance('ally', stance);
+    if (side === 'player' || side === 'pet') setBattlePortraitStance('ally', stance);
 
     const portrait = this.resolvePortraitElement(combatantId);
     if (!portrait) return;
@@ -204,15 +204,19 @@ export class BattleScreen {
 
   private resolveCombatantSide(combatantId: string): 'player' | 'opponent' | 'pet' | null {
     if (combatantId.startsWith('pet_')) return 'pet';
+    if (combatantId.startsWith('enemy_') || combatantId.startsWith('mirror_')) return 'opponent';
     if (this.lastPlayerActorId && combatantId === this.lastPlayerActorId) return 'player';
     if (this.boundOpponentId && combatantId === this.boundOpponentId) return 'opponent';
     if (
       this.lastPlayerActorId
       && combatantId !== this.lastPlayerActorId
-      && !combatantId.startsWith('pet_')
       && this.combatantVitals.has(combatantId)
     ) {
       return 'opponent';
+    }
+    // Sem sync ainda: id sem prefixo inimigo/pet = lado aliado (dano recebido no player).
+    if (!this.lastPlayerActorId && !combatantId.startsWith('enemy_') && !combatantId.startsWith('mirror_')) {
+      return 'player';
     }
     return null;
   }
@@ -234,17 +238,22 @@ export class BattleScreen {
     return { player, opponent };
   }
 
+  /**
+   * Retrato de impacto: dano recebido ancora no PNG do alvo.
+   * Pet e player compartilham a âncora aliada (esquerda) — nunca o oponente.
+   */
   private resolvePortraitElement(combatantId: string): HTMLElement | null {
     const { player, opponent } = this.resolvePortraitElements();
     const side = this.resolveCombatantSide(combatantId);
-    if (side === 'player') return player;
+    if (side === 'player' || side === 'pet') return player;
     if (side === 'opponent') return opponent;
 
-    if (combatantId.startsWith('pet_')) return null;
+    if (combatantId.startsWith('pet_')) return player;
     if (this.lastPlayerActorId && combatantId === this.lastPlayerActorId) return player;
     if (this.boundOpponentId && combatantId === this.boundOpponentId) return opponent;
+    if (combatantId.startsWith('enemy_') || combatantId.startsWith('mirror_')) return opponent;
     if (this.lastPlayerActorId && combatantId !== this.lastPlayerActorId) return opponent;
-    return null;
+    return player;
   }
 
   private clearSpawnInitializationFx(): void {

@@ -9,6 +9,11 @@ const WorldSceneShell = lazy(async () => {
   return { default: module.WorldSceneShell };
 });
 
+const WorldPanelsLayer = lazy(async () => {
+  const module = await import('./world/WorldPanelsLayer.js');
+  return { default: module.WorldPanelsLayer };
+});
+
 const BattleHUD = lazy(async () => {
   const module = await import('./battle/BattleHUD.js');
   return { default: module.BattleHUD };
@@ -19,6 +24,8 @@ const BattleHUD = lazy(async () => {
  * - Visível quando `appScreenBridge.activeScreen === 'game-container'`
  * - World vs Battle via `GameStateManager`
  * - Sidebar fixa: sempre montada (mundo e batalha); playfield não a cobre.
+ * - Painéis móveis (F/I/…) no nível do App (z 940), fora do frame 640×360 —
+ *   senão a Ficha (960px) nasce clipada / sob a sidebar.
  */
 export function App() {
   const inGame = useIsInGame();
@@ -52,6 +59,13 @@ export function App() {
             <WorldSceneShell />
           </Suspense>
         </HudErrorBoundary>
+      ) : null}
+
+      {/* Irmã do shell/sidebar: z-index 940 passa a competir de verdade com a sidebar (930). */}
+      {viewMode === 'world' ? (
+        <Suspense fallback={null}>
+          <WorldPanelsLayer />
+        </Suspense>
       ) : null}
 
       {viewMode === 'battle' ? (

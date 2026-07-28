@@ -17,10 +17,11 @@ export const UI_LAYER_Z_INDEX = {
   render: 0,
   worldSceneShell: 920,
   battleHud: 921,
-  /** Sidebar fixa — sempre acima do playfield, nunca coberta por mundo/batalha. */
+  /** Sidebar fixa — acima do playfield; painéis flutuantes (F/I/…) ficam por cima. */
   persistentSidebar: 930,
-  devChrome: 932,
-  worldPanels: 925,
+  /** Painéis movíveis do mundo — acima da sidebar para Ficha/Inventário não sumirem. */
+  worldPanels: 940,
+  devChrome: 942,
   screenDevBadge: 950,
   overlay: 10_000,
 } as const;

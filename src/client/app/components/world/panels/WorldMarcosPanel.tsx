@@ -10,6 +10,7 @@ type WorldMarcosPanelProps = {
 export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
   const {
     gridHtml,
+    treeHostRef,
     confirmBarMode,
     pendingNode,
     pendingBranchLabel,
@@ -17,7 +18,6 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
     confirmBranchGateway,
     cancelBranchSelection,
     progressTick,
-    handleClick,
     handleMouseOver,
     handleMouseLeave,
     legendLevels,
@@ -38,12 +38,12 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
       <div
         className="ui-panel__body marcos-panel__body"
         data-hud-fit-root
-        onClick={handleClick}
         onMouseOver={handleMouseOver}
         onMouseLeave={handleMouseLeave}
       >
         <div className="marcos-panel__tree-area">
           <div
+            ref={treeHostRef}
             className="marcos-panel__tree-host"
             data-marcos-progress-tick={progressTick}
             dangerouslySetInnerHTML={{ __html: gridHtml }}
@@ -101,8 +101,8 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
                 </>
               ) : (
                 <p className="marcos-panel__confirm-text">
-                  Selecione <strong>uma</strong> das 3 primeiras habilidades (Nv. 10+) e confirme
-                  aqui. Só uma trilha pode ficar ativa.
+                  Clique em <strong>uma</strong> das 3 habilidades com ◇ (borda tracejada). Só ela
+                  fica destacada — depois use <strong>Confirmar trilha</strong>.
                 </p>
               )}
             </div>
