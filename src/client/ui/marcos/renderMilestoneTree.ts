@@ -138,22 +138,22 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
     (a, b) => a.def.layout.row - b.def.layout.row || a.def.layout.col - b.def.layout.col,
   );
 
-  const pendingBranch = model.selectedNodeId
-    ? MARCO_TREE_NODES.find((n) => n.id === model.selectedNodeId)?.branch ?? null
-    : null;
-  const focusBranch = model.ramificacaoSelecionada ?? pendingBranch;
+  const focusBranch = model.ramificacaoSelecionada;
   const trailChoiceLevelMin = MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL[0] ?? 10;
-  // Só destaca as 3 trilhas quando o jogador PODE escolher (Nv.10+) e ainda não confirmou.
+  const trailConfirmed = Boolean(model.trilhaTravada && model.ramificacaoSelecionada);
+  const anyStarterActive = sorted.some(
+    (nodeView) => isMarcoBranchStarter(nodeView.def.id) && nodeView.status === 'active',
+  );
+  // Destaca as 3 starters só quando o jogador ainda pode iniciar uma trilha.
   const isChoosingTrail =
-    !model.ramificacaoSelecionada
-    && !model.trilhaTravada
+    !trailConfirmed
+    && !anyStarterActive
     && model.playerLevel >= trailChoiceLevelMin;
 
   return sorted
     .map((nodeView) => {
       const { def, status, isDimmedBranch, isActiveBranch, progressionLevel, effectiveProgressionLevel } =
         nodeView;
-      const isSelected = model.selectedNodeId === def.id;
       const isBranchStarter = isMarcoBranchStarter(def.id);
       const tierLevel = def.layout.row + 1;
       const displayLevel = status === 'active' ? effectiveProgressionLevel || progressionLevel : tierLevel;
@@ -161,13 +161,10 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
         isBranchStarter
         && status === 'available'
         && isChoosingTrail;
-      // Glow forte só na trilha clicada (pending) — hover fica no CSS (:hover).
-      const isPendingPick = isFreeChoiceStarter && isSelected;
-      const isPendingTrail = Boolean(pendingBranch && def.branch === pendingBranch && !model.trilhaTravada);
       const isConfirmedTrail = Boolean(model.ramificacaoSelecionada && def.branch === model.ramificacaoSelecionada);
-      // Sem escolha: só starters em foco. Com pending: ofusca as outras colunas (starters incluídos).
+      // Sem escolha: só starters em foco. Com trilha: ofusca outras colunas.
       const isSoftDimmed = isChoosingTrail
-        ? (pendingBranch ? def.branch !== pendingBranch : !isBranchStarter)
+        ? !isBranchStarter
         : Boolean(focusBranch && def.branch !== focusBranch) && !isDimmedBranch;
 
       const statusClass = isFreeChoiceStarter
@@ -178,15 +175,13 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
             ? 'marcos-node--available'
             : 'marcos-node--locked';
 
-      const icon = isPendingPick
-        ? '◆'
-        : isFreeChoiceStarter
-          ? '◇'
-          : status === 'locked' && !isDimmedBranch && !isSoftDimmed
-            ? '🔒'
-            : status === 'active'
-              ? '◆'
-              : '○';
+      const icon = isFreeChoiceStarter
+        ? '◇'
+        : status === 'locked' && !isDimmedBranch && !isSoftDimmed
+          ? '🔒'
+          : status === 'active'
+            ? '◆'
+            : '○';
       const bonus = def.shortBonus ?? (def.speedFlat !== undefined ? `+${def.speedFlat}` : '');
 
       const levelLine =
@@ -204,10 +199,9 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
       return `
         <button
           type="button"
-          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isBranchStarter ? ' marcos-node--branch-starter' : ''}${isSelected ? ' marcos-node--selected' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isPendingTrail ? ' marcos-node--pending-trail' : ''}${isPendingPick ? ' marcos-node--branch-pick' : ''}${isBranchStarter && (isConfirmedTrail || isPendingTrail) ? ' marcos-node--branch-root' : ''}"
+          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isBranchStarter ? ' marcos-node--branch-starter' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isBranchStarter && isConfirmedTrail ? ' marcos-node--branch-root' : ''}"
           data-marco-node="${def.id}"
           style="grid-column:${def.layout.col + 1};grid-row:${def.layout.row + 1}"
-          aria-pressed="${isSelected}"
         >
           ${levelLine}
           <span class="marcos-node__icon" aria-hidden="true">${icon}</span>

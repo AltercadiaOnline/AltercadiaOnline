@@ -9,6 +9,12 @@ export const NARROW_CORRIDOR_SNAP_TOLERANCE_RATIO = 0.85;
 /** Limite de drift enquanto em movimento antes de correção forçada. */
 export const NARROW_CORRIDOR_MOVING_RECONCILE_RATIO = 1.5;
 
+/** Drift acima disso → correção por exceção (lerp). Abaixo = silêncio / predição local. */
+export const ONLINE_CORRECTION_TILES = 1.5;
+
+/** Drift absurdo (teleporte / speedhack) → snap seco. */
+export const ONLINE_HARD_SNAP_TILES = 4;
+
 export function isNarrowCorridorMap(mapId: string | undefined): boolean {
   return mapId === FARM_ZONE_01_ID;
 }
@@ -25,18 +31,22 @@ export function isNarrowCorridorTile(
 export function resolvePositionReconcileThresholds(mapId: string | undefined): {
   readonly idleSnapPx: number;
   readonly movingReconcilePx: number;
+  readonly hardSnapPx: number;
 } {
   const tileSize = getActiveMapTileSize();
+  const hardSnapPx = tileSize * ONLINE_HARD_SNAP_TILES;
   if (isNarrowCorridorMap(mapId)) {
     return {
       idleSnapPx: tileSize * NARROW_CORRIDOR_SNAP_TOLERANCE_RATIO,
       movingReconcilePx: tileSize * NARROW_CORRIDOR_MOVING_RECONCILE_RATIO,
+      hardSnapPx,
     };
   }
   return {
-    idleSnapPx: tileSize * 0.55,
-    // ~3 tiles: cobre lag de 1 intent/tick (50ms) sem forçar snap visual.
-    movingReconcilePx: tileSize * 3,
+    // Idle: cobre RTT residual sem puxar o sprite ao soltar WASD.
+    idleSnapPx: tileSize * ONLINE_CORRECTION_TILES,
+    movingReconcilePx: tileSize * ONLINE_CORRECTION_TILES,
+    hardSnapPx,
   };
 }
 
@@ -87,47 +97,43 @@ export type AuthoritativePositionReconcileInput = {
   readonly mapId?: string | undefined;
   readonly mapData?: number[][] | undefined;
   readonly isMoving: boolean;
+  /** Predição / lock ativo — trata como movimento (silêncio ampliado). */
+  readonly isPredicting?: boolean;
 };
 
 export type AuthoritativePositionReconcileResult = {
   readonly apply: boolean;
+  /** Snap imediato (teleporte / cheat / parede grave). */
   readonly force: boolean;
+  /** Micro-ajuste elástico — evita tranco para trás. */
+  readonly soft: boolean;
   readonly position: WorldPosition;
 };
 
 /**
  * Decide se posição autoritativa deve ser aplicada e com qual snap.
- * Retorna apply=false quando drift está dentro da tolerância (predição local mantida).
+ * Silêncio = aprovação dentro da tolerância; correção só por exceção.
  */
 export function reconcileAuthoritativePosition(
   input: AuthoritativePositionReconcileInput,
 ): AuthoritativePositionReconcileResult {
-  const { idleSnapPx, movingReconcilePx } = resolvePositionReconcileThresholds(input.mapId);
-  const tileSize = getActiveMapTileSize();
+  const { idleSnapPx, movingReconcilePx, hardSnapPx } = resolvePositionReconcileThresholds(input.mapId);
 
   const remote = input.mapData
     ? snapToWalkableGround(input.remote, input.mapData, input.mapId)
     : input.remote;
 
   const dist = Math.hypot(remote.x - input.local.x, remote.y - input.local.y);
-  const localTile = worldPixelToTile(input.local.x, input.local.y, tileSize);
-  const remoteTile = worldPixelToTile(remote.x, remote.y, tileSize);
-  const sameTile = localTile.tileX === remoteTile.tileX && localTile.tileY === remoteTile.tileY;
+  const treatingAsMoving = input.isMoving || Boolean(input.isPredicting);
 
-  if (input.isMoving) {
-    if (dist <= movingReconcilePx) {
-      return { apply: false, force: false, position: remote };
-    }
-    // Mesmo tile: alinha sem reset brusco de velocidade (evita teleporte ao roçar props).
-    if (sameTile && dist <= tileSize * 1.05) {
-      return { apply: true, force: false, position: remote };
-    }
-    return { apply: true, force: true, position: remote };
+  if (dist <= (treatingAsMoving ? movingReconcilePx : idleSnapPx)) {
+    return { apply: false, force: false, soft: false, position: remote };
   }
 
-  if (dist <= idleSnapPx || (sameTile && dist <= idleSnapPx)) {
-    return { apply: false, force: false, position: remote };
+  if (dist >= hardSnapPx) {
+    return { apply: true, force: true, soft: false, position: remote };
   }
 
-  return { apply: true, force: false, position: remote };
+  // Drift moderado: lerp elástico (não teleporta o boneco).
+  return { apply: true, force: false, soft: true, position: remote };
 }

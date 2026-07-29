@@ -5,6 +5,7 @@ import {
   buildMarcoTooltipPayload,
   canChooseMarco,
   canSelectBranchStarter,
+  hasConfirmedMarcoTrail,
   resolveMarcoChooseBlockedMessage,
   resolveRamificacaoFromContext,
   type MarcoTreePlayerContext,
@@ -51,64 +52,70 @@ export function buildMarcosRenderModel(
 }
 
 export type MarcosClickResult = {
-  readonly pendingBranchNodeId: string | null;
   readonly refreshFull: boolean;
+  /** Intent online aguardando ACK — UI espera e mostra feedback. */
+  readonly pendingIntentId: string | null;
 };
 
-export function handleMarcosPanelClick(
-  target: HTMLElement,
-  pendingBranchNodeId: string | null,
-): MarcosClickResult {
-  if (target.closest('[data-action="cancel-branch"]')) {
-    return { pendingBranchNodeId: null, refreshFull: true };
+/**
+ * Clique na árvore:
+ * - Sem trilha: clique no starter Nv.10 → ativa na hora (SELECT_MARCO_BRANCH).
+ * - Com trilha: clique em nó disponível → CHOOSE_MARCO.
+ */
+export function handleMarcosPanelClick(target: HTMLElement): MarcosClickResult {
+  const nodeBtn = target.closest<HTMLElement>('[data-marco-node]');
+  if (!nodeBtn?.dataset.marcoNode) {
+    return { refreshFull: false, pendingIntentId: null };
   }
 
-  const nodeBtn = target.closest<HTMLElement>('[data-marco-node]');
-  if (nodeBtn?.dataset.marcoNode) {
-    const nodeId = nodeBtn.dataset.marcoNode;
-    const ctx = buildMarcosPlayerContext();
+  const nodeId = nodeBtn.dataset.marcoNode;
+  const ctx = buildMarcosPlayerContext();
 
-    if (canSelectBranchStarter(nodeId, ctx)) {
-      return { pendingBranchNodeId: nodeId, refreshFull: true };
-    }
-
-    if (pendingBranchNodeId) {
-      return { pendingBranchNodeId, refreshFull: false };
-    }
-
-    if (isMarcoBranchStarter(nodeId) && !ctx.ramificacaoSelecionada) {
+  // Player novo / sem trilha: um clique ativa uma das 3 (mutuamente exclusivas).
+  if (canSelectBranchStarter(nodeId, ctx)) {
+    const result = getActionDispatcher().dispatch({
+      type: 'SELECT_MARCO_BRANCH',
+      payload: { starterNodeId: nodeId },
+    });
+    if (!result.ok) {
       const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
-      if (blocked) {
-        alertSystem(blocked);
-        return { pendingBranchNodeId, refreshFull: false };
-      }
+      alertSystem(blocked ?? result.reason ?? 'Não foi possível ativar esta trilha.');
+      return { refreshFull: false, pendingIntentId: null };
     }
-
-    if (canChooseMarco(nodeId, ctx)) {
-      const result = getActionDispatcher().dispatch({
-        type: 'CHOOSE_MARCO',
-        payload: { nodeId },
-      });
-      if (result.ok && result.status === 'applied') {
-        alertSystem('Habilidade Marcos ativada.');
-        return { pendingBranchNodeId, refreshFull: true };
-      }
-      const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
-      if (blocked) alertSystem(blocked);
-      else if (!result.ok) alertSystem(result.reason);
-      return { pendingBranchNodeId, refreshFull: false };
+    if (result.status === 'pending') {
+      return { refreshFull: false, pendingIntentId: result.intentId };
     }
+    alertSystem('Trilha Marcos ativada.');
+    return { refreshFull: true, pendingIntentId: null };
+  }
 
+  if (isMarcoBranchStarter(nodeId) && !hasConfirmedMarcoTrail(ctx)) {
     const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
     if (blocked) alertSystem(blocked);
-    return { pendingBranchNodeId, refreshFull: false };
+    return { refreshFull: false, pendingIntentId: null };
   }
 
-  if (pendingBranchNodeId) {
-    return { pendingBranchNodeId, refreshFull: false };
+  if (canChooseMarco(nodeId, ctx)) {
+    const result = getActionDispatcher().dispatch({
+      type: 'CHOOSE_MARCO',
+      payload: { nodeId },
+    });
+    if (result.ok && result.status === 'applied') {
+      alertSystem('Habilidade Marcos ativada.');
+      return { refreshFull: true, pendingIntentId: null };
+    }
+    if (result.ok && result.status === 'pending') {
+      return { refreshFull: false, pendingIntentId: result.intentId };
+    }
+    const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
+    if (blocked) alertSystem(blocked);
+    else if (!result.ok) alertSystem(result.reason);
+    return { refreshFull: false, pendingIntentId: null };
   }
 
-  return { pendingBranchNodeId, refreshFull: false };
+  const blocked = resolveMarcoChooseBlockedMessage(nodeId, ctx);
+  if (blocked) alertSystem(blocked);
+  return { refreshFull: false, pendingIntentId: null };
 }
 
 export function showMarcoNodeTooltip(target: HTMLElement, clientX: number, clientY: number): void {

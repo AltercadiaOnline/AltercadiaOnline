@@ -57,10 +57,10 @@ export function createAuthoritativeWorldSocket(
   const authority = getWorldMovementAuthority();
   let authorityUnsub = authority.subscribe((payload) => {
     const tile = worldPixelToTile(payload.x, payload.y);
-    // Enquanto há predição local, não puxar o cursor de tile para trás —
+    // Enquanto há predição retida, não puxar o cursor de tile para trás —
     // isso gerava MOVE_INTENT repetindo o mesmo tile e rubber-band no sync.
     const sameTile = tile.tileX === predictedTileX && tile.tileY === predictedTileY;
-    if (sameTile || !authority.isPredictionLockActive()) {
+    if (sameTile || !authority.hasRetainedPrediction()) {
       predictedTileX = tile.tileX;
       predictedTileY = tile.tileY;
     }

@@ -28,6 +28,17 @@ describe('marcos trail selection', () => {
     expect(canSelectBranchStarter('keenEye', ctx)).toBe(true);
   });
 
+  it('permite escolha inicial mesmo com ramificação órfã (sem trilha travada)', () => {
+    const ctx = baseCtx({ ramificacaoSelecionada: 'fluxo', trilhaTravada: false });
+    expect(canSelectBranchStarter('ironStance', ctx)).toBe(true);
+  });
+
+  it('bloqueia nova trilha se já houver starter ativo sem confirmação formal', () => {
+    const ctx = baseCtx({ activeMarcos: ['quickStep'] });
+    expect(canSelectBranchStarter('ironStance', ctx)).toBe(false);
+    expect(canSelectBranchStarter('quickStep', ctx)).toBe(false);
+  });
+
   it('bloqueia CHOOSE_MARCO em starters — só SELECT_MARCO_BRANCH ativa a trilha', () => {
     const ctx = baseCtx();
     expect(canChooseMarco('quickStep', ctx)).toBe(false);

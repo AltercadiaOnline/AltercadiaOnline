@@ -152,10 +152,30 @@ function collectMissingRequirements(
   return missing;
 }
 
+/** Trilha já confirmada (uma das 3) — bloqueia nova escolha até reset no NPC. */
+export function hasConfirmedMarcoTrail(ctx: MarcoTreePlayerContext): boolean {
+  return Boolean(ctx.trilhaTravada && ctx.ramificacaoSelecionada);
+}
+
+/**
+ * Player novo / pós-reset: nenhuma trilha ativa.
+ * As 3 starters (Nv.10) são mutuamente exclusivas — só uma pode estar ligada.
+ */
+export function hasNoActiveMarcoTrail(ctx: MarcoTreePlayerContext): boolean {
+  if (hasConfirmedMarcoTrail(ctx)) return false;
+  return !MARCO_TREE_NODES.some(
+    (node) => isMarcoBranchStarter(node.id) && isMarcoActive(ctx.activeMarcos, node.id),
+  );
+}
+
+/**
+ * Ativa a 1ª habilidade de uma trilha (escolha inicial).
+ * Exige nível do personagem; bloqueia se já houver trilha confirmada ou outro starter ativo.
+ */
 export function canSelectBranchStarter(nodeId: string, ctx: MarcoTreePlayerContext): boolean {
-  if (!isMarcoBranchStarter(nodeId) || ctx.trilhaTravada || ctx.ramificacaoSelecionada) {
-    return false;
-  }
+  if (!isMarcoBranchStarter(nodeId)) return false;
+  if (hasConfirmedMarcoTrail(ctx)) return false;
+  if (!hasNoActiveMarcoTrail(ctx)) return false;
 
   const node = getMarcoTreeNode(nodeId);
   if (!node) return false;
@@ -265,7 +285,7 @@ export function canChooseMarco(nodeId: string, ctx: MarcoTreePlayerContext): boo
   // Escolha inicial de trilha é exclusiva do fluxo SELECT_MARCO_BRANCH.
   if (isMarcoBranchStarter(nodeId)) return false;
 
-  if (!ctx.trilhaTravada || !ctx.ramificacaoSelecionada) return false;
+  if (!hasConfirmedMarcoTrail(ctx)) return false;
   if (node.branch !== ctx.ramificacaoSelecionada) return false;
 
   const view = resolveMarcoNodeStatus(node, ctx);
@@ -300,7 +320,7 @@ export function resolveMarcoChooseBlockedMessage(
   const node = getMarcoTreeNode(nodeId);
   if (!node) return 'Habilidade Marcos inválida.';
 
-  if (!ctx.trilhaTravada || !ctx.ramificacaoSelecionada) {
+  if (!hasConfirmedMarcoTrail(ctx)) {
     if (isMarcoBranchStarter(nodeId)) {
       const view = resolveMarcoNodeStatus(node, ctx);
       const playerLevelReq = view.missingRequirements.find((token) => token.startsWith('playerLevel:'));
@@ -310,9 +330,12 @@ export function resolveMarcoChooseBlockedMessage(
           return `Trilha disponível a partir do nível ${required}. Continue evoluindo o personagem.`;
         }
       }
-      return 'Selecione a primeira habilidade de uma trilha e confirme no painel.';
+      if (!hasNoActiveMarcoTrail(ctx)) {
+        return 'Já existe uma trilha em andamento. Fale com o Mestre de Trilhas para resetar.';
+      }
+      return 'Clique em uma das 3 habilidades iniciais (◇) para ativar a trilha.';
     }
-    return 'Escolha e confirme uma das 3 trilhas Marcos antes de avançar.';
+    return 'Ative uma das 3 trilhas Marcos (nível 10+) antes de avançar.';
   }
 
   const view = resolveMarcoNodeStatus(node, ctx);

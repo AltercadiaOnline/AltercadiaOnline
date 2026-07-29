@@ -12,15 +12,13 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
     gridHtml,
     treeHostRef,
     confirmBarMode,
-    pendingNode,
-    pendingBranchLabel,
     confirmedBranchLabel,
-    confirmBranchGateway,
-    cancelBranchSelection,
+    activating,
     progressTick,
     handleMouseOver,
     handleMouseLeave,
     legendLevels,
+    minTrailLevel,
   } = useMarcosPanelState();
 
   return (
@@ -30,7 +28,7 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--marcos ui-panel--marcos ui-panel--movable"
-      panelStyle={{ width: 'min(640px, 98vw)', maxHeight: 'min(720px, 92vh)' }}
+      panelStyle={{ width: 'min(700px, 96vw)', maxHeight: 'min(620px, 90vh)' }}
       bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('marcos')}
       onClose={() => tryCloseReactWorldPanel('marcos')}
@@ -38,6 +36,7 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
       <div
         className="ui-panel__body marcos-panel__body"
         data-hud-fit-root
+        data-marcos-activating={activating ? '1' : '0'}
         onMouseOver={handleMouseOver}
         onMouseLeave={handleMouseLeave}
       >
@@ -51,7 +50,7 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
           <p className="marcos-panel__legend" data-hud-fit-secondary>
             <span className="marcos-legend marcos-legend--active">◆ Ativo</span>
             <span className="marcos-legend marcos-legend--available">○ Disponível</span>
-            <span className="marcos-legend marcos-legend--choice">◇ Escolher trilha</span>
+            <span className="marcos-legend marcos-legend--choice">◇ Iniciar trilha</span>
             <span className="marcos-legend marcos-legend--locked">🔒 Bloqueado</span>
             <span className="marcos-legend marcos-legend--gates">
               Nv. habilidade 1–5: personagem {legendLevels}
@@ -64,72 +63,46 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
             className="marcos-panel__confirm-bar marcos-panel__confirm-bar--success"
             role="status"
             aria-live="polite"
-            aria-label="Trilha Marcos confirmada"
+            aria-label="Trilha Marcos ativa"
           >
             <div className="marcos-panel__confirm-copy">
-              <p className="marcos-panel__confirm-title">Trilha confirmada</p>
+              <p className="marcos-panel__confirm-title">Trilha ativa</p>
               <p className="marcos-panel__confirm-text">
-                <strong>{confirmedBranchLabel}</strong> está ativa. As outras trilhas ficam ofuscadas.
+                <strong>{confirmedBranchLabel}</strong> está ligada. As outras duas ficam ofuscadas.
               </p>
               <p className="marcos-panel__confirm-hint">
-                Clique nos próximos nós disponíveis da sua trilha para avançar.
+                Clique nos próximos nós ○ da sua trilha para avançar. Reset só com o Mestre de Trilhas.
               </p>
             </div>
           </footer>
-        ) : confirmBarMode !== 'hidden' ? (
+        ) : confirmBarMode === 'choose' ? (
           <footer
-            className={[
-              'marcos-panel__confirm-bar',
-              confirmBarMode === 'idle' ? 'marcos-panel__confirm-bar--idle' : '',
-            ].filter(Boolean).join(' ')}
-            role="region"
-            aria-label={confirmBarMode === 'pending' ? 'Confirmar trilha Marcos' : 'Escolher trilha Marcos'}
+            className="marcos-panel__confirm-bar marcos-panel__confirm-bar--idle"
+            role="status"
+            aria-live="polite"
+            aria-label="Escolher trilha Marcos"
           >
             <div className="marcos-panel__confirm-copy">
               <p className="marcos-panel__confirm-title">
-                {confirmBarMode === 'pending' ? 'Confirmar trilha' : 'Escolher trilha'}
+                {activating ? 'Ativando trilha…' : 'Iniciar trilha'}
               </p>
-              {confirmBarMode === 'pending' && pendingNode && pendingBranchLabel ? (
-                <>
-                  <p className="marcos-panel__confirm-text">
-                    Travar <strong>{pendingBranchLabel}</strong> com{' '}
-                    <strong>{pendingNode.def.name}</strong>?
-                  </p>
-                  <p className="marcos-panel__confirm-hint">
-                    Após confirmar, as outras trilhas ficam ofuscadas até falar com o Mestre de Trilhas.
-                  </p>
-                </>
-              ) : (
-                <p className="marcos-panel__confirm-text">
-                  Clique em <strong>uma</strong> das 3 habilidades com ◇ (borda tracejada). Só ela
-                  fica destacada — depois use <strong>Confirmar trilha</strong>.
-                </p>
-              )}
+              <p className="marcos-panel__confirm-text">
+                Clique em <strong>uma</strong> das 3 habilidades com ◇ (nível {minTrailLevel}+).
+                Só uma trilha pode ficar ativa por vez.
+              </p>
             </div>
-            <div className="marcos-panel__confirm-actions">
-              <button
-                type="button"
-                className="marcos-panel__confirm-btn marcos-panel__confirm-btn--yes"
-                disabled={confirmBarMode !== 'pending' || confirmBranchGateway.pending}
-                aria-busy={confirmBranchGateway.pending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  confirmBranchGateway.submit();
-                }}
-              >
-                {confirmBranchGateway.buttonLabel}
-              </button>
-              <button
-                type="button"
-                className="marcos-panel__confirm-btn marcos-panel__confirm-btn--no"
-                disabled={confirmBarMode !== 'pending' || confirmBranchGateway.pending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  cancelBranchSelection();
-                }}
-              >
-                Cancelar
-              </button>
+          </footer>
+        ) : confirmBarMode === 'locked-level' ? (
+          <footer
+            className="marcos-panel__confirm-bar marcos-panel__confirm-bar--idle"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="marcos-panel__confirm-copy">
+              <p className="marcos-panel__confirm-title">Trilhas bloqueadas</p>
+              <p className="marcos-panel__confirm-text">
+                Alcance o nível <strong>{minTrailLevel}</strong> do personagem para iniciar uma das 3 trilhas.
+              </p>
             </div>
           </footer>
         ) : null}

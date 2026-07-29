@@ -7078,10 +7078,10 @@ body > .battle-result-overlay,
 }
 
 .ui-panel--marcos {
-  width: min(780px, 98vw);
-  max-width: min(780px, 98vw);
-  min-height: min(540px, 80vh);
-  max-height: min(700px, 94vh);
+  width: min(700px, 96vw);
+  max-width: min(700px, 96vw);
+  min-height: min(480px, 72vh);
+  max-height: min(620px, 90vh);
 }
 
 .marcos-panel__tag {
@@ -7105,12 +7105,11 @@ body > .battle-result-overlay,
 .marcos-panel__tree-area {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.3rem;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .marcos-grid {
@@ -7160,7 +7159,7 @@ body > .battle-result-overlay,
 .marcos-grid__body {
   position: relative;
   flex: 1 1 auto;
-  min-height: min(340px, 48vh);
+  min-height: min(260px, 38vh);
   border: 1px solid rgba(94, 74, 48, 0.65);
   background: rgba(0, 0, 0, 0.35);
   overflow: hidden;
@@ -8170,12 +8169,8 @@ body > .battle-result-overlay,
     calc(100% - var(--ui-hub-anchor-top) - var(--ui-hub-cluster-height) - 28px),
     624px
   );
-  border-color: rgba(0, 255, 204, 0.35);
-  border-radius: 7px;
-  box-shadow:
-    0 0 0 1px rgba(0, 255, 204, 0.12),
-    0 8px 40px rgba(0, 0, 0, 0.5),
-    0 16px 48px rgba(0, 0, 0, 0.35);
+  isolation: isolate;
+  overflow: hidden;
 }
 
 .ui-panel--hub.ui-panel--hub-bar:not(.ui-panel--hub-expanded) {
@@ -8187,6 +8182,8 @@ body > .battle-result-overlay,
   padding: 0;
   overflow: hidden;
   gap: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .hub-shell {
@@ -8204,7 +8201,7 @@ body > .battle-result-overlay,
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.72rem 0.78rem;
-  background: rgba(14, 11, 8, 0.97);
+  background: transparent;
   flex-shrink: 0;
 }
 
@@ -8213,12 +8210,21 @@ body > .battle-result-overlay,
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(58, 63, 68, 0.95);
+  background: linear-gradient(180deg, rgba(48, 52, 56, 0.35) 0%, transparent 100%);
+  margin: -0.12rem -0.18rem 0;
+  padding-left: 0.18rem;
+  padding-right: 0.18rem;
+  padding-top: 0.08rem;
 }
 
 .ui-hub-bar__title {
   font-size: 0.74rem;
   letter-spacing: 0.14em;
-  color: #6a9a82;
+  text-transform: uppercase;
+  color: var(--ui-text);
+  text-shadow: 0 0 10px rgba(58, 208, 214, 0.18);
 }
 
 .ui-hub-bar__grid {
@@ -8240,17 +8246,30 @@ body > .battle-result-overlay,
   min-width: 0;
   min-height: 2.82rem;
   padding: 0.38rem 0.26rem;
-  border: 1px solid #5e4a30;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.38);
-  color: #d4b483;
+  border: 1px solid var(--ui-metal-edge);
+  border-radius: 2px;
+  background:
+    linear-gradient(
+      165deg,
+      rgba(36, 40, 44, 0.95) 0%,
+      rgba(14, 16, 18, 0.98) 100%
+    );
+  color: var(--ui-text);
   font-family: inherit;
   font-size: 0.74rem;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-align: center;
   white-space: normal;
   line-height: 1.15;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.06);
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
 }
 
 .ui-hub-bar__btn-label {
@@ -8262,31 +8281,47 @@ body > .battle-result-overlay,
   margin-top: 0.1rem;
   font-size: 0.62rem;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  color: #9aa8a6;
-  opacity: 0.82;
+  letter-spacing: 0.08em;
+  color: var(--ui-text-muted);
+  opacity: 0.9;
 }
 
 .ui-hub-bar__btn:hover {
-  border-color: #00ffcc;
-  color: #e8f7f2;
+  border-color: rgba(58, 208, 214, 0.65);
+  color: var(--ui-text-holo);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.14),
+    0 0 12px rgba(58, 208, 214, 0.22);
 }
 
 .ui-hub-bar__btn:hover .ui-hub-bar__btn-key {
-  color: #b8d4ce;
+  color: var(--ui-holo);
 }
 
 .ui-hub-bar__btn--accent {
-  border-color: rgba(201, 168, 106, 0.65);
-  color: #c9a86a;
+  border-color: rgba(58, 208, 214, 0.45);
+  color: var(--ui-text-holo);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 10px rgba(58, 208, 214, 0.12);
 }
 
 .ui-hub-bar__btn--accent .ui-hub-bar__btn-key {
-  color: #a89878;
+  color: rgba(158, 232, 236, 0.72);
+}
+
+.ui-hub-bar__btn--accent:hover {
+  border-color: var(--ui-holo);
+  color: #d7f6f8;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 14px rgba(58, 208, 214, 0.32);
 }
 
 .ui-hub-bar__btn--accent:hover .ui-hub-bar__btn-key {
-  color: #d4c4a0;
+  color: var(--ui-holo);
 }
 
 .ui-hub-bar__close {
@@ -8294,19 +8329,27 @@ body > .battle-result-overlay,
   width: 1.85rem;
   height: 1.85rem;
   padding: 0;
-  border: 1px solid #5e4a30;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.35);
-  color: #d4b483;
+  border: 1px solid var(--ui-metal-edge);
+  border-radius: 2px;
+  background:
+    linear-gradient(
+      165deg,
+      rgba(36, 40, 44, 0.95) 0%,
+      rgba(14, 16, 18, 0.98) 100%
+    );
+  color: var(--ui-text-muted);
   font-family: inherit;
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.06);
+  transition: border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
 }
 
 .ui-hub-bar__close:hover {
-  border-color: #00ffcc;
-  color: #fff;
+  border-color: rgba(58, 208, 214, 0.65);
+  color: var(--ui-text-holo);
+  box-shadow: 0 0 10px rgba(58, 208, 214, 0.22);
 }
 
 @media (max-width: 720px) {
@@ -9891,13 +9934,13 @@ body > .battle-result-overlay,
   }
 }
 
-/* Marcos â€” override do style guide mÃ³vel (grade 3Ã—5 precisa de mais altura/largura). */
+/* Marcos — override do style guide móvel (grade 3×5 sem scroll interno). */
 .ui-panel--marcos.ui-panel--movable {
-  width: min(780px, 98vw) !important;
-  max-width: min(780px, 98vw) !important;
-  min-width: min(620px, 94vw) !important;
-  min-height: min(540px, 80vh) !important;
-  max-height: min(700px, 94vh) !important;
+  width: min(700px, 96vw) !important;
+  max-width: min(700px, 96vw) !important;
+  min-width: min(560px, 92vw) !important;
+  min-height: min(480px, 72vh) !important;
+  max-height: min(620px, 90vh) !important;
 }
 
 .ui-panel--marcos.ui-panel--movable .ui-panel__header {

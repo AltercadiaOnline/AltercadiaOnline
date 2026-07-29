@@ -291,6 +291,8 @@ export class Player {
       mapId: update.mapId ?? this.mapId,
       mapData: context?.mapData,
       isMoving: this.locomotion.isMoving,
+      isPredicting:
+        authority.isPredictionLockActive() || authority.hasRetainedPrediction(),
     });
 
     if (!reconcile.apply) {
@@ -301,7 +303,7 @@ export class Player {
       reconcile.position.x,
       reconcile.position.y,
       update.facing,
-      { force: reconcile.force },
+      { force: reconcile.force, soft: reconcile.soft },
     );
   }
 
@@ -345,7 +347,7 @@ export class Player {
       reconcile.position.x,
       reconcile.position.y,
       update.facing,
-      { force: reconcile.force },
+      { force: reconcile.force, soft: reconcile.soft },
     );
   }
 

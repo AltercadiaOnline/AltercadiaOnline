@@ -60,9 +60,15 @@ export class PlayerHybridLocomotion {
   private readonly snapEngine = new SnapMovementEngine();
   private autoWalkVelocity: WorldPosition = { x: 0, y: 0 };
 
+  /** Correção elástica online — evita snap seco em drift moderado. */
+  private softCorrectTarget: WorldPosition | null = null;
+  private softCorrectRemainingMs = 0;
+
   constructor(worldX: number, worldY: number, facing: PlayerFacing = 'south') {
     this.setWorldPosition(worldX, worldY, facing);
   }
+
+  private static readonly SOFT_CORRECT_MS = 80;
 
   get isMoving(): boolean {
     if (this.movementMode === 'AUTO') {
@@ -121,6 +127,7 @@ export class PlayerHybridLocomotion {
   }
 
   setWorldPosition(worldX: number, worldY: number, facing?: PlayerFacing): void {
+    this.clearSoftCorrection();
     this.snapEngine.reset();
     this.pathQueue = [];
     this.movementMode = 'MANUAL';
@@ -137,9 +144,26 @@ export class PlayerHybridLocomotion {
     worldX: number,
     worldY: number,
     facing?: PlayerFacing,
-    options?: { readonly force?: boolean },
+    options?: { readonly force?: boolean; readonly soft?: boolean },
   ): void {
+    if (options?.soft && !options.force) {
+      if (facing) {
+        this.facing = facing;
+      }
+      // Em movimento: micro-puxão (não cancela WASD). Parado: lerp ~80ms.
+      if (this.isMoving) {
+        this.displayX += (worldX - this.displayX) * 0.35;
+        this.displayY += (worldY - this.displayY) * 0.35;
+        this.syncLogicalTileFromDisplay();
+        return;
+      }
+      this.softCorrectTarget = { x: worldX, y: worldY };
+      this.softCorrectRemainingMs = PlayerHybridLocomotion.SOFT_CORRECT_MS;
+      return;
+    }
+
     if (this.isMoving && !options?.force) return;
+    this.clearSoftCorrection();
     this.snapEngine.reset();
     this.pathQueue = [];
     this.movementMode = 'MANUAL';
@@ -149,6 +173,32 @@ export class PlayerHybridLocomotion {
     this.syncLogicalTileFromDisplay();
     if (facing) {
       this.facing = facing;
+    }
+  }
+
+  private clearSoftCorrection(): void {
+    this.softCorrectTarget = null;
+    this.softCorrectRemainingMs = 0;
+  }
+
+  private tickSoftCorrection(deltaMs: number): void {
+    const target = this.softCorrectTarget;
+    if (!target || this.softCorrectRemainingMs <= 0) {
+      this.clearSoftCorrection();
+      return;
+    }
+
+    const stepMs = Math.min(deltaMs, this.softCorrectRemainingMs);
+    const t = stepMs / this.softCorrectRemainingMs;
+    this.displayX += (target.x - this.displayX) * t;
+    this.displayY += (target.y - this.displayY) * t;
+    this.softCorrectRemainingMs -= stepMs;
+
+    if (this.softCorrectRemainingMs <= 0) {
+      this.displayX = target.x;
+      this.displayY = target.y;
+      this.clearSoftCorrection();
+      this.syncLogicalTileFromDisplay();
     }
   }
 
@@ -168,8 +218,14 @@ export class PlayerHybridLocomotion {
     );
 
     if (input) {
+      this.clearSoftCorrection();
       this.enterManualFromKeyboard();
       this.tickManual(input, frameMs, walkSpeed, mapData, bounds, onStepCommitted);
+      return;
+    }
+
+    if (this.softCorrectTarget) {
+      this.tickSoftCorrection(frameMs);
       return;
     }
 
