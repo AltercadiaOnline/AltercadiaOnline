@@ -208,6 +208,7 @@ export class PlayerHybridLocomotion {
     input: CardinalInput | null,
     config: HybridLocomotionTickConfig,
     onStepCommitted: (step: GridStep) => void,
+    onMovementBlocked?: () => void,
   ): void {
     const frameMs = clampFrameDeltaMs(deltaMs);
     const bounds = this.resolveMapBounds(mapData);
@@ -220,7 +221,15 @@ export class PlayerHybridLocomotion {
     if (input) {
       this.clearSoftCorrection();
       this.enterManualFromKeyboard();
-      this.tickManual(input, frameMs, walkSpeed, mapData, bounds, onStepCommitted);
+      this.tickManual(
+        input,
+        frameMs,
+        walkSpeed,
+        mapData,
+        bounds,
+        onStepCommitted,
+        onMovementBlocked,
+      );
       return;
     }
 
@@ -246,6 +255,7 @@ export class PlayerHybridLocomotion {
     mapData: number[][],
     bounds: { width: number; height: number },
     onStepCommitted: (step: GridStep) => void,
+    onMovementBlocked?: () => void,
   ): void {
     const moveVector = composeMoveVector(input);
     if (!moveVector) {
@@ -280,8 +290,8 @@ export class PlayerHybridLocomotion {
     );
 
     if (next.x === from.x && next.y === from.y) {
-      // Parede à frente: mantém velocidade enquanto a tecla estiver pressionada.
-      // Reset aqui zerava isMoving e no online disparava snap idle → teleporte.
+      // Parede: para + realinha cursor de intent (não enfileira passos fantasmas).
+      onMovementBlocked?.();
       return;
     }
 

@@ -286,9 +286,9 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
   const estiloHtml = useMemo(() => renderEstiloLine(state.estiloName), [state.estiloName]);
 
   const pvpRows = [
-    ['Batalhas', state.profile.pvp.battles],
-    ['Vitórias', state.profile.pvp.wins],
-    ['Derrotas', state.profile.pvp.losses],
+    ['Batalhas', state.profile.pvp?.battles ?? 0],
+    ['Vitórias', state.profile.pvp?.wins ?? 0],
+    ['Derrotas', state.profile.pvp?.losses ?? 0],
   ] as const;
 
   return (

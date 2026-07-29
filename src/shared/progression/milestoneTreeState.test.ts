@@ -21,7 +21,7 @@ function baseCtx(overrides: Partial<MarcoTreePlayerContext> = {}): MarcoTreePlay
 }
 
 describe('marcos trail selection', () => {
-  it('permite escolher qualquer starter quando não há trilha travada (Nv.10+)', () => {
+  it('permite pré-selecionar qualquer starter quando não há trilha travada (Nv.10+)', () => {
     const ctx = baseCtx();
     expect(canSelectBranchStarter('quickStep', ctx)).toBe(true);
     expect(canSelectBranchStarter('ironStance', ctx)).toBe(true);
@@ -39,11 +39,23 @@ describe('marcos trail selection', () => {
     expect(canSelectBranchStarter('quickStep', ctx)).toBe(false);
   });
 
-  it('bloqueia CHOOSE_MARCO em starters — só SELECT_MARCO_BRANCH ativa a trilha', () => {
+  it('bloqueia CHOOSE_MARCO no starter até a trilha estar travada', () => {
     const ctx = baseCtx();
     expect(canChooseMarco('quickStep', ctx)).toBe(false);
     expect(canChooseMarco('ironStance', ctx)).toBe(false);
     expect(canChooseMarco('keenEye', ctx)).toBe(false);
+  });
+
+  it('após trilha travada (sem starter ativo), libera obter o 1º nível', () => {
+    const ctx = baseCtx({
+      activeMarcos: [],
+      ramificacaoSelecionada: 'fluxo',
+      trilhaTravada: true,
+      playerLevel: 14,
+    });
+    expect(canChooseMarco('quickStep', ctx)).toBe(true);
+    expect(canChooseMarco('ironStance', ctx)).toBe(false);
+    expect(canSelectBranchStarter('ironStance', ctx)).toBe(false);
   });
 
   it('bloqueia avanço na árvore até confirmar uma trilha', () => {
@@ -51,7 +63,7 @@ describe('marcos trail selection', () => {
     expect(canChooseMarco('fluxRush', ctx)).toBe(false);
   });
 
-  it('após trilha confirmada, só libera nós da mesma ramificação', () => {
+  it('após trilha confirmada e starter ativo, só libera nós da mesma ramificação', () => {
     const ctx = baseCtx({
       activeMarcos: ['quickStep'],
       ramificacaoSelecionada: 'fluxo',

@@ -16,6 +16,7 @@ import {
 } from '../shared/world/movementInput.js';
 import { moveDirectionToFacing, moveVectorToFacing } from '../shared/world/playerFacing.js';
 import { getWorldMovementAuthority } from './world/worldMovementAuthority.js';
+import { emitSoftTileAnchor } from './world/softTileAnchorBridge.js';
 
 export type KeysPressed = {
   w: boolean;
@@ -304,6 +305,7 @@ export class PlayerController {
 
   emergencyStop(player?: Player, avatar?: PlayerSprite): void {
     this.resetKeys();
+    getWorldMovementAuthority().setContinuousHoldActive(false);
     player?.clearMovementInput();
     player?.clearWalkPath();
     avatar?.setMoving(false);
@@ -503,6 +505,16 @@ export class PlayerController {
     if (!mapData) return;
 
     const movementKeys = this.hasMovementInput() ? this.getMovementKeyState() : null;
+    const authority = getWorldMovementAuthority();
+
+    // Hold = caminho contínuo (MMO). Soltou = volta ao reconcile normal.
+    authority.setContinuousHoldActive(Boolean(movementKeys));
+
+    // Âncora suave: só cursor de tile (não sprite) — hold periódico + ao soltar.
+    const softAnchor = authority.takeSoftTileAnchor();
+    if (softAnchor) {
+      emitSoftTileAnchor(softAnchor);
+    }
 
     if (!movementKeys) {
       if (!player.hasActiveWalkPath()) {
@@ -527,7 +539,7 @@ export class PlayerController {
       player.facing = moveVectorToFacing(step.stepX, step.stepY);
     }
 
-    getWorldMovementAuthority().extendPredictionLock({
+    authority.extendPredictionLock({
       facing: player.facing,
       x: player.x,
       y: player.y,

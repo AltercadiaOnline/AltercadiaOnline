@@ -67,6 +67,12 @@ export function resolveCombatantAttack(
   combatant: Combatant,
   monster?: MonsterCatalogEntry | null,
 ): number {
+  if (typeof combatant.baseAttack === 'number' && Number.isFinite(combatant.baseAttack)) {
+    return Math.max(0, Math.floor(combatant.baseAttack));
+  }
+  if (typeof monster?.attack === 'number' && Number.isFinite(monster.attack)) {
+    return Math.max(0, Math.floor(monster.attack));
+  }
   const classId = (combatant.classId ?? monster?.classId ?? 'IMPETUS') as ClassType;
   return CLASS_CATALOG[classId]?.bonus.attack ?? 5;
 }
@@ -126,8 +132,9 @@ export function calculateDamage(
 ): DamageCalculationResult {
   const normalized = normalizeBattleMove(move, attacker);
   const moveId = normalized.id;
+  const attackerMonster = getMonsterByActorId(attacker.id) ?? null;
   const defenderMonster = ctx.defenderMonster ?? getMonsterByActorId(defender.id) ?? null;
-  const attackBreakdown = buildAttackBreakdown(attacker, normalized.power);
+  const attackBreakdown = buildAttackBreakdown(attacker, normalized.power, attackerMonster);
   const defenseBreakdown = buildDefenseBreakdown(defender, defenderMonster);
   const isPhysical = ctx.isPhysical ?? isPhysicalMove(moveId);
   const logLines: string[] = [];

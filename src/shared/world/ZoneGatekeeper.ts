@@ -1,20 +1,32 @@
 import { ZoneId, type ZoneId as ZoneIdType } from '../items/itemTypes.js';
 import type { Portal } from './portals.js';
+import { getMonsterZoneScalingConfig } from '../combat/monsterZoneScaling.js';
 
 export type ZoneGateDefinition = {
   readonly id: ZoneIdType;
   readonly name: string;
   readonly levelMin: number;
+  readonly levelMax: number;
 };
 
-/** Requisitos de nível por zona — gatekeeper central. */
+/** Requisitos de nível por zona — gatekeeper de entrada (levelMin). levelMax espelha o motor de scaling. */
 export const ZONE_GATE_MAP: Readonly<Record<ZoneIdType, ZoneGateDefinition>> = {
-  [ZoneId.Zone1]: { id: ZoneId.Zone1, name: 'Beco dos Fundos', levelMin: 1 },
-  [ZoneId.Zone2]: { id: ZoneId.Zone2, name: 'Metrô Abandonado', levelMin: 10 },
-  [ZoneId.Zone3]: { id: ZoneId.Zone3, name: 'Estacionamento', levelMin: 20 },
-  [ZoneId.Zone4]: { id: ZoneId.Zone4, name: 'Telhados', levelMin: 30 },
-  [ZoneId.Zone5]: { id: ZoneId.Zone5, name: 'Esgoto', levelMin: 40 },
+  [ZoneId.Zone1]: gateFromScaling(ZoneId.Zone1),
+  [ZoneId.Zone2]: gateFromScaling(ZoneId.Zone2),
+  [ZoneId.Zone3]: gateFromScaling(ZoneId.Zone3),
+  [ZoneId.Zone4]: gateFromScaling(ZoneId.Zone4),
+  [ZoneId.Zone5]: gateFromScaling(ZoneId.Zone5),
 };
+
+function gateFromScaling(zoneId: ZoneIdType): ZoneGateDefinition {
+  const cfg = getMonsterZoneScalingConfig(zoneId);
+  return {
+    id: cfg.zoneId,
+    name: cfg.name,
+    levelMin: cfg.levelMin,
+    levelMax: cfg.levelMax,
+  };
+}
 
 export type ZoneGateResult =
   | { readonly allowed: true; readonly zoneName: string | null }

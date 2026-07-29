@@ -18,7 +18,7 @@ export function resolveZoneDefinition(zoneId: ZoneId | undefined) {
   if (!zoneId) return null;
   const gate = ZONE_GATE_MAP[zoneId];
   if (!gate) return null;
-  return { id: gate.id, name: gate.name, levelMin: gate.levelMin, levelMax: 99 };
+  return { id: gate.id, name: gate.name, levelMin: gate.levelMin, levelMax: gate.levelMax };
 }
 
 export function getPortalZoneName(portal: Portal): string | null {

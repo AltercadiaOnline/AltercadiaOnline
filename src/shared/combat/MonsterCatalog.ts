@@ -4,6 +4,7 @@ import { MonsterBehaviorType } from './monsterBehaviorTypes.js';
 import type { MonsterBehaviorType as MonsterBehaviorTypeId } from './monsterBehaviorTypes.js';
 import { resolveMonsterCombatSkillIds } from './monsterDebuffCatalog.js';
 import { resolveMonsterZoneStats } from './monsterZoneStats.js';
+import { ZoneId } from '../items/itemTypes.js';
 import { CreatureArchetypeId, CREATURE_ARCHETYPE_MAP } from '../loot/archetypeLootTables.js';
 
 export { MonsterBehaviorType };
@@ -34,6 +35,8 @@ export type MonsterCatalogEntry = {
   readonly name: string;
   readonly behavior: MonsterBehaviorTypeId;
   readonly maxHp: number;
+  /** Ataque base de zona (escalado) — usado no breakdown de dano. */
+  readonly attack: number;
   readonly flowSpeedBase: number;
   readonly classId: CombatClassId;
   /** IDs de skills/moves usados pela IA. */
@@ -64,19 +67,14 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     creatureId: 'rat',
     name: 'Rato Dimensional',
     behavior: MonsterBehaviorType.Aggressive,
-    maxHp: 70,
-    flowSpeedBase: 28,
-    classId: 'DISSOLUTUS',
+    ...resolveMonsterZoneStats(ZoneId.Zone1),
     skillIds: resolveMonsterCombatSkillIds('rat'),
   },
   specter: {
     creatureId: 'specter',
     name: 'Espectro',
     behavior: MonsterBehaviorType.Trap,
-    maxHp: 120,
-    flowSpeedBase: 32,
-    classId: 'DISSOLUTUS',
-    // Elite: skills especiais + debuffs ativos da zona (perfil Z2 = 2 slots).
+    ...resolveMonsterZoneStats(ZoneId.Zone2, { elite: true }),
     skillIds: ['specter_wail', 'specter_phase', 'specter_chill'],
     specialAbility: {
       id: MonsterSpecialAbilityId.PhaseShift,
@@ -87,10 +85,7 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     creatureId: 'minotaur',
     name: 'Minotauro',
     behavior: MonsterBehaviorType.Aggressive,
-    maxHp: 220,
-    flowSpeedBase: 24,
-    classId: 'IMPETUS',
-    // Elite: charge/gore + debuffs do perfil Z3.
+    ...resolveMonsterZoneStats(ZoneId.Zone3, { elite: true }),
     skillIds: ['minotaur_charge', 'minotaur_gore', 'minotaur_roar', 'minotaur_stomp'],
     specialAbility: {
       id: MonsterSpecialAbilityId.ChargeGore,
@@ -101,9 +96,7 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     creatureId: 'wild_dog',
     name: 'Cão Selvagem',
     behavior: MonsterBehaviorType.Aggressive,
-    maxHp: 90,
-    flowSpeedBase: 30,
-    classId: 'IMPETUS',
+    ...resolveMonsterZoneStats(ZoneId.Zone1),
     skillIds: resolveMonsterCombatSkillIds('wild_dog'),
     patrolZone: { minX: 3, maxX: 7, minY: 1, maxY: 4 },
   },
@@ -111,27 +104,21 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     creatureId: 'crow',
     name: 'Corvo',
     behavior: MonsterBehaviorType.Aggressive,
-    maxHp: 65,
-    flowSpeedBase: 34,
-    classId: 'DISSOLUTUS',
+    ...resolveMonsterZoneStats(ZoneId.Zone1),
     skillIds: resolveMonsterCombatSkillIds('crow'),
   },
   bat: {
     creatureId: 'bat',
     name: 'Morcego',
     behavior: MonsterBehaviorType.Trap,
-    maxHp: 55,
-    flowSpeedBase: 36,
-    classId: 'DISSOLUTUS',
+    ...resolveMonsterZoneStats(ZoneId.Zone1),
     skillIds: resolveMonsterCombatSkillIds('bat'),
   },
   spider: {
     creatureId: 'spider',
     name: 'Aranha',
     behavior: MonsterBehaviorType.Aggressive,
-    maxHp: 75,
-    flowSpeedBase: 26,
-    classId: 'DISSOLUTUS',
+    ...resolveMonsterZoneStats(ZoneId.Zone1),
     skillIds: resolveMonsterCombatSkillIds('spider'),
   },
 };
@@ -158,6 +145,7 @@ function buildCatalogEntryFromDrop(creatureId: string): MonsterCatalogEntry | nu
     name: drop.creatureName,
     behavior: resolveDefaultBehavior(creatureId),
     maxHp: stats.maxHp,
+    attack: stats.attack,
     flowSpeedBase: stats.flowSpeedBase,
     classId: stats.classId,
     skillIds: resolveMonsterCombatSkillIds(creatureId),

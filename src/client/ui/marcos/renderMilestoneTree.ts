@@ -157,14 +157,19 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
       const isBranchStarter = isMarcoBranchStarter(def.id);
       const tierLevel = def.layout.row + 1;
       const displayLevel = status === 'active' ? effectiveProgressionLevel || progressionLevel : tierLevel;
+      const isPicked = model.selectedNodeId === def.id;
       const isFreeChoiceStarter =
         isBranchStarter
         && status === 'available'
         && isChoosingTrail;
       const isConfirmedTrail = Boolean(model.ramificacaoSelecionada && def.branch === model.ramificacaoSelecionada);
       // Sem escolha: só starters em foco. Com trilha: ofusca outras colunas.
+      // Com seleção pendente: ofusca starters que não estão selecionadas.
       const isSoftDimmed = isChoosingTrail
-        ? !isBranchStarter
+        ? (
+          !isBranchStarter
+          || (Boolean(model.selectedNodeId) && !isPicked)
+        )
         : Boolean(focusBranch && def.branch !== focusBranch) && !isDimmedBranch;
 
       const statusClass = isFreeChoiceStarter
@@ -199,8 +204,9 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
       return `
         <button
           type="button"
-          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isBranchStarter ? ' marcos-node--branch-starter' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isBranchStarter && isConfirmedTrail ? ' marcos-node--branch-root' : ''}"
+          class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isBranchStarter ? ' marcos-node--branch-starter' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isBranchStarter && isConfirmedTrail ? ' marcos-node--branch-root' : ''}${isPicked ? ' marcos-node--branch-pick' : ''}"
           data-marco-node="${def.id}"
+          aria-pressed="${isPicked ? 'true' : 'false'}"
           style="grid-column:${def.layout.col + 1};grid-row:${def.layout.row + 1}"
         >
           ${levelLine}

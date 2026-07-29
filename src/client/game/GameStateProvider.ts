@@ -24,7 +24,6 @@ import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import {
   clearBattleSessionUi,
-  lockBattleHudInput,
   prepareNextBattle,
 } from '../combat/index.js';
 import {
@@ -160,7 +159,9 @@ export function initGameStateProvider(deps: GameStateProviderDeps): () => void {
   slot.hooks = {
     persistence: buildPersistence(),
     onTransitionStart: async () => {
-      lockBattleHudInput();
+      // Não lockar paleta aqui: no join local o 1º combat-event chega antes de BATTLE;
+      // lock + unmount em TRANSITIONING deixava o moveset preso sem próximo evento.
+      // Saída de batalha já trava via onClearBattleSession / clearBattleSessionUi.
       getGameStateProviderSlot().loadingScreen?.show();
     },
     onTransitionEnd: async () => {

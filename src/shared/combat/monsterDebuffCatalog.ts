@@ -2,10 +2,11 @@ import { ZoneId, type ZoneId as ZoneIdType } from '../items/itemTypes.js';
 import { getCreatureDropEntry } from '../items/creatureDrops.js';
 import { RuntimeStatusId } from '../types/combat.js';
 import { MoveEffectKind, type MoveEffectKind as MoveEffectKindType } from './classMovesetCatalog.js';
+import { getMonsterZoneScalingConfig } from './monsterZoneScaling.js';
 
 /**
  * Catálogo de debuffs de monstros — réplica dos status/effectKinds do moveset do jogador.
- * Slots por zona: Z1=1, Z2=2, Z3=3 (Z4+ cap 3).
+ * Slots por zona: Z1=1, Z2=2, Z3=3 (Z4+ cap 3) — SSOT em monsterZoneScaling.
  */
 
 export type MonsterDebuffSlotCount = 1 | 2 | 3;
@@ -26,22 +27,6 @@ export type MonsterDebuffProfile = {
   readonly candidates: readonly MonsterDebuffCandidate[];
 };
 
-const ZONE_DEBUFF_SLOTS: Record<ZoneIdType, MonsterDebuffSlotCount> = {
-  [ZoneId.Zone1]: 1,
-  [ZoneId.Zone2]: 2,
-  [ZoneId.Zone3]: 3,
-  [ZoneId.Zone4]: 3,
-  [ZoneId.Zone5]: 3,
-};
-
-const ZONE_LEVEL_MAX: Record<ZoneIdType, number> = {
-  [ZoneId.Zone1]: 10,
-  [ZoneId.Zone2]: 20,
-  [ZoneId.Zone3]: 30,
-  [ZoneId.Zone4]: 40,
-  [ZoneId.Zone5]: 99,
-};
-
 /** Status que contam como debuff de monstro (subset do moveset). */
 export const MONSTER_DEBUFF_STATUS_IDS: ReadonlySet<string> = new Set([
   RuntimeStatusId.Burn,
@@ -53,11 +38,11 @@ export const MONSTER_DEBUFF_STATUS_IDS: ReadonlySet<string> = new Set([
 ]);
 
 export function zoneMonsterDebuffSlots(zoneId: ZoneIdType): MonsterDebuffSlotCount {
-  return ZONE_DEBUFF_SLOTS[zoneId] ?? 1;
+  return getMonsterZoneScalingConfig(zoneId).debuffSlots;
 }
 
 export function zoneRecommendedPlayerLevelMax(zoneId: ZoneIdType): number {
-  return ZONE_LEVEL_MAX[zoneId] ?? 10;
+  return getMonsterZoneScalingConfig(zoneId).levelMax;
 }
 
 /**

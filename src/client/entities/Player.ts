@@ -44,6 +44,8 @@ import {
   getWorldMovementAuthority,
   isAuthoritativeMovementOnline,
 } from '../world/worldMovementAuthority.js';
+import { isAuthoritativeWorldSocket } from '../world/authoritativeWorldSocket.js';
+import { getMovementNetTelemetry } from '../world/movementNetTelemetry.js';
 
 export type { MovementMode };
 
@@ -253,6 +255,14 @@ export class Player {
           );
         }
       },
+      () => {
+        // Parede: realinha cursor de tile ao pé atual — evita fila de MOVE inválidos.
+        if (!isAuthoritativeMovementOnline()) return;
+        if (isAuthoritativeWorldSocket(this.worldSocket)) {
+          this.worldSocket.seedPredictedPosition({ x: this.x, y: this.y });
+        }
+        getWorldMovementAuthority().recordPredictedStep(this.x, this.y, this.facing);
+      },
     );
   }
 
@@ -290,12 +300,16 @@ export class Player {
       remote: { x: update.x, y: update.y },
       mapId: update.mapId ?? this.mapId,
       mapData: context?.mapData,
-      isMoving: this.locomotion.isMoving,
-      isPredicting:
-        authority.isPredictionLockActive() || authority.hasRetainedPrediction(),
+      isMoving: this.locomotion.isMoving || authority.isContinuousHoldActive(),
+      isPredicting: authority.isVisuallyPredicting(),
     });
 
     if (!reconcile.apply) {
+      return;
+    }
+
+    // Hold contínuo: nunca soft-puxar o sprite (só hard snap / teleporte).
+    if (authority.isContinuousHoldActive() && reconcile.soft && !reconcile.force) {
       return;
     }
 

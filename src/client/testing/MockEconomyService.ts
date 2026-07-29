@@ -366,6 +366,9 @@ export class MockEconomyService implements IDevMockEconomyService {
       || action.type === 'EQUIP_FROM_INVENTORY'
       || action.type === 'EQUIP_ITEM'
       || action.type === 'STAGE_BATTLE_LOOT'
+      || action.type === 'SELECT_MARCO_BRANCH'
+      || action.type === 'CHOOSE_MARCO'
+      || action.type === 'RESET_MARCO_TRAIL'
       || action.type === 'DEV_GRANT_ITEM'
       || action.type === 'DEV_GRANT_CURRENCY'
       || action.type === 'DEV_SET_LEVEL'
@@ -378,15 +381,21 @@ export class MockEconomyService implements IDevMockEconomyService {
 
     const timer = setTimeout(() => {
       this.pendingTimers.delete(timer);
-      const result = this.processAction(action);
-      if (result.ok) {
-        this.syncLegacyStores();
-        this.notifyAll();
-        this.persistLocalSave();
-        getActionDispatcher().confirmIntent(intentId);
-      } else {
+      try {
+        const result = this.processAction(action);
+        if (result.ok) {
+          this.syncLegacyStores();
+          this.notifyAll();
+          this.persistLocalSave();
+          getActionDispatcher().confirmIntent(intentId);
+        } else {
+          getActionDispatcher().rejectIntent(intentId);
+          alertSystem(result.reason);
+        }
+      } catch (error) {
+        console.error('[MockEconomyService] Falha ao processar intent:', action.type, error);
         getActionDispatcher().rejectIntent(intentId);
-        alertSystem(result.reason);
+        alertSystem('Falha na transação local. Tente novamente.');
       }
     }, this.networkDelayMs);
 
@@ -838,6 +847,7 @@ export class MockEconomyService implements IDevMockEconomyService {
     });
 
     this.syncLegacyStores();
+    this.mirrorBankAuthorityToDataStore();
     this.notifyAll();
     // Notifica HUD de pets após hidratar (sem gravar — bridge ainda pode não existir).
     getPlayerPetStore().notifyHydrated();
@@ -1108,8 +1118,8 @@ export class MockEconomyService implements IDevMockEconomyService {
 
     this.state.marcos.ramificacaoSelecionada = ramificacao;
     this.state.marcos.trilhaTravada = true;
-    // Uma trilha por vez — só o starter confirmado fica ativo.
-    this.state.marcos.activeMarcos = [starterNodeId];
+    // Trava a trilha; o starter só entra via CHOOSE_MARCO (Obter habilidade).
+    this.state.marcos.activeMarcos = [];
     this.bumpRevision('marcosState');
     return { ok: true };
   }
@@ -1164,6 +1174,7 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private emitBankTransactionSuccess(): void {
+    this.mirrorBankAuthorityToDataStore();
     const bank = this.getBankStorage();
     uiEvents.emit(UIEventType.BANK_STORAGE_UPDATED, {
       revision: this.sliceRevisions.bankStorage,
@@ -1184,6 +1195,29 @@ export class MockEconomyService implements IDevMockEconomyService {
     if (typeof document !== 'undefined') {
       alertSystem(BANK_TRANSACTION_SUCCESS_MESSAGE);
     }
+  }
+
+  /**
+   * React HUD lê PlayerDataStore — sem este espelho o cofre local fica vazio
+   * e a UI de moeda parece travada após depósito.
+   */
+  private mirrorBankAuthorityToDataStore(): void {
+    const bank = this.getBankStorage();
+    getMutableDataStore().applyBankStorageFromServer({
+      itemStacks: bank.itemStacks.map((row) => ({ ...row })),
+      currencies: { ...bank.currencies },
+      itemCapacity: bank.itemCapacity,
+      itemsUsed: bank.itemsUsed,
+      voltsFormatted: bank.voltsFormatted,
+      alterFormatted: bank.alterFormatted,
+    });
+    getMutableDataStore().applyWalletFromServer({
+      dollarVolt: this.state.wallet.dollarVolt,
+      alterCoins: this.state.wallet.alterCoins,
+      voltsFormatted: formatVolts(this.state.wallet.dollarVolt),
+      alterFormatted: formatAlterCoins(this.state.wallet.alterCoins),
+    });
+    getMutableDataStore().refreshBankTransactionViews();
   }
 
   private emitBankTransactionFailure(reason: string): void {

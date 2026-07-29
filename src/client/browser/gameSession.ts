@@ -76,6 +76,10 @@ import { DEFAULT_MAP_ID } from '../../shared/world/mapRegistry.js';
 import { getZoneTransitionController } from '../world/zoneTransitionController.js';
 import { getGameRenderLoop, resetGameRenderLoop } from '../render/GameRenderLoop.js';
 import { resetWorldMovementAuthority } from '../world/worldMovementAuthority.js';
+import { setSoftTileAnchorConsumer } from '../world/softTileAnchorBridge.js';
+import {
+  resetMovementNetTelemetry,
+} from '../world/movementNetTelemetry.js';
 import { ExplorationScene } from '../scenes/Exploration.js';
 import { loadSelectedCharacterAppearance } from '../services/characterAppearancePersistence.js';
 import { AppScreens } from './appScreens.js';
@@ -213,8 +217,14 @@ function setExplorationOnlineMode(enabled: boolean): void {
         getActionDispatcher().dispatchRotateIntent(rotatePayload);
       },
     });
+    setSoftTileAnchorConsumer((anchor) => {
+      if (isAuthoritativeWorldSocket(worldSocket)) {
+        worldSocket.seedPredictedPosition(anchor);
+      }
+    });
     return;
   }
+  setSoftTileAnchorConsumer(null);
   worldSocket.setOnlineMode(false);
 }
 
@@ -1185,6 +1195,7 @@ export function clearGameState(): void {
   mapManager = null;
 
   resetWorldMovementAuthority();
+  resetMovementNetTelemetry();
   resetGameRenderLoop();
   gameLoopStarted = false;
   worldStarted = false;

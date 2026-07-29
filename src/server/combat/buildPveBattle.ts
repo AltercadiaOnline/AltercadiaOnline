@@ -1,7 +1,10 @@
 import type { PlayerCombatLoadout } from '../../shared/character/equipmentState.js';
 import type { CombatRuleManifest } from '../../shared/combat/combatRuleManifest.js';
 import { buildRuneManifest } from '../../shared/combat/combatRuleManifest.js';
-import { getMonsterByCreatureId } from '../../shared/combat/MonsterCatalog.js';
+import { getMonsterByCreatureId, isBossCreatureId } from '../../shared/combat/MonsterCatalog.js';
+import { getCreatureDropEntry } from '../../shared/items/creatureDrops.js';
+import { ZoneId } from '../../shared/items/itemTypes.js';
+import { resolveMonsterStats } from '../../shared/combat/monsterZoneScaling.js';
 import { monsterSkillToSkillData } from '../../shared/combat/monsterSkillCatalog.js';
 import {
   moveIdsToSkillData,
@@ -41,20 +44,24 @@ export function buildEnemyActorId(creatureId: string): string {
   return `enemy_${creatureId}`;
 }
 
-function buildEnemyFromCreature(creatureId: string): Combatant {
+function buildEnemyFromCreature(creatureId: string, playerLevel: number): Combatant {
   const catalog = getMonsterByCreatureId(creatureId);
+  const drop = getCreatureDropEntry(creatureId);
+  const zoneId = drop?.zoneId ?? ZoneId.Zone1;
+  const stats = resolveMonsterStats(zoneId, playerLevel, isBossCreatureId(creatureId));
   const actorId = buildEnemyActorId(creatureId);
   const skills = (catalog?.skillIds ?? ['rat_bite']).map((skillId) => moveToSkill(skillId));
 
   return {
     id: actorId,
     name: catalog?.name ?? 'Criatura',
-    hp: catalog?.maxHp ?? 70,
-    maxHp: catalog?.maxHp ?? 70,
-    hpCurrent: catalog?.maxHp ?? 70,
-    hpMax: catalog?.maxHp ?? 70,
-    classId: catalog?.classId ?? 'DISSOLUTUS',
-    speedProfile: { flowSpeedBase: catalog?.flowSpeedBase ?? 28 },
+    hp: stats.maxHp,
+    maxHp: stats.maxHp,
+    hpCurrent: stats.maxHp,
+    hpMax: stats.maxHp,
+    baseAttack: stats.attack,
+    classId: stats.classId,
+    speedProfile: { flowSpeedBase: stats.flowSpeedBase },
     skills,
     statusEffects: [],
     activeStatuses: [],
@@ -76,7 +83,7 @@ export function createPveBattleBootstrap(
   const creatureId = resolveCreatureIdForMonsterInstance(monsterInstanceId);
   const battleSkills = resolveBattleSkills(loadout);
   const player = buildCombatantFromLoadout(loadout, battleSkills, loadout.displayName ?? 'Operative');
-  const enemy = buildEnemyFromCreature(creatureId);
+  const enemy = buildEnemyFromCreature(creatureId, loadout.level ?? 1);
   const runeDurability = resolveEquippedRuneDurability(loadout.inventory, loadout.equipped);
   const combatProcs = loadout.equipped.rune
     ? resolveRuneCombatProcsPerBattle(loadout.equipped.rune)

@@ -12,8 +12,12 @@ type ConnectionMoveState = {
 
 const MAX_MOVE_QUEUE_DEPTH = 8;
 
+/** Catch-up sob fila: até N passos válidos por tick (anti-speedhack com cap). */
+export const MOVE_CATCHUP_MAX_PER_TICK = 2;
+
 /**
- * Acumula intenções MOVE e processa no WorldTick (1 por tick por conexão).
+ * Acumula intenções MOVE e processa no WorldTick.
+ * 1 passo por tick em fila baixa; até MOVE_CATCHUP_MAX_PER_TICK se a fila crescer (hold + RTT).
  */
 export class MovementIntentHandler {
   private readonly positionGateway = new PositionGateway(createRegistryPositionGatewayServer());
@@ -62,6 +66,10 @@ export class MovementIntentHandler {
     this.byConnection.delete(connectionId);
   }
 
+  queueDepth(connectionId: string): number {
+    return this.byConnection.get(connectionId)?.queue.length ?? 0;
+  }
+
   processNext(
     connectionId: string,
     playerId: string,
@@ -82,5 +90,27 @@ export class MovementIntentHandler {
     }
     state.lastProcessedSeq = intent.seq;
     return result;
+  }
+
+  /**
+   * Processa 1 passo, ou até MOVE_CATCHUP_MAX_PER_TICK se a fila estiver congestionada.
+   * Retorna o último resultado com mudança (posição final do tick).
+   */
+  processCatchUp(
+    connectionId: string,
+    playerId: string,
+    characterId: number,
+  ): ProcessMoveResult | null {
+    const depthBefore = this.queueDepth(connectionId);
+    const budget = depthBefore >= 2 ? MOVE_CATCHUP_MAX_PER_TICK : 1;
+
+    let lastMeaningful: ProcessMoveResult | null = null;
+    for (let i = 0; i < budget; i += 1) {
+      const result = this.processNext(connectionId, playerId, characterId);
+      if (!result) break;
+      lastMeaningful = result;
+      if (!result.ok) break;
+    }
+    return lastMeaningful;
   }
 }

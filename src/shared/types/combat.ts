@@ -175,6 +175,11 @@ export interface Combatant {
   readonly skills: readonly SkillData[];
   readonly speedProfile?: CombatantSpeedProfile;
   readonly classId?: CombatClassId;
+  /**
+   * Ataque plano (monstros PvE) — vem do MonsterZoneScalingEngine.
+   * Quando definido, substitui o bônus de classe no breakdown de ataque.
+   */
+  readonly baseAttack?: number;
   readonly hpCurrent?: number;
   readonly hpMax?: number;
   readonly combatRole?: CombatRole;

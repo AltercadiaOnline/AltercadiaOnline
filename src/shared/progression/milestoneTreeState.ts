@@ -169,7 +169,7 @@ export function hasNoActiveMarcoTrail(ctx: MarcoTreePlayerContext): boolean {
 }
 
 /**
- * Ativa a 1ª habilidade de uma trilha (escolha inicial).
+ * Trava a trilha (ramificação) — ainda sem ativar o starter.
  * Exige nível do personagem; bloqueia se já houver trilha confirmada ou outro starter ativo.
  */
 export function canSelectBranchStarter(nodeId: string, ctx: MarcoTreePlayerContext): boolean {
@@ -275,18 +275,22 @@ export function resolveHighlightedEdges(pathNodeIds: readonly string[]): Readonl
 }
 
 /**
- * Ativa um nó **dentro** da trilha já confirmada.
- * Starters (tier-1) **não** passam por aqui — só via `SELECT_MARCO_BRANCH` / `canSelectBranchStarter`.
+ * Ativa um nó **dentro** da trilha já confirmada (incluindo o starter Nv.1).
+ * Trava de trilha = `SELECT_MARCO_BRANCH`; obter habilidade = `CHOOSE_MARCO`.
  */
 export function canChooseMarco(nodeId: string, ctx: MarcoTreePlayerContext): boolean {
   const node = getMarcoTreeNode(nodeId);
   if (!node) return false;
 
-  // Escolha inicial de trilha é exclusiva do fluxo SELECT_MARCO_BRANCH.
-  if (isMarcoBranchStarter(nodeId)) return false;
-
   if (!hasConfirmedMarcoTrail(ctx)) return false;
   if (node.branch !== ctx.ramificacaoSelecionada) return false;
+  if (isMarcoActive(ctx.activeMarcos, nodeId)) return false;
+
+  // Starter: só nível do personagem (trilha já foi escolhida).
+  if (isMarcoBranchStarter(nodeId)) {
+    const requiredPlayerLevel = requiredPlayerLevelForMarcoAbilityLevel(node.layout.row + 1);
+    return ctx.playerLevel >= requiredPlayerLevel;
+  }
 
   const view = resolveMarcoNodeStatus(node, ctx);
   return view.status === 'available';
@@ -333,9 +337,16 @@ export function resolveMarcoChooseBlockedMessage(
       if (!hasNoActiveMarcoTrail(ctx)) {
         return 'Já existe uma trilha em andamento. Fale com o Mestre de Trilhas para resetar.';
       }
-      return 'Clique em uma das 3 habilidades iniciais (◇) para ativar a trilha.';
+      return 'Escolha uma das 3 trilhas (Agilidade, Defesa ou Crítico) e clique em Ativar trilha.';
     }
     return 'Ative uma das 3 trilhas Marcos (nível 10+) antes de avançar.';
+  }
+
+  if (isMarcoBranchStarter(nodeId) && node.branch === ctx.ramificacaoSelecionada) {
+    const requiredPlayerLevel = requiredPlayerLevelForMarcoAbilityLevel(node.layout.row + 1);
+    if (ctx.playerLevel < requiredPlayerLevel) {
+      return `Obtenha o 1º nível a partir do personagem Nv. ${requiredPlayerLevel}.`;
+    }
   }
 
   const view = resolveMarcoNodeStatus(node, ctx);

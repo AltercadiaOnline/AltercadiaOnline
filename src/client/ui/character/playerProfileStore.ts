@@ -49,7 +49,9 @@ class PlayerProfileStore {
 
   setLevel(level: number): void {
     const safeLevel = Math.max(1, Math.floor(level));
-    getMutableDataStore().applyCharacterLevelState(safeLevel, 0, 'server_sync');
+    const current = getMutableDataStore().getCharacterLevel();
+    if (current.level === safeLevel) return;
+    getMutableDataStore().applyCharacterLevelState(safeLevel, current.xpCurrent, 'server_sync');
   }
 
   /** Quests e exploração — use `grantCharacterXp` no DataStore com source adequada. */
@@ -60,9 +62,11 @@ class PlayerProfileStore {
 
   setXpCurrent(xpCurrent: number): void {
     const levelState = getMutableDataStore().getCharacterLevel();
+    const safeXp = Math.max(0, Math.floor(xpCurrent));
+    if (levelState.xpCurrent === safeXp) return;
     getMutableDataStore().applyCharacterLevelState(
       levelState.level,
-      Math.max(0, Math.floor(xpCurrent)),
+      safeXp,
       'death_penalty',
     );
   }
@@ -73,10 +77,19 @@ class PlayerProfileStore {
 
   /** Espelho interno — chamado apenas pelo PlayerDataStore (SSOT). */
   mirrorCharacterLevel(level: number, xpCurrent: number, xpToNext: number): void {
+    const nextLevel = Math.max(1, Math.floor(level));
+    const nextXp = Math.max(0, Math.floor(xpCurrent));
+    if (
+      this.snapshot.level === nextLevel
+      && this.snapshot.xpCurrent === nextXp
+      && this.snapshot.xpToNext === xpToNext
+    ) {
+      return;
+    }
     this.snapshot = {
       ...this.snapshot,
-      level: Math.max(1, Math.floor(level)),
-      xpCurrent: Math.max(0, Math.floor(xpCurrent)),
+      level: nextLevel,
+      xpCurrent: nextXp,
       xpToNext,
     };
     this.publish();

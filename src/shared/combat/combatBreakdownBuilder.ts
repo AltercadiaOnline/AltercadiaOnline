@@ -26,6 +26,12 @@ const EMPTY_SOURCES: CombatStatSources = {
 };
 
 export function resolveClassAttack(combatant: Combatant, monster?: MonsterCatalogEntry | null): number {
+  if (typeof combatant.baseAttack === 'number' && Number.isFinite(combatant.baseAttack)) {
+    return Math.max(0, Math.floor(combatant.baseAttack));
+  }
+  if (typeof monster?.attack === 'number' && Number.isFinite(monster.attack)) {
+    return Math.max(0, Math.floor(monster.attack));
+  }
   const classId = (combatant.classId ?? monster?.classId ?? 'IMPETUS') as ClassType;
   return CLASS_CATALOG[classId]?.bonus.attack ?? 5;
 }

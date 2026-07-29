@@ -736,11 +736,16 @@ export class ActionDispatcher {
     }
 
     this.economyService!.handleIntent(action, intent.intentId);
+    // Local: bank/mock intents também precisam de timeout — senão a HUD fica disabled forever.
+    if (this.isBankAction(action)) {
+      this.scheduleIntentTimeout(intent.intentId, action);
+    }
+    // Intents já resolvidos no mesmo tick (cheats, marcos, item mutation sync).
+    if (!getPendingIntentRegistry().isPending(intent.intentId)) {
+      return { ok: true, status: 'applied' };
+    }
     // Cheats locais aplicam no mesmo tick (applyIntentNow) — UI não espera delay.
-    if (
-      this.isDevCheatAction(action)
-      && !getPendingIntentRegistry().isPending(intent.intentId)
-    ) {
+    if (this.isDevCheatAction(action)) {
       return { ok: true, status: 'applied' };
     }
     return { ok: true, status: 'pending', intentId: intent.intentId };
@@ -1061,6 +1066,7 @@ export class ActionDispatcher {
       }
 
       case 'ZONE_ENSURE': {
+        // Só aquecimento de zona — NÃO tocar prediction/hold de movimento.
         ensureHuntZoneLoaded(action.payload.mapId);
         return { ok: true, status: 'applied' };
       }

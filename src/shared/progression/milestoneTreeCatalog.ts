@@ -26,9 +26,22 @@ export const MARCO_TREE_LAYOUT = {
 } as const;
 
 export const MARCO_BRANCH_LABELS: Readonly<Record<MarcoTreeBranch, string>> = {
-  fluxo: 'Trilha Fluxo (Velocidade)',
-  resiliencia: 'Trilha Resiliência (Defesa)',
-  precisao: 'Trilha Precisão (Crítico)',
+  fluxo: 'Trilha Agilidade',
+  resiliencia: 'Trilha Defesa',
+  precisao: 'Trilha Crítico',
+};
+
+/** Rótulos curtos da pré-seleção na HUD. */
+export const MARCO_BRANCH_SHORT_LABELS: Readonly<Record<MarcoTreeBranch, string>> = {
+  fluxo: 'Agilidade',
+  resiliencia: 'Defesa',
+  precisao: 'Crítico',
+};
+
+export const MARCO_BRANCH_FOCUS: Readonly<Record<MarcoTreeBranch, string>> = {
+  fluxo: 'Velocidade / iniciativa',
+  resiliencia: 'Defesa / redução de dano',
+  precisao: 'Crítico / precisão',
 };
 
 export const MARCO_TREE_NODES: readonly MarcoTreeNodeDef[] = [

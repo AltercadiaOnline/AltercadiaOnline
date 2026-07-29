@@ -162,7 +162,7 @@ export class PlayerEquipmentStore {
     const nextLevel = Math.max(1, Math.floor(level));
     const nextMp = mpVitalsForLevel(nextLevel);
     if (nextMp.mpMax === this.vitals.mpMax) {
-      this.publish({ equipmentChanged: false });
+      // Sem mudança — NÃO publish (evita loop setLevel ↔ equipment.subscribe).
       return;
     }
     this.vitals = {

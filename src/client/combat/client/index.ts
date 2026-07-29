@@ -88,6 +88,7 @@ import {
 import { BattleType } from '../../../shared/combat/battleType.js';
 import { buildEmptyLootRevealSlots } from '../../../shared/loot/lootRevealSlots.js';
 import {
+  isCombatActionPlaybackActive,
   setBattlePlaybackClosing,
   setCombatActionPlaybackActive,
 } from '../combatPlaybackState.js';
@@ -1124,6 +1125,18 @@ export function getBattleController(): BattleController {
   return battleController;
 }
 
+/**
+ * Local emite START_COMBAT + combat-event no mesmo tick; a transição
+ * TRANSITIONING desmonta a UI depois do 1º dispatch. Ao montar BATTLE,
+ * reaplica o último snapshot para liberar moveset / turn guard.
+ */
+function rehydrateBattleUiFromLastDispatch(): void {
+  const dispatch = lastDispatch;
+  if (!dispatch || dispatch.state.phase === 'ENDED') return;
+  if (isCombatActionPlaybackActive()) return;
+  GameClient.renderState(dispatch.state, dispatch.ui);
+}
+
 /** Monta BattleScreen com props (≈ `<BattleScreen monsterId onBattleFinished />`). */
 export function mountBattleScreen(options: BattleScreenMountOptions): void {
   battleMount = options;
@@ -1131,13 +1144,15 @@ export function mountBattleScreen(options: BattleScreenMountOptions): void {
     { monsterId: options.monsterId, onBattleFinished: options.onBattleFinished },
   );
   battleScreen?.bindMonsterId(options.monsterId);
+  rehydrateBattleUiFromLastDispatch();
 }
 
 export function unmountBattleScreen(): void {
   battleMount = null;
   unmountBattleScreenView();
   battleScreen?.reset();
-  resetTurnStateGuard();
+  // NÃO resetar turn guard aqui — join local: TRANSITIONING desmonta após o 1º
+  // combat-event e apagava isMyTurn (moveset preso). Reset em clearBattleSessionUi.
 }
 
 export function getBattleMount(): BattleScreenMountOptions | null {

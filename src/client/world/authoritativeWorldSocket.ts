@@ -15,6 +15,7 @@ import {
 } from '../services/mockWorldSocket.js';
 import type { WorldSocket } from './WorldSocket.js';
 import { getWorldMovementAuthority } from './worldMovementAuthority.js';
+import { getMovementNetTelemetry } from './movementNetTelemetry.js';
 
 export type MoveIntentTransport = (payload: MovePlayerIntentPayload) => void;
 export type RotateIntentTransport = (payload: RotatePlayerIntentPayload) => void;
@@ -60,7 +61,7 @@ export function createAuthoritativeWorldSocket(
     // Enquanto há predição retida, não puxar o cursor de tile para trás —
     // isso gerava MOVE_INTENT repetindo o mesmo tile e rubber-band no sync.
     const sameTile = tile.tileX === predictedTileX && tile.tileY === predictedTileY;
-    if (sameTile || !authority.hasRetainedPrediction()) {
+    if (sameTile || (!authority.hasRetainedPrediction() && !authority.isContinuousHoldActive())) {
       predictedTileX = tile.tileX;
       predictedTileY = tile.tileY;
     }
@@ -109,6 +110,7 @@ export function createAuthoritativeWorldSocket(
       predictedTileX = targetX;
       predictedTileY = targetY;
       transport.onMove({ targetX, targetY, seq });
+      getMovementNetTelemetry().noteMoveIntentSent(seq);
       return;
     }
     mock.emit('move', payload);

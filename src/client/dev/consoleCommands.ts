@@ -1,10 +1,16 @@
 import { resetGame } from '../economy/economyLayer.js';
 import { installSpawnMirrorPlayerGlobal, spawnMirrorPlayer } from './spawnMirrorPlayer.js';
+import {
+  getMovementNetTelemetry,
+  type MovementNetSnapshot,
+} from '../world/movementNetTelemetry.js';
 
 declare global {
   interface Window {
     resetGame?: () => void;
     spawnMirrorPlayer?: () => void;
+    /** Snapshot de RTT / snaps / fila MOVE (dev). */
+    altercadiaMoveNet?: () => MovementNetSnapshot;
   }
 }
 
@@ -18,4 +24,5 @@ export function installDevConsoleCommands(): void {
   };
 
   window.spawnMirrorPlayer = spawnMirrorPlayer;
+  window.altercadiaMoveNet = () => getMovementNetTelemetry().getSnapshot();
 }

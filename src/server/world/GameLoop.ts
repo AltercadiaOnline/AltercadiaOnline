@@ -76,7 +76,7 @@ export class GameLoop {
         continue;
       }
 
-      const moveResult = deps.movementIntentHandler.processNext(
+      const moveResult = deps.movementIntentHandler.processCatchUp(
         session.connectionId,
         world.playerId,
         world.characterId,

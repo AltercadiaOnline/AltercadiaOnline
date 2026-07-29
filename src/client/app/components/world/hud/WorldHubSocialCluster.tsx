@@ -3,6 +3,7 @@ import { useWorldPanelsStore } from '../../../store/worldPanelsStore.js';
 import { windowManager } from '../../../panels/worldWindowController.js';
 import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 import { WorldGameClockWidget } from './WorldGameClockWidget.js';
+import { WorldNetLagWidget } from './WorldNetLagWidget.js';
 
 /**
  * Canto superior-direito do mapa — relógio + HUB (screen-space, sem scale do stage).
@@ -36,6 +37,7 @@ export function WorldHubSocialCluster() {
         pointerEvents: 'none',
       }}
     >
+      <WorldNetLagWidget />
       <WorldGameClockWidget />
       <button
         type="button"

@@ -168,6 +168,13 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
     const previousLevel = Math.max(1, Math.floor(this.characterLevel));
     const safeLevel = Math.max(1, Math.floor(level));
     const safeXp = Math.max(0, Math.floor(xpCurrent));
+    if (safeLevel === previousLevel && safeXp === Math.max(0, Math.floor(this.characterXpCurrent))) {
+      return {
+        previousLevel,
+        levelsGained: 0,
+        source,
+      };
+    }
     return this.commitCharacterLevel(
       { level: safeLevel, xpCurrent: safeXp },
       source,

@@ -183,6 +183,12 @@ export function attachDraggablePanel(
     }
 
     const { width, height } = measurePanel(panel);
+    // Lazy React: 1º paint pode medir 0 — não grava posição até ter tamanho real.
+    if (width < 48 || height < 48) {
+      requestAnimationFrame(ensureDefaultPosition);
+      return;
+    }
+
     const point = resolvePanelDefaultPosition(
       options.panelId,
       width,

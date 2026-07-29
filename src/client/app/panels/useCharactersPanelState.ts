@@ -129,9 +129,6 @@ export function useCharactersPanelState() {
   );
 
   useEffect(() => {
-    const initialEquipment = getPlayerEquipmentStore().getSnapshot();
-    getPlayerProfileStore().setLevel(initialEquipment.level);
-
     const initialGrid = getPlayerItemStore().toEquipmentGrid();
     const speed = syncExplorationSpeedFromGrid(initialGrid);
     setStatsBonus(speed.statsBonus);
@@ -151,9 +148,10 @@ export function useCharactersPanelState() {
 
     const unsubSkin = getPlayerSkinStore().subscribe(setSkinState);
 
+    // Nível vem do PlayerDataStore via profile.getSnapshot() — NÃO chamar setLevel aqui
+    // (equipment.subscribe ↔ syncLevelDerivedVitals gerava stack overflow).
     const unsubEquipment = getPlayerEquipmentStore().subscribe((snapshot) => {
       setEquipmentMeta(snapshot);
-      getPlayerProfileStore().setLevel(snapshot.level);
     });
 
     const unsubPlayerItems = getPlayerItemStore().subscribe(() => {
