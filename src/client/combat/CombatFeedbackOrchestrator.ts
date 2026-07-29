@@ -251,17 +251,20 @@ export class CombatFeedbackOrchestrator {
   private async playProjectileIfNeeded(job: CombatFeedbackJob): Promise<boolean> {
     if (!isProjectileCombatAction(job.actionResult.action)) return false;
 
-    // Online stagger: fase só do monstro ainda chega como ATTACK/SKILL — sem isso
-    // o projétil sempre bate no oponente e o hit visual parece só na criatura.
+    // Projétil hardcoded player→oponente. Só dispara se o ÚLTIMO dano do pack
+    // for do player — senão o hit do monstro “bate” visualmente na criatura.
     const playerId = job.snapshot.ui.playerActorId;
-    const playerDealtDamage = job.snapshot.events.some(
-      (event) => (
-        event.type === CombatEventType.DAMAGE_DEALT
-        && event.payload.sourceId === playerId
-        && event.payload.amount > 0
-      ),
-    );
-    if (!playerDealtDamage) return false;
+    let lastPlayerDamage = false;
+    for (let i = job.snapshot.events.length - 1; i >= 0; i -= 1) {
+      const event = job.snapshot.events[i];
+      if (!event || event.type !== CombatEventType.DAMAGE_DEALT) continue;
+      if (event.payload.amount <= 0) continue;
+      lastPlayerDamage = event.payload.sourceId === playerId;
+      break;
+    }
+    if (!lastPlayerDamage) {
+      return false;
+    }
 
     const manager = getVfxProjectileManager();
     if (manager.shouldSkipDuplicate(job.actionResult)) return true;

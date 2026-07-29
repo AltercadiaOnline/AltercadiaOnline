@@ -15,15 +15,12 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
     setPendingBranch,
     canChooseTrail,
     trailConfirmed,
-    confirmedBranchLabel,
-    selectedNodeId,
-    selectedLabel,
+    trailStatusLine,
     activating,
     progressTick,
     pendingShort,
     pendingFocus,
     runActivateTrail,
-    runObtainAbility,
     handleTreeClick,
     handleMouseOver,
     handleMouseLeave,
@@ -127,30 +124,13 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
           </p>
         </div>
 
-        {trailConfirmed && confirmedBranchLabel ? (
-          <footer className="marcos-panel__confirm-bar marcos-panel__confirm-bar--success">
-            <div className="marcos-panel__confirm-copy">
-              <p className="marcos-panel__confirm-title">Trilha ativa</p>
-              <p className="marcos-panel__confirm-text">
-                <strong>{confirmedBranchLabel}</strong>. Clique no 1º nível ○ e confirme abaixo.
-              </p>
-              <p className="marcos-panel__confirm-hint">
-                {selectedLabel
-                  ? <>Selecionado: <strong>{selectedLabel}</strong></>
-                  : 'Depois avance nos próximos nós ○ da mesma trilha.'}
-              </p>
-            </div>
-            <div className="marcos-panel__confirm-actions">
-              <button
-                type="button"
-                className="marcos-panel__confirm-btn marcos-panel__confirm-btn--yes"
-                disabled={!selectedNodeId || activating}
-                aria-busy={activating}
-                onClick={() => { void runObtainAbility(); }}
-              >
-                {activating ? 'Obtendo…' : selectedNodeId ? 'Obter habilidade' : 'Selecione um nó ○'}
-              </button>
-            </div>
+        {trailConfirmed && trailStatusLine ? (
+          <footer
+            className="marcos-panel__confirm-bar marcos-panel__confirm-bar--success marcos-panel__confirm-bar--status-only"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="marcos-panel__status-line">{trailStatusLine}</p>
           </footer>
         ) : null}
       </div>

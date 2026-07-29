@@ -162,8 +162,9 @@ export class PlayerHybridLocomotion {
       return;
     }
 
-    if (this.isMoving && !options?.force) return;
+    // Cancelar qualquer lerp residual — freeze é seco, não suave.
     this.clearSoftCorrection();
+    if (this.isMoving && !options?.force) return;
     this.snapEngine.reset();
     this.pathQueue = [];
     this.movementMode = 'MANUAL';
@@ -174,6 +175,11 @@ export class PlayerHybridLocomotion {
     if (facing) {
       this.facing = facing;
     }
+  }
+
+  /** Aborta soft-lerp — usado ao soltar WASD (freeze nos pés). */
+  cancelSoftCorrection(): void {
+    this.clearSoftCorrection();
   }
 
   private clearSoftCorrection(): void {

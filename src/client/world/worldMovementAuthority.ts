@@ -17,13 +17,15 @@ export type AuthoritativeMoveUpdate = PlayerPositionUpdate & {
  * Grace após último input/passo — cobre RTT típico sem soltar a predição cedo.
  * Enquanto WASD estiver ativo, `extendPredictionLock` renova a janela.
  *
- * Checklist — NÃO misturar economia/HUD com prediction/hold:
- * - ZONE_ENSURE / inventário pending / craft / shop: nunca resetar prediction.
- * - Só resetar em: leave world, transição forçada, hard snap, setOnlineMode(false).
+ * Modelo online (freeze, não soft-lerp):
+ * - Hold: sprite anda local; sync não puxa.
+ * - Soltou: sprite CONGELA nos pés; servidor alcança em silêncio.
+ * - Só hard snap (teleporte / desync absurdo) move o sprite.
+ * - ZONE_ENSURE / inventário / HUD: nunca resetar prediction/freeze.
  */
 export const PREDICTION_LOCK_MS = 480;
 
-/** Âncora suave: recalibra cursor de tile (não sprite) a cada ~250ms no hold e ao soltar. */
+/** Âncora de cursor de tile no hold (não mexe no sprite). */
 export const SOFT_TILE_ANCHOR_MS = 250;
 
 export type PredictionLockInput = {
@@ -77,16 +79,17 @@ function fullApply(update: AuthoritativePositionDelta): PredictionResolution {
 
 /**
  * Ponte SSOT — posição validada pelo servidor via state-sync tick.
- * Online: silêncio = aprovação; store só atualiza em confirmação leve ou correção por exceção.
- * Hold WASD = caminho contínuo — não puxa o sprite enquanto a tecla estiver apertada.
+ * Online = freeze nos pés ao soltar WASD (sem soft-lerp / sem “aprovar passo a passo” no sprite).
  */
 class WorldMovementAuthority {
   private lastMoveSeq = 0;
   private readonly handlers = new Set<(payload: PlayerPositionUpdate) => void>();
   private online = false;
   private predictionLock: PredictionLockState = { ...EMPTY_LOCK };
-  /** Tecla de movimento segurada (WASD/setas) — trata como vetor contínuo, não passos picados. */
+  /** Tecla de movimento segurada (WASD/setas). */
   private continuousHoldActive = false;
+  /** Soltou WASD: sprite congelado até soft-confirm ou hard snap. */
+  private visualFrozen = false;
   private lastServerAnchor: { x: number; y: number } | null = null;
   private softAnchorDueMs = 0;
 
@@ -95,6 +98,7 @@ class WorldMovementAuthority {
     if (!enabled) {
       this.lastMoveSeq = 0;
       this.continuousHoldActive = false;
+      this.visualFrozen = false;
       this.lastServerAnchor = null;
       this.softAnchorDueMs = 0;
       this.clearPredictionLock();
@@ -106,17 +110,12 @@ class WorldMovementAuthority {
   }
 
   /**
-   * Hold MMO: enquanto true, sync atrasado não “puxa” o avatar
-   * (só teleporte/hard snap). Servidor continua validando cada MOVE_INTENT.
+   * Hold: anda. Soltou: não limpa freeze aqui — use `freezeVisualAt`.
    */
   setContinuousHoldActive(active: boolean): void {
-    const nowMs = performance.now();
-    if (!this.continuousHoldActive && active) {
-      // Hold começou — primeira âncora de cursor após SOFT_TILE_ANCHOR_MS.
-      this.softAnchorDueMs = nowMs + SOFT_TILE_ANCHOR_MS;
-    } else if (this.continuousHoldActive && !active) {
-      // Soltou WASD — âncora imediata no próximo frame (menos desync ao parar).
-      this.softAnchorDueMs = nowMs;
+    if (active) {
+      this.visualFrozen = false;
+      this.softAnchorDueMs = performance.now() + SOFT_TILE_ANCHOR_MS;
     }
     this.continuousHoldActive = active;
   }
@@ -125,27 +124,39 @@ class WorldMovementAuthority {
     return this.continuousHoldActive;
   }
 
+  isVisualFrozen(): boolean {
+    return this.visualFrozen;
+  }
+
+  /**
+   * Soltou WASD — congela predição nos pés visuais. Sprite não se move até hard snap.
+   */
+  freezeVisualAt(x: number, y: number, facing: PlayerFacing, nowMs: number = performance.now()): void {
+    this.recordPredictedStep(x, y, facing, nowMs);
+    this.visualFrozen = true;
+    this.softAnchorDueMs = 0;
+  }
+
   noteServerAnchor(x: number, y: number): void {
     this.lastServerAnchor = { x, y };
   }
 
   /**
-   * Âncora periódica suave (~250ms) — calibra predictedTile com “estou em tile X”
-   * do servidor sem forçar o sprite. Durante hold e ao soltar.
+   * Cursor de tile no hold (opcional). Nunca move sprite.
    */
   takeSoftTileAnchor(nowMs: number = performance.now()): { x: number; y: number } | null {
+    if (!this.continuousHoldActive || this.visualFrozen) return null;
     if (!this.lastServerAnchor) return null;
     if (this.softAnchorDueMs <= 0 || nowMs < this.softAnchorDueMs) return null;
     const anchor = this.lastServerAnchor;
-    this.softAnchorDueMs = this.continuousHoldActive
-      ? nowMs + SOFT_TILE_ANCHOR_MS
-      : 0;
+    this.softAnchorDueMs = nowMs + SOFT_TILE_ANCHOR_MS;
     return anchor;
   }
 
-  /** Predição ativa para reconcile visual (lock, retenção ou hold). */
+  /** Predição ativa para reconcile visual (lock, retenção, hold ou freeze). */
   isVisuallyPredicting(nowMs: number = performance.now()): boolean {
     return this.continuousHoldActive
+      || this.visualFrozen
       || this.isPredictionLockActive(nowMs)
       || this.hasRetainedPrediction();
   }
@@ -225,8 +236,8 @@ class WorldMovementAuthority {
 
     const tileSize = getActiveMapTileSize();
     const dist = Math.hypot(serverX - predictedX, serverY - predictedY);
-    // Hold contínuo: qualquer sync atrás da predição é silêncio (exceto hard no resolve).
-    if (this.continuousHoldActive) {
+    // Hold / freeze: qualquer sync atrás da predição é silêncio (exceto hard no resolve).
+    if (this.continuousHoldActive || this.visualFrozen) {
       return dist < tileSize * ONLINE_HARD_SNAP_TILES;
     }
     return dist <= tileSize * ONLINE_CORRECTION_TILES;
@@ -234,8 +245,7 @@ class WorldMovementAuthority {
 
   /**
    * Mescla estado remoto com predição local.
-   * Online: heartbeats sem moveSeq novo = silêncio, salvo drift/teleporte.
-   * Hold: só hard snap puxa o sprite — caminho contínuo como MMO.
+   * Online freeze: hold/freeze = store-only ou silêncio; sprite só em hard snap.
    */
   resolveIncomingPosition(
     update: AuthoritativePositionDelta,
@@ -250,48 +260,28 @@ class WorldMovementAuthority {
     }
 
     const tileSize = getActiveMapTileSize();
-    const correctionPx = tileSize * ONLINE_CORRECTION_TILES;
     const hardSnapPx = tileSize * ONLINE_HARD_SNAP_TILES;
     const softConfirmPx = tileSize * 0.55;
 
     const predictedX = this.predictionLock.predictedX;
     const predictedY = this.predictionLock.predictedY;
     const hasPredicted = predictedX !== null && predictedY !== null;
-    const lockActive = this.isPredictionLockActive(nowMs);
     const isNewSeq = update.moveSeq !== undefined;
-    const hold = this.continuousHoldActive;
+    const protectingVisual = this.continuousHoldActive || this.visualFrozen || hasPredicted;
 
     if (hasPredicted) {
       const dist = Math.hypot(update.x - predictedX!, update.y - predictedY!);
 
-      // Exceção dura: teleporte / desync grave (sempre).
       if (dist >= hardSnapPx) {
+        this.visualFrozen = false;
         this.clearPredictionLock();
         getMovementNetTelemetry().noteHardSnap();
         return fullApply(update);
       }
 
-      // Hold contínuo: servidor 1–3 tiles atrás é normal (fila/RTT) — não puxar.
-      if (hold) {
-        if (isNewSeq) {
-          return {
-            shouldApplyToStore: true,
-            shouldPublishPlayerUpdate: false,
-            shouldApplyRenderTarget: false,
-            position: update,
-          };
-        }
-        return silence(update);
-      }
-
-      // Exceção: drift acima da tolerância (soltou a tecla / idle) → lerp no Player.
-      if (dist > correctionPx) {
-        this.clearPredictionLock();
-        return fullApply(update);
-      }
-
-      // Servidor alcançou a predição — confirma store sem publicar snap visual.
+      // Servidor alcançou os pés — libera freeze; não publica sprite (já está lá).
       if (dist <= softConfirmPx) {
+        this.visualFrozen = false;
         if (isNewSeq) {
           this.clearPredictionLock();
           return {
@@ -301,11 +291,12 @@ class WorldMovementAuthority {
             position: update,
           };
         }
+        this.clearPredictionLock();
         return silence(update);
       }
 
-      // Servidor atrás mas dentro da banda — silêncio = aprovação.
-      if (lockActive || hasPredicted) {
+      // Hold / freeze / predição à frente: nunca fullApply (sem soft-lerp).
+      if (protectingVisual) {
         if (isNewSeq) {
           return {
             shouldApplyToStore: true,
@@ -318,13 +309,11 @@ class WorldMovementAuthority {
       }
     }
 
-    // Sem predição: heartbeat periódico não reaplica store (evita rubber-band idle).
     if (!isNewSeq) {
       return silence(update);
     }
 
-    // Hold sem predição ainda (1º frame): não snapar.
-    if (hold) {
+    if (this.continuousHoldActive || this.visualFrozen) {
       return {
         shouldApplyToStore: true,
         shouldPublishPlayerUpdate: false,
@@ -382,6 +371,7 @@ class WorldMovementAuthority {
     this.lastMoveSeq = 0;
     this.online = false;
     this.continuousHoldActive = false;
+    this.visualFrozen = false;
     this.lastServerAnchor = null;
     this.softAnchorDueMs = 0;
     this.clearPredictionLock();

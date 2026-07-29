@@ -570,18 +570,20 @@ export class BattleController {
             ? damageEvent.payload
             : undefined;
         const impactTargetId = step.targetId;
+        const sourceIsFoe =
+          step.sourceId.startsWith('enemy_') || step.sourceId.startsWith('mirror_');
+        const targetIsFoe =
+          impactTargetId.startsWith('enemy_') || impactTargetId.startsWith('mirror_');
         let targetPortrait = screen?.getPortraitElement(impactTargetId) ?? null;
-        if (!targetPortrait && typeof document !== 'undefined') {
-          const playerId = screen?.getPlayerActorId();
-          const isAllyTarget =
-            impactTargetId.startsWith('pet_')
-            || Boolean(playerId && impactTargetId === playerId);
-          const isFoeTarget =
-            impactTargetId.startsWith('enemy_')
-            || impactTargetId.startsWith('mirror_')
-            || Boolean(playerId && impactTargetId !== playerId && !impactTargetId.startsWith('pet_'));
+        // Criatura → player: hit SEMPRE no PNG do player (nunca na criatura).
+        if (sourceIsFoe && !targetIsFoe && typeof document !== 'undefined') {
+          targetPortrait =
+            document.querySelector<HTMLElement>('#battle-player-portrait')
+            ?? targetPortrait;
+        } else if (!targetPortrait && typeof document !== 'undefined') {
+          const usePlayerAnchor = impactTargetId.startsWith('pet_') || !targetIsFoe;
           targetPortrait = document.querySelector<HTMLElement>(
-            isAllyTarget || !isFoeTarget
+            usePlayerAnchor
               ? '#battle-player-portrait'
               : '#battle-opponent-portrait',
           );

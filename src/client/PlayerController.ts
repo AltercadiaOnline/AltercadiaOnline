@@ -506,14 +506,15 @@ export class PlayerController {
 
     const movementKeys = this.hasMovementInput() ? this.getMovementKeyState() : null;
     const authority = getWorldMovementAuthority();
+    const wasHold = authority.isContinuousHoldActive();
 
-    // Hold = caminho contínuo (MMO). Soltou = volta ao reconcile normal.
     authority.setContinuousHoldActive(Boolean(movementKeys));
 
-    // Âncora suave: só cursor de tile (não sprite) — hold periódico + ao soltar.
-    const softAnchor = authority.takeSoftTileAnchor();
-    if (softAnchor) {
-      emitSoftTileAnchor(softAnchor);
+    if (wasHold && !movementKeys) {
+      // Freeze seco: fica onde soltou. Sem soft-lerp / sem puxar pro servidor.
+      player.cancelSoftCorrection();
+      authority.freezeVisualAt(player.x, player.y, player.facing);
+      emitSoftTileAnchor({ x: player.x, y: player.y });
     }
 
     if (!movementKeys) {

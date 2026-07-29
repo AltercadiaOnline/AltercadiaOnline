@@ -22,6 +22,10 @@ import { buildEmptyLootRevealSlots } from '../../../shared/loot/lootRevealSlots.
 import type { CombatFinishedPayload } from '../../../shared/combat/combatFinished.js';
 import { didPlayerWinBattle } from '../../../shared/items/combatCreatureRegistry.js';
 import {
+  enrichCombatDispatchTurnTimerUi,
+  type CombatTurnWindowState,
+} from '../../../shared/combat/enrichCombatTurnTimerUi.js';
+import {
   getPvpRankedQueueManager,
   resetPvpRankedQueueManagerForTests,
   type PvpRankedMatchPair,
@@ -37,6 +41,50 @@ import { getGameStore } from '../../state/GameStore.js';
 const LOCAL_CONN = 'local-pvp-human';
 const LOCAL_BOT_CONN = 'local-pvp-practice-bot';
 const LOCAL_BOT_PLAYER_ID = 'pvp_practice_bot';
+const pvpTurnWindows = new Map<string, CombatTurnWindowState>();
+let pvpTurnTimer: ReturnType<typeof setTimeout> | null = null;
+let pvpTurnTimerToken = 0;
+
+function clearPvpTurnTimer(): void {
+  if (pvpTurnTimer !== null) {
+    clearTimeout(pvpTurnTimer);
+    pvpTurnTimer = null;
+  }
+  pvpTurnTimerToken += 1;
+}
+
+function schedulePvpTurnTimeout(enriched: CombatDispatchPayload): void {
+  clearPvpTurnTimer();
+  if (!practiceSession || !enriched.ui.actionsEnabled || enriched.ui.turnDeadlineMs === undefined) {
+    return;
+  }
+  const delayMs = Math.max(0, enriched.ui.turnDeadlineMs - Date.now());
+  const battleId = enriched.state.battleId;
+  const turn = enriched.state.turn;
+  const token = pvpTurnTimerToken;
+  pvpTurnTimer = setTimeout(() => {
+    pvpTurnTimer = null;
+    if (token !== pvpTurnTimerToken) return;
+    void localPvpRankedDispatchAction({
+      battleId,
+      actorId: practiceSession?.getPlayerActorId() ?? '',
+      turn,
+      skillId: null,
+      requestId: `timeout-${Date.now()}`,
+    });
+  }, delayMs);
+}
+
+function enrichPracticePayload(payload: CombatDispatchPayload): CombatDispatchPayload {
+  if (!practiceSession) return payload;
+  const playerId = practiceSession.getPlayerActorId();
+  return enrichCombatDispatchTurnTimerUi(
+    payload,
+    playerId,
+    pvpTurnWindows,
+    payload.state.battleId || playerId,
+  );
+}
 
 type Emit = (type: string, payload: unknown) => void;
 
@@ -244,12 +292,13 @@ async function startLocalPracticeMatch(match: PvpRankedMatchPair): Promise<void>
     matchId: match.matchId,
     battleType: 'PVP',
   });
-  send('combat-event', startPayload);
+  void deliverPracticePayload(startPayload);
 }
 
 export async function localPvpRankedDispatchAction(action: ActionRequest): Promise<void> {
   if (!practiceSession || delivering) return;
   delivering = true;
+  clearPvpTurnTimer();
   try {
     const result = await practiceSession.dispatchPlayerAction(action);
     if (!result.ok) {
@@ -310,9 +359,14 @@ async function deliverPracticePayload(
 ): Promise<void> {
   if (!practiceSession) return;
   if (payload.state.phase !== 'ENDED' && !forcedForfeit) {
-    send('combat-event', payload);
+    const enriched = enrichPracticePayload(payload);
+    send('combat-event', enriched);
+    schedulePvpTurnTimeout(enriched);
     return;
   }
+
+  clearPvpTurnTimer();
+  pvpTurnWindows.clear();
 
   const playerId = practiceSession.getPlayerActorId();
   const characterId = practiceSession.getCharacterId();
@@ -354,6 +408,7 @@ async function deliverPracticePayload(
 
   practiceSession = null;
   getPvpRankedQueueManager().clearAfterBattle();
+  pvpTurnWindows.clear();
   broadcastSnapshot();
 }
 
@@ -362,8 +417,10 @@ export function resetLocalPvpRankedAuthority(): void {
     clearTimeout(botAutoReadyTimer);
     botAutoReadyTimer = null;
   }
+  clearPvpTurnTimer();
   practiceSession = null;
   delivering = false;
+  pvpTurnWindows.clear();
   unsubQueue?.();
   unsubMatch?.();
   unsubQueue = null;

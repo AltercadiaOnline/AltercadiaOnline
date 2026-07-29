@@ -46,7 +46,19 @@ describe('marcos trail selection', () => {
     expect(canChooseMarco('keenEye', ctx)).toBe(false);
   });
 
-  it('após trilha travada (sem starter ativo), libera obter o 1º nível', () => {
+  it('após trilha travada com starter ativo, não libera de novo o 1º nível', () => {
+    const ctx = baseCtx({
+      activeMarcos: ['quickStep'],
+      ramificacaoSelecionada: 'fluxo',
+      trilhaTravada: true,
+      playerLevel: 14,
+    });
+    expect(canChooseMarco('quickStep', ctx)).toBe(false);
+    expect(canChooseMarco('ironStance', ctx)).toBe(false);
+    expect(canSelectBranchStarter('ironStance', ctx)).toBe(false);
+  });
+
+  it('após trilha travada sem starter (legado), libera obter o 1º nível', () => {
     const ctx = baseCtx({
       activeMarcos: [],
       ramificacaoSelecionada: 'fluxo',
@@ -54,8 +66,6 @@ describe('marcos trail selection', () => {
       playerLevel: 14,
     });
     expect(canChooseMarco('quickStep', ctx)).toBe(true);
-    expect(canChooseMarco('ironStance', ctx)).toBe(false);
-    expect(canSelectBranchStarter('ironStance', ctx)).toBe(false);
   });
 
   it('bloqueia avanço na árvore até confirmar uma trilha', () => {

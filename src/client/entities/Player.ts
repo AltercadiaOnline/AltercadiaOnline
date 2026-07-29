@@ -223,6 +223,11 @@ export class Player {
     this.locomotion.stop();
   }
 
+  /** Freeze online: aborta qualquer soft-lerp residual. */
+  cancelSoftCorrection(): void {
+    this.locomotion.cancelSoftCorrection();
+  }
+
   rotate(direction: MoveDirection): void {
     this.locomotion.stop();
     const nextFacing = moveDirectionToFacing(direction);
@@ -308,8 +313,8 @@ export class Player {
       return;
     }
 
-    // Hold contínuo: nunca soft-puxar o sprite (só hard snap / teleporte).
-    if (authority.isContinuousHoldActive() && reconcile.soft && !reconcile.force) {
+    // Online freeze: sync NUNCA soft-puxa o sprite — só hard snap / teleporte.
+    if (!reconcile.force) {
       return;
     }
 
@@ -317,7 +322,7 @@ export class Player {
       reconcile.position.x,
       reconcile.position.y,
       update.facing,
-      { force: reconcile.force, soft: reconcile.soft },
+      { force: true, soft: false },
     );
   }
 

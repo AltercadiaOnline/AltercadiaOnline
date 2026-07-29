@@ -6,7 +6,6 @@
 
 import type { ActionRequest } from '../../../shared/events.js';
 import type { CombatDispatchPayload } from '../../../shared/combatWire.js';
-import { buildCombatUiHints } from '../../../shared/combatWire.js';
 import type { BattleEndReason } from '../../../shared/combat/battleEnded.js';
 import {
   resolveBattleCreatureId,
@@ -16,6 +15,11 @@ import { createDefaultPlayerProgressionData } from '../../../shared/progression/
 import type { PlayerCombatLoadout } from '../../../shared/character/equipmentState.js';
 import { equippedToEquipmentUiGrid } from '../../../shared/character/equipmentUiSlots.js';
 import { EconomyEventType } from '../../../shared/economy/events.js';
+import {
+  clearCombatTurnWindow,
+  enrichCombatDispatchTurnTimerUi,
+  type CombatTurnWindowState,
+} from '../../../shared/combat/enrichCombatTurnTimerUi.js';
 import { CombatSession } from '../../../server/combat/CombatSession.js';
 import { createPveBattleBootstrap } from '../../../server/combat/buildPveBattle.js';
 import { finalizeAuthoritativeBattleEnd } from '../../../server/combat/finalizeAuthoritativeBattleEnd.js';
@@ -40,6 +44,9 @@ let emit: LocalCombatEmit | null = null;
 let session: CombatSession | null = null;
 let activeMonsterInstanceId: string | null = null;
 let delivering = false;
+const turnWindows = new Map<string, CombatTurnWindowState>();
+let turnTimer: ReturnType<typeof setTimeout> | null = null;
+let turnTimerToken = 0;
 
 export function bindLocalCombatEmitter(next: LocalCombatEmit): void {
   emit = next;
@@ -53,14 +60,79 @@ function sendCombatError(reason: string): void {
   send('combat-error', { reason });
 }
 
+function clearLocalTurnTimer(): void {
+  if (turnTimer !== null) {
+    clearTimeout(turnTimer);
+    turnTimer = null;
+  }
+  turnTimerToken += 1;
+}
+
+/**
+ * Paridade com CombatTurnController.scheduleTurnTimer — sem isto o cliente
+ * trava o moveset no expiry e a sessão fica em CHOOSING para sempre (criatura idle).
+ */
+function scheduleLocalTurnTimeout(
+  current: CombatSession,
+  enriched: CombatDispatchPayload,
+): void {
+  clearLocalTurnTimer();
+  if (!enriched.ui.actionsEnabled || enriched.ui.turnDeadlineMs === undefined) {
+    return;
+  }
+
+  const delayMs = Math.max(0, enriched.ui.turnDeadlineMs - Date.now());
+  const battleId = enriched.state.battleId;
+  const turn = enriched.state.turn;
+  const token = turnTimerToken;
+  turnTimer = setTimeout(() => {
+    turnTimer = null;
+    if (token !== turnTimerToken) return;
+    void onLocalTurnTimeout(current, battleId, turn);
+  }, delayMs);
+}
+
+async function onLocalTurnTimeout(
+  expectedSession: CombatSession,
+  battleId: string,
+  turn: number,
+): Promise<void> {
+  const current = session;
+  if (!current || current !== expectedSession) return;
+  const state = current.getState();
+  if (state.battleId !== battleId || state.turn !== turn) return;
+  if (state.phase !== 'CHOOSING') return;
+  if (state.activeActorId !== current.getPlayerActorId()) return;
+  if (delivering) return;
+
+  clearCombatTurnWindow(turnWindows, battleId || current.getPlayerActorId());
+
+  try {
+    delivering = true;
+    const result = await current.dispatchPlayerAction({
+      battleId,
+      actorId: current.getPlayerActorId(),
+      turn,
+      skillId: null,
+      requestId: `timeout-${Date.now()}`,
+    });
+    if (!result.ok) return;
+    await deliverPayload(current, result.payload);
+  } catch (error) {
+    console.error('[LocalCombat] timeout de turno falhou', error);
+    sendCombatError('SERVER_ERROR');
+  } finally {
+    delivering = false;
+  }
+}
+
+/** Espelha CombatTurnController — anexa turnDeadlineMs + agenda timeout local. */
 function enrichPayload(
   payload: CombatDispatchPayload,
   playerActorId: string,
 ): CombatDispatchPayload {
-  return {
-    ...payload,
-    ui: buildCombatUiHints(payload.state, playerActorId),
-  };
+  const windowKey = payload.state.battleId || playerActorId;
+  return enrichCombatDispatchTurnTimerUi(payload, playerActorId, turnWindows, windowKey);
 }
 
 /** Hidrata stores autoritativos in-memory com o loadout do client (mesmo contrato do join online). */
@@ -210,6 +282,8 @@ async function deliverEnded(
 
   session = null;
   activeMonsterInstanceId = null;
+  clearLocalTurnTimer();
+  turnWindows.clear();
 }
 
 async function deliverPayload(
@@ -220,10 +294,13 @@ async function deliverPayload(
 ): Promise<void> {
   const enriched = enrichPayload(payload, current.getPlayerActorId());
   if (enriched.state.phase === 'ENDED') {
+    clearLocalTurnTimer();
+    clearCombatTurnWindow(turnWindows, enriched.state.battleId);
     await deliverEnded(current, enriched, forcedEndReason, surrenderVoltPenalty);
     return;
   }
   send('combat-event', enriched);
+  scheduleLocalTurnTimeout(current, enriched);
 }
 
 /**
@@ -240,6 +317,8 @@ export async function localCombatAcceptPve(input: {
 
   try {
     delivering = true;
+    clearLocalTurnTimer();
+    turnWindows.clear();
     seedAuthoritativeStores(input.loadout);
     const bootstrap = createPveBattleBootstrap(input.loadout, input.monsterInstanceId);
     const next = new CombatSession(input.loadout.playerId, bootstrap.state, {
@@ -277,6 +356,7 @@ export async function localCombatDispatchAction(action: ActionRequest): Promise<
 
   try {
     delivering = true;
+    clearLocalTurnTimer();
     const result = await current.dispatchPlayerAction(action);
     if (!result.ok) {
       sendCombatError(result.reason);
@@ -304,6 +384,7 @@ export async function localCombatForfeit(battleId: string): Promise<void> {
 
   try {
     delivering = true;
+    clearLocalTurnTimer();
     const result = await current.forfeitPlayer();
     if (!result.ok) {
       sendCombatError(result.reason);
@@ -342,7 +423,9 @@ export async function localCombatForfeit(battleId: string): Promise<void> {
 }
 
 export function resetLocalCombatAuthority(): void {
+  clearLocalTurnTimer();
   session = null;
   activeMonsterInstanceId = null;
   delivering = false;
+  turnWindows.clear();
 }

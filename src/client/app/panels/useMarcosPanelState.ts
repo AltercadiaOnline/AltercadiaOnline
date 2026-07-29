@@ -4,12 +4,16 @@ import {
   MARCO_BRANCH_FOCUS,
   MARCO_BRANCH_LABELS,
   MARCO_BRANCH_SHORT_LABELS,
+  resolveStarterFromRamificacao,
   type MarcoRamificacaoId,
 } from '../../../shared/progression/milestoneTreeCatalog.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL } from '../../../shared/progression/marcoProgression.js';
-import { hasConfirmedMarcoTrail } from '../../../shared/progression/milestoneTreeState.js';
+import {
+  hasConfirmedMarcoTrail,
+  isMarcoActive,
+} from '../../../shared/progression/milestoneTreeState.js';
 import {
   activateMarcosTrail,
   buildMarcosRenderModel,
@@ -29,15 +33,8 @@ function buildMarcosStructuralKey(state: MarcosStateSnapshot): string {
 
 export function useMarcosPanelState() {
   const [pendingBranch, setPendingBranch] = useState<MarcoRamificacaoId | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [progressTick, setProgressTick] = useState(0);
   const [activating, setActivating] = useState(false);
-
-  const clearAbilitySelection = useCallback((): void => {
-    setSelectedNodeId(null);
-    setSelectedLabel(null);
-  }, []);
 
   useEffect(() => {
     const unsubLevel = getDataStore().subscribe('characterLevel', () => {
@@ -53,7 +50,6 @@ export function useMarcosPanelState() {
       const nextKey = buildMarcosStructuralKey(state);
       if (nextKey !== currentStructuralKey) {
         currentStructuralKey = nextKey;
-        clearAbilitySelection();
         if (state.trilhaTravada) {
           setPendingBranch(null);
         }
@@ -62,23 +58,42 @@ export function useMarcosPanelState() {
       setActivating(false);
     });
     return () => unsub();
-  }, [clearAbilitySelection]);
+  }, []);
 
   const ctx = buildMarcosPlayerContext();
   const trailConfirmed = hasConfirmedMarcoTrail(ctx);
-  const model = buildMarcosRenderModel(null, selectedNodeId, pendingBranch);
+  const model = buildMarcosRenderModel(null, null, pendingBranch);
   const gridHtml = renderMarcoGrid(model);
 
-  const confirmedBranchLabel = model.ramificacaoSelecionada
-    ? MARCO_BRANCH_LABELS[model.ramificacaoSelecionada]
+  const confirmedBranch = model.ramificacaoSelecionada;
+  const confirmedBranchLabel = confirmedBranch
+    ? MARCO_BRANCH_LABELS[confirmedBranch]
     : null;
+  const confirmedShortLabel = confirmedBranch
+    ? MARCO_BRANCH_SHORT_LABELS[confirmedBranch]
+    : null;
+
+  const starterActive = Boolean(
+    confirmedBranch
+    && isMarcoActive(ctx.activeMarcos, resolveStarterFromRamificacao(confirmedBranch)),
+  );
+
+  /** Rodapé pós-ativação — só descrição (sem botão). */
+  const trailStatusLine = useMemo(() => {
+    if (!confirmedShortLabel) return null;
+    const trailName = `TRILHA ${confirmedShortLabel.toUpperCase()}`;
+    if (starterActive) {
+      return `Trilha ativa · ${trailName} · 1º nível selecionado`;
+    }
+    return `Trilha ativa · ${trailName}`;
+  }, [confirmedShortLabel, starterActive]);
 
   const trailOptions = useMemo(
     () => listMarcosTrailOptions(ctx.playerLevel),
-    // progressTick cobre mudanças de nível / estado Marcos
     [ctx.playerLevel, progressTick, trailConfirmed],
   );
 
+  // Após trilha ativa: clique em nó ○ obtém direto (sem botão no rodapé).
   const handleTreeClick = useCallback((event: React.MouseEvent<HTMLElement>): void => {
     if (activating || !trailConfirmed) return;
     const target = event.target;
@@ -90,8 +105,24 @@ export function useMarcosPanelState() {
       alertSystem(pick.message);
       return;
     }
-    setSelectedNodeId(pick.nodeId);
-    setSelectedLabel(pick.label);
+
+    void (async () => {
+      setActivating(true);
+      const result = obtainMarcosAbility(pick.nodeId);
+      if (result.pendingIntentId) {
+        const ok = await getActionDispatcher().waitForIntentResult(result.pendingIntentId);
+        setActivating(false);
+        if (ok) {
+          alertSystem('Habilidade Marcos obtida.');
+          setProgressTick((tick) => tick + 1);
+        }
+        return;
+      }
+      setActivating(false);
+      if (result.refreshFull) {
+        setProgressTick((tick) => tick + 1);
+      }
+    })();
   }, [activating, trailConfirmed]);
 
   const handleMouseOver = useCallback((event: React.MouseEvent<HTMLElement>) => {
@@ -123,9 +154,8 @@ export function useMarcosPanelState() {
       const ok = await getActionDispatcher().waitForIntentResult(result.pendingIntentId);
       setActivating(false);
       if (ok) {
-        alertSystem(`${MARCO_BRANCH_LABELS[pendingBranch]} ativada. Agora obtenha o 1º nível.`);
+        alertSystem(`${MARCO_BRANCH_LABELS[pendingBranch]} ativada · 1º nível selecionado.`);
         setPendingBranch(null);
-        clearAbilitySelection();
         setProgressTick((tick) => tick + 1);
       }
       return;
@@ -133,31 +163,9 @@ export function useMarcosPanelState() {
     setActivating(false);
     if (result.refreshFull) {
       setPendingBranch(null);
-      clearAbilitySelection();
       setProgressTick((tick) => tick + 1);
     }
-  }, [activating, clearAbilitySelection, pendingBranch, trailConfirmed]);
-
-  const runObtainAbility = useCallback(async (): Promise<void> => {
-    if (!selectedNodeId || activating || !trailConfirmed) return;
-    setActivating(true);
-    const result = obtainMarcosAbility(selectedNodeId);
-    if (result.pendingIntentId) {
-      const ok = await getActionDispatcher().waitForIntentResult(result.pendingIntentId);
-      setActivating(false);
-      if (ok) {
-        alertSystem('Habilidade Marcos obtida.');
-        clearAbilitySelection();
-        setProgressTick((tick) => tick + 1);
-      }
-      return;
-    }
-    setActivating(false);
-    if (result.refreshFull) {
-      clearAbilitySelection();
-      setProgressTick((tick) => tick + 1);
-    }
-  }, [activating, clearAbilitySelection, selectedNodeId, trailConfirmed]);
+  }, [activating, pendingBranch, trailConfirmed]);
 
   const minTrailLevel = MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL[0] ?? 10;
   const canChooseTrail = !trailConfirmed && ctx.playerLevel >= minTrailLevel;
@@ -173,14 +181,12 @@ export function useMarcosPanelState() {
     canChooseTrail,
     trailConfirmed,
     confirmedBranchLabel,
-    selectedNodeId,
-    selectedLabel,
+    trailStatusLine,
     activating,
     progressTick,
     pendingShort,
     pendingFocus,
     runActivateTrail,
-    runObtainAbility,
     handleTreeClick,
     handleMouseOver,
     handleMouseLeave,

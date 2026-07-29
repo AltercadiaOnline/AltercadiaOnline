@@ -7663,6 +7663,19 @@ body > .battle-result-overlay,
   color: var(--ui-holo);
 }
 
+.marcos-panel__confirm-bar--status-only {
+  padding: 0.55rem 0.7rem;
+}
+
+.marcos-panel__status-line {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ui-holo);
+  line-height: 1.4;
+}
+
 .marcos-panel__confirm-title {
   margin: 0;
   font-size: 0.72rem;

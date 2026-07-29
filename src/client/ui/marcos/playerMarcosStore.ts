@@ -64,9 +64,9 @@ class PlayerMarcosStore {
   }
 
   /**
- * Escolha inicial de trilha — trava ramificação; **não** ativa o starter.
- * O 1º nível se obtém depois com CHOOSE_MARCO.
- */
+   * Escolha inicial de trilha — trava ramificação e liga o 1º nível (starter).
+   * Confirmação é só o botão de cima; o rodapé fica só status.
+   */
   selectBranch(starterNodeId: string): boolean {
     if (!canSelectBranchStarter(starterNodeId, this.getPlayerContext())) return false;
 
@@ -77,8 +77,7 @@ class PlayerMarcosStore {
     progression.setRamificacaoSelecionada(ramificacao);
     progression.setTrilhaTravada(true);
 
-    // Trilha travada sem habilidade ainda — jogador confirma o Nv.1 em seguida.
-    this.activeMarcos = [];
+    this.activeMarcos = [starterNodeId];
     this.publish();
     uiEvents.emit(UIEventType.MARCO_CHOSEN, { nodeId: starterNodeId });
     return true;

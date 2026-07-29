@@ -207,18 +207,8 @@ export class BattleScreen {
     if (combatantId.startsWith('enemy_') || combatantId.startsWith('mirror_')) return 'opponent';
     if (this.lastPlayerActorId && combatantId === this.lastPlayerActorId) return 'player';
     if (this.boundOpponentId && combatantId === this.boundOpponentId) return 'opponent';
-    if (
-      this.lastPlayerActorId
-      && combatantId !== this.lastPlayerActorId
-      && this.combatantVitals.has(combatantId)
-    ) {
-      return 'opponent';
-    }
-    // Sem sync ainda: id sem prefixo inimigo/pet = lado aliado (dano recebido no player).
-    if (!this.lastPlayerActorId && !combatantId.startsWith('enemy_') && !combatantId.startsWith('mirror_')) {
-      return 'player';
-    }
-    return null;
+    // Id de personagem / pet sem prefixo: lado aliado (hit da criatura → perto do player).
+    return 'player';
   }
 
   private resolvePortraitElements(): {
@@ -249,10 +239,10 @@ export class BattleScreen {
     if (side === 'opponent') return opponent;
 
     if (combatantId.startsWith('pet_')) return player;
+    if (combatantId.startsWith('enemy_') || combatantId.startsWith('mirror_')) return opponent;
     if (this.lastPlayerActorId && combatantId === this.lastPlayerActorId) return player;
     if (this.boundOpponentId && combatantId === this.boundOpponentId) return opponent;
-    if (combatantId.startsWith('enemy_') || combatantId.startsWith('mirror_')) return opponent;
-    if (this.lastPlayerActorId && combatantId !== this.lastPlayerActorId) return opponent;
+    // Default aliado — nunca jogar hit recebido no PNG da criatura.
     return player;
   }
 

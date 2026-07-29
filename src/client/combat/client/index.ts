@@ -88,7 +88,6 @@ import {
 import { BattleType } from '../../../shared/combat/battleType.js';
 import { buildEmptyLootRevealSlots } from '../../../shared/loot/lootRevealSlots.js';
 import {
-  isCombatActionPlaybackActive,
   setBattlePlaybackClosing,
   setCombatActionPlaybackActive,
 } from '../combatPlaybackState.js';
@@ -1023,7 +1022,9 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
   initTurnStateGuard(root);
   getTurnStateGuard().setOnChoiceWindowExpired(() => {
     if (battleInputFrozen) return;
-    combatActionPending = true;
+    // Só trava a UI — NÃO sticky combatActionPending (senão moveset/criatura
+    // ficam mortos se a autoridade não avançar o turno). Online/local resolvem
+    // com skillId:null via CombatTurnController / localCombatAuthority.
     battleCommand?.lock();
     battleItems?.lock();
   });
@@ -1129,11 +1130,15 @@ export function getBattleController(): BattleController {
  * Local emite START_COMBAT + combat-event no mesmo tick; a transição
  * TRANSITIONING desmonta a UI depois do 1º dispatch. Ao montar BATTLE,
  * reaplica o último snapshot para liberar moveset / turn guard.
+ * Limpa gate de playback: o 1º dispatch pode ter consumido TURN_START com
+ * playback ainda true (paleta nunca unlock) antes do mount.
  */
 function rehydrateBattleUiFromLastDispatch(): void {
   const dispatch = lastDispatch;
   if (!dispatch || dispatch.state.phase === 'ENDED') return;
-  if (isCombatActionPlaybackActive()) return;
+  setCombatActionPlaybackActive(false);
+  getCombatTurnGateway()?.setExtraBlocked(false);
+  combatActionPending = false;
   GameClient.renderState(dispatch.state, dispatch.ui);
 }
 
@@ -1180,6 +1185,7 @@ export function prepareNextBattle(options: { readonly keepEndHandled?: boolean }
   combatDispatchGeneration += 1;
   setBattlePlaybackClosing(false);
   setCombatActionPlaybackActive(false);
+  combatActionPending = false;
   if (!options.keepEndHandled) {
     battleEndHandled = false;
   }
@@ -1346,6 +1352,13 @@ export const GameClient = {
       hudManager.endStatusPlayback();
       const isLatestDispatch = dispatchGeneration === combatDispatchGeneration;
       if (!isLatestDispatch) {
+        // Geração mudou (ex.: prepareNextBattle no join) — ainda libera paleta
+        // do snapshot atual para não ficar LOCKED sem próximo combat-event.
+        const latest = lastDispatch;
+        if (latest && latest.state.phase !== 'ENDED' && !battleEndHandled) {
+          releaseCombatActionLock();
+          GameClient.renderState(latest.state, latest.ui);
+        }
         return;
       }
       if (battleEndHandled) return;
@@ -1364,6 +1377,10 @@ export const GameClient = {
       hudManager.endStatusPlayback();
       logCriticalBattleError('combat-dispatch', error);
       releaseCombatActionLock();
+      const latest = lastDispatch;
+      if (latest && latest.state.phase !== 'ENDED' && !battleEndHandled) {
+        GameClient.renderState(latest.state, latest.ui);
+      }
       if (data.state.phase === 'ENDED' && !battleEndHandled) {
         openPostBattleHubForBattle(data.state.battleId);
       }

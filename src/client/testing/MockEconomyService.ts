@@ -1118,8 +1118,8 @@ export class MockEconomyService implements IDevMockEconomyService {
 
     this.state.marcos.ramificacaoSelecionada = ramificacao;
     this.state.marcos.trilhaTravada = true;
-    // Trava a trilha; o starter só entra via CHOOSE_MARCO (Obter habilidade).
-    this.state.marcos.activeMarcos = [];
+    // Trava a trilha e liga o 1º nível (starter) — confirmação só no botão de cima.
+    this.state.marcos.activeMarcos = [starterNodeId];
     this.bumpRevision('marcosState');
     return { ok: true };
   }

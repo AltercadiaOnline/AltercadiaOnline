@@ -127,8 +127,8 @@ export function selectMarcoBranchAuthoritative(
   }
 
   const current = getAuthoritativeProgression(playerId, characterId);
-  // Confirmar 1 trilha: trava ramificação; starter ainda não está ativo.
-  const activeMarcos: string[] = [];
+  // Confirmar 1 trilha + 1º nível (starter) na mesma ativação do botão de cima.
+  const activeMarcos = [starterNodeId];
   const nodeProgression = filterNodeProgressionToTrail(
     current.marcos.nodeProgression,
     ramificacao,

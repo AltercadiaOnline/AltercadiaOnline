@@ -124,7 +124,7 @@ export function activateMarcosTrail(branch: MarcoRamificacaoId): MarcosClickResu
   if (result.status === 'pending') {
     return { refreshFull: false, pendingIntentId: result.intentId };
   }
-  alertSystem(`${MARCO_BRANCH_LABELS[branch]} ativada. Agora obtenha o 1º nível.`);
+  alertSystem(`${MARCO_BRANCH_LABELS[branch]} ativada · 1º nível selecionado.`);
   return { refreshFull: true, pendingIntentId: null };
 }
 
