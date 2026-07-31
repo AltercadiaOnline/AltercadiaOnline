@@ -27,7 +27,8 @@ export type AddItemToInventoryResult = {
 };
 
 const DEFAULT_GENERIC_MAX_STACK = 99;
-const DEFAULT_CURRENCY_MAX_STACK = 9999;
+/** Moeda espelha a carteira — um stack único com saldo completo. */
+const DEFAULT_CURRENCY_MAX_STACK = 999_999_999;
 
 /** Regras de pilha por tipo de item (catálogo = fonte da verdade). */
 export function resolveInventoryStackRules(itemId: string): InventoryStackRules {

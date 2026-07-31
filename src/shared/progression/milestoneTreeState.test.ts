@@ -73,12 +73,32 @@ describe('marcos trail selection', () => {
     expect(canChooseMarco('fluxRush', ctx)).toBe(false);
   });
 
+  it('no Nv.30 com starter ativo libera o 2º nó da trilha', () => {
+    const ctx = baseCtx({
+      activeMarcos: ['quickStep'],
+      ramificacaoSelecionada: 'fluxo',
+      trilhaTravada: true,
+      playerLevel: 30,
+    });
+    expect(canChooseMarco('fluxRush', ctx)).toBe(true);
+    expect(canChooseMarco('ironStance', ctx)).toBe(false);
+  });
+
+  it('abaixo do Nv.30 ainda bloqueia o 2º nó', () => {
+    const ctx = baseCtx({
+      activeMarcos: ['quickStep'],
+      ramificacaoSelecionada: 'fluxo',
+      trilhaTravada: true,
+      playerLevel: 29,
+    });
+    expect(canChooseMarco('fluxRush', ctx)).toBe(false);
+  });
+
   it('após trilha confirmada e starter ativo, só libera nós da mesma ramificação', () => {
     const ctx = baseCtx({
       activeMarcos: ['quickStep'],
       ramificacaoSelecionada: 'fluxo',
       trilhaTravada: true,
-      flowSpeedBase: 50,
       playerLevel: 20,
     });
     expect(canChooseMarco('quickStep', ctx)).toBe(false);

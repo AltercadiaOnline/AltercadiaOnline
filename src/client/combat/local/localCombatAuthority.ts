@@ -20,6 +20,11 @@ import {
   enrichCombatDispatchTurnTimerUi,
   type CombatTurnWindowState,
 } from '../../../shared/combat/enrichCombatTurnTimerUi.js';
+import {
+  shouldStaggerMonsterReaction,
+  splitDispatchForMonsterStagger,
+} from '../../../shared/combat/combatDispatchStagger.js';
+import { combatReactionStaggerDelay } from '../../../shared/combat/combatReactionDelay.js';
 import { CombatSession } from '../../../server/combat/CombatSession.js';
 import { createPveBattleBootstrap } from '../../../server/combat/buildPveBattle.js';
 import { finalizeAuthoritativeBattleEnd } from '../../../server/combat/finalizeAuthoritativeBattleEnd.js';
@@ -292,13 +297,31 @@ async function deliverPayload(
   forcedEndReason?: BattleEndReason,
   surrenderVoltPenalty?: number,
 ): Promise<void> {
-  const enriched = enrichPayload(payload, current.getPlayerActorId());
-  if (enriched.state.phase === 'ENDED') {
+  const playerActorId = current.getPlayerActorId();
+
+  if (payload.state.phase === 'ENDED') {
+    const enriched = enrichPayload(payload, playerActorId);
     clearLocalTurnTimer();
     clearCombatTurnWindow(turnWindows, enriched.state.battleId);
     await deliverEnded(current, enriched, forcedEndReason, surrenderVoltPenalty);
     return;
   }
+
+  // Paridade online: jogador → pausa → monstro (hit da criatura no PNG do player).
+  if (shouldStaggerMonsterReaction(payload)) {
+    const split = splitDispatchForMonsterStagger(payload);
+    if (split) {
+      const playerPhase = enrichPayload(split.playerPhase, playerActorId);
+      send('combat-event', playerPhase);
+      await combatReactionStaggerDelay();
+      const monsterPhase = enrichPayload(split.monsterPhase, playerActorId);
+      send('combat-event', monsterPhase);
+      scheduleLocalTurnTimeout(current, monsterPhase);
+      return;
+    }
+  }
+
+  const enriched = enrichPayload(payload, playerActorId);
   send('combat-event', enriched);
   scheduleLocalTurnTimeout(current, enriched);
 }

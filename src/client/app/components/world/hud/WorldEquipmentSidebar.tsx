@@ -6,6 +6,7 @@ import {
 } from '../../../../../shared/character/equipmentUiSlots.js';
 import { resolveCharacterLevelXpBar } from '../../../../../shared/character/characterLevelProgression.js';
 import { resolveLoadoutPpBudget } from '../../../../../shared/combat/loadoutPpBudget.js';
+import { getMapZoneHudLine } from '../../../../../shared/world/mapChatLabels.js';
 import { emitItemTooltip } from '../../../../ui/tooltip/emitItemTooltip.js';
 import {
   InventoryService,
@@ -33,6 +34,16 @@ import {
   hidePlayerHpTooltip,
   showPlayerHpTooltip,
 } from '../../../../ui/equipment/playerHpTooltip.js';
+import {
+  getMinimapSnapshot,
+  subscribeMinimapSnapshot,
+} from '../../../../world/minimap/minimapState.js';
+import {
+  LAG_BAD_RTT_MS,
+  LAG_WARN_RTT_MS,
+  getMovementNetTelemetry,
+  type MovementNetSnapshot,
+} from '../../../../world/movementNetTelemetry.js';
 import { ItemSlotIcon } from '../panels/ItemSlotIcon.js';
 import { buildProgressionTooltipDataAttributes } from './progressionTooltipProps.js';
 
@@ -99,6 +110,13 @@ function EquipSlotButton({
   );
 }
 
+function resolveLatTone(rttMs: number | null): 'ok' | 'warn' | 'bad' | 'idle' {
+  if (rttMs === null) return 'idle';
+  if (rttMs >= LAG_BAD_RTT_MS) return 'bad';
+  if (rttMs >= LAG_WARN_RTT_MS) return 'warn';
+  return 'ok';
+}
+
 export function WorldEquipmentSidebar({ interactive = true }: { readonly interactive?: boolean }) {
   const equipment = usePlayerEquipmentSnapshot();
   const profile = usePlayerProfileSnapshot();
@@ -108,11 +126,24 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
 
   const rootRef = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState(() => isInventoryUiSyncPending());
+  const [mapId, setMapId] = useState<string | null>(
+    () => getMinimapSnapshot()?.mapId
+      ?? getGlobalPlayerStore().getExplorationSnapshot()?.mapId
+      ?? null,
+  );
+  const [netSnapshot, setNetSnapshot] = useState<MovementNetSnapshot>(() =>
+    getMovementNetTelemetry().getSnapshot(),
+  );
+
   const equippedItems = selectPlayerEquipment();
   const loadout = getGlobalPlayerStore().getConfirmedLoadout();
   const { ppCurrent, ppMax } = resolveLoadoutPpBudget(loadout);
   const xpBar = resolveCharacterLevelXpBar(profile.level, profile.xpCurrent);
   const progressionTooltipAttrs = buildProgressionTooltipDataAttributes(profile, xpBar);
+  const zoneLine = getMapZoneHudLine(mapId);
+  const rttMs = netSnapshot.rttMs;
+  const latTone = resolveLatTone(rttMs);
+  const latText = rttMs !== null ? `LAT: ${Math.round(rttMs)}ms` : 'LAT: —';
 
   const hpPct = equipment.vitals.hpMax > 0
     ? (equipment.vitals.hpCurrent / equipment.vitals.hpMax) * 100
@@ -130,6 +161,16 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
     return getPendingIntentRegistry().subscribeChange(() => {
       setPending(isInventoryUiSyncPending());
     });
+  }, []);
+
+  useEffect(() => {
+    return subscribeMinimapSnapshot((snapshot) => {
+      setMapId(snapshot.mapId);
+    });
+  }, []);
+
+  useEffect(() => {
+    return getMovementNetTelemetry().subscribe(setNetSnapshot);
   }, []);
 
   useEffect(() => {
@@ -153,8 +194,33 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
       style={interactive ? undefined : { pointerEvents: 'none' }}
     >
       <header className="equipment-sidebar__header">
+        <div className="equipment-sidebar__meta-row">
+          <span className="equipment-sidebar__zone" title="Zona atual / caçada">
+            {zoneLine}
+          </span>
+          <span
+            className={`equipment-sidebar__lat equipment-sidebar__lat--${latTone}`}
+            title="Latência de rede (RTT MOVE)"
+            aria-label={latText}
+          >
+            {latText}
+          </span>
+        </div>
         <p className="equipment-sidebar__name">{profile.displayName}</p>
         <p className="equipment-sidebar__level">Nível {profile.level}</p>
+        <div
+          className="equipment-sidebar__xp-bar"
+          role="progressbar"
+          aria-valuenow={xpBar.xpCurrent}
+          aria-valuemax={xpBar.xpToNext}
+          aria-label="Experiência até o próximo nível"
+          {...progressionTooltipAttrs}
+        >
+          <div className="equipment-sidebar__xp-fill" style={{ width: `${xpBar.percent}%` }} />
+        </div>
+        <p className="equipment-sidebar__xp-text">
+          {xpBar.xpCurrent} / {xpBar.xpToNext} XP
+        </p>
       </header>
 
       <section className="equipment-sidebar__vitals" aria-label="Status vital">
@@ -187,7 +253,15 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
         </div>
         <div className="vital-row vital-row--cap">
           <span className="vital-label">CAP</span>
-          <div className="vital-bar vital-bar--cap" role="progressbar" aria-label="Capacidade de carga">
+          <div
+            className={[
+              'vital-bar vital-bar--cap',
+              capacity.visualLevel === 'warning' ? 'vital-bar--cap-warn' : '',
+              capacity.visualLevel === 'overload' ? 'vital-bar--cap-overload' : '',
+            ].filter(Boolean).join(' ')}
+            role="progressbar"
+            aria-label="Capacidade de carga"
+          >
             <div
               className={[
                 'vital-bar__fill',
@@ -204,29 +278,8 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
               capacity.visualLevel === 'warning' ? 'vital-value--warning' : '',
             ].filter(Boolean).join(' ')}
           >
-            {capacity.formatted}
+            {capacity.currentWeight.toFixed(1)} / {capacity.maxWeight.toFixed(1)}
           </span>
-        </div>
-      </section>
-
-      <section className="equipment-sidebar__progression" aria-label="Progressão de Nível">
-        <h2 className="equipment-sidebar__stats-title">Progressão de Nível</h2>
-        <div data-equip-progression>
-          <p className="equipment-sidebar__progression-level">Nv. {xpBar.level}</p>
-          <div
-            className="equipment-sidebar__xp-bar"
-            role="progressbar"
-            aria-valuenow={xpBar.xpCurrent}
-            aria-valuemax={xpBar.xpToNext}
-            aria-label="Experiência até o próximo nível"
-            {...progressionTooltipAttrs}
-          >
-            <div className="equipment-sidebar__xp-fill" style={{ width: `${xpBar.percent}%` }} />
-          </div>
-          <p className="equipment-sidebar__xp-text">
-            {xpBar.xpCurrent} / {xpBar.xpToNext} XP
-          </p>
-          <p className="equipment-sidebar__xp-hint">Faltam {xpBar.remaining} XP para up</p>
         </div>
       </section>
 

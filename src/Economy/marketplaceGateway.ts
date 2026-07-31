@@ -17,6 +17,7 @@ import {
   getPlayerWallet,
   syncAuthoritativeLoadoutFromEconomyProfile,
 } from './economyStore.js';
+import { publishWalletUpdated } from './economyGateway.js';
 import {
   listGlobalMarketListings,
   registerGlobalMarketListing,
@@ -253,15 +254,9 @@ export async function createMarketBuyOrderAuthoritative(
   const revision = Date.now();
   const message = `Ordem de compra publicada: ${qty}× ${item?.name ?? itemId} até ${unitPrice} V/un.`;
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      revision,
-      ...(intentId ? { intentId } : {}),
-    },
+  publishWalletUpdated(playerId, characterId, tx, {
+    revision,
+    ...(intentId ? { intentId } : {}),
   });
 
   emitMarketplaceUpdated(playerId, characterId, {
@@ -292,15 +287,9 @@ export async function collectMarketVoltsAuthoritative(
   const revision = Date.now();
   const message = `Venda coletada: +${formatVolts(netVolts)}.`;
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      revision,
-      ...(intentId ? { intentId } : {}),
-    },
+  publishWalletUpdated(playerId, characterId, tx, {
+    revision,
+    ...(intentId ? { intentId } : {}),
   });
 
   emitMarketplaceUpdated(playerId, characterId, {
@@ -369,15 +358,9 @@ export async function cancelMarketBuyOrderAuthoritative(
   const revision = Date.now();
   const message = `Ordem de compra cancelada: ${formatVolts(cancelled.refundVolts)} devolvidos.`;
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      revision,
-      ...(intentId ? { intentId } : {}),
-    },
+  publishWalletUpdated(playerId, characterId, tx, {
+    revision,
+    ...(intentId ? { intentId } : {}),
   });
 
   emitMarketplaceUpdated(playerId, characterId, {

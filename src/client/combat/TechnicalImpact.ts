@@ -13,9 +13,13 @@ import {
 import { formatCompactHitMoveLabel, resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels.js';
 import { sumAttackBreakdownTotal } from '../../shared/combat/combatBreakdownBuilder.js';
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
-import { mountBattleEffectBesideFighter, mountBattleEffectOnFighter } from './battleEffectsLayer.js';
+import {
+  mountBattleHitHudInZone,
+  resolveBattleEffectSide,
+  type BattleEffectSide,
+} from './battleEffectsLayer.js';
 
-export const TECHNICAL_IMPACT_DURATION_MS = 2600;
+export const TECHNICAL_IMPACT_DURATION_MS = 2000;
 
 export type TechnicalImpactShowOptions = {
   readonly durationMs?: number;
@@ -25,6 +29,8 @@ export type TechnicalImpactShowOptions = {
   readonly suppressFinalDamage?: boolean;
   /** Mostra a conta autodidata (moveset + amuleto + runa + …) ao lado do sprite. */
   readonly lessonMath?: boolean;
+  /** Zona fixa na arena — ally = player (esq), foe = criatura (dir). */
+  readonly side?: BattleEffectSide;
 };
 
 export type TechnicalImpactPayload = {
@@ -40,20 +46,19 @@ export type TechnicalImpactPayload = {
   readonly mitigation?: CombatHitMitigationSnapshot;
 };
 
-/** Monta na arena de combate — VFX integrado ao cenário. */
+/** Monta na camada livre da arena — zonas ally/foe, sem âncora de retrato. */
 function mountOverlayAtAnchor(
   overlay: HTMLElement,
   anchor: HTMLElement,
-  options: { readonly compactScene: boolean; readonly lessonMath: boolean },
+  options: {
+    readonly compactScene: boolean;
+    readonly lessonMath: boolean;
+    readonly side?: BattleEffectSide;
+    readonly kind?: 'math' | 'heal' | 'pop';
+  },
 ): void {
-  if (options.compactScene && options.lessonMath) {
-    // Conta autodidata ao lado do PNG — o −N fica no centro via battle-hit-pop.
-    mountBattleEffectBesideFighter(overlay, anchor, { clampPadding: 10, gapPx: 10 });
-  } else if (options.compactScene) {
-    mountBattleEffectOnFighter(overlay, anchor, { yFactor: 0.06 });
-  } else {
-    mountBattleEffectBesideFighter(overlay, anchor, { clampPadding: 12, gapPx: 14 });
-  }
+  const side = options.side ?? resolveBattleEffectSide(anchor);
+  mountBattleHitHudInZone(overlay, side, options.kind ?? 'math');
   overlay.classList.add('technical-impact--scene');
 }
 
@@ -378,6 +383,7 @@ export function showTechnicalImpact(
   mountOverlayAtAnchor(overlay, anchor, {
     compactScene: options.compactScene === true,
     lessonMath: options.lessonMath === true,
+    ...(options.side ? { side: options.side } : {}),
   });
 
   if (typeof requestAnimationFrame === 'function') {
@@ -421,7 +427,13 @@ export function showHealImpact(anchor: HTMLElement, amount: number): void {
   hint.textContent = 'HP restaurado';
   overlay.appendChild(hint);
 
-  mountOverlayAtAnchor(overlay, anchor, { compactScene: true, lessonMath: false });
+  const side = resolveBattleEffectSide(anchor);
+  mountOverlayAtAnchor(overlay, anchor, {
+    compactScene: true,
+    lessonMath: false,
+    side,
+    kind: 'heal',
+  });
 
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => overlay.classList.add('is-visible'));

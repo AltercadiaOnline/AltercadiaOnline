@@ -155,7 +155,7 @@ function book(
 
 /** Entradas brutas — montadas em `ITEM_CATALOG` por id. */
 export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
-  currency('dollar_volt', 'DOLLAR VOLT', 'Moeda in-game — loot, comércio e recompensas.'),
+  currency('dollar_volt', 'VOLTS', 'Moeda in-game — loot, comércio e recompensas.', 0),
   currency('alter_coin', 'ALTER COIN', 'Moeda premium — trocável por Volts no Mercado.', 0),
 
   generic('soul_fragment', 'Fragmento de Alma', 'Item raro vendável. Forja pós-lançamento.'),

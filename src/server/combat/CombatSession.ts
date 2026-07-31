@@ -570,7 +570,9 @@ export class CombatSession {
       playerActorId: this.playerActorId,
       enemyActorIds: listEnemyActorIds(result.state.combatants, this.playerActorId),
     });
-    const actionResult = extractCombatActionIntentResult(result.events);
+    const actionResult = extractCombatActionIntentResult(result.events, {
+      playerActorId: this.playerActorId,
+    });
     return {
       events: result.events,
       state: result.state,

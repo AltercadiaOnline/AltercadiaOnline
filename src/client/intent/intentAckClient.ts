@@ -13,6 +13,7 @@ import {
   isProjectileCombatAction,
 } from '../combat/VfxProjectileManager.js';
 import { getVfxProjectileManager } from '../combat/VfxProjectileManager.js';
+import { isCombatActionPlaybackActive } from '../combat/combatPlaybackState.js';
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import {
@@ -104,8 +105,17 @@ function tryNotifyRefractionResult(intentId: string, success: boolean, data?: un
 
 async function playCombatAttackVfx(data: CombatActionIntentResultData): Promise<void> {
   if (!isProjectileCombatAction(data.action)) return;
+  // Combate já orquestra VFX via combat-event — evita segundo impacto no oponente.
+  if (isCombatActionPlaybackActive()) return;
   try {
-    await getVfxProjectileManager().playFromGatewayResult(data);
+    const scope = typeof document !== 'undefined' ? document : undefined;
+    const sourcePortrait = scope?.querySelector<HTMLElement>('#battle-player-portrait') ?? undefined;
+    const targetPortrait = scope?.querySelector<HTMLElement>('#battle-opponent-portrait') ?? undefined;
+    await getVfxProjectileManager().playFromGatewayResult(data, {
+      ...(sourcePortrait ? { sourcePortrait } : {}),
+      ...(targetPortrait ? { targetPortrait } : {}),
+      skipImpactEffects: true,
+    });
   } catch (error) {
     console.warn('[intentAck] Falha no VFX de projétil:', error);
   }

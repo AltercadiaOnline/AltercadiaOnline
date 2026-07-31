@@ -39,10 +39,12 @@ export type StagedTransfer = {
   readonly maxQuantity: number;
 };
 
+import { isWalletCurrencyItemId } from '../../../shared/economy/walletCurrencyInventoryMirror.js';
+
 const FLOW_ANIMATION_MS = 720;
 
 function isCurrencyItem(itemId: string): boolean {
-  return itemId === 'dollar_volt' || itemId === 'gold';
+  return isWalletCurrencyItemId(itemId) || itemId === 'gold';
 }
 
 function resolveSlotAvailableQuantity(slot: InventorySlotState): number {

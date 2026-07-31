@@ -16,6 +16,7 @@ import {
   formatVolts,
   isValidAlterExchangeAmount,
 } from '../../shared/economy/premiumCurrency.js';
+import { mirrorWalletCurrencyStacks } from '../../shared/economy/walletCurrencyInventoryMirror.js';
 import { findNpcVendorListing } from '../../shared/economy/npcVendorCatalog.js';
 import { validateNpcPurchase, validateInventoryItemSale } from '../../shared/economy/npcVendorService.js';
 import { validatePetPurchase, buildAdoptedPet } from '../../shared/economy/petTrainerService.js';
@@ -1860,6 +1861,7 @@ export class MockEconomyService implements IDevMockEconomyService {
   syncWalletFromStore(): void {
     const snap = getPlayerWalletStore().getSnapshot();
     this.state.wallet = { dollarVolt: snap.dollarVolt, alterCoins: snap.alterCoins };
+    this.mirrorWalletCurrencyIntoBag();
     this.bumpRevision('wallet');
     this.notifyWalletListeners();
   }
@@ -1870,14 +1872,21 @@ export class MockEconomyService implements IDevMockEconomyService {
       dollarVolt: Math.max(0, Math.floor(dollarVolt)),
       alterCoins: Math.max(0, Math.floor(alterCoins)),
     };
+    this.mirrorWalletCurrencyIntoBag();
     this.bumpRevision('wallet');
     this.syncLegacyStores();
     this.persistLocalSave();
   }
 
+  private mirrorWalletCurrencyIntoBag(): void {
+    this.state.inventoryStacks = mirrorWalletCurrencyStacks(this.state.inventoryStacks, this.state.wallet);
+    this.bumpRevision('inventory');
+  }
+
   private commitWallet(wallet: MockWallet): void {
     this.state.wallet = { ...wallet };
     getPlayerWalletStore().applyBalances(wallet);
+    this.mirrorWalletCurrencyIntoBag();
     this.bumpRevision('wallet');
     this.notifyWalletListeners();
   }

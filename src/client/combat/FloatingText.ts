@@ -1,4 +1,7 @@
-import { mountBattleEffectOnFighter } from './battleEffectsLayer.js';
+import {
+  mountBattleHitHudInZone,
+  resolveBattleEffectSide,
+} from './battleEffectsLayer.js';
 
 export type FloatingTextPosition = {
   readonly x: number;
@@ -20,7 +23,7 @@ export function showFloatingText(
   div.setAttribute('aria-hidden', 'true');
 
   if (anchor) {
-    mountBattleEffectOnFighter(div, anchor, { yFactor: 0.18 });
+    mountBattleHitHudInZone(div, resolveBattleEffectSide(anchor), 'pop');
   } else {
     div.style.position = 'fixed';
     div.style.left = `${position.x}px`;
@@ -33,7 +36,7 @@ export function showFloatingText(
   setTimeout(() => div.remove(), FLOATING_TEXT_DURATION_MS);
 }
 
-/** Posiciona o dano sobre o centro-superior do retrato (coordenadas relativas à arena). */
+/** Posiciona o dano na zona do alvo (ally/foe) na camada livre da arena. */
 export function showFloatingTextAtElement(amount: number, anchor: HTMLElement): void {
   showFloatingText(amount, { x: 0.5, y: 0.44 }, anchor.ownerDocument, anchor);
 }

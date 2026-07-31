@@ -319,9 +319,11 @@ export class RankedPvpCombatSession {
   private toPeerPayloads(result: DispatchResult): RankedPvpPeerPayloads {
     this.clearExpiredRuneSpeed(result.state.turn);
     const feedback = buildCombatVisualFeedback(result.events);
-    const actionResult = extractCombatActionIntentResult(result.events);
     const map = new Map<string, CombatDispatchPayload>();
     for (const peer of this.peersByConnection.values()) {
+      const actionResult = extractCombatActionIntentResult(result.events, {
+        playerActorId: peer.actorId,
+      });
       map.set(peer.connectionId, {
         events: result.events,
         state: result.state,

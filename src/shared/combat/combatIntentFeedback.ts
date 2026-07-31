@@ -126,7 +126,25 @@ export function buildCombatActionIntentResultFromDamageEvent(
 
 export function extractCombatActionIntentResult(
   events: readonly CombatEvent[],
+  options?: { readonly playerActorId?: string },
 ): CombatActionIntentResultData | undefined {
+  const playerActorId = options?.playerActorId;
+
+  // Preferir o golpe de saída do jogador (não o contra-ataque / autodano no pack).
+  if (playerActorId) {
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index];
+      if (
+        event?.type === CombatEventType.DAMAGE_DEALT
+        && event.payload.sourceId === playerActorId
+        && event.payload.targetId !== playerActorId
+        && event.payload.amount > 0
+      ) {
+        return buildCombatActionIntentResultFromDamageEvent(event);
+      }
+    }
+  }
+
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
     if (event?.type === CombatEventType.HEAL_APPLIED) {

@@ -300,7 +300,9 @@ export class PvpCombatSession {
   private toPayload(result: DispatchResult): CombatDispatchPayload {
     this.clearExpiredRuneSpeed(result.state.turn);
     const feedback = buildCombatVisualFeedback(result.events);
-    const actionResult = extractCombatActionIntentResult(result.events);
+    const actionResult = extractCombatActionIntentResult(result.events, {
+      playerActorId: this.playerActorId,
+    });
     return {
       events: result.events,
       state: result.state,

@@ -3382,6 +3382,57 @@ body[data-react-game-hud-ui='1'] #game-container {
   box-shadow: 0 1px 0 rgba(58, 208, 214, 0.12);
 }
 
+.equipment-sidebar__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin: 0 0 0.28rem;
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+}
+
+.equipment-sidebar__zone {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-align: left;
+  color: rgba(142, 200, 200, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.equipment-sidebar__lat {
+  flex: 0 0 auto;
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  padding: 0.08rem 0.28rem;
+  border: 1px solid rgba(58, 63, 68, 0.95);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(160, 180, 188, 0.85);
+  white-space: nowrap;
+}
+
+.equipment-sidebar__lat--ok {
+  color: rgba(120, 220, 180, 0.95);
+  border-color: rgba(58, 208, 214, 0.35);
+}
+
+.equipment-sidebar__lat--warn {
+  color: #ffd54f;
+  border-color: rgba(200, 150, 80, 0.45);
+}
+
+.equipment-sidebar__lat--bad {
+  color: #ff8888;
+  border-color: rgba(200, 80, 80, 0.5);
+}
+
+.equipment-sidebar__lat--idle {
+  color: rgba(160, 180, 188, 0.7);
+}
+
 .equipment-sidebar__name {
   font-size: 0.9rem;
   letter-spacing: 0.08em;
@@ -3395,6 +3446,14 @@ body[data-react-game-hud-ui='1'] #game-container {
   color: var(--ui-text-muted);
   margin: 0.15rem 0 0;
   opacity: 0.9;
+}
+
+.equipment-sidebar__header .equipment-sidebar__xp-bar {
+  margin-top: 0.28rem;
+}
+
+.equipment-sidebar__header .equipment-sidebar__xp-text {
+  margin: 0.14rem 0 0;
 }
 
 .equipment-sidebar__vitals {
@@ -3439,15 +3498,24 @@ body[data-react-game-hud-ui='1'] #game-container {
 }
 
 .vital-bar--cap .vital-bar__fill {
-  background: linear-gradient(90deg, #1a5a5e, var(--ui-holo));
+  background: linear-gradient(90deg, #3a4248, #7a858c);
+}
+
+.vital-bar--cap-warn {
+  border-color: rgba(200, 150, 60, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 180, 60, 0.12);
+}
+
+.vital-bar--cap-overload {
+  border-color: rgba(200, 80, 80, 0.55);
 }
 
 .vital-bar__fill--warning {
-  background: linear-gradient(90deg, #8a7020, #ffd54f) !important;
+  background: linear-gradient(90deg, #8a5a18, #e6a23c) !important;
 }
 
 .vital-value--warning {
-  color: #ffd54f;
+  color: #e6a23c;
 }
 
 .vital-bar__fill--overload {
@@ -3575,26 +3643,27 @@ body[data-react-game-hud-ui='1'] #game-container {
   display: grid;
   flex: 1 1 auto;
   min-height: 0;
-  width: 100%;
-  max-width: 252px;
+  width: max-content;
+  max-width: 100%;
   margin: 0 auto;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, max-content);
   grid-template-areas:
     "amulet helmet card"
     "books armor runes"
     "ring_left legs ring_right"
     ". boots .";
-  gap: 6px;
+  gap: 3px;
   align-content: center;
   justify-content: center;
+  justify-items: center;
 }
 
 .equip-slot {
-  width: 100%;
-  max-width: 76px;
+  width: 57px;
+  max-width: 57px;
   height: auto;
   aspect-ratio: 1;
-  max-height: 76px;
+  max-height: 57px;
   justify-self: center;
   padding: 0;
   box-sizing: border-box;
@@ -3678,7 +3747,7 @@ body[data-react-game-hud-ui='1'] #game-container {
   grid-area: 1 / 1;
   z-index: 0;
   max-width: 90%;
-  font-size: 0.58rem;
+  font-size: 0.52rem;
   line-height: 1.15;
   text-align: center;
   opacity: 0.55;
@@ -3753,8 +3822,9 @@ img.equip-slot__sprite {
   }
 
   .equip-slot {
-    max-width: 64px;
-    max-height: 64px;
+    width: 48px;
+    max-width: 48px;
+    max-height: 48px;
   }
 
   .equipment-sidebar__xp-hint {
@@ -3768,12 +3838,13 @@ img.equip-slot__sprite {
   }
 
   .equip-slot {
-    max-width: 56px;
-    max-height: 56px;
+    width: 42px;
+    max-width: 42px;
+    max-height: 42px;
   }
 
   .equip-slot__placeholder {
-    font-size: 0.5rem;
+    font-size: 0.48rem;
   }
 }
 
@@ -5558,11 +5629,11 @@ body > .battle-result-overlay,
   cursor: wait;
 }
 
-/* â€”â€” Impacto TÃ©cnico (dano / proteÃ§Ã£o no hit) â€”â€” */
+/* ——— Impacto Técnico (dano / proteção no hit) ——— */
 .technical-impact {
   position: absolute;
   z-index: 19;
-  transform: translate(-50%, -100%) scale(0.88);
+  transform: none;
   opacity: 0;
   pointer-events: none;
   max-width: min(94vw, 420px);
@@ -5580,65 +5651,37 @@ body > .battle-result-overlay,
   will-change: transform, opacity;
 }
 
-.technical-impact.is-visible {
-  animation: tech-impact-enter 0.2s ease-out forwards;
-}
-
+.technical-impact.is-visible,
 .technical-impact.battle-effect--ally.is-visible,
 .technical-impact.battle-effect--foe.is-visible {
-  animation: tech-impact-enter-side 0.2s ease-out forwards;
+  animation: tech-impact-enter-zone 0.2s ease-out forwards;
 }
 
-.technical-impact.is-fading {
-  animation: tech-impact-exit 0.35s ease-in forwards;
-}
-
+.technical-impact.is-fading,
 .technical-impact.battle-effect--ally.is-fading,
 .technical-impact.battle-effect--foe.is-fading {
-  animation: tech-impact-exit-side 0.35s ease-in forwards;
+  animation: tech-impact-exit-zone 0.35s ease-in forwards;
 }
 
-@keyframes tech-impact-enter {
+@keyframes tech-impact-enter-zone {
   from {
     opacity: 0;
-    transform: translate(-50%, -92%) scale(0.88);
+    transform: translateY(4px) scale(0.94);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -100%) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-@keyframes tech-impact-exit {
+@keyframes tech-impact-exit-zone {
   from {
     opacity: 1;
-    transform: translate(-50%, -100%) scale(1);
+    transform: translateY(0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translate(-50%, -108%) scale(0.96);
-  }
-}
-
-@keyframes tech-impact-enter-side {
-  from {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, 12px), -42%) scale(0.88);
-  }
-  to {
-    opacity: 1;
-    transform: translate(var(--hit-anchor-x, 12px), var(--hit-anchor-y, -50%)) scale(1);
-  }
-}
-
-@keyframes tech-impact-exit-side {
-  from {
-    opacity: 1;
-    transform: translate(var(--hit-anchor-x, 12px), var(--hit-anchor-y, -50%)) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, 12px), -58%) scale(0.96);
+    transform: translateY(-6px) scale(0.96);
   }
 }
 
@@ -5801,10 +5844,10 @@ body > .battle-result-overlay,
   padding: 0 0.15rem;
   gap: 0.2rem;
   width: max-content;
-  max-width: min(calc(100% - 1.25rem), 22rem);
+  max-width: min(9.5rem, 30%);
   box-sizing: border-box;
   pointer-events: none;
-  z-index: 22;
+  z-index: 46;
 }
 
 .technical-impact--scene .technical-impact__formula {
@@ -5863,15 +5906,15 @@ body > .battle-result-overlay,
   gap: 0.12rem;
 }
 
-/* Conta autodidata ao lado do PNG — moveset + build, sem cobrir o −N do hit-pop. */
+/* Conta autodidata — caixa compacta na zona do alvo. */
 .technical-impact--scene.technical-impact--lesson-math {
-  gap: 0.1rem;
-  padding: 0.28rem 0.4rem;
-  max-width: min(11.5rem, calc(100% - 1rem));
-  border-radius: 0.35rem;
-  background: rgba(6, 10, 16, 0.72);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-  z-index: 23;
+  gap: 0.08rem;
+  padding: 0.22rem 0.34rem;
+  max-width: min(9.2rem, 28%);
+  border-radius: 0.3rem;
+  background: rgba(6, 10, 16, 0.78);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  z-index: 46;
 }
 
 .technical-impact--scene.technical-impact--lesson-math .technical-impact__move-name {
@@ -5970,11 +6013,10 @@ body > .battle-result-overlay,
 
 .battle-hit-pop {
   position: absolute;
-  z-index: 24;
-  transform: translate(-50%, -100%) scale(0.82);
+  z-index: 45;
   opacity: 0;
   font-family: var(--battle-mono, 'Courier New', Courier, monospace);
-  font-size: clamp(1.45rem, 4.8vw, 2rem);
+  font-size: clamp(1.35rem, 4.2vw, 1.85rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   pointer-events: none;
@@ -6003,153 +6045,40 @@ body > .battle-result-overlay,
 }
 
 .battle-hit-pop.is-visible {
-  animation: battle-hit-pop-rise 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.battle-hit-pop.battle-effect--ally.is-visible {
-  animation: battle-hit-pop-rise-ally 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.battle-hit-pop.battle-effect--foe.is-visible {
-  animation: battle-hit-pop-rise-foe 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: battle-hit-pop-rise-zone 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .battle-hit-pop.is-fading {
-  animation: battle-hit-pop-fade 0.22s ease-in forwards;
+  animation: battle-hit-pop-fade-zone 0.22s ease-in forwards;
 }
 
-.battle-hit-pop.battle-effect--ally.is-fading {
-  animation: battle-hit-pop-fade-ally 0.22s ease-in forwards;
-}
-
-.battle-hit-pop.battle-effect--foe.is-fading {
-  animation: battle-hit-pop-fade-foe 0.22s ease-in forwards;
-}
-
-@keyframes battle-hit-pop-rise {
+@keyframes battle-hit-pop-rise-zone {
   0% {
     opacity: 0;
-    transform: translate(-50%, calc(-100% + 4px)) scale(0.7);
+    transform: translateY(6px) scale(0.78);
   }
   18% {
     opacity: 1;
-    transform: translate(-50%, calc(-100% - 10px)) scale(1.12);
+    transform: translateY(-8px) scale(1.1);
   }
   100% {
     opacity: 0.92;
-    transform: translate(-50%, calc(-100% - 34px)) scale(1);
+    transform: translateY(-28px) scale(1);
   }
 }
 
-@keyframes battle-hit-pop-fade {
+@keyframes battle-hit-pop-fade-zone {
   to {
     opacity: 0;
-    transform: translate(-50%, calc(-100% - 48px)) scale(0.94);
-  }
-}
-
-@keyframes battle-hit-pop-rise-ally {
-  0% {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, 14px), -36%) scale(0.7);
-  }
-  18% {
-    opacity: 1;
-    transform: translate(var(--hit-anchor-x, 14px), -52%) scale(1.12);
-  }
-  100% {
-    opacity: 0.92;
-    transform: translate(var(--hit-anchor-x, 14px), -62%) scale(1);
-  }
-}
-
-@keyframes battle-hit-pop-rise-foe {
-  0% {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, calc(-100% - 14px)), -36%) scale(0.7);
-  }
-  18% {
-    opacity: 1;
-    transform: translate(var(--hit-anchor-x, calc(-100% - 14px)), -52%) scale(1.12);
-  }
-  100% {
-    opacity: 0.92;
-    transform: translate(var(--hit-anchor-x, calc(-100% - 14px)), -62%) scale(1);
-  }
-}
-
-@keyframes battle-hit-pop-fade-ally {
-  to {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, 14px), -72%) scale(0.94);
-  }
-}
-
-@keyframes battle-hit-pop-fade-foe {
-  to {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, calc(-100% - 14px)), -72%) scale(0.94);
+    transform: translateY(-40px) scale(0.94);
   }
 }
 
 .damage-number--scene {
   position: absolute;
-  z-index: 24;
+  z-index: 45;
   font-size: clamp(1.25rem, 4vw, 1.65rem);
-  animation: damage-number-float-scene 1s ease-out forwards;
-}
-
-.damage-number--scene.battle-effect--ally {
-  animation: damage-number-float-scene-ally 1s ease-out forwards;
-}
-
-.damage-number--scene.battle-effect--foe {
-  animation: damage-number-float-scene-foe 1s ease-out forwards;
-}
-
-@keyframes damage-number-float-scene {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, 12px) scale(0.85);
-  }
-  15% {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1.08);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -32px) scale(1);
-  }
-}
-
-@keyframes damage-number-float-scene-ally {
-  0% {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, 14px), -38%) scale(0.85);
-  }
-  15% {
-    opacity: 1;
-    transform: translate(var(--hit-anchor-x, 14px), -50%) scale(1.08);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, 14px), -64%) scale(1);
-  }
-}
-
-@keyframes damage-number-float-scene-foe {
-  0% {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, calc(-100% - 14px)), -38%) scale(0.85);
-  }
-  15% {
-    opacity: 1;
-    transform: translate(var(--hit-anchor-x, calc(-100% - 14px)), -50%) scale(1.08);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--hit-anchor-x, calc(-100% - 14px)), -64%) scale(1);
-  }
+  animation: battle-hit-pop-rise-zone 1s ease-out forwards;
 }
 
 .battle-top-bar {
@@ -7078,10 +7007,10 @@ body > .battle-result-overlay,
 }
 
 .ui-panel--marcos {
-  width: min(700px, 96vw);
-  max-width: min(700px, 96vw);
-  min-height: min(480px, 72vh);
-  max-height: min(620px, 90vh);
+  width: min(540px, 94vw);
+  max-width: min(540px, 94vw);
+  min-height: 0;
+  max-height: min(460px, 78vh);
 }
 
 .marcos-panel__tag {
@@ -7098,8 +7027,8 @@ body > .battle-result-overlay,
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0.55rem 0.65rem 0.65rem;
-  overflow: hidden;
+  padding: 0.4rem 0.5rem 0.45rem;
+  overflow: auto;
   background:
     linear-gradient(165deg, rgba(26, 28, 30, 0.55) 0%, rgba(13, 14, 16, 0.72) 100%);
 }
@@ -7107,11 +7036,11 @@ body > .battle-result-overlay,
 .marcos-panel__tree-area {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.25rem;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .marcos-panel__trail-picker {
@@ -7268,7 +7197,7 @@ body > .battle-result-overlay,
 .marcos-grid__body {
   position: relative;
   flex: 1 1 auto;
-  min-height: min(260px, 38vh);
+  min-height: min(170px, 26vh);
   border: 1px solid var(--ui-metal-edge);
   background:
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
@@ -7621,9 +7550,9 @@ body > .battle-result-overlay,
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  margin-top: 0.45rem;
-  padding: 0.65rem 0.7rem;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  padding: 0.4rem 0.5rem;
   border: 1px solid var(--ui-metal-edge);
   background:
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
@@ -7853,7 +7782,7 @@ body > .battle-result-overlay,
 .ui-panel--characters .character-sheet--ficha {
   flex: 1 1 auto;
   min-height: 0;
-  grid-template-columns: minmax(200px, 230px) minmax(250px, 1fr) minmax(260px, 300px);
+  grid-template-columns: minmax(210px, 248px) minmax(250px, 1fr) minmax(260px, 300px);
   gap: 0.36rem;
   align-items: stretch;
 }
@@ -7861,9 +7790,9 @@ body > .battle-result-overlay,
 .ui-panel--characters .character-sheet__col--preview {
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
   min-height: 0;
   overflow: hidden;
+  height: 100%;
 }
 
 .ui-panel--characters .character-sheet__col--stats {
@@ -7926,32 +7855,38 @@ body > .battle-result-overlay,
 
 .ui-panel--characters .character-sheet__sprite-frame {
   margin-bottom: 0;
-  padding: 0.28rem;
+  padding: 0.4rem 0.4rem 0.35rem;
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .ui-panel--characters .character-sheet__canvas {
   display: block;
-  width: 100%;
+  width: auto;
   max-width: 100%;
   flex: 1 1 auto;
-  min-height: 180px;
+  min-height: 0;
   height: auto;
-  max-height: none;
+  max-height: 100%;
   margin: 0 auto;
   aspect-ratio: 220 / 280;
+  object-fit: contain;
   image-rendering: pixelated;
 }
 
 .ui-panel--characters .character-sheet__sprite-meta {
-  margin: 0.22rem 0 0;
+  margin: 0.35rem 0 0;
   flex: 0 0 auto;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  width: 100%;
 }
 
 .ui-panel--characters .character-wardrobe {
@@ -10085,13 +10020,13 @@ body > .battle-result-overlay,
   }
 }
 
-/* Marcos — override do style guide móvel (grade 3×5 sem scroll interno). */
+/* Marcos — override do style guide móvel (painel compacto; scroll se precisar). */
 .ui-panel--marcos.ui-panel--movable {
-  width: min(700px, 96vw) !important;
-  max-width: min(700px, 96vw) !important;
-  min-width: min(560px, 92vw) !important;
-  min-height: min(480px, 72vh) !important;
-  max-height: min(620px, 90vh) !important;
+  width: min(540px, 94vw) !important;
+  max-width: min(540px, 94vw) !important;
+  min-width: min(420px, 90vw) !important;
+  min-height: 0 !important;
+  max-height: min(460px, 78vh) !important;
 }
 
 .ui-panel--marcos.ui-panel--movable .ui-panel__header {
@@ -15946,9 +15881,32 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 .battle-arena--canvas .battle-arena__effects {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  /* Acima do canvas/sprites — camada livre de hit HUD (conta + pop). */
+  z-index: 40;
   pointer-events: none;
   overflow: visible;
+  contain: none;
+}
+
+/* Hit HUD por zona fixa (ally esq / foe dir) — não depende de retrato. */
+.battle-hit-hud-zone {
+  position: absolute;
+  pointer-events: none;
+  max-width: min(9.5rem, 30%);
+  box-sizing: border-box;
+}
+
+.battle-hit-hud-zone.technical-impact--scene,
+.battle-hit-hud-zone.technical-impact--lesson-math {
+  z-index: 46;
+  max-width: min(9.2rem, 28%);
+}
+
+.battle-hit-hud-zone.battle-hit-pop {
+  z-index: 45;
+  max-width: none;
+  /* Zona já define left/top; animação só sobe no Y. */
+  transform: translateY(0) scale(0.9);
 }
 
 .battle-screen--side-view .battle-portrait {

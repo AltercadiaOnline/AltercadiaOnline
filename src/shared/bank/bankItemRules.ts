@@ -1,5 +1,6 @@
 import { resolveInventoryStackRules } from '../character/inventoryStackOps.js';
 import { validateSoulboundRetention } from '../economy/soulboundInventoryPolicy.js';
+import { isWalletCurrencyItemId } from '../economy/walletCurrencyInventoryMirror.js';
 import { getItemDefinition } from '../items/itemCatalog.js';
 import { ItemKind } from '../items/itemTypes.js';
 
@@ -12,8 +13,6 @@ export type BankItemValidation = {
   readonly reason: string;
 };
 
-const CURRENCY_ITEM_IDS = new Set(['dollar_volt', 'gold']);
-
 /** Itens que não podem entrar no cofre pela aba de itens. */
 export function validateBankItemTransfer(itemId: string, quantity: number): BankItemValidation {
   const soulbound = validateSoulboundRetention(itemId);
@@ -21,7 +20,7 @@ export function validateBankItemTransfer(itemId: string, quantity: number): Bank
     return soulbound;
   }
 
-  if (CURRENCY_ITEM_IDS.has(itemId)) {
+  if (isWalletCurrencyItemId(itemId) || itemId === 'gold') {
     return { ok: false, reason: 'Use a aba de moedas para depositar Volts ou Alter Coins.' };
   }
 

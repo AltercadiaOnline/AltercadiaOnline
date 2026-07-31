@@ -178,6 +178,30 @@ export function publishInventoryUpdated(
   });
 }
 
+/** Carteira + bag espelhado (stacks VOLTS / ALTER COIN) — use após txs que mudam só a wallet. */
+export function publishWalletUpdated(
+  playerId: string,
+  characterId: number,
+  tx: {
+    readonly walletBalance: number;
+    readonly alterCoins: number;
+    readonly inventorySnapshot: readonly import('../shared/character/equipmentState.js').InventoryStack[];
+  },
+  extras?: { readonly intentId?: string; readonly revision?: number },
+): void {
+  globalEventBus.emit({
+    type: EconomyEventType.WalletUpdated,
+    payload: {
+      playerId,
+      dollarVolt: tx.walletBalance,
+      alterCoins: tx.alterCoins,
+      ...(extras?.revision !== undefined ? { revision: extras.revision } : {}),
+      ...(extras?.intentId ? { intentId: extras.intentId } : {}),
+    },
+  });
+  publishInventoryUpdated(playerId, characterId, tx.inventorySnapshot, extras);
+}
+
 let lastInventoryLockSweepMs = 0;
 
 /** Libera locks expirados (ghost items) e emite INVENTORY_UPDATE autoritativo. */
@@ -609,14 +633,7 @@ export async function debitBattleSurrenderPenalty(
   }
 
   if (debited > 0) {
-    globalEventBus.emit({
-      type: EconomyEventType.WalletUpdated,
-      payload: {
-        playerId,
-        dollarVolt: tx.walletBalance,
-        alterCoins: tx.alterCoins,
-      },
-    });
+    publishWalletUpdated(playerId, characterId, tx);
   }
 
   return {
@@ -678,14 +695,8 @@ export async function exchangeAlterCoinsForVolts(
   };
 
   globalEventBus.emit({ type: EconomyEventType.AlterExchangeCompleted, payload });
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      ...(request.intentId !== undefined ? { intentId: request.intentId } : {}),
-    },
+  publishWalletUpdated(request.playerId, request.characterId, tx, {
+    ...(request.intentId !== undefined ? { intentId: request.intentId } : {}),
   });
 
   return { ok: true, payload };
@@ -717,14 +728,7 @@ export async function grantAlterCoinsFromPurchase(
     return { ok: false, message: tx.message };
   }
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-    },
-  });
+  publishWalletUpdated(request.playerId, request.characterId, tx);
 
   return { ok: true };
 }
@@ -939,14 +943,7 @@ export async function debitRefractionBoothEntry(
     return { ok: false, message: tx.message };
   }
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-    },
-  });
+  publishWalletUpdated(request.playerId, request.characterId, tx);
 
   return { ok: true };
 }
@@ -971,14 +968,7 @@ export async function creditRefractionBoothPrize(
     return { ok: false, message: tx.message };
   }
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-    },
-  });
+  publishWalletUpdated(request.playerId, request.characterId, tx);
 
   return { ok: true };
 }
@@ -1463,15 +1453,9 @@ export async function applyNpcHealEconomy(
 
   const revision = Date.now();
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      revision,
-      ...(request.intentId ? { intentId: request.intentId } : {}),
-    },
+  publishWalletUpdated(request.playerId, request.characterId, tx, {
+    revision,
+    ...(request.intentId ? { intentId: request.intentId } : {}),
   });
 
   globalEventBus.emit({
@@ -1546,15 +1530,9 @@ export async function buyCaelPetRationAtNpc(
   const affinity = getPetAffinityRecord(request.playerId, request.characterId);
   const revision = Date.now();
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      revision,
-      ...(request.intentId ? { intentId: request.intentId } : {}),
-    },
+  publishWalletUpdated(request.playerId, request.characterId, tx, {
+    revision,
+    ...(request.intentId ? { intentId: request.intentId } : {}),
   });
 
   globalEventBus.emit({
@@ -1667,15 +1645,9 @@ export async function purchasePetAtTrainer(
   const revision = Date.now();
   const message = `${validation.adoption.name} adotado com sucesso!`;
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      revision,
-      ...(request.intentId ? { intentId: request.intentId } : {}),
-    },
+  publishWalletUpdated(request.playerId, request.characterId, tx, {
+    revision,
+    ...(request.intentId ? { intentId: request.intentId } : {}),
   });
 
   globalEventBus.emit({
@@ -2112,15 +2084,9 @@ export async function purchaseSkinAtShop(
   const revision = Date.now();
   const message = `Peça cosmética adquirida: ${item.name} (−${formatVolts(item.price)}).`;
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      revision,
-      ...(request.intentId ? { intentId: request.intentId } : {}),
-    },
+  publishWalletUpdated(request.playerId, request.characterId, tx, {
+    revision,
+    ...(request.intentId ? { intentId: request.intentId } : {}),
   });
 
   globalEventBus.emit({
@@ -2216,14 +2182,8 @@ export async function devGrantCurrency(request: {
     return { ok: false, message: tx.message };
   }
 
-  globalEventBus.emit({
-    type: EconomyEventType.WalletUpdated,
-    payload: {
-      playerId: request.playerId,
-      dollarVolt: tx.walletBalance,
-      alterCoins: tx.alterCoins,
-      ...(request.intentId ? { intentId: request.intentId } : {}),
-    },
+  publishWalletUpdated(request.playerId, request.characterId, tx, {
+    ...(request.intentId ? { intentId: request.intentId } : {}),
   });
 
   return { ok: true };

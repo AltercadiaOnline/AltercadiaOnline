@@ -20,7 +20,7 @@ export type MarcoNodeProgressRule = {
 };
 
 /** Nível mínimo do nó pai para desbloquear o próximo nó da trilha. */
-export const MARCO_UNLOCK_PARENT_LEVEL = 2;
+export const MARCO_UNLOCK_PARENT_LEVEL = 1;
 
 /** Níveis 1–5 da habilidade Marco: ver `MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL` em marcoProgression.ts. */
 

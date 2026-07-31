@@ -1,6 +1,9 @@
 import type { TurnOrderResolvedEvent } from '../../shared/events.js';
 
-import { mountBattleEffectBesideFighter } from './battleEffectsLayer.js';
+import {
+  mountBattleHitHudInZone,
+  resolveBattleEffectSide,
+} from './battleEffectsLayer.js';
 
 const INITIATIVE_IMPACT_MS = 2400;
 
@@ -64,7 +67,7 @@ export function showInitiativeImpact(
     overlay.appendChild(reconcile);
   }
 
-  mountBattleEffectBesideFighter(overlay, anchor, { gapPx: 14 });
+  mountBattleHitHudInZone(overlay, resolveBattleEffectSide(anchor), 'math');
 
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => overlay.classList.add('is-visible'));

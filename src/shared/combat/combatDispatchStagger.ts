@@ -127,7 +127,7 @@ function slicePayload(
 ): CombatDispatchPayload {
   const enemyActorIds = listEnemyActorIds(state.combatants, playerActorId);
   const feedback = buildCombatVisualFeedback(events, { playerActorId, enemyActorIds });
-  const actionResult = extractCombatActionIntentResult(events);
+  const actionResult = extractCombatActionIntentResult(events, { playerActorId });
   const { balanceVersion } = source;
   return {
     events,

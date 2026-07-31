@@ -6,8 +6,8 @@ import { resolveItemWeight, stackWeight } from '../items/itemWeight.js';
 export const BASE_CARRY_CAPACITY = 400;
 export const CARRY_CAPACITY_PER_LEVEL = 20;
 
-/** A partir de 90% da CAP, UI entra em alerta amarelo. */
-export const CAPACITY_WARNING_RATIO = 0.9;
+/** A partir de 70% da CAP, UI entra em alerta âmbar (peso alto). */
+export const CAPACITY_WARNING_RATIO = 0.7;
 
 export type CapacityVisualLevel = 'normal' | 'warning' | 'overload';
 

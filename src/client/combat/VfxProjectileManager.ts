@@ -354,7 +354,7 @@ export class VfxProjectileManager {
     const target = options.targetPortrait ?? resolvePortrait(scope, OPPONENT_PORTRAIT_SELECTOR);
     if (!source || !target) return false;
 
-    const host = resolveBattleEffectsHost(source);
+    const host = resolveBattleEffectsHost(source.ownerDocument);
     const scene = resolveScene(scope);
     const from = portraitCenter(source, host);
     const to = portraitCenter(target, host);

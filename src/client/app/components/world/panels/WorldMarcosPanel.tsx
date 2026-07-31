@@ -36,8 +36,8 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--marcos ui-panel--marcos ui-panel--movable"
-      panelStyle={{ width: 'min(700px, 96vw)', maxHeight: 'min(640px, 92vh)' }}
-      bodyOverflow="hidden"
+      panelStyle={{ width: 'min(540px, 94vw)', maxHeight: 'min(460px, 78vh)' }}
+      bodyOverflow="auto"
       onFocus={() => tryFocusReactWorldPanel('marcos')}
       onClose={() => tryCloseReactWorldPanel('marcos')}
     >

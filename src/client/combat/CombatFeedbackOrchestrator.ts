@@ -190,7 +190,9 @@ export class CombatFeedbackOrchestrator {
       return;
     }
 
-    const actionResult = payload.actionResult ?? extractCombatActionIntentResult(payload.events);
+    const actionResult = payload.actionResult ?? extractCombatActionIntentResult(payload.events, {
+      playerActorId: payload.ui.playerActorId,
+    });
     const { steps: visualSteps, damageEvent } = collectPipelineVisualSteps(feedback, payload.events);
 
     if (!actionResult) {
@@ -251,18 +253,20 @@ export class CombatFeedbackOrchestrator {
   private async playProjectileIfNeeded(job: CombatFeedbackJob): Promise<boolean> {
     if (!isProjectileCombatAction(job.actionResult.action)) return false;
 
-    // Projétil hardcoded player→oponente. Só dispara se o ÚLTIMO dano do pack
-    // for do player — senão o hit do monstro “bate” visualmente na criatura.
+    // Só projétil player → oponente. Nunca usar o último DAMAGE_DEALT do pack se for
+    // contra-ataque do monstro (isso “batia” visualmente na criatura).
     const playerId = job.snapshot.ui.playerActorId;
-    let lastPlayerDamage = false;
+    let outgoingTargetId: string | null = null;
     for (let i = job.snapshot.events.length - 1; i >= 0; i -= 1) {
       const event = job.snapshot.events[i];
       if (!event || event.type !== CombatEventType.DAMAGE_DEALT) continue;
       if (event.payload.amount <= 0) continue;
-      lastPlayerDamage = event.payload.sourceId === playerId;
+      if (event.payload.sourceId !== playerId) continue;
+      if (event.payload.targetId === playerId) continue;
+      outgoingTargetId = event.payload.targetId;
       break;
     }
-    if (!lastPlayerDamage) {
+    if (!outgoingTargetId) {
       return false;
     }
 
@@ -273,11 +277,21 @@ export class CombatFeedbackOrchestrator {
       (entry) => entry.step.kind === 'damage_impact',
     );
 
+    const scope = this.root ?? (typeof document !== 'undefined' ? document : undefined);
+    const sourcePortrait = scope?.querySelector<HTMLElement>('#battle-player-portrait') ?? undefined;
+    const targetIsFoe =
+      outgoingTargetId.startsWith('enemy_') || outgoingTargetId.startsWith('mirror_');
+    const targetPortrait = scope?.querySelector<HTMLElement>(
+      targetIsFoe ? '#battle-opponent-portrait' : '#battle-player-portrait',
+    ) ?? undefined;
+
     const played = await manager.playFromGatewayResult(
       job.actionResult,
       exactOptionalProps({
         root: this.root,
         skipImpactEffects: hasDamageImpact,
+        sourcePortrait,
+        targetPortrait,
       }),
     );
     return played;

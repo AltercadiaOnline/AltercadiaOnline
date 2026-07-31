@@ -1952,7 +1952,10 @@ export class CombatEngine {
       case MoveEffectKind.HighRiskBurst: {
         const dealt = this.applyDirectDamage(request.actorId, targetId, scaledPower, events, dmgOpts);
         const selfDamage = Math.max(1, Math.floor(dealt * ((params.selfDamagePercent ?? 15) / 100)));
-        this.applyDirectDamage(targetId, request.actorId, selfDamage, events, { ignoreBarrierPercent: 100 });
+        // Autodano: source = player (não a criatura) — VFX ancora no PNG do jogador.
+        this.applyDirectDamage(request.actorId, request.actorId, selfDamage, events, {
+          ignoreBarrierPercent: 100,
+        });
         break;
       }
       case MoveEffectKind.ApplyParalyze:

@@ -50,7 +50,7 @@ export function depositItemSwap(
   itemId: string,
   quantity: number,
 ): BankSwapResult<ItemBankSwapResult> {
-  if (itemId === 'dollar_volt' || itemId === 'gold') {
+  if (itemId === 'dollar_volt' || itemId === 'alter_coin' || itemId === 'gold') {
     return { ok: false, reason: 'Use a aba de moedas para depositar Volts.' };
   }
 

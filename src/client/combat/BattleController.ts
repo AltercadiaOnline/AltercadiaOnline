@@ -36,7 +36,12 @@ import { CombatAnimator } from './CombatAnimator.js';
 
 import { showHealImpact, showTechnicalImpact, type TechnicalImpactPayload } from './TechnicalImpact.js';
 
-import { showBattleHitPop } from './battleEffectsLayer.js';
+import {
+  resolveBattleHitHudSide,
+  resolveBattleReceiverHudSide,
+  showBattleHitPop,
+  type BattleEffectSide,
+} from './battleEffectsLayer.js';
 
 import { sumAttackBreakdownTotal, sumDefenseBreakdownTotal } from '../../shared/combat/combatBreakdownBuilder.js';
 import type { CombatActionBreakdown } from '../../shared/combat/combatActionBreakdown.js';
@@ -60,35 +65,41 @@ import { resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import { logCriticalBattleError } from './combatSafeExecution.js';
 
-function showCombatHitImpactBundle(
-  anchor: HTMLElement,
-  options: {
-    readonly amount: number;
-    readonly mode?: 'damage' | 'heal' | 'shield';
-    readonly technical?: TechnicalImpactPayload;
-  },
-): void {
+function showCombatHitImpactBundle(options: {
+  readonly amount: number;
+  readonly side: BattleEffectSide;
+  readonly mode?: 'damage' | 'heal' | 'shield';
+  readonly technical?: TechnicalImpactPayload;
+}): void {
   const mode = options.mode ?? 'damage';
+  const { side } = options;
+  // Âncora dummy: montagem real é por zona (side) na camada livre da arena.
+  const mountDoc = typeof document !== 'undefined' ? document.body : (null as unknown as HTMLElement);
+  if (!mountDoc) return;
 
   if (options.technical && mode === 'damage') {
-    // Número no PNG do alvo; math autodidata ao lado (sem sobrepor o −N).
-    showTechnicalImpact(anchor, options.technical, {
+    showTechnicalImpact(mountDoc, options.technical, {
       compactScene: true,
       suppressFinalDamage: options.amount > 0,
       lessonMath: true,
+      durationMs: 2000,
+      side,
     });
     if (options.amount > 0) {
-      showBattleHitPop(anchor, options.amount, mode);
+      showBattleHitPop(side, options.amount, mode);
     }
     return;
   }
 
   if (options.amount > 0 || mode !== 'damage') {
-    showBattleHitPop(anchor, options.amount, mode);
+    showBattleHitPop(side, options.amount, mode);
   }
 
   if (options.technical) {
-    showTechnicalImpact(anchor, options.technical, { compactScene: mode === 'shield' });
+    showTechnicalImpact(mountDoc, options.technical, {
+      compactScene: mode === 'shield',
+      side,
+    });
   }
 }
 
@@ -304,13 +315,28 @@ export class BattleController {
 
 
 
-    const targetPortrait = screen.getPortraitElement(targetId);
+    const sourceIsFoe =
+      sourceId.startsWith('enemy_') || sourceId.startsWith('mirror_');
+    const targetIsFoe =
+      targetId.startsWith('enemy_') || targetId.startsWith('mirror_');
+    const useAllyAnchor = sourceIsFoe || !targetIsFoe;
+    const hitHudSide = resolveBattleHitHudSide({ sourceId, targetId });
+    let targetPortrait: HTMLElement | null = null;
+    if (typeof document !== 'undefined') {
+      targetPortrait = document.querySelector<HTMLElement>(
+        useAllyAnchor ? '#battle-player-portrait' : '#battle-opponent-portrait',
+      );
+    }
+    targetPortrait = targetPortrait ?? screen.getPortraitElement(
+      useAllyAnchor ? (screen.getPlayerActorId() ?? targetId) : targetId,
+    );
 
     if (!targetPortrait) {
+      const cueId = useAllyAnchor ? (screen.getPlayerActorId() ?? targetId) : targetId;
       if (amount > 0) {
-        await screen.playCombatCue(targetId, 'hit');
+        await screen.playCombatCue(cueId, 'hit');
       } else if (defenseBreakdown) {
-        await screen.playCombatCue(targetId, 'shield');
+        await screen.playCombatCue(cueId, 'shield');
       }
       const hpTargets = screen.getHpBarTargets(targetId);
       if (hpTargets) {
@@ -339,7 +365,8 @@ export class BattleController {
 
       if (popAmount > 0 || mode !== 'damage' || hasTechnical) {
 
-        showCombatHitImpactBundle(targetPortrait, {
+        showCombatHitImpactBundle({
+          side: hitHudSide,
           amount: popAmount,
           mode,
           ...(hasTechnical
@@ -423,7 +450,8 @@ export class BattleController {
     const portrait = screen.getPortraitElement(targetId);
 
     if (portrait && amount > 0) {
-      showBattleHitPop(portrait, amount, 'heal');
+      const healSide = resolveBattleReceiverHudSide(targetId);
+      showBattleHitPop(healSide, amount, 'heal');
       showHealImpact(portrait, amount);
     }
 
@@ -563,7 +591,7 @@ export class BattleController {
         return;
 
       case 'damage_impact': {
-        // Flash, −N e conta = dano RECEBIDO → sempre ao lado do PNG do alvo (step.targetId).
+        // Dano RECEBIDO: monstro→player = zona ally (esq); player→criatura = zona foe (dir).
         const damageEvent = context?.damageEvent;
         const payload =
           damageEvent?.payload.targetId === step.targetId
@@ -574,21 +602,25 @@ export class BattleController {
           step.sourceId.startsWith('enemy_') || step.sourceId.startsWith('mirror_');
         const targetIsFoe =
           impactTargetId.startsWith('enemy_') || impactTargetId.startsWith('mirror_');
-        let targetPortrait = screen?.getPortraitElement(impactTargetId) ?? null;
-        // Criatura → player: hit SEMPRE no PNG do player (nunca na criatura).
-        if (sourceIsFoe && !targetIsFoe && typeof document !== 'undefined') {
-          targetPortrait =
-            document.querySelector<HTMLElement>('#battle-player-portrait')
-            ?? targetPortrait;
-        } else if (!targetPortrait && typeof document !== 'undefined') {
-          const usePlayerAnchor = impactTargetId.startsWith('pet_') || !targetIsFoe;
+        const useAllyAnchor = sourceIsFoe || !targetIsFoe;
+        const hitHudSide = resolveBattleHitHudSide({
+          sourceId: step.sourceId,
+          targetId: impactTargetId,
+        });
+        let targetPortrait: HTMLElement | null = null;
+        if (typeof document !== 'undefined') {
           targetPortrait = document.querySelector<HTMLElement>(
-            usePlayerAnchor
-              ? '#battle-player-portrait'
-              : '#battle-opponent-portrait',
+            useAllyAnchor ? '#battle-player-portrait' : '#battle-opponent-portrait',
           );
         }
+        targetPortrait = targetPortrait
+          ?? screen?.getPortraitElement(useAllyAnchor ? (screen.getPlayerActorId() ?? impactTargetId) : impactTargetId)
+          ?? null;
         if (!targetPortrait) return;
+
+        const cueTargetId = useAllyAnchor
+          ? (screen?.getPlayerActorId() ?? impactTargetId)
+          : impactTargetId;
 
         const amount = step.amount;
         const attackBreakdown = step.attackBreakdown ?? payload?.attackBreakdown;
@@ -604,16 +636,16 @@ export class BattleController {
         const popAmount = amount > 0 ? amount : defenseTotal ?? 0;
         const hasTechnical = Boolean(attackBreakdown || defenseBreakdown || amount >= 0);
 
-        // Hit flash + número/math no mesmo beat — casado com o PNG do alvo.
         const hitCuePromise =
           amount > 0
-            ? screen?.playCombatCue(impactTargetId, 'hit')
+            ? screen?.playCombatCue(cueTargetId, 'hit')
             : defenseBreakdown
-              ? screen?.playCombatCue(impactTargetId, 'shield')
+              ? screen?.playCombatCue(cueTargetId, 'shield')
               : Promise.resolve();
 
         if (popAmount > 0 || mode !== 'damage' || hasTechnical) {
-          showCombatHitImpactBundle(targetPortrait, {
+          showCombatHitImpactBundle({
+            side: hitHudSide,
             amount: popAmount,
             mode,
             ...(hasTechnical
@@ -648,7 +680,8 @@ export class BattleController {
       case 'heal_pop': {
         const portrait = screen?.getPortraitElement(step.combatantId);
         if (portrait && step.amount > 0) {
-          showBattleHitPop(portrait, step.amount, 'heal');
+          const healSide = resolveBattleReceiverHudSide(step.combatantId);
+          showBattleHitPop(healSide, step.amount, 'heal');
           showHealImpact(portrait, step.amount);
         }
         return;

@@ -32,6 +32,14 @@ import {
   isRetiredItemId,
   stripRetiredInventoryStacks,
 } from '../shared/items/retiredItems.js';
+import {
+  isWalletCurrencyItemId,
+  mirrorWalletCurrencyStacks,
+} from '../shared/economy/walletCurrencyInventoryMirror.js';
+import {
+  ALTER_COIN_ITEM_ID,
+  DOLLAR_VOLT_ITEM_ID,
+} from '../shared/economy/premiumCurrency.js';
 
 type InventoryRow = InventoryStack;
 
@@ -191,6 +199,20 @@ function syncInventoryFromProfile(key: string, profile: CharacterEconomyProfile)
   state.inventories.set(key, profile.inventory.map((row) => ({ ...row })));
 }
 
+/** Carteira → stacks `dollar_volt` / `alter_coin` no bag (projeção; wallet continua SSOT). */
+function applyWalletCurrencyMirrorToProfile(
+  playerId: string,
+  characterId: number,
+  profile: CharacterEconomyProfile,
+): void {
+  const wallet = getOrCreateWallet(playerId, characterId);
+  profile.inventory = mirrorWalletCurrencyStacks(profile.inventory, {
+    dollarVolt: wallet.dollarVolt,
+    alterCoins: wallet.alterCoins,
+  });
+  syncInventoryFromProfile(profileKey(playerId, characterId), profile);
+}
+
 function getOrCreateProfile(playerId: string, characterId: number): CharacterEconomyProfile {
   const key = profileKey(playerId, characterId);
   const existing = state.profiles.get(key);
@@ -290,6 +312,18 @@ export async function executeEconomyTransaction(
         if (qty <= 0) return;
         if (isRetiredItemId(itemId)) return;
 
+        // Moeda nunca entra como loot solto — credita a wallet e o espelho fecha o stack.
+        if (itemId === DOLLAR_VOLT_ITEM_ID) {
+          const wallet = getOrCreateWallet(playerId, characterId);
+          wallet.dollarVolt += Math.floor(qty);
+          return;
+        }
+        if (itemId === ALTER_COIN_ITEM_ID) {
+          const wallet = getOrCreateWallet(playerId, characterId);
+          wallet.alterCoins += Math.floor(qty);
+          return;
+        }
+
         assertAddItemAllowed(itemId, profile.inventory, qty);
 
         const equipment = equippedToEquipmentUiGrid(profile.equipped);
@@ -318,6 +352,19 @@ export async function executeEconomyTransaction(
         if (qty <= 0) return { added: 0, overflow: 0 };
         if (isRetiredItemId(itemId)) return { added: 0, overflow: qty };
 
+        if (itemId === DOLLAR_VOLT_ITEM_ID) {
+          const wallet = getOrCreateWallet(playerId, characterId);
+          const added = Math.floor(qty);
+          wallet.dollarVolt += added;
+          return { added, overflow: 0 };
+        }
+        if (itemId === ALTER_COIN_ITEM_ID) {
+          const wallet = getOrCreateWallet(playerId, characterId);
+          const added = Math.floor(qty);
+          wallet.alterCoins += added;
+          return { added, overflow: 0 };
+        }
+
         const addCheck = validateAddItem(itemId, profile.inventory, qty);
         if (!addCheck.ok) {
           return { added: 0, overflow: qty };
@@ -343,6 +390,9 @@ export async function executeEconomyTransaction(
         return { added, overflow: qty - added };
       },
       removeInventoryItem(itemId, qty) {
+        if (isWalletCurrencyItemId(itemId)) {
+          throw new Error('Moedas não podem ser removidas do inventário — use a carteira.');
+        }
         assertInventoryRemovalPolicyAllowed(itemId);
 
         const rows = profile.inventory;
@@ -359,7 +409,7 @@ export async function executeEconomyTransaction(
       setInventory(stacks) {
         profile.inventory = stripRetiredInventoryStacks(stacks).map((row) => ({ ...row }));
         dedupeProfileInventoryFromEquipment(profile);
-        syncInventoryFromProfile(key, profile);
+        applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
       },
       setActiveBookBuff(buff) {
         profile.activeBookBuff = buff;
@@ -393,6 +443,8 @@ export async function executeEconomyTransaction(
         return profile.activeBookBuff;
       },
     });
+
+    applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
 
     return {
       ok: true,
@@ -448,6 +500,8 @@ export function applyAuthoritativeWalletBalances(
   const wallet = getOrCreateWallet(playerId, characterId);
   wallet.dollarVolt = Math.max(0, Math.floor(dollarVolt));
   wallet.alterCoins = Math.max(0, Math.floor(alterCoins));
+  const profile = getOrCreateProfile(playerId, characterId);
+  applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
 }
 
 export function applyAuthoritativeEquippedSlots(
@@ -550,10 +604,9 @@ export function setCharacterInventoryStacks(
   characterId: number,
   stacks: readonly InventoryStack[],
 ): void {
-  const key = profileKey(playerId, characterId);
   const profile = getOrCreateProfile(playerId, characterId);
   profile.inventory = stacks.map((row) => ({ ...row }));
-  syncInventoryFromProfile(key, profile);
+  applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
 }
 
 export function getBankVaultState(
@@ -674,7 +727,7 @@ export async function executeBankEconomyTransaction(
         if (!options?.skipEquipmentDedupe) {
           dedupeProfileInventoryFromEquipment(profile);
         }
-        syncInventoryFromProfile(key, profile);
+        applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
       },
       setBank(stacks, currencies) {
         bank.itemStacks = stacks.map((row) => ({ ...row }));
@@ -697,6 +750,8 @@ export async function executeBankEconomyTransaction(
         };
       },
     });
+
+    applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
 
     return {
       ok: true,
@@ -789,7 +844,6 @@ export function hydrateCharacterEconomyPersistence(
   wallet.lockedDollarVolt = slice.wallet.lockedDollarVolt;
   wallet.lockedAlterCoins = slice.wallet.lockedAlterCoins;
 
-  const key = profileKey(playerId, characterId);
   const profile = getOrCreateProfile(playerId, characterId);
   profile.inventory = normalizeChargedInventoryStacks(slice.profile.inventory).map((row) => ({ ...row }));
   profile.equipped = { ...slice.profile.equipped };
@@ -797,7 +851,7 @@ export function hydrateCharacterEconomyPersistence(
     ? { ...slice.profile.equipmentUiGrid }
     : equippedToEquipmentUiGrid(profile.equipped);
   profile.activeBookBuff = slice.profile.activeBookBuff;
-  syncInventoryFromProfile(key, profile);
+  applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
 
   const bank = getOrCreateBankVault(playerId, characterId);
   bank.itemStacks = slice.bank.itemStacks.map((row) => ({ ...row }));
