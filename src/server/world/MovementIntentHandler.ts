@@ -13,7 +13,7 @@ type ConnectionMoveState = {
 const MAX_MOVE_QUEUE_DEPTH = 8;
 
 /** Catch-up sob fila: até N passos válidos por tick (anti-speedhack com cap). */
-export const MOVE_CATCHUP_MAX_PER_TICK = 2;
+export const MOVE_CATCHUP_MAX_PER_TICK = 3;
 
 /**
  * Acumula intenções MOVE e processa no WorldTick.
@@ -108,8 +108,12 @@ export class MovementIntentHandler {
     for (let i = 0; i < budget; i += 1) {
       const result = this.processNext(connectionId, playerId, characterId);
       if (!result) break;
+      // Intent inválido: descarta e tenta o próximo (não trava o hold inteiro).
+      if (!result.ok) {
+        lastMeaningful = result;
+        continue;
+      }
       lastMeaningful = result;
-      if (!result.ok) break;
     }
     return lastMeaningful;
   }

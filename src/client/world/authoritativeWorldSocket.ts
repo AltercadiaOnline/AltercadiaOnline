@@ -58,10 +58,14 @@ export function createAuthoritativeWorldSocket(
   const authority = getWorldMovementAuthority();
   let authorityUnsub = authority.subscribe((payload) => {
     const tile = worldPixelToTile(payload.x, payload.y);
-    // Enquanto há predição retida, não puxar o cursor de tile para trás —
-    // isso gerava MOVE_INTENT repetindo o mesmo tile e rubber-band no sync.
+    // Hard snap limpa predição: SEMPRE realinha o cursor (mesmo no hold).
+    // Sem isso o hold emite alvos não-adjacentes e trava após 2–3 passos.
     const sameTile = tile.tileX === predictedTileX && tile.tileY === predictedTileY;
-    if (sameTile || (!authority.hasRetainedPrediction() && !authority.isContinuousHoldActive())) {
+    if (
+      sameTile
+      || !authority.hasRetainedPrediction()
+      || !authority.isContinuousHoldActive()
+    ) {
       predictedTileX = tile.tileX;
       predictedTileY = tile.tileY;
     }

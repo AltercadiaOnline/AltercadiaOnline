@@ -115,7 +115,10 @@ class WorldMovementAuthority {
   setContinuousHoldActive(active: boolean): void {
     if (active) {
       this.visualFrozen = false;
-      this.softAnchorDueMs = performance.now() + SOFT_TILE_ANCHOR_MS;
+      // Só no início do hold — resetar todo frame impede a âncora de cursor.
+      if (!this.continuousHoldActive) {
+        this.softAnchorDueMs = performance.now() + SOFT_TILE_ANCHOR_MS;
+      }
     }
     this.continuousHoldActive = active;
   }
@@ -273,15 +276,40 @@ class WorldMovementAuthority {
       const dist = Math.hypot(update.x - predictedX!, update.y - predictedY!);
 
       if (dist >= hardSnapPx) {
+        // Hold: NÃO puxar o sprite — só store; âncora de cursor realinha os intents.
+        // Hard snap no hold = “anda 2–3 e trava/volta” (pior sensação).
+        if (this.continuousHoldActive) {
+          if (isNewSeq) {
+            return {
+              shouldApplyToStore: true,
+              shouldPublishPlayerUpdate: false,
+              shouldApplyRenderTarget: false,
+              position: update,
+            };
+          }
+          return silence(update);
+        }
         this.visualFrozen = false;
         this.clearPredictionLock();
         getMovementNetTelemetry().noteHardSnap();
         return fullApply(update);
       }
 
-      // Servidor alcançou os pés — libera freeze; não publica sprite (já está lá).
+      // Servidor alcançou os pés — libera freeze; no hold NÃO limpa predição
+      // (senão o cursor de tile morre e o hold trava após 2–3 passos).
       if (dist <= softConfirmPx) {
         this.visualFrozen = false;
+        if (this.continuousHoldActive) {
+          if (isNewSeq) {
+            return {
+              shouldApplyToStore: true,
+              shouldPublishPlayerUpdate: false,
+              shouldApplyRenderTarget: false,
+              position: update,
+            };
+          }
+          return silence(update);
+        }
         if (isNewSeq) {
           this.clearPredictionLock();
           return {

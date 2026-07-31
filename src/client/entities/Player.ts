@@ -324,6 +324,21 @@ export class Player {
       update.facing,
       { force: true, soft: false },
     );
+
+    // Realinha cursor de MOVE + predição — sem isso o hold morre após o snap.
+    if (isAuthoritativeWorldSocket(this.worldSocket)) {
+      this.worldSocket.seedPredictedPosition({
+        x: reconcile.position.x,
+        y: reconcile.position.y,
+      });
+    }
+    if (authority.isContinuousHoldActive()) {
+      authority.recordPredictedStep(
+        reconcile.position.x,
+        reconcile.position.y,
+        update.facing ?? this.facing,
+      );
+    }
   }
 
   applyServerUpdate(
