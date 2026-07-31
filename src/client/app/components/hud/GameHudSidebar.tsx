@@ -18,8 +18,8 @@ export function GameHudSidebar() {
       data-ui-surface="persistent-sidebar"
       style={{ zIndex: UI_LAYER_Z_INDEX.persistentSidebar }}
     >
-      <section className="sidebar-segment sidebar-segment--map" aria-label="Minimapa">
-        <p className="sidebar-segment__label">MAPA</p>
+      <section className="sidebar-segment sidebar-segment--map" aria-label="Radar">
+        <p className="sidebar-segment__label">RADAR</p>
         <WorldMinimapPanel interactive />
       </section>
 

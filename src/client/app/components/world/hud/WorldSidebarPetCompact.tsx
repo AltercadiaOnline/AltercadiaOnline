@@ -4,12 +4,28 @@ import { resolvePetHudSouthPreviewUrl } from '../../../../entities/pet/petHudPre
 import { getPlayerPetStore } from '../../../../ui/pet/playerPetStore.js';
 import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 
-function useSummonedPet() {
+/**
+ * Revision estável — getSnapshot() do pet store clona objeto a cada call
+ * e quebraria useSyncExternalStore (React #185 / HUD indisponível).
+ */
+function useSummonedPetRevision(): string {
   return useSyncExternalStore(
     (onChange) =>
       subscribeExternalStore((listener) => getPlayerPetStore().subscribe(() => listener()), onChange),
-    () => getPlayerPetStore().getSnapshot(),
-    () => null,
+    () => {
+      const pet = getPlayerPetStore().getSnapshot();
+      if (!pet) return '';
+      return [
+        pet.instanceId,
+        pet.kindId,
+        pet.name,
+        pet.hpCurrent,
+        pet.hpMax,
+        pet.affinityXp,
+        pet.status,
+      ].join('|');
+    },
+    () => '',
   );
 }
 
@@ -17,7 +33,8 @@ function useSummonedPet() {
  * Pet compacto — só detalha quando há pet fora (ACTIVE + HP > 0).
  */
 export function WorldSidebarPetCompact() {
-  const pet = useSummonedPet();
+  useSummonedPetRevision();
+  const pet = getPlayerPetStore().getSnapshot();
 
   if (!pet) {
     return (

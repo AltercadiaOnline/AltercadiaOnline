@@ -74,6 +74,7 @@ import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
+import { CRT_RADAR_THROTTLE_MS } from '../world/minimap/crtRadarConfig.js';
 import { getRenderLayerBridge, isWorldRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
 import { getGameRenderLoop } from '../render/GameRenderLoop.js';
@@ -186,6 +187,7 @@ export class ExplorationScene implements Disposable {
   private worldCharacterId: number | null = null;
   private disconnectViewportObserver: (() => void) | null = null;
   private lastMinimapPublishKey = '';
+  private lastMinimapPublishMs = 0;
   private teardownVisualDebugHotkey: (() => void) | null = null;
 
   private disposed = false;
@@ -957,6 +959,12 @@ export class ExplorationScene implements Disposable {
     const tilesHigh = mapData.length;
     if (tilesWide <= 0 || tilesHigh <= 0) return;
 
+    const now = performance.now();
+    // Radar CRT: throttle — blips + sweep sem 60 FPS.
+    if (now - this.lastMinimapPublishMs < CRT_RADAR_THROTTLE_MS && this.lastMinimapPublishKey !== '') {
+      return;
+    }
+
     const playerTile = worldPixelToTile(this.player.renderX, this.player.renderY);
     const viewportMin = worldPixelToTile(this.camera.x, this.camera.y);
     const viewportMax = worldPixelToTile(
@@ -965,6 +973,12 @@ export class ExplorationScene implements Disposable {
     );
 
     const dest = this.navigationDestination;
+    const npcMarkers = collectMinimapNpcMarkers(this.npcManager.collectMinimapMarkers());
+    const monsterMarkers = collectMinimapMonsterMarkers(this.worldMap.collectMinimapMarkers());
+    const markerSig = [...npcMarkers, ...monsterMarkers]
+      .map((m) => `${m.kind[0]}${m.tileX},${m.tileY}`)
+      .join('|');
+
     const publishKey = [
       mapId,
       playerTile.tileX,
@@ -975,12 +989,11 @@ export class ExplorationScene implements Disposable {
       viewportMax.tileY,
       dest?.tileX ?? -1,
       dest?.tileY ?? -1,
+      markerSig,
     ].join(':');
     if (publishKey === this.lastMinimapPublishKey) return;
     this.lastMinimapPublishKey = publishKey;
-
-    const npcMarkers = collectMinimapNpcMarkers(this.npcManager.collectMinimapMarkers());
-    const monsterMarkers = collectMinimapMonsterMarkers(this.worldMap.collectMinimapMarkers());
+    this.lastMinimapPublishMs = now;
 
     publishMinimapSnapshot({
       mapId: mapId as MapId,

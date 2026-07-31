@@ -1,10 +1,10 @@
 {
-  "group_id": "e39cf24e-5474-4492-9816-20d2391a9448",
+  "group_id": "da5273b4-789e-4be8-99ea-b60d509de49d",
   "objects": [
     {
-      "id": "12ca8fe5-6f55-4920-975b-2cfd9bf6993c",
+      "id": "c1a28818-a173-40b0-97ad-35412cc8544e",
       "name": "base",
-      "prompt": "Game UI asset sheet, cyberpunk techwear and 90s anime aesthetic, dark industrial metal textures with subtle bevels, rivets, and dark monochromatic tones with electric cyan or amber accents. \n\n1. Custom pixel art mouse cursor: sleek tactical sniper crosshair design with a sharp angular bracket pointer, high contrast edges.\n2. HUD elements: segmented tactical health/PP bars, tech-terminal panel borders with diagonal cut corners (chop-corners), tiny system status indicators, and minimalist inventory slot frames with subtle grid alignment. \n\nConsistent 2D pixel art style, game asset layout, dark sci-fi urban atmosphere, sharp details, clean professional game UI design.",
+      "prompt": "Game UI asset sheet, pixel art mouse cursors, cyberpunk techwear and 90s anime aesthetic, dark industrial metal textures. Set of compact, modern, minimalist cursors: \n1. Modern directional pointer: ultra-short, sleek angular arrow styled like a tactical micro-boomerang with sharp clean edges and high-contrast styling.\n2. Companion tech accents: minimalist pixel art cursor variations with sharp geometry, cyan or amber indicators, designed for clean high-density browser game HUD control.\n\nConsistent 2D pixel art style, isolated grid layout, dark sci-fi urban atmosphere, crisp details, professional game UI asset sheet.",
       "size": {
         "width": 32,
         "height": 32
@@ -18,5 +18,5 @@
     }
   ],
   "export_version": "1.0",
-  "export_date": "2026-07-31T03:59:43.651507"
+  "export_date": "2026-07-31T04:27:55.003289"
 }

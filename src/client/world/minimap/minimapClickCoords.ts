@@ -1,4 +1,5 @@
 import { getActiveMapTileSize } from '../../../shared/world/activeMapTileSize.js';
+import { CRT_RADAR_RADIUS_TILES } from './crtRadarConfig.js';
 
 export type MinimapClickTarget = {
   readonly tileX: number;
@@ -49,7 +50,7 @@ export function resolveMinimapDisplayRect(
 }
 
 /**
- * Converte clique no minimapa (px na tela) para tile e pixel do mundo.
+ * Converte clique no minimapa full-map (px na tela) para tile e pixel do mundo.
  * ratioX = worldWidth / minimapWidth — aplicado na área desenhada (sem letterbox).
  */
 export function minimapClickToWorldTarget(
@@ -100,4 +101,50 @@ export function minimapClientClickToWorldTarget(
     tilesWide,
     tilesHigh,
   );
+}
+
+/**
+ * Clique no radar CRT (jogador no centro) → tile/mundo relativo ao raio de varredura.
+ */
+export function radarClientClickToWorldTarget(
+  clientX: number,
+  clientY: number,
+  canvas: HTMLCanvasElement,
+  playerTileX: number,
+  playerTileY: number,
+  tilesWide: number,
+  tilesHigh: number,
+): MinimapClickTarget | null {
+  if (tilesWide <= 0 || tilesHigh <= 0) return null;
+
+  const rect = canvas.getBoundingClientRect();
+  const display = resolveMinimapDisplayRect(canvas, rect.width, rect.height);
+  const localX = clientX - rect.left - display.offsetX;
+  const localY = clientY - rect.top - display.offsetY;
+  if (localX < 0 || localY < 0 || localX > display.width || localY > display.height) {
+    return null;
+  }
+
+  const cx = display.width / 2;
+  const cy = display.height / 2;
+  const radiusPx = Math.min(display.width, display.height) * 0.46;
+  const dxPx = localX - cx;
+  const dyPx = localY - cy;
+  if (dxPx * dxPx + dyPx * dyPx > radiusPx * radiusPx) {
+    return null;
+  }
+
+  const tilesToPx = radiusPx / CRT_RADAR_RADIUS_TILES;
+  const dTileX = Math.round(dxPx / tilesToPx);
+  const dTileY = Math.round(dyPx / tilesToPx);
+  const tileX = Math.max(0, Math.min(tilesWide - 1, playerTileX + dTileX));
+  const tileY = Math.max(0, Math.min(tilesHigh - 1, playerTileY + dTileY));
+  const tileSize = getActiveMapTileSize();
+
+  return {
+    tileX,
+    tileY,
+    worldX: tileX * tileSize + tileSize / 2,
+    worldY: tileY * tileSize + tileSize / 2,
+  };
 }

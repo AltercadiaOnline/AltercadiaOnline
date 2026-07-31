@@ -1,25 +1,19 @@
-import type { MinimapSnapshot, MinimapTerrain } from './minimapTypes.js';
-
-const MARKER_COLORS = {
-  player: '#5eead4',
-  npc: '#fbbf24',
-  monster: '#f87171',
-} as const;
-
-const VIEWPORT_STROKE = 'rgba(94, 234, 212, 0.55)';
-const DESTINATION_STROKE = '#f1c40f';
-const DESTINATION_FILL = 'rgba(241, 196, 15, 0.85)';
+import {
+  CRT_RADAR_COLORS,
+  CRT_RADAR_RADIUS_TILES,
+  CRT_RADAR_SIZE_PX,
+} from './crtRadarConfig.js';
+import type { MinimapSnapshot } from './minimapTypes.js';
 
 /**
- * Renderiza o minimapa em canvas 1px/tile — escalado via CSS sem distorção.
- * Overview estático (WebP) quando disponível; senão ImageData procedural.
+ * Radar CRT tático — canvas 2D leve, jogador no centro, blips vetoriais.
+ * Sem texturas de terreno / overview WebP.
  */
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
-  private terrain: MinimapTerrain | null = null;
-  private terrainImage: ImageData | null = null;
-  private overviewImage: HTMLImageElement | null = null;
+  private sweepAngleRad = -Math.PI / 2;
+  private blinkPhase = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -29,135 +23,176 @@ export class MinimapRenderer {
     this.canvas = canvas;
     this.ctx = ctx;
     this.ctx.imageSmoothingEnabled = false;
+    this.ensureSize();
   }
 
-  setTerrain(terrain: MinimapTerrain, overviewImage: HTMLImageElement | null = null): void {
-    const sameTerrain =
-      this.terrain?.mapId === terrain.mapId
-      && this.terrain.tilesWide === terrain.tilesWide
-      && this.terrain.tilesHigh === terrain.tilesHigh;
-    const sameOverview = this.overviewImage === overviewImage;
-
-    if (sameTerrain && sameOverview) return;
-
-    this.terrain = terrain;
-    this.overviewImage = overviewImage;
-    if (!sameTerrain || !this.terrainImage) {
-      this.terrainImage = this.buildTerrainImage(terrain);
-      this.canvas.width = terrain.tilesWide;
-      this.canvas.height = terrain.tilesHigh;
-    }
+  /** Compat — radar não usa terreno; no-op. */
+  setTerrain(_terrain: unknown, _overviewImage: HTMLImageElement | null = null): void {
+    this.ensureSize();
   }
 
   render(snapshot: MinimapSnapshot): void {
-    if (!this.terrain || !this.terrainImage) return;
-    if (
-      this.terrain.mapId !== snapshot.mapId
-      || this.terrain.tilesWide !== snapshot.tilesWide
-      || this.terrain.tilesHigh !== snapshot.tilesHigh
-    ) {
-      return;
-    }
-
+    this.ensureSize();
     const { ctx, canvas } = this;
+    const size = canvas.width;
+    const cx = size / 2;
+    const cy = size / 2;
+    const radiusPx = size * 0.46;
+    const tilesToPx = radiusPx / CRT_RADAR_RADIUS_TILES;
+
     ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = CRT_RADAR_COLORS.background;
+    ctx.fillRect(0, 0, size, size);
 
-    if (this.overviewImage && this.overviewImage.complete && this.overviewImage.naturalWidth > 0) {
-      ctx.drawImage(this.overviewImage, 0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.putImageData(this.terrainImage, 0, 0);
-    }
+    this.drawStaticGrid(ctx, cx, cy, radiusPx, size);
+    this.drawSweep(ctx, cx, cy, radiusPx);
 
-    if (snapshot.viewport) {
-      const { minTileX, minTileY, maxTileX, maxTileY } = snapshot.viewport;
-      ctx.strokeStyle = VIEWPORT_STROKE;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(
-        minTileX + 0.5,
-        minTileY + 0.5,
-        Math.max(1, maxTileX - minTileX),
-        Math.max(1, maxTileY - minTileY),
-      );
-    }
+    const px = snapshot.playerTileX;
+    const py = snapshot.playerTileY;
 
     for (const marker of snapshot.markers) {
-      if (!this.isTileInBounds(marker.tileX, marker.tileY)) continue;
-      ctx.fillStyle = marker.color ?? MARKER_COLORS[marker.kind];
-      ctx.fillRect(marker.tileX, marker.tileY, 1, 1);
+      const dx = marker.tileX - px;
+      const dy = marker.tileY - py;
+      if (dx * dx + dy * dy > CRT_RADAR_RADIUS_TILES * CRT_RADAR_RADIUS_TILES) continue;
+
+      const mx = cx + dx * tilesToPx;
+      const my = cy + dy * tilesToPx;
+      ctx.fillStyle = marker.color
+        ?? (marker.kind === 'npc' ? CRT_RADAR_COLORS.npc : CRT_RADAR_COLORS.monster);
+      ctx.beginPath();
+      ctx.arc(mx, my, marker.kind === 'monster' ? 2.2 : 1.8, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    if (snapshot.destination && this.isTileInBounds(snapshot.destination.tileX, snapshot.destination.tileY)) {
-      this.drawDestinationMarker(ctx, snapshot.destination.tileX, snapshot.destination.tileY);
-    }
-
-    if (this.isTileInBounds(snapshot.playerTileX, snapshot.playerTileY)) {
-      ctx.fillStyle = MARKER_COLORS.player;
-      ctx.fillRect(snapshot.playerTileX, snapshot.playerTileY, 1, 1);
-    }
-  }
-
-  private drawDestinationMarker(ctx: CanvasRenderingContext2D, tileX: number, tileY: number): void {
-    const cx = tileX + 0.5;
-    const cy = tileY + 0.5;
-    const arm = 0.35;
-
-    ctx.strokeStyle = DESTINATION_STROKE;
-    ctx.fillStyle = DESTINATION_FILL;
-    ctx.lineWidth = 1;
-
-    ctx.beginPath();
-    ctx.moveTo(cx - arm, cy - arm);
-    ctx.lineTo(cx + arm, cy + arm);
-    ctx.moveTo(cx + arm, cy - arm);
-    ctx.lineTo(cx - arm, cy + arm);
-    ctx.stroke();
-
-    ctx.fillRect(tileX, tileY, 1, 1);
-  }
-
-  private isTileInBounds(tileX: number, tileY: number): boolean {
-    if (!this.terrain) return false;
-    return (
-      tileX >= 0
-      && tileY >= 0
-      && tileX < this.terrain.tilesWide
-      && tileY < this.terrain.tilesHigh
-    );
-  }
-
-  private buildTerrainImage(terrain: MinimapTerrain): ImageData {
-    const image = new ImageData(terrain.tilesWide, terrain.tilesHigh);
-    const { data } = image;
-
-    for (let y = 0; y < terrain.tilesHigh; y++) {
-      for (let x = 0; x < terrain.tilesWide; x++) {
-        const hex = terrain.colors[y]?.[x] ?? '#2a4a32';
-        const offset = (y * terrain.tilesWide + x) * 4;
-        const rgb = parseHexColor(hex);
-        data[offset] = rgb.r;
-        data[offset + 1] = rgb.g;
-        data[offset + 2] = rgb.b;
-        data[offset + 3] = 255;
+    if (snapshot.destination) {
+      const dx = snapshot.destination.tileX - px;
+      const dy = snapshot.destination.tileY - py;
+      if (dx * dx + dy * dy <= CRT_RADAR_RADIUS_TILES * CRT_RADAR_RADIUS_TILES) {
+        const mx = cx + dx * tilesToPx;
+        const my = cy + dy * tilesToPx;
+        ctx.strokeStyle = CRT_RADAR_COLORS.destination;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(mx - 3, my);
+        ctx.lineTo(mx + 3, my);
+        ctx.moveTo(mx, my - 3);
+        ctx.lineTo(mx, my + 3);
+        ctx.stroke();
       }
     }
 
-    return image;
-  }
-}
-
-function parseHexColor(hex: string): { r: number; g: number; b: number } {
-  const normalized = hex.replace('#', '');
-  if (normalized.length === 3) {
-    return {
-      r: parseInt(normalized[0]! + normalized[0], 16),
-      g: parseInt(normalized[1]! + normalized[1], 16),
-      b: parseInt(normalized[2]! + normalized[2], 16),
-    };
+    this.drawPlayerBlip(ctx, cx, cy);
+    this.advanceSweep();
   }
 
-  return {
-    r: parseInt(normalized.slice(0, 2), 16),
-    g: parseInt(normalized.slice(2, 4), 16),
-    b: parseInt(normalized.slice(4, 6), 16),
-  };
+  private ensureSize(): void {
+    if (this.canvas.width !== CRT_RADAR_SIZE_PX || this.canvas.height !== CRT_RADAR_SIZE_PX) {
+      this.canvas.width = CRT_RADAR_SIZE_PX;
+      this.canvas.height = CRT_RADAR_SIZE_PX;
+    }
+  }
+
+  private drawStaticGrid(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    radiusPx: number,
+    size: number,
+  ): void {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.strokeStyle = CRT_RADAR_COLORS.grid;
+    ctx.lineWidth = 1;
+    const step = size / 8;
+    for (let x = step; x < size; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, size);
+      ctx.stroke();
+    }
+    for (let y = step; y < size; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(size, y + 0.5);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = CRT_RADAR_COLORS.ring;
+    for (const t of [0.33, 0.66, 1]) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radiusPx * t, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = CRT_RADAR_COLORS.crosshair;
+    ctx.beginPath();
+    ctx.moveTo(cx - radiusPx, cy + 0.5);
+    ctx.lineTo(cx + radiusPx, cy + 0.5);
+    ctx.moveTo(cx + 0.5, cy - radiusPx);
+    ctx.lineTo(cx + 0.5, cy + radiusPx);
+    ctx.stroke();
+
+    ctx.restore();
+
+    ctx.strokeStyle = CRT_RADAR_COLORS.ring;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  private drawSweep(ctx: CanvasRenderingContext2D, cx: number, cy: number, radiusPx: number): void {
+    const wedge = Math.PI / 5;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radiusPx, this.sweepAngleRad - wedge, this.sweepAngleRad);
+    ctx.closePath();
+    ctx.fillStyle = CRT_RADAR_COLORS.sweep;
+    ctx.fill();
+
+    ctx.strokeStyle = CRT_RADAR_COLORS.sweepEdge;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(
+      cx + Math.cos(this.sweepAngleRad) * radiusPx,
+      cy + Math.sin(this.sweepAngleRad) * radiusPx,
+    );
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawPlayerBlip(ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
+    this.blinkPhase = (this.blinkPhase + 1) % 8;
+    const lit = this.blinkPhase < 5;
+
+    if (lit) {
+      ctx.fillStyle = CRT_RADAR_COLORS.playerGlow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = CRT_RADAR_COLORS.player;
+    ctx.fillStyle = lit ? CRT_RADAR_COLORS.player : 'rgba(94, 234, 212, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, cy);
+    ctx.lineTo(cx + 4, cy);
+    ctx.moveTo(cx, cy - 4);
+    ctx.lineTo(cx, cy + 4);
+    ctx.stroke();
+    ctx.fillRect(cx - 1, cy - 1, 2, 2);
+  }
+
+  private advanceSweep(): void {
+    this.sweepAngleRad += Math.PI / 10;
+    if (this.sweepAngleRad > Math.PI * 2) {
+      this.sweepAngleRad -= Math.PI * 2;
+    }
+  }
 }
