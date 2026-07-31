@@ -3,6 +3,7 @@ import { WorldMinimapPanel } from '../world/hud/WorldMinimapPanel.js';
 import { WorldSidebarConsumablesHotbar } from '../world/hud/WorldSidebarConsumablesHotbar.js';
 import { WorldSidebarPetCompact } from '../world/hud/WorldSidebarPetCompact.js';
 import { WorldWalletPanel } from '../world/hud/WorldWalletPanel.js';
+import { UI_LAYER_Z_INDEX } from '../../shell/uiLayers.js';
 
 /**
  * Coluna direita fixa — segmentos: mapa · moedas · vitals/SET · itens/pet.
@@ -15,6 +16,7 @@ export function GameHudSidebar() {
       aria-label="HUD lateral"
       data-ui-widget="game-sidebar"
       data-ui-surface="persistent-sidebar"
+      style={{ zIndex: UI_LAYER_Z_INDEX.persistentSidebar }}
     >
       <section className="sidebar-segment sidebar-segment--map" aria-label="Minimapa">
         <p className="sidebar-segment__label">MAPA</p>

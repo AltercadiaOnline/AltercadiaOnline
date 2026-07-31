@@ -198,7 +198,10 @@ export function WorldPanelsLayer() {
 
       className="pointer-events-none absolute inset-0"
 
-      style={{ zIndex: UI_LAYER_Z_INDEX.worldPanels }}
+      style={{
+        zIndex: UI_LAYER_Z_INDEX.worldPanels,
+        right: 'var(--game-hud-sidebar-width)',
+      }}
 
       data-ui-surface="world-panels"
 

@@ -38,6 +38,7 @@ import { getAuthoritativeItemById } from '../../shared/items/itemCatalogAuthorit
 import {
   canChooseMarco,
   canSelectBranchStarter,
+  sanitizeActiveMarcosForTrail,
   type MarcoTreePlayerContext,
 } from '../../shared/progression/milestoneTreeState.js';
 import { resolveRamificacaoFromStarter } from '../../shared/progression/milestoneTreeCatalog.js';
@@ -1126,12 +1127,30 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private chooseMarco(nodeId: string): IntentHandleResult {
+    // Repara save legado (trilha travada sem starter) antes de liberar o 2º nó.
+    const repaired = sanitizeActiveMarcosForTrail(
+      this.state.marcos.activeMarcos,
+      this.state.marcos.ramificacaoSelecionada,
+      this.state.marcos.trilhaTravada,
+    );
+    if (
+      repaired.length !== this.state.marcos.activeMarcos.length
+      || repaired.some((id, i) => id !== this.state.marcos.activeMarcos[i])
+    ) {
+      this.state.marcos.activeMarcos = repaired;
+    }
+
     if (!canChooseMarco(nodeId, this.buildMarcoContext())) {
       return { ok: false, reason: 'Marco indisponível ou requisitos pendentes.' };
     }
-    if (!this.state.marcos.activeMarcos.includes(nodeId)) {
-      this.state.marcos.activeMarcos = [...this.state.marcos.activeMarcos, nodeId];
-    }
+    const next = sanitizeActiveMarcosForTrail(
+      this.state.marcos.activeMarcos.includes(nodeId)
+        ? this.state.marcos.activeMarcos
+        : [...this.state.marcos.activeMarcos, nodeId],
+      this.state.marcos.ramificacaoSelecionada,
+      this.state.marcos.trilhaTravada,
+    );
+    this.state.marcos.activeMarcos = next;
     this.bumpRevision('marcosState');
     return { ok: true };
   }
@@ -1897,10 +1916,21 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private buildMarcoContext(): MarcoTreePlayerContext {
-    const level = getPlayerEquipmentStore().getSnapshot().level;
+    const fromEquip = getPlayerEquipmentStore().getSnapshot().level;
+    const fromData = getMutableDataStore().getCharacterLevel().level;
+    const level = Math.max(
+      Number.isFinite(fromEquip) ? fromEquip : 0,
+      Number.isFinite(fromData) ? fromData : 0,
+      1,
+    );
     return {
       ...this.state.marcos,
-      playerLevel: Number.isFinite(level) && level > 0 ? Math.floor(level) : 1,
+      activeMarcos: sanitizeActiveMarcosForTrail(
+        this.state.marcos.activeMarcos,
+        this.state.marcos.ramificacaoSelecionada,
+        this.state.marcos.trilhaTravada,
+      ),
+      playerLevel: Math.floor(level),
     };
   }
 

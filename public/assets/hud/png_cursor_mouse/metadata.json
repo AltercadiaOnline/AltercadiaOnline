@@ -1,0 +1,22 @@
+{
+  "group_id": "e39cf24e-5474-4492-9816-20d2391a9448",
+  "objects": [
+    {
+      "id": "12ca8fe5-6f55-4920-975b-2cfd9bf6993c",
+      "name": "base",
+      "prompt": "Game UI asset sheet, cyberpunk techwear and 90s anime aesthetic, dark industrial metal textures with subtle bevels, rivets, and dark monochromatic tones with electric cyan or amber accents. \n\n1. Custom pixel art mouse cursor: sleek tactical sniper crosshair design with a sharp angular bracket pointer, high contrast edges.\n2. HUD elements: segmented tactical health/PP bars, tech-terminal panel borders with diagonal cut corners (chop-corners), tiny system status indicators, and minimalist inventory slot frames with subtle grid alignment. \n\nConsistent 2D pixel art style, game asset layout, dark sci-fi urban atmosphere, sharp details, clean professional game UI design.",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-07-31T03:59:43.651507"
+}

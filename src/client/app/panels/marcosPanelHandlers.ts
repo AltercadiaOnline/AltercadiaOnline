@@ -1,5 +1,7 @@
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { getDataStore } from '../../economy/dataStoreAccess.js';
+import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
+import { getPlayerProfileStore } from '../../ui/character/playerProfileStore.js';
 import {
   buildMarcoTreeView,
   buildMarcoTooltipPayload,
@@ -8,6 +10,7 @@ import {
   hasConfirmedMarcoTrail,
   resolveMarcoChooseBlockedMessage,
   resolveRamificacaoFromContext,
+  sanitizeActiveMarcosForTrail,
   type MarcoTreePlayerContext,
 } from '../../../shared/progression/milestoneTreeState.js';
 import {
@@ -30,19 +33,40 @@ export const MARCO_TRAIL_PICK_ORDER: readonly MarcoTreeBranch[] = [
 ];
 
 function resolveMarcosPanelPlayerLevel(): number {
-  const level = getDataStore().getCharacterLevel().level;
-  if (Number.isFinite(level) && level > 0) return Math.floor(level);
-  return 1;
+  const fromData = getDataStore().getCharacterLevel().level;
+  let fromEquip = 0;
+  let fromProfile = 0;
+  try {
+    fromEquip = getPlayerEquipmentStore().getSnapshot().level;
+  } catch {
+    /* store ainda não montado */
+  }
+  try {
+    fromProfile = getPlayerProfileStore().getSnapshot().level;
+  } catch {
+    /* store ainda não montado */
+  }
+  const level = Math.max(
+    Number.isFinite(fromData) ? fromData : 0,
+    Number.isFinite(fromEquip) ? fromEquip : 0,
+    Number.isFinite(fromProfile) ? fromProfile : 0,
+  );
+  return level > 0 ? Math.floor(level) : 1;
 }
 
 export function buildMarcosPlayerContext(): MarcoTreePlayerContext {
   const marcosState = getDataStore().getMarcosState();
+  const ramificacaoSelecionada = resolveRamificacaoFromContext(marcosState.ramificacaoSelecionada);
   return {
-    activeMarcos: marcosState.activeMarcos,
+    activeMarcos: sanitizeActiveMarcosForTrail(
+      marcosState.activeMarcos,
+      ramificacaoSelecionada,
+      marcosState.trilhaTravada,
+    ),
     flowSpeedBase: marcosState.flowSpeedBase,
     milestoneTotalProgress: marcosState.milestoneTotalProgress,
     playerLevel: resolveMarcosPanelPlayerLevel(),
-    ramificacaoSelecionada: resolveRamificacaoFromContext(marcosState.ramificacaoSelecionada),
+    ramificacaoSelecionada,
     trilhaTravada: marcosState.trilhaTravada,
     nodeProgression: marcosState.nodeProgression,
   };

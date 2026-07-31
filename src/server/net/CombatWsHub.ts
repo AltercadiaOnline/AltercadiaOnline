@@ -84,6 +84,7 @@ import {
   getAuthoritativeProgression,
   patchAuthoritativeProgression,
 } from '../progression/authoritativeProgressionStore.js';
+import { repairTrailStarterIfNeeded } from '../../Economy/progressionGateway.js';
 import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
 import { getInventoryPersistenceBridge } from '../supabase/inventoryPersistenceBridge.js';
 import { getPersistenceManager } from '../supabase/persistenceManagerRegistry.js';
@@ -1760,6 +1761,8 @@ export class CombatWsHub implements CombatWsRouteHost {
 
       const hadPersistedSave = await hydrateCharacterSession(authUserId, payload.characterId);
       reconcileAuthoritativeCharacterClassLink(authUserId, payload.characterId);
+      // Save legado: trilha travada sem starter — repara antes do full-state-sync.
+      repairTrailStarterIfNeeded(authUserId, payload.characterId);
 
       await persistAuthoritativeLoginSnapshot(
         this.serverEnv,

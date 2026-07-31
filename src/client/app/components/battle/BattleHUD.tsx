@@ -29,7 +29,10 @@ export function BattleHUD() {
   return (
     <div
       className="battle-hud-shell game-playfield-hud pointer-events-none absolute inset-0"
-      style={{ zIndex: UI_LAYER_Z_INDEX.battleHud }}
+      style={{
+        zIndex: UI_LAYER_Z_INDEX.battleHud,
+        right: 'var(--game-hud-sidebar-width)',
+      }}
       data-ui-surface="battle-hud"
       data-battle-status={status}
       data-player-level={playerLevel}

@@ -42,7 +42,7 @@ export function AuthScreen() {
       aria-label="Autenticação"
       aria-busy={disabled}
     >
-      <div className="login-box vortex-panel auth-form ui-skin-hybrid mx-4 w-full max-w-md">
+      <div className="login-box vortex-panel auth-form ui-skin-hybrid ui-skin-hybrid--holo-boost mx-4 w-full max-w-md">
         <h1>ALTERCADIA.ONLINE</h1>
 
         {state.view === 'login' && (

@@ -464,6 +464,15 @@ export class ActionDispatcher {
       return this.dispatchPending(action);
     }
 
+    if (
+      this.mode === 'online'
+      && (action.type === 'CHOOSE_MARCO'
+        || action.type === 'SELECT_MARCO_BRANCH'
+        || action.type === 'RESET_MARCO_TRAIL')
+    ) {
+      return this.dispatchPending(action);
+    }
+
     // Vendor/pet/cura: MockEconomyService é a fonte única (carteira + roster + localSave).
     // Evita dispatchLocal que mutava pets sem gravar CharacterPersistenceRecord.
     if (this.mode === 'mock' && isClientAuthoritativeVendorAction(action, this.mode)) {

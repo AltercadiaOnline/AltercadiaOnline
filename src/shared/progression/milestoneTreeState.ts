@@ -3,10 +3,10 @@ import {
   isMarcoBranchStarter,
   MARCO_TREE_NODES,
   normalizeRamificacao,
+  resolveStarterFromRamificacao,
   type MarcoRamificacaoId,
   type MarcoTreeNodeDef,
 } from './milestoneTreeCatalog.js';
-import { MARCO_UNLOCK_PARENT_LEVEL } from './marcoProgressCatalog.js';
 import {
   getMarcoNodeProgress,
   resolveEffectiveMarcoAbilityLevel,
@@ -116,19 +116,10 @@ function collectMissingRequirements(
   for (const reqId of node.requires) {
     if (!isMarcoActive(ctx.activeMarcos, reqId)) {
       missing.push(reqId);
-      continue;
-    }
-
-    const parentStored = getMarcoNodeProgress(ctx.nodeProgression, reqId).level;
-    const parentLevel = resolveEffectiveMarcoAbilityLevel(parentStored, ctx.playerLevel);
-    const requiredLevel = node.unlockAtParentLevel ?? MARCO_UNLOCK_PARENT_LEVEL;
-    if (parentLevel < requiredLevel) {
-      missing.push(`parentLevel:${reqId}:${requiredLevel}`);
     }
   }
 
-  // Fluxo/progresso NÃO travam a árvore (flowSpeed softlock em 1).
-  // Nó novo = nível do personagem + pai ativo. XP sobe o Nv. da habilidade.
+  // Fluxo/progresso NÃO travam a árvore. Nó = nível do personagem + pai ativo.
 
   const treeTierLevel = node.layout.row + 1;
   const requiredPlayerLevel = requiredPlayerLevelForMarcoAbilityLevel(treeTierLevel);
@@ -286,6 +277,7 @@ export function canChooseMarco(nodeId: string, ctx: MarcoTreePlayerContext): boo
 /**
  * Remove marcos órfãos: sem trilha confirmada → nenhum ativo;
  * com trilha → só nós da ramificação escolhida.
+ * Se a trilha está travada mas o starter sumiu (save legado), reinsere o 1º nível.
  */
 export function sanitizeActiveMarcosForTrail(
   activeMarcos: readonly string[],
@@ -293,10 +285,13 @@ export function sanitizeActiveMarcosForTrail(
   trilhaTravada: boolean,
 ): string[] {
   if (!trilhaTravada || !ramificacao) return [];
-  return activeMarcos.filter((id) => {
+  const starter = resolveStarterFromRamificacao(ramificacao);
+  const filtered = activeMarcos.filter((id) => {
     const node = getMarcoTreeNode(id);
     return node?.branch === ramificacao;
   });
+  if (filtered.includes(starter)) return filtered;
+  return [starter, ...filtered];
 }
 
 /** Mensagem para HUD quando o jogador tenta ativar um Marco sem cumprir requisitos. */

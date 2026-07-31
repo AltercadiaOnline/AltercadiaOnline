@@ -83,7 +83,7 @@ export function CharSelectScreen() {
       )}
 
       {state.server && (
-        <section className="char-select-server-panel ui-skin-hybrid" aria-label="Servidor de jogo">
+        <section className="char-select-server-panel ui-skin-hybrid ui-skin-hybrid--holo-boost" aria-label="Servidor de jogo">
           <p className="char-select-server-panel__title">Servidor</p>
           <label className="auth-field char-select-server-field">
             <span className="sr-only">Escolha o shard</span>
@@ -136,7 +136,7 @@ export function CharSelectScreen() {
           ? Array.from({ length: CHARACTER_SLOT_COUNT }, (_, slotIndex) => (
               <div
                 key={`loading-${slotIndex}`}
-                className="char-slot vortex-panel ui-skin-hybrid empty char-slot--loading"
+                className="char-slot vortex-panel ui-skin-hybrid ui-skin-hybrid--holo-boost empty char-slot--loading"
                 aria-hidden="true"
               >
                 <div className="char-slot-body">
@@ -153,7 +153,7 @@ export function CharSelectScreen() {
             return (
               <div
                 key={`slot-${slotIndex}`}
-                className={`char-slot vortex-panel ui-skin-hybrid ${selected ? 'is-selected' : ''}`}
+                className={`char-slot vortex-panel ui-skin-hybrid ui-skin-hybrid--holo-boost ${selected ? 'is-selected' : ''}`}
                 data-char-id={String(character.id)}
                 data-slot-index={String(slotIndex)}
                 role="button"
@@ -185,7 +185,7 @@ export function CharSelectScreen() {
           return (
             <div
               key={`empty-${slotIndex}`}
-              className="char-slot vortex-panel ui-skin-hybrid empty"
+              className="char-slot vortex-panel ui-skin-hybrid ui-skin-hybrid--holo-boost empty"
               data-slot-index={String(slotIndex)}
               role="button"
               tabIndex={0}

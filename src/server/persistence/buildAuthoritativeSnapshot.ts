@@ -28,6 +28,7 @@ import {
   getPlayerWallet,
 } from '../../Economy/economyStore.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
+import { sanitizeActiveMarcosForTrail } from '../../shared/progression/milestoneTreeState.js';
 import { getTimeManager } from '../TimeManager.js';
 import { getWorldProfile } from '../world/worldProfileStore.js';
 import {
@@ -104,7 +105,11 @@ export function buildAuthoritativePlayerSnapshot(
       revision,
     },
     marcosState: {
-      activeMarcos: [...progressionState.marcos.activeMarcos],
+      activeMarcos: sanitizeActiveMarcosForTrail(
+        progressionState.marcos.activeMarcos,
+        progressionState.progression.ramificacaoSelecionada,
+        progressionState.progression.trilhaTravada,
+      ),
       flowSpeedBase: progressionState.marcos.flowSpeedBase,
       milestoneTotalProgress: progressionState.progression.milestoneTotalProgress,
       ramificacaoSelecionada: progressionState.progression.ramificacaoSelecionada,

@@ -35,9 +35,14 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
       title="Habilidade Marcos"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--marcos ui-panel--marcos ui-panel--movable"
-      panelStyle={{ width: 'min(540px, 94vw)', maxHeight: 'min(460px, 78vh)' }}
-      bodyOverflow="auto"
+      panelClassName="world-panel--marcos ui-panel--marcos ui-panel--movable !max-h-[min(640px,94vh)] !h-[min(640px,94vh)] !min-h-[min(560px,88vh)] !w-[min(580px,96vw)]"
+      panelStyle={{
+        width: 'min(580px, 96vw)',
+        height: 'min(640px, 94vh)',
+        maxHeight: 'min(640px, 94vh)',
+        minHeight: 'min(560px, 88vh)',
+      }}
+      bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('marcos')}
       onClose={() => tryCloseReactWorldPanel('marcos')}
     >

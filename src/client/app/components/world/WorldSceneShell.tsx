@@ -86,7 +86,10 @@ export function WorldSceneShell() {
   return (
     <div
       className="pointer-events-none absolute inset-0"
-      style={{ zIndex: UI_LAYER_Z_INDEX.worldSceneShell }}
+      style={{
+        zIndex: UI_LAYER_Z_INDEX.worldSceneShell,
+        right: 'var(--game-hud-sidebar-width)',
+      }}
       data-ui-surface="world-scene-shell"
       data-render-engine={renderEngine}
     >

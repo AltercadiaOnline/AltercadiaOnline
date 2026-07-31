@@ -22,7 +22,7 @@ export class SelectMarcoBranchHandler extends BaseIntentHandler<SelectMarcoBranc
       this.sendResponse(playerId, intentId, false, result.message);
       return;
     }
-    this.sendResponse(playerId, intentId, true);
+    this.sendResponse(playerId, intentId, true, { marcosState: result.marcosState });
   }
 }
 
@@ -42,7 +42,8 @@ export class ChooseMarcoHandler extends BaseIntentHandler<ChooseMarcoPayload> {
       this.sendResponse(playerId, intentId, false, result.message);
       return;
     }
-    this.sendResponse(playerId, intentId, true);
+    // Espelha marcos no intent-result — fallback se economy-event atrasar/perder.
+    this.sendResponse(playerId, intentId, true, { marcosState: result.marcosState });
   }
 }
 

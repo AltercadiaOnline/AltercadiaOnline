@@ -106,6 +106,13 @@ describe('marcos trail selection', () => {
     expect(canSelectBranchStarter('ironStance', ctx)).toBe(false);
   });
 
+  it('sanitize reinsere o starter se a trilha estiver travada sem 1º nível (legado)', () => {
+    expect(sanitizeActiveMarcosForTrail([], 'fluxo', true)).toEqual(['quickStep']);
+    expect(
+      sanitizeActiveMarcosForTrail(['fluxRush'], 'fluxo', true),
+    ).toEqual(['quickStep', 'fluxRush']);
+  });
+
   it('sanitize remove todos os ativos sem trilha travada', () => {
     expect(
       sanitizeActiveMarcosForTrail(

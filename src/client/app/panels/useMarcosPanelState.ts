@@ -4,16 +4,12 @@ import {
   MARCO_BRANCH_FOCUS,
   MARCO_BRANCH_LABELS,
   MARCO_BRANCH_SHORT_LABELS,
-  resolveStarterFromRamificacao,
   type MarcoRamificacaoId,
 } from '../../../shared/progression/milestoneTreeCatalog.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL } from '../../../shared/progression/marcoProgression.js';
-import {
-  hasConfirmedMarcoTrail,
-  isMarcoActive,
-} from '../../../shared/progression/milestoneTreeState.js';
+import { hasConfirmedMarcoTrail } from '../../../shared/progression/milestoneTreeState.js';
 import {
   activateMarcosTrail,
   buildMarcosRenderModel,
@@ -26,6 +22,7 @@ import {
 import { renderMarcoGrid } from '../../ui/marcos/renderMilestoneTree.js';
 import { uiEvents, UIEventType } from '../../ui/uiEvents.js';
 import { alertSystem } from '../../ui/alertSystem.js';
+import { getGlobalStateSynchronizer } from '../../sync/GlobalStateSynchronizer.js';
 
 function buildMarcosStructuralKey(state: MarcosStateSnapshot): string {
   return `${state.ramificacaoSelecionada ?? ''}|${state.trilhaTravada}|${state.activeMarcos.join(',')}`;
@@ -73,20 +70,16 @@ export function useMarcosPanelState() {
     ? MARCO_BRANCH_SHORT_LABELS[confirmedBranch]
     : null;
 
-  const starterActive = Boolean(
-    confirmedBranch
-    && isMarcoActive(ctx.activeMarcos, resolveStarterFromRamificacao(confirmedBranch)),
-  );
-
   /** Rodapé pós-ativação — só descrição (sem botão). */
   const trailStatusLine = useMemo(() => {
     if (!confirmedShortLabel) return null;
     const trailName = `TRILHA ${confirmedShortLabel.toUpperCase()}`;
-    if (starterActive) {
-      return `Trilha ativa · ${trailName} · 1º nível selecionado`;
+    const activeCount = ctx.activeMarcos.length;
+    if (activeCount > 0) {
+      return `Trilha ativa · ${trailName} · ${activeCount}º nível selecionado`;
     }
     return `Trilha ativa · ${trailName}`;
-  }, [confirmedShortLabel, starterActive]);
+  }, [confirmedShortLabel, ctx.activeMarcos.length]);
 
   const trailOptions = useMemo(
     () => listMarcosTrailOptions(ctx.playerLevel),
@@ -115,6 +108,9 @@ export function useMarcosPanelState() {
         if (ok) {
           alertSystem('Habilidade Marcos obtida.');
           setProgressTick((tick) => tick + 1);
+          getGlobalStateSynchronizer().requestFullState();
+        } else {
+          alertSystem('Não foi possível obter a habilidade Marcos. Confira o nível do personagem e tente de novo.');
         }
         return;
       }
@@ -157,6 +153,8 @@ export function useMarcosPanelState() {
         alertSystem(`${MARCO_BRANCH_LABELS[pendingBranch]} ativada · 1º nível selecionado.`);
         setPendingBranch(null);
         setProgressTick((tick) => tick + 1);
+      } else {
+        alertSystem('Não foi possível ativar a trilha Marcos. Tente de novo.');
       }
       return;
     }

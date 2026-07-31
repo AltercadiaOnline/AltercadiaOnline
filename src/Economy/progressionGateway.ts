@@ -4,6 +4,7 @@ import type { MarcosStateSnapshot } from '../shared/playerDataSnapshots.js';
 import {
   canChooseMarco,
   canSelectBranchStarter,
+  resolveMarcoChooseBlockedMessage,
   sanitizeActiveMarcosForTrail,
   type MarcoTreePlayerContext,
 } from '../shared/progression/milestoneTreeState.js';
@@ -154,8 +155,16 @@ export function chooseMarcoAuthoritative(
   nodeId: string,
   intentId?: string,
 ): ProgressionMutationResult {
-  if (!canChooseMarco(nodeId, buildMarcoContext(playerId, characterId))) {
-    return { ok: false, message: 'Marco indisponível ou requisitos pendentes.' };
+  // Repara trilha legada sem starter antes de validar o 2º nó.
+  repairTrailStarterIfNeeded(playerId, characterId);
+  const ctx = buildMarcoContext(playerId, characterId);
+  if (!canChooseMarco(nodeId, ctx)) {
+    return {
+      ok: false,
+      message:
+        resolveMarcoChooseBlockedMessage(nodeId, ctx)
+        ?? 'Marco indisponível ou requisitos pendentes.',
+    };
   }
 
   const current = getAuthoritativeProgression(playerId, characterId);
@@ -182,6 +191,30 @@ export function chooseMarcoAuthoritative(
   const marcosState = readMarcosState(playerId, characterId);
   emitMarcosStateUpdated(playerId, characterId, marcosState, intentId);
   return { ok: true, marcosState };
+}
+
+/** Garante starter na trilha travada (save antigo sem 1º nível). */
+export function repairTrailStarterIfNeeded(playerId: string, characterId: number): boolean {
+  const current = getAuthoritativeProgression(playerId, characterId);
+  const ramificacao = current.progression.ramificacaoSelecionada;
+  const trilhaTravada = current.progression.trilhaTravada;
+  if (!trilhaTravada || !ramificacao) return false;
+
+  const repaired = sanitizeActiveMarcosForTrail(
+    current.marcos.activeMarcos,
+    ramificacao,
+    trilhaTravada,
+  );
+  const same =
+    repaired.length === current.marcos.activeMarcos.length
+    && repaired.every((id, i) => id === current.marcos.activeMarcos[i]);
+  if (same) return false;
+
+  patchAuthoritativeProgression(playerId, characterId, {
+    marcos: { activeMarcos: repaired },
+  });
+  emitMarcosStateUpdated(playerId, characterId, readMarcosState(playerId, characterId));
+  return true;
 }
 
 export function resetMarcoTrailAuthoritative(

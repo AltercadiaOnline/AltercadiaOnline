@@ -187,7 +187,10 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
           : status === 'active'
             ? '◆'
             : '○';
-      const bonus = def.shortBonus ?? (def.speedFlat !== undefined ? `+${def.speedFlat}` : '');
+      const bonus =
+        status === 'locked' || isDimmedBranch || isSoftDimmed
+          ? ''
+          : (def.shortBonus ?? (def.speedFlat !== undefined ? `+${def.speedFlat}` : ''));
 
       const levelLine =
         status === 'active'

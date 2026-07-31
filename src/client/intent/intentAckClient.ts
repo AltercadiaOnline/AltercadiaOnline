@@ -36,11 +36,39 @@ import {
   notifyRefractionBoothStartedResult,
 } from '../cityMinigames/refractionBoothClient.js';
 import { getPlayerProgressionStore } from '../progression/playerProgressionStore.js';
+import { getMutableDataStore } from '../PlayerDataStore.js';
 import type {
   RefractionBoothCompleteSuccess,
   RefractionBoothQuoteResult,
   RefractionBoothStarted,
 } from '../../shared/cityMinigames/refractionBoothTypes.js';
+import type { MarcosStateSnapshot } from '../../shared/playerDataSnapshots.js';
+
+function isMarcosStateIntentData(data: unknown): data is {
+  readonly marcosState: Omit<MarcosStateSnapshot, 'revision'>;
+} {
+  if (!data || typeof data !== 'object') return false;
+  const marcosState = (data as { marcosState?: unknown }).marcosState;
+  if (!marcosState || typeof marcosState !== 'object') return false;
+  const record = marcosState as Record<string, unknown>;
+  return Array.isArray(record.activeMarcos)
+    && typeof record.trilhaTravada === 'boolean'
+    && typeof record.flowSpeedBase === 'number';
+}
+
+/** Fallback: aplica marcos do intent-result se o economy-event atrasar. */
+function tryApplyMarcosFromIntentData(intentId: string, data: unknown): boolean {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (
+    !pending
+    || (pending.action.type !== 'CHOOSE_MARCO' && pending.action.type !== 'SELECT_MARCO_BRANCH')
+  ) {
+    return false;
+  }
+  if (!isMarcosStateIntentData(data)) return false;
+  getMutableDataStore().applyMarcosStateFromServer(data.marcosState, Date.now());
+  return true;
+}
 
 function tryNotifyActivateBookSuccess(intentId: string, data: unknown): void {
   const pending = getPendingIntentRegistry().get(intentId);
@@ -364,6 +392,7 @@ export function handleIntentResultPayload(raw: unknown): void {
     tryNotifyRefractionResult(raw.intentId, true, raw.data);
     const petRosterApplied = tryApplyPetRosterFromIntentData(raw.intentId, raw.data);
     const inventoryApplied = tryApplyInventoryFromIntentData(raw.intentId, raw.data);
+    tryApplyMarcosFromIntentData(raw.intentId, raw.data);
     tryApplyMovesetMasteryFromIntentData(raw.intentId, raw.data);
     tryApplyHealVitalsFromIntentData(raw.intentId, raw.data);
     if (!petRosterApplied || !inventoryApplied) {
