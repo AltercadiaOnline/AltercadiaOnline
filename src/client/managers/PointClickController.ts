@@ -74,6 +74,8 @@ export type PointClickControllerOptions = {
 
 /**
  * Point-and-click — pathfinding em grade (BFS) + interações.
+ * Parallel ao WASD: clique enfileira waypoints AUTO (mesmo passo tile a tile);
+ * teclado cancela o path e assume MANUAL.
  */
 export class PointClickController implements Disposable {
   private readonly camera: Camera;

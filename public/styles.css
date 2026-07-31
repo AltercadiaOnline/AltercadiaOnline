@@ -446,9 +446,14 @@ body[data-react-game-hud-ui='1'] #scene-transition {
 
 #game-render-column .game-stage-frame,
 #game-render-column .game-render-host,
-#game-render-column .world-mount-root,
-#game-render-column .game-ui-overlay {
+#game-render-column .world-mount-root {
   pointer-events: auto;
+}
+
+/* Overlay de HUD no stage — transparente a clique; filhos interativos usam pointer-events:auto.
+ * Sem isso o overlay cobria o Construct e matava point-and-click. */
+#game-render-column .game-ui-overlay {
+  pointer-events: none;
 }
 
 .game-layout__viewport-spacer {
@@ -472,6 +477,8 @@ body[data-react-game-hud-ui='1'] #scene-transition {
   z-index: 1;
   background: #050a0d;
   pointer-events: auto;
+  /* Clique no chão = path; teclado continua paralelo (WASD cancela o AUTO). */
+  cursor: crosshair;
 }
 
 .world-mount-root--input-blocked {
@@ -2339,10 +2346,11 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 
 /* —— Layout exploração: canvas centralizado (esq.) + sidebar fixa (dir.) —— */
 :root {
-  --game-hud-sidebar-width: 250px;
+  --game-hud-sidebar-width: 236px;
   /* Quadro do minimapa: lado do quadrado (aspect-ratio 1). */
   --sidebar-minimap-size: 100%;
-  --sidebar-stack-gap: 8px;
+  --sidebar-stack-gap: 4px;
+  --sidebar-equip-slot: 48px;
 }
 
 /* Estrutura para centralizar o jogo profissionalmente */
@@ -3280,6 +3288,195 @@ body[data-react-game-hud-ui='1'] #game-container {
   flex-shrink: 0;
 }
 
+.sidebar-segment {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sidebar-segment__label {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-holo);
+  opacity: 0.78;
+  line-height: 1.1;
+}
+
+.sidebar-segment--map,
+.sidebar-segment--wallet,
+.sidebar-segment--utility {
+  flex: 0 0 auto;
+}
+
+.sidebar-segment--status {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-segment--utility {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(58, 208, 214, 0.14);
+}
+
+.sidebar-hotbar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-hotbar__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  width: 100%;
+}
+
+.sidebar-hotbar__slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 2px;
+  border: 1px solid var(--ui-metal-edge);
+  background: linear-gradient(180deg, #1a1c1e 0%, #0c0d0f 100%);
+  color: var(--ui-text);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.08);
+}
+
+.sidebar-hotbar__slot:hover:not(:disabled) {
+  border-color: var(--ui-holo-dim);
+}
+
+.sidebar-hotbar__slot:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.sidebar-hotbar__slot--empty {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.sidebar-hotbar__icon {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.sidebar-hotbar__qty {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-size: 0.52rem;
+  line-height: 1;
+  color: var(--ui-text-holo);
+  text-shadow: 0 0 2px #000;
+  pointer-events: none;
+}
+
+.sidebar-pet {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-pet--empty .sidebar-pet__idle {
+  margin: 0;
+  font-size: 0.58rem;
+  color: var(--ui-text-muted);
+  opacity: 0.7;
+  letter-spacing: 0.04em;
+}
+
+.sidebar-pet__row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.sidebar-pet__portrait {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border: 1px solid var(--ui-metal-edge);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.sidebar-pet__meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+}
+
+.sidebar-pet__name {
+  margin: 0;
+  font-size: 0.62rem;
+  color: var(--ui-text-holo);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-pet__bar-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  gap: 3px;
+  align-items: center;
+}
+
+.sidebar-pet__bar-label {
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  color: var(--ui-text-muted);
+}
+
+.sidebar-pet__bar {
+  height: 5px;
+  border: 1px solid rgba(58, 208, 214, 0.2);
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.sidebar-pet__bar-fill {
+  height: 100%;
+  background: var(--ui-holo);
+}
+
+.sidebar-pet__bar--hp .sidebar-pet__bar-fill {
+  background: #3fb950;
+}
+
+.sidebar-pet__bar--af .sidebar-pet__bar-fill {
+  background: #e8a0c8;
+}
+
+.sidebar-pet__bar-value {
+  font-size: 0.5rem;
+  color: var(--ui-text-muted);
+  white-space: nowrap;
+}
+
 .sidebar-wallet {
   display: flex;
   flex-direction: column;
@@ -3292,10 +3489,10 @@ body[data-react-game-hud-ui='1'] #game-container {
   border: 1px solid var(--ui-metal-edge);
   color: var(--ui-text-holo);
   font-family: 'Courier New', Courier, monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
-  line-height: 1.3;
-  padding: 0.4rem 0.55rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  padding: 0.28rem 0.4rem;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -3310,12 +3507,12 @@ body[data-react-game-hud-ui='1'] #game-container {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: var(--sidebar-minimap-size);
+  width: min(112px, 100%);
   max-width: 100%;
   aspect-ratio: 1 / 1;
   height: auto;
   min-height: 0;
-  padding: 5px;
+  padding: 3px;
   border: 1px solid var(--ui-metal-edge);
   background:
     repeating-linear-gradient(
@@ -3353,7 +3550,7 @@ body[data-react-game-hud-ui='1'] #game-container {
 .equipment-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.28rem;
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
@@ -3652,18 +3849,18 @@ body[data-react-game-hud-ui='1'] #game-container {
     "books armor runes"
     "ring_left legs ring_right"
     ". boots .";
-  gap: 3px;
+  gap: 2px;
   align-content: center;
   justify-content: center;
   justify-items: center;
 }
 
 .equip-slot {
-  width: 57px;
-  max-width: 57px;
+  width: var(--sidebar-equip-slot, 48px);
+  max-width: var(--sidebar-equip-slot, 48px);
   height: auto;
   aspect-ratio: 1;
-  max-height: 57px;
+  max-height: var(--sidebar-equip-slot, 48px);
   justify-self: center;
   padding: 0;
   box-sizing: border-box;

@@ -482,6 +482,9 @@ export class ExplorationScene implements Disposable {
 
     InputHandler.init({
       onMovementInputStart: (direction) => {
+        // Teclado e point-and-click em paralelo: WASD cancela o path AUTO na hora.
+        this.pointClickController.cancelNavigation();
+        this.pointClickController.dismissPrompt();
         if (!direction || !isAuthoritativeMovementOnline()) return;
         const facing = moveDirectionToFacing(direction);
         this.player.facing = facing;

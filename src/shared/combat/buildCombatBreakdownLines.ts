@@ -109,16 +109,19 @@ export function buildAttackBreakdownLines(
   classAtk: number,
   movePower: number,
 ): CombatActionBreakdown {
+  const strikeBase = Math.max(0, Math.floor(classAtk) + Math.max(0, Math.floor(movePower)));
   const lines: CombatBreakdownLine[] = [
-    { source: 'moveset', percent: 0, value: classAtk + movePower, includeInTotal: true },
+    { source: 'moveset', percent: 0, value: strikeBase, includeInTotal: true },
   ];
 
-  appendBuffLines(lines, 'equip', sources.equipByBuff, classAtk, 'attack');
-  appendBuffLines(lines, 'amuleto', sources.amuletByBuff, classAtk, 'attack');
-  appendBuffLines(lines, 'anel', sources.ringByBuff, classAtk, 'attack');
-  appendBuffLines(lines, 'livro', sources.bookByBuff, classAtk, 'attack');
-  appendBuffLines(lines, 'runa', sources.runeByBuff, classAtk, 'attack');
-  appendMarcosLines(lines, sources, classAtk, 'attack');
+  // STR % do SET/runa/livro/marcos aplica sobre (ATK classe + poder do move) —
+  // assim o hit visual mostra Equip/Amuleto e o item altera o dano de verdade.
+  appendBuffLines(lines, 'equip', sources.equipByBuff, strikeBase, 'attack');
+  appendBuffLines(lines, 'amuleto', sources.amuletByBuff, strikeBase, 'attack');
+  appendBuffLines(lines, 'anel', sources.ringByBuff, strikeBase, 'attack');
+  appendBuffLines(lines, 'livro', sources.bookByBuff, strikeBase, 'attack');
+  appendBuffLines(lines, 'runa', sources.runeByBuff, strikeBase, 'attack');
+  appendMarcosLines(lines, sources, strikeBase, 'attack');
 
   return { kind: 'attack', lines };
 }

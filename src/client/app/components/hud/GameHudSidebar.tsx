@@ -1,10 +1,12 @@
 import { WorldEquipmentSidebar } from '../world/hud/WorldEquipmentSidebar.js';
 import { WorldMinimapPanel } from '../world/hud/WorldMinimapPanel.js';
+import { WorldSidebarConsumablesHotbar } from '../world/hud/WorldSidebarConsumablesHotbar.js';
+import { WorldSidebarPetCompact } from '../world/hud/WorldSidebarPetCompact.js';
 import { WorldWalletPanel } from '../world/hud/WorldWalletPanel.js';
 
 /**
- * Coluna direita fixa da tela — independente de mundo/batalha.
- * Não escala com o stage; o playfield reserva `right: --game-hud-sidebar-width`.
+ * Coluna direita fixa — segmentos: mapa · moedas · vitals/SET · itens/pet.
+ * Independente de mundo/batalha; playfield reserva `--game-hud-sidebar-width`.
  */
 export function GameHudSidebar() {
   return (
@@ -14,9 +16,24 @@ export function GameHudSidebar() {
       data-ui-widget="game-sidebar"
       data-ui-surface="persistent-sidebar"
     >
-      <WorldMinimapPanel interactive />
-      <WorldWalletPanel />
-      <WorldEquipmentSidebar interactive />
+      <section className="sidebar-segment sidebar-segment--map" aria-label="Minimapa">
+        <p className="sidebar-segment__label">MAPA</p>
+        <WorldMinimapPanel interactive />
+      </section>
+
+      <section className="sidebar-segment sidebar-segment--wallet" aria-label="Moedas">
+        <p className="sidebar-segment__label">MOEDAS</p>
+        <WorldWalletPanel />
+      </section>
+
+      <section className="sidebar-segment sidebar-segment--status" aria-label="Status e equipamentos">
+        <WorldEquipmentSidebar interactive />
+      </section>
+
+      <section className="sidebar-segment sidebar-segment--utility" aria-label="Itens e pet">
+        <WorldSidebarConsumablesHotbar interactive />
+        <WorldSidebarPetCompact />
+      </section>
     </aside>
   );
 }

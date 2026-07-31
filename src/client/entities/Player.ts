@@ -204,7 +204,7 @@ export class Player {
     return this.locomotion.movementMode === 'AUTO' && this.locomotion.pathQueue.length > 0;
   }
 
-  /** Point-and-click — fila de waypoints float + modo AUTO. */
+  /** Point-and-click — fila de waypoints float + modo AUTO (anda tile a tile como WASD). */
   startAutoNavigation(pathQueue: readonly WorldPosition[]): void {
     this.locomotion.setPathQueue(pathQueue);
   }

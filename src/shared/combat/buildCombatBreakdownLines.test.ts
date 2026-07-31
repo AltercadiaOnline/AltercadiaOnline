@@ -50,6 +50,7 @@ describe('buildAttackBreakdownLines', () => {
   it('strength from equip, amulet, ring, book and rune sum into attack total', () => {
     const classAtk = 100;
     const movePower = 25;
+    const strikeBase = classAtk + movePower;
     const breakdown = buildAttackBreakdownLines(
       minimalSources({
         equipByBuff: { [ItemBuffType.Strength]: 10 },
@@ -63,6 +64,37 @@ describe('buildAttackBreakdownLines', () => {
       movePower,
     );
 
-    expect(sumAttackBreakdownTotal(breakdown)).toBe(100 + 25 + 10 + 5 + 5 + 10 + 10 + 20);
+    // % aplica sobre (classe + moveset), não só ATK de classe.
+    expect(sumAttackBreakdownTotal(breakdown)).toBe(
+      strikeBase
+      + Math.floor(strikeBase * 10 / 100)
+      + Math.floor(strikeBase * 5 / 100)
+      + Math.floor(strikeBase * 5 / 100)
+      + Math.floor(strikeBase * 10 / 100)
+      + Math.floor(strikeBase * 10 / 100)
+      + Math.floor(strikeBase * 20 / 100),
+    );
+  });
+
+  it('low class ATK still shows visible equip bonus from move power', () => {
+    const classAtk = 3; // COGITOR
+    const movePower = 30;
+    const strikeBase = 33;
+    const breakdown = buildAttackBreakdownLines(
+      minimalSources({
+        equipByBuff: { [ItemBuffType.Strength]: 8 },
+        amuletByBuff: { [ItemBuffType.Strength]: 8 },
+      }),
+      classAtk,
+      movePower,
+    );
+
+    expect(sumAttackBreakdownTotal(breakdown)).toBe(
+      strikeBase
+      + Math.floor(strikeBase * 8 / 100)
+      + Math.floor(strikeBase * 8 / 100),
+    );
+    expect(breakdown.lines.some((line) => line.source === 'equip' && line.value > 0)).toBe(true);
+    expect(breakdown.lines.some((line) => line.source === 'amuleto' && line.value > 0)).toBe(true);
   });
 });

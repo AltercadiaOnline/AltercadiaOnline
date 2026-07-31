@@ -223,6 +223,7 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
         </p>
       </header>
 
+      <p className="sidebar-segment__label">VIDA · PP · CAP</p>
       <section className="equipment-sidebar__vitals" aria-label="Status vital">
         <div
           className="vital-row"
@@ -284,12 +285,12 @@ export function WorldEquipmentSidebar({ interactive = true }: { readonly interac
       </section>
 
       <section className="equipment-sidebar__set" aria-label="Equipamentos">
-        <h2 className="equipment-sidebar__set-title">
+        <p className="sidebar-segment__label">
           SET
           {pending ? (
             <span className="equipment-sidebar__sync" aria-busy="true" title="Sincronizando…"> ⟳</span>
           ) : null}
-        </h2>
+        </p>
         <div className="equip-grid" data-equip-grid>
           {EQUIPMENT_UI_SLOT_ORDER.map((slotId) => {
             const row = equippedItems.find((item) => item.slot === slotId);
