@@ -4,15 +4,11 @@ import { getConsumableDefinition } from '../../shared/items/consumablesCatalog.j
 import { getRuneDefinition } from '../../shared/items/runesBooksCatalog.js';
 import type { Combatant, CombatantCombatStats, SkillData } from '../../shared/types.js';
 import { resolveCombatLoadout } from '../../shared/combat/combatLoadoutResolver.js';
+import { resolveClassAgility } from '../../shared/combat/resolveClassAgility.js';
 import {
   resolveEquippedRuneDurability,
 } from '../../shared/items/chargedEquipment.js';
-import { loadCombatBalanceConfig } from '../engine/combatBalanceConfig.js';
 import { applyPlayerHpMaxChange, computePlayerHpMax } from '../../shared/character/playerVitals.js';
-
-function resolveClassSpeedBias(classId: PlayerCombatLoadout['classId']): number {
-  return loadCombatBalanceConfig().initiative.classSpeedBias[classId] ?? 0;
-}
 
 export function buildCombatantFromLoadout(
   loadout: PlayerCombatLoadout,
@@ -40,6 +36,7 @@ export function buildCombatantFromLoadout(
     : maxHp;
 
   const combatStats: CombatantCombatStats = resolved.combatStats;
+  const classAgility = resolveClassAgility(loadout.classId);
 
   const activeConsumables = loadout.inventory
     .filter((stack) => {
@@ -77,7 +74,8 @@ export function buildCombatantFromLoadout(
       activeMarcos: [...loadout.activeMarcos],
       marcoSpeedFlat: resolved.marcoSpeedFlat,
       equipSpeedFlat: resolved.modifiers.equipSpeedFlat,
-      classSpeedBias: resolveClassSpeedBias(loadout.classId),
+      classAgility,
+      classSpeedBias: classAgility,
       runeSpeedFlatConditional: 0,
     },
     skills: battleSkills,

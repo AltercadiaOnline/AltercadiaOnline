@@ -36,7 +36,7 @@ export function formatMoveBuildImpactLine(move: MoveDefinition): string {
     case MoveScalingStat.DEF:
       return 'No combate: poder base entra no golpe; bônus de Defesa no equipamento protege você, não soma dano neste ataque.';
     case MoveScalingStat.AGI:
-      return 'No combate: poder base entra no golpe; Velocidade do build define iniciativa, não altera o número do hit.';
+      return 'No combate: poder base entra no golpe; Agilidade do build define iniciativa, não altera o número do hit.';
     default:
       return 'No combate: (Ataque da classe + poder base do move + Força do equipamento) − Defesa do alvo.';
   }

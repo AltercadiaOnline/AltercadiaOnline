@@ -1,0 +1,22 @@
+{
+  "group_id": "5b460f52-409b-4830-b8eb-5e8fa864804e",
+  "objects": [
+    {
+      "id": "a11c3494-2380-496b-b572-8885fb686240",
+      "name": "base",
+      "prompt": "A top-down 2D floor graffiti decal, rebellious punk cyberpunk style, featuring a sharp minimalist cybernetic surveillance eye with vertical warning scan lines, bold thick outlines, flat color blocks, gritty urban spray paint texture, street art aesthetic, game asset --ar 1:1",
+      "size": {
+        "width": 88,
+        "height": 88
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-08-09T00:34:16.910486"
+}

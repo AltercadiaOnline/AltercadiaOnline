@@ -1,0 +1,22 @@
+{
+  "group_id": "4683a3d0-31f5-4050-b22f-5510c08aafb7",
+  "objects": [
+    {
+      "id": "43daba12-d7b4-4e4c-9984-e7975e54cbba",
+      "name": "base",
+      "prompt": "A retro 90s anime style game item icon, a cyberpunk tactical aerosol spray paint can, bold outlines, flat color blocks, heavy shadows, cel-shaded, industrial cyberpunk aesthetic, centered on a solid dark grey background, crisp clean pixel-art inspired vector illustration, game UI asset --ar 1:1",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-08-09T00:11:43.672251"
+}

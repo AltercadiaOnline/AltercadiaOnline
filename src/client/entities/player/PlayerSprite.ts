@@ -84,6 +84,32 @@ export class PlayerSprite {
     return this.loadPromise;
   }
 
+  /** True quando há pelo menos um PNG de rotação pronto para desenhar (sem placeholder). */
+  isPaintReady(): boolean {
+    if (!this.catalog) return false;
+    for (const frame of Object.values(this.catalog.rotations)) {
+      const image = frame?.image;
+      if (image && image.complete && image.naturalWidth > 0) {
+        return true;
+      }
+    }
+    const animations = this.catalog.animations;
+    if (!animations) return false;
+    for (const byDir of Object.values(animations)) {
+      if (!byDir) continue;
+      for (const frames of Object.values(byDir)) {
+        if (!frames) continue;
+        for (const frame of frames) {
+          const image = frame?.image;
+          if (image && image.complete && image.naturalWidth > 0) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   /** Tamanho nativo do frame (1:1) — base correta para preview com visualOccupancy. */
   getNativeDrawSize(): { readonly width: number; readonly height: number } {
     const fw = this.catalog?.frameWidth ?? 0;

@@ -1,4 +1,5 @@
 import { resolveCombatLoadout } from '../../../shared/combat/combatLoadoutResolver.js';
+import { resolveClassAgility } from '../../../shared/combat/resolveClassAgility.js';
 import {
   getDefaultClassActiveLoadout,
   moveIdsToSkillData,
@@ -6,11 +7,6 @@ import {
 import type { PvpDuelistRegistryEntry } from '../../../shared/world/pvpDuelistRegistry.js';
 import { computePlayerHpMax } from '../../../shared/character/playerVitals.js';
 import type { Combatant } from '../../../shared/types.js';
-import { loadCombatBalanceConfig } from '../../engine/combatBalanceConfig.js';
-
-function resolveClassSpeedBias(classId: PvpDuelistRegistryEntry['classId']): number {
-  return loadCombatBalanceConfig().initiative.classSpeedBias[classId] ?? 0;
-}
 
 /** Combatente PVP — sempre combatRole PLAYER, nunca ENEMY. */
 export function buildPvpDuelistCombatant(entry: PvpDuelistRegistryEntry): Combatant {
@@ -27,6 +23,7 @@ export function buildPvpDuelistCombatant(entry: PvpDuelistRegistryEntry): Combat
     flowSpeedBase: 32,
   });
   const maxHp = computePlayerHpMax(entry.level, resolved.modifiers.maxHpBonusPercent);
+  const classAgility = resolveClassAgility(entry.classId);
 
   return {
     id: actorId,
@@ -39,7 +36,8 @@ export function buildPvpDuelistCombatant(entry: PvpDuelistRegistryEntry): Combat
     combatRole: 'PLAYER',
     speedProfile: {
       flowSpeedBase: 32,
-      classSpeedBias: resolveClassSpeedBias(entry.classId),
+      classAgility,
+      classSpeedBias: classAgility,
       marcoSpeedFlat: resolved.marcoSpeedFlat,
       equipSpeedFlat: resolved.modifiers.equipSpeedFlat,
       activeMarcos: [],

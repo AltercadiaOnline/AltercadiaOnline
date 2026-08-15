@@ -45,6 +45,8 @@ function generic(
   name: string,
   description: string,
   weight = DEFAULT_ITEM_WEIGHT,
+  iconPath?: string,
+  charges?: number,
 ): ItemDefinition {
   return {
     id,
@@ -52,6 +54,8 @@ function generic(
     category: ItemCategory.Generic,
     weight,
     effects: [],
+    ...(iconPath ? { iconPath } : {}),
+    ...(typeof charges === 'number' ? { charges } : {}),
     description,
   };
 }
@@ -279,7 +283,7 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
     {
       maxStack: 12,
       description:
-        'Reativa no turno: +6 Velocidade por 2 turnos. Saturação +10% por uso (penaliza PP do moveset).',
+        'Reativa no turno: +6 Agilidade por 2 turnos. Saturação +10% por uso (penaliza PP do moveset).',
     },
   ),
   potion(
@@ -291,7 +295,7 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
       maxStack: 8,
       requiresLevel: 10,
       description:
-        'Reativa no turno: +10 Velocidade por 2 turnos. Saturação +10% por uso. Nível 10+.',
+        'Reativa no turno: +10 Agilidade por 2 turnos. Saturação +10% por uso. Nível 10+.',
     },
   ),
 
@@ -364,7 +368,7 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
     [pct('AGI', 3)],
     20,
     2,
-    'Equipado: +3% Velocidade. Ativar: +20% loot por 10 min. 10 cargas — −1 por batalha.',
+    'Equipado: +3% Agilidade. Ativar: +20% loot por 10 min. 10 cargas — −1 por batalha.',
   ),
   book(
     'livro_estudo_tatico',
@@ -373,6 +377,30 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
     10,
     2.5,
     'Equipado: +4% Defesa. Ativar: +10% loot por 15 min. 10 cargas — −1 por batalha.',
+  ),
+  generic(
+    'spray_terminal_hackeado',
+    'Spray Tático: Terminal Hackeado',
+    'Estêncil: Terminal Hackeado | [Atalho: Tecla G]\nSinalização territorial urbana de hacking. Marca o chão sob seus pés [X,Y] alertando aliados sobre terminais e sistemas desbloqueados.',
+    0.5,
+    '/assets/items/assets_sprays/item_spray_1/base/rotations/unknown.png',
+    10,
+  ),
+  generic(
+    'spray_alerta_binario',
+    'Spray Tático: Alerta Binário',
+    'Estêncil: Alerta Binário | [Atalho: Tecla G]\nSinalização territorial em néon cyan. Picha o solo [X,Y] para indicar rotas estratégicas ou alerta de perigo iminente na zona.',
+    0.5,
+    '/assets/items/assets_sprays/item_spray_2/base/rotations/unknown.png',
+    10,
+  ),
+  generic(
+    'spray_vigilante',
+    'Spray Tático: Vigilante',
+    'Estêncil: Vigilante | [Atalho: Tecla G]\nInsígnia dos Ocultos. Marca o território [X,Y] reafirmando o controle táctico da área. Concede upvotes e reputação de zona no Hub Social.',
+    0.5,
+    '/assets/items/assets_sprays/item_spray_3/base/rotations/unknown.png',
+    10,
   ),
 ];
 
@@ -388,6 +416,7 @@ function splitCatalogItem(full: ItemDefinition): {
     description,
     effects,
     history,
+    charges,
     ...mechanical
   } = full;
 

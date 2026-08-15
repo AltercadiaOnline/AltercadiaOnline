@@ -1,5 +1,5 @@
 import { ItemBuffType, type ItemBuffTypeId } from '../items/itemTypes.js';
-import { VELOCIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
+import { AGILIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
 
 /** % acumulado por tipo de buff (catálogo oficial). */
 export type BuffPercentByType = Partial<Record<ItemBuffTypeId, number>>;
@@ -17,7 +17,7 @@ export const ITEM_BUFF_DISPLAY_ORDER: readonly ItemBuffTypeId[] = [
 export const ITEM_BUFF_COMBAT_LABELS: Record<ItemBuffTypeId, string> = {
   [ItemBuffType.Strength]: 'Força',
   [ItemBuffType.Defense]: 'Defesa',
-  [ItemBuffType.Agility]: VELOCIDADE_STAT_LABEL,
+  [ItemBuffType.Agility]: AGILIDADE_STAT_LABEL,
   [ItemBuffType.Critical]: 'Crítico',
   [ItemBuffType.Dodge]: 'Esquiva',
   [ItemBuffType.Hp]: 'Vida',

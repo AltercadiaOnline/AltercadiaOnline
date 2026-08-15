@@ -74,7 +74,6 @@ import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
-import { CRT_RADAR_THROTTLE_MS } from '../world/minimap/crtRadarConfig.js';
 import { getRenderLayerBridge, isWorldRenderPipelineReady } from '../app/bridge/renderLayerBridge.js';
 import { publishExplorationRenderFrame } from '../app/bridge/explorationRenderBridge.js';
 import { getGameRenderLoop } from '../render/GameRenderLoop.js';
@@ -90,9 +89,11 @@ import {
   getAuthoritativeRemotePlayerSnapshots,
   sampleRemoteEntitiesForRender,
 } from '../world/remoteEntitySyncBridge.js';
+import { syncWorldPlayerPicks, clearWorldPlayerPicks } from '../world/worldPlayerPickRegistry.js';
 import {
   bindInteractionCardController,
   InteractionCardController,
+  tickInteractionCardVisibility,
 } from '../world/interactionCardController.js';
 import { bindNpcModalController } from '../ui/npcModalController.js';
 import { setWorldCreatureSyncListener } from '../world/worldCreatureSyncBridge.js';
@@ -353,6 +354,7 @@ export class ExplorationScene implements Disposable {
       host: worldOverlayHost,
       npcManager: this.npcManager,
       player: this.player,
+      getCamera: () => this.camera,
     });
     bindInteractionCardController(this.interactionCardController);
     bindNpcModalController({ getPlayer: () => this.player });
@@ -772,6 +774,33 @@ export class ExplorationScene implements Disposable {
     );
 
     this.tickSpeechBubbles();
+    this.syncRemotePlayerPicks();
+    tickInteractionCardVisibility();
+  }
+
+  private syncRemotePlayerPicks(): void {
+    const mapId = this.mapManager.currentMapId as MapId;
+    const snapshots = getAuthoritativeRemotePlayerSnapshots(mapId);
+    if (snapshots.length === 0) {
+      clearWorldPlayerPicks();
+      return;
+    }
+
+    const displayById = new Map(
+      sampleRemoteEntitiesForRender(mapId).map((state) => [state.entityId, state] as const),
+    );
+
+    syncWorldPlayerPicks(
+      snapshots.map((snap) => {
+        const display = displayById.get(snap.playerId);
+        return {
+          playerId: snap.playerId,
+          displayName: snap.displayName?.trim() || 'Jogador',
+          worldX: display?.feetX ?? snap.feetX,
+          worldY: display?.feetY ?? snap.feetY,
+        };
+      }),
+    );
   }
 
   private tickSpeechBubbles(): void {
@@ -960,8 +989,8 @@ export class ExplorationScene implements Disposable {
     if (tilesWide <= 0 || tilesHigh <= 0) return;
 
     const now = performance.now();
-    // Radar CRT: throttle — blips + sweep sem 60 FPS.
-    if (now - this.lastMinimapPublishMs < CRT_RADAR_THROTTLE_MS && this.lastMinimapPublishKey !== '') {
+    // Minimapa: throttle leve — evita flood no store sem atrasar o marker do player.
+    if (now - this.lastMinimapPublishMs < 100 && this.lastMinimapPublishKey !== '') {
       return;
     }
 
@@ -1091,6 +1120,7 @@ export class ExplorationScene implements Disposable {
     registerMinimapNavigateHandler(null);
     resetInteractionCardController();
     resetNpcModalController();
+    clearWorldPlayerPicks();
 
     this.interactionCardController.dispose();
     this.pointClickController.dispose();

@@ -77,22 +77,21 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
       height: '100%',
     });
 
-    // Prefetch em paralelo com o iframe — loadMap só resolve após layout-ready.
-    const assetsReady = Promise.all([
-      preloadPlayerSprites(),
-      preloadAllNpcDefinitionAssets(),
-    ]).catch((error) => {
-      console.warn('[ConstructWorld] Prefetch de sprites falhou (segue com placeholder):', error);
+    // Prefetch em paralelo; o gate duro do PNG do player fica em gameSession (antes do reveal).
+    const playerSpritesReady = preloadPlayerSprites().catch((error) => {
+      console.warn('[ConstructWorld] Prefetch do player ainda incompleto:', error);
+    });
+    const npcAssetsReady = preloadAllNpcDefinitionAssets().catch((error) => {
+      console.warn('[ConstructWorld] Prefetch de NPCs falhou (segue sem cache completo):', error);
     });
 
     if (!(await this.probeExport())) {
       this.mountPlaceholder(host);
-      await assetsReady;
+      await Promise.all([playerSpritesReady, npcAssetsReady]);
       return;
     }
     await this.mountIframe(host);
-    // Sprites em paralelo — não bloqueia loadMap / layout-ready.
-    void assetsReady;
+    await Promise.all([playerSpritesReady, npcAssetsReady]);
   }
 
   shutdown(): void {

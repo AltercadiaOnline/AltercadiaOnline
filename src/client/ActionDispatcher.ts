@@ -50,6 +50,7 @@ import { getGlobalPlayerStore } from './ui/moveset/globalPlayerStore.js';
 import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
 import { confirmTransaction, rejectTransaction } from './core/GameTransactionCoordinator.js';
 import { alertSystem } from './ui/alertSystem.js';
+import { getWorldPlayerPickById } from './world/worldPlayerPickRegistry.js';
 import { uiEvents, UIEventType } from './ui/uiEvents.js';
 import { getPlayerSkinStore } from './ui/character/playerSkinStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
@@ -81,62 +82,63 @@ export type ClientAction =
   | { readonly type: 'CHOOSE_MARCO'; readonly payload: { readonly nodeId: string } }
   | { readonly type: 'RESET_MARCO_TRAIL'; readonly payload: { readonly npcId: string } }
   | {
-      readonly type: 'PROGRESS_MARCO';
-      readonly payload: {
-        readonly events: readonly {
-          readonly trigger: MarcoProgressTriggerId;
-          readonly count: number;
-        }[];
-      };
-    }
+    readonly type: 'PROGRESS_MARCO';
+    readonly payload: {
+      readonly events: readonly {
+        readonly trigger: MarcoProgressTriggerId;
+        readonly count: number;
+      }[];
+    };
+  }
   | { readonly type: 'DEPOSIT_ITEM'; readonly payload: { readonly itemId: string; readonly quantity?: number } }
   | { readonly type: 'WITHDRAW_ITEM'; readonly payload: { readonly itemId: string; readonly quantity?: number } }
   | {
-      readonly type: 'DEPOSIT_CURRENCY';
-      readonly payload: { readonly currency: BankCurrencyTypeId; readonly amount: number };
-    }
+    readonly type: 'DEPOSIT_CURRENCY';
+    readonly payload: { readonly currency: BankCurrencyTypeId; readonly amount: number };
+  }
   | {
-      readonly type: 'WITHDRAW_CURRENCY';
-      readonly payload: { readonly currency: BankCurrencyTypeId; readonly amount: number };
-    }
+    readonly type: 'WITHDRAW_CURRENCY';
+    readonly payload: { readonly currency: BankCurrencyTypeId; readonly amount: number };
+  }
   | {
-      readonly type: 'EQUIP_ITEM';
-      readonly payload: { readonly itemId: string; readonly slot?: EquipmentUiSlotId };
-    }
+    readonly type: 'EQUIP_ITEM';
+    readonly payload: { readonly itemId: string; readonly slot?: EquipmentUiSlotId };
+  }
   | {
-      readonly type: 'EQUIP_FROM_INVENTORY';
-      readonly payload: { readonly itemId: string; readonly uiSlotId?: EquipmentUiSlotId; readonly slotIndex?: number };
-    }
+    readonly type: 'EQUIP_FROM_INVENTORY';
+    readonly payload: { readonly itemId: string; readonly uiSlotId?: EquipmentUiSlotId; readonly slotIndex?: number };
+  }
   | {
-      readonly type: 'UNEQUIP_TO_INVENTORY';
-      readonly payload: { readonly slotId: EquipmentUiSlotId };
-    }
+    readonly type: 'UNEQUIP_TO_INVENTORY';
+    readonly payload: { readonly slotId: EquipmentUiSlotId };
+  }
   | {
-      readonly type: 'SYNC_LOADOUT';
-      readonly payload: SyncLoadoutPayload;
-    }
+    readonly type: 'SYNC_LOADOUT';
+    readonly payload: SyncLoadoutPayload;
+  }
   | {
-      readonly type: 'SYNC_MOVESET';
-      readonly payload: { readonly activeMovesets: readonly string[] };
-    }
+    readonly type: 'SYNC_MOVESET';
+    readonly payload: { readonly activeMovesets: readonly string[] };
+  }
   | { readonly type: 'PURCHASE_SKIN'; readonly payload: { readonly slot: SkinSlotId; readonly optionId: string } }
   | {
-      readonly type: 'PURCHASE_NPC_ITEM';
-      readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
-    }
+    readonly type: 'PURCHASE_NPC_ITEM';
+    readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
+  }
+  | { readonly type: 'ACCEPT_MERCENARY_TASK'; readonly payload: { readonly taskId: string } }
   | {
-      readonly type: 'SELL_NPC_ITEM';
-      readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
-    }
+    readonly type: 'SELL_NPC_ITEM';
+    readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
+  }
   | {
-      readonly type: 'HEAL_AT_NPC';
-      readonly payload: {
-        readonly npcId: string;
-        readonly clientVitals?: PlayerWorldVitals;
-        readonly clientMapId?: string;
-        readonly clientPosition?: { readonly x: number; readonly y: number };
-      };
-    }
+    readonly type: 'HEAL_AT_NPC';
+    readonly payload: {
+      readonly npcId: string;
+      readonly clientVitals?: PlayerWorldVitals;
+      readonly clientMapId?: string;
+      readonly clientPosition?: { readonly x: number; readonly y: number };
+    };
+  }
   | { readonly type: 'CAEL_BUY_PET_RATION'; readonly payload: { readonly npcId: string } }
   | { readonly type: 'PET_FEED_SPECIAL_RATION'; readonly payload: { readonly slotIndex?: number } }
   | { readonly type: 'PET_SELECT_SLOT'; readonly payload: { readonly slotIndex: number } }
@@ -144,122 +146,126 @@ export type ClientAction =
   | { readonly type: 'PET_DEACTIVATE'; readonly payload: Record<string, never> }
   | { readonly type: 'PET_APPLY_AFFECTION'; readonly payload: { readonly slotIndex?: number } }
   | {
-      readonly type: 'PURCHASE_PET';
-      readonly payload: {
-        readonly vendorId: string;
-        readonly kindId: PetKindId;
-        readonly name: string;
-        readonly colorId: PetColorId;
-        readonly gender: PetGenderId;
-      };
-    }
+    readonly type: 'PURCHASE_PET';
+    readonly payload: {
+      readonly vendorId: string;
+      readonly kindId: PetKindId;
+      readonly name: string;
+      readonly colorId: PetColorId;
+      readonly gender: PetGenderId;
+    };
+  }
   | { readonly type: 'STAGE_BATTLE_LOOT'; readonly payload: { readonly sourceId: string; readonly battleId: string; readonly defeatedLevel?: number } }
   | { readonly type: 'COLLECT_BATTLE_LOOT'; readonly payload: { readonly lootId: string; readonly battleId: string } }
   | { readonly type: 'DISMISS_BATTLE_LOOT'; readonly payload: { readonly lootId: string } }
   | {
-      readonly type: 'GIFT_TRANSFER';
-      readonly payload: {
-        readonly itemId: string;
-        readonly targetPlayerId: string;
-        readonly quantity?: number;
-        readonly targetCharacterId?: number;
-      };
-    }
+    readonly type: 'GIFT_TRANSFER';
+    readonly payload: {
+      readonly itemId: string;
+      readonly targetPlayerId: string;
+      readonly quantity?: number;
+      readonly targetCharacterId?: number;
+    };
+  }
   | { readonly type: 'REFRACTION_BOOTH_QUOTE'; readonly payload: Record<string, never> }
   | {
-      readonly type: 'REFRACTION_BOOTH_START';
-      readonly payload: { readonly displayName: string };
-    }
+    readonly type: 'REFRACTION_BOOTH_START';
+    readonly payload: { readonly displayName: string };
+  }
   | {
-      readonly type: 'REFRACTION_BOOTH_COMPLETE';
-      readonly payload: RefractionBoothCompletePayload;
-    }
+    readonly type: 'REFRACTION_BOOTH_COMPLETE';
+    readonly payload: RefractionBoothCompletePayload;
+  }
   | {
-      readonly type: 'CREATE_MARKET_LISTING';
-      readonly payload: {
-        readonly itemId: string;
-        readonly quantity: number;
-        readonly unitPriceVolts: number;
-        readonly anonymous?: boolean;
-      };
-    }
-  | {
-      readonly type: 'CREATE_MARKET_BUY_ORDER';
-      readonly payload: {
-        readonly itemId: string;
-        readonly quantity: number;
-        readonly unitPriceVolts: number;
-        readonly anonymous?: boolean;
-      };
-    }
-  | {
-      readonly type: 'COLLECT_MARKET_VOLTS';
-      readonly payload: { readonly listingId: string };
-    }
-  | {
-      readonly type: 'CANCEL_MARKET_LISTING';
-      readonly payload: { readonly listingId: string };
-    }
-  | {
-      readonly type: 'CANCEL_MARKET_BUY_ORDER';
-      readonly payload: { readonly orderId: string };
-    }
-  | {
-      readonly type: 'EXECUTE_MARKET_PURCHASE';
-      readonly payload: { readonly listingId: string };
-    }
-  | {
-      readonly type: 'MOVE_INTENT';
-      readonly payload: MovePlayerIntentPayload;
-    }
-  | {
-      readonly type: 'ROTATE_INTENT';
-      readonly payload: RotatePlayerIntentPayload;
-    }
-  | {
-      readonly type: 'CRAFT_ITEM';
-      readonly payload: {
-        readonly craftStationId: string;
-        readonly recipeId: string;
-        readonly quantity?: number;
-      };
-    }
-  | {
-      readonly type: 'DELETE_ITEM';
-      readonly payload: {
-        readonly itemId: string;
-        readonly quantity?: number;
-        readonly slotIndex?: number;
-      };
-    }
-  | {
-      readonly type: 'DEV_GRANT_ITEM';
-      readonly payload: { readonly itemId: string; readonly quantity?: number };
-    }
-  | {
-      readonly type: 'DEV_GRANT_CURRENCY';
-      readonly payload: { readonly volts?: number; readonly alterCoins?: number };
-    }
-  | {
-      readonly type: 'DEV_SET_LEVEL';
-      readonly payload: { readonly level: number };
-    }
-  | {
-      readonly type: 'DEV_SET_MOVESET_MASTERY';
-      readonly payload: { readonly moveId: string; readonly level: number };
-    }
-  | {
-      readonly type: 'DEV_RESET_PLAYER';
-      readonly payload: Record<string, never>;
-    }
-  | {
-      readonly type: 'CHAT_GLOBAL_SEND';
-      readonly payload: { readonly text: string };
-    }
-  | {
-      readonly type: 'ZONE_ENSURE';
-      readonly payload: { readonly mapId: MapId };
+    readonly type: 'CREATE_MARKET_LISTING';
+    readonly payload: {
+      readonly itemId: string;
+      readonly quantity: number;
+      readonly unitPriceVolts: number;
+      readonly anonymous?: boolean;
     };
+  }
+  | {
+    readonly type: 'CREATE_MARKET_BUY_ORDER';
+    readonly payload: {
+      readonly itemId: string;
+      readonly quantity: number;
+      readonly unitPriceVolts: number;
+      readonly anonymous?: boolean;
+    };
+  }
+  | {
+    readonly type: 'COLLECT_MARKET_VOLTS';
+    readonly payload: { readonly listingId: string };
+  }
+  | {
+    readonly type: 'CANCEL_MARKET_LISTING';
+    readonly payload: { readonly listingId: string };
+  }
+  | {
+    readonly type: 'CANCEL_MARKET_BUY_ORDER';
+    readonly payload: { readonly orderId: string };
+  }
+  | {
+    readonly type: 'EXECUTE_MARKET_PURCHASE';
+    readonly payload: { readonly listingId: string };
+  }
+  | {
+    readonly type: 'MOVE_INTENT';
+    readonly payload: MovePlayerIntentPayload;
+  }
+  | {
+    readonly type: 'ROTATE_INTENT';
+    readonly payload: RotatePlayerIntentPayload;
+  }
+  | {
+    readonly type: 'CRAFT_ITEM';
+    readonly payload: {
+      readonly craftStationId: string;
+      readonly recipeId: string;
+      readonly quantity?: number;
+    };
+  }
+  | {
+    readonly type: 'DELETE_ITEM';
+    readonly payload: {
+      readonly itemId: string;
+      readonly quantity?: number;
+      readonly slotIndex?: number;
+    };
+  }
+  | {
+    readonly type: 'DEV_GRANT_ITEM';
+    readonly payload: { readonly itemId: string; readonly quantity?: number };
+  }
+  | {
+    readonly type: 'DEV_GRANT_CURRENCY';
+    readonly payload: { readonly volts?: number; readonly alterCoins?: number };
+  }
+  | {
+    readonly type: 'DEV_SET_LEVEL';
+    readonly payload: { readonly level: number };
+  }
+  | {
+    readonly type: 'DEV_SET_MOVESET_MASTERY';
+    readonly payload: { readonly moveId: string; readonly level: number };
+  }
+  | {
+    readonly type: 'DEV_RESET_PLAYER';
+    readonly payload: Record<string, never>;
+  }
+  | {
+    readonly type: 'CHAT_GLOBAL_SEND';
+    readonly payload: { readonly text: string };
+  }
+  | {
+    readonly type: 'TRADE_REQUEST';
+    readonly payload: { readonly targetPlayerId: string };
+  }
+  | {
+    readonly type: 'ZONE_ENSURE';
+    readonly payload: { readonly mapId: MapId };
+  };
 
 export type DispatchResult =
   | { readonly ok: true; readonly status: 'applied' }
@@ -427,6 +433,10 @@ export class ActionDispatcher {
       });
     }
 
+    if (this.mode === 'online' && action.type === 'TRADE_REQUEST') {
+      return this.dispatchPending(action);
+    }
+
     if (this.mode === 'online' && action.type === 'ZONE_ENSURE') {
       return this.dispatchPending(action);
     }
@@ -443,6 +453,14 @@ export class ActionDispatcher {
     if (
       (this.mode === 'mock' || this.mode === 'local')
       && action.type === 'CHAT_GLOBAL_SEND'
+      && canApplyLocalGameplayMutations(this.mode)
+    ) {
+      return this.dispatchLocal(action);
+    }
+
+    if (
+      (this.mode === 'mock' || this.mode === 'local')
+      && action.type === 'TRADE_REQUEST'
       && canApplyLocalGameplayMutations(this.mode)
     ) {
       return this.dispatchLocal(action);
@@ -765,7 +783,7 @@ export class ActionDispatcher {
     const intent = registry.register(action);
     const kind = this.resolvePendingKind(action);
 
-    getGameStore().performServerAction(intent.intentId, kind, optimisticFn ?? (() => {}));
+    getGameStore().performServerAction(intent.intentId, kind, optimisticFn ?? (() => { }));
 
     if (this.mode === 'online' && !this.intentTransport) {
       getGameStore().clearPendingAction(intent.intentId);
@@ -916,6 +934,13 @@ export class ActionDispatcher {
 
       case 'PROGRESS_MARCO':
         return { ok: false, reason: 'Progressão de Marcos requer validação do servidor.' };
+
+      case 'ACCEPT_MERCENARY_TASK': {
+        const taskId = action.payload.taskId;
+        alertSystem(`Tarefa aceita: ${taskId}`);
+        getMutableDataStore().bumpRevision('marcosState');
+        return { ok: true, status: 'applied' };
+      }
 
       case 'DEPOSIT_ITEM':
       case 'WITHDRAW_ITEM':
@@ -1070,6 +1095,17 @@ export class ActionDispatcher {
       case 'CHAT_GLOBAL_SEND': {
         if (!getGlobalMessageBus().applyLocalChat(action.payload.text)) {
           return { ok: false, reason: 'Não foi possível enviar a mensagem.' };
+        }
+        return { ok: true, status: 'applied' };
+      }
+
+      case 'TRADE_REQUEST': {
+        const targetId = action.payload.targetPlayerId.trim();
+        if (!targetId) {
+          return { ok: false, reason: 'Alvo de trade inválido.' };
+        }
+        if (!getWorldPlayerPickById(targetId)) {
+          return { ok: false, reason: 'Jogador não está mais na tela.' };
         }
         return { ok: true, status: 'applied' };
       }

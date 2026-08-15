@@ -168,6 +168,8 @@ function renderPanelEntry(entry: OpenWorldPanelEntry, focusedWindowId: UiWindowI
 
 /** Camada de painéis móveis — irmã do WorldSceneShell no App (z 940 > sidebar 930). */
 
+import { MemoryTerminalReactBridge } from './MemoryTerminalReactBridge.js';
+
 export function WorldPanelsLayer() {
 
   const openPanels = useWorldPanelsStore((state) => state.openPanels);
@@ -208,6 +210,8 @@ export function WorldPanelsLayer() {
       aria-label="Painéis de exploração"
 
     >
+
+      <MemoryTerminalReactBridge />
 
       {hubOpen ? (
 

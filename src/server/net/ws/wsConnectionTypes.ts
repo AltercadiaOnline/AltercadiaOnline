@@ -25,6 +25,7 @@ export const WORLD_AUTH_REQUIRED_MESSAGES = new Set<string>([
   'combat-join',
   'combat-action',
   'combat-forfeit',
+  'combat-join-abort',
   'combat-collect-loot',
   'combat-confirm-loot',
   'combat-dismiss-loot',

@@ -31,6 +31,7 @@ import {
 import {
   bindLocalCombatEmitter,
   localCombatAcceptPve,
+  localCombatAbortJoin,
   localCombatDispatchAction,
   localCombatForfeit,
   resetLocalCombatAuthority,
@@ -136,6 +137,11 @@ export function createLocalCombatSocket(
           return;
         }
         void localCombatForfeit(battleId);
+        return;
+      }
+
+      if (type === 'combat-join-abort') {
+        localCombatAbortJoin();
         return;
       }
 

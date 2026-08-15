@@ -1,10 +1,31 @@
-import { getMonsterByCreatureId } from './MonsterCatalog.js';
+import { getCreatureDropEntry } from '../items/creatureDrops.js';
+import { ZoneId } from '../items/itemTypes.js';
+import type { CombatState } from '../types.js';
+import { resolveMonsterZoneDefaultLevel } from './monsterZoneScaling.js';
 
-/** Nível de drop/XP derivado do catálogo da criatura (autoritativo no servidor). */
+/**
+ * Fallback quando a sessão não gravou `pveEnemyCombatLevel`.
+ * Segue o SSOT de zona (nível típico / meio da faixa) — não usa maxHp do catálogo.
+ */
 export function resolveDefeatedCreatureLevel(creatureId: string): number {
-  const entry = getMonsterByCreatureId(creatureId);
-  if (!entry) return 1;
-  return Math.max(1, Math.floor(entry.maxHp / 35));
+  const drop = getCreatureDropEntry(creatureId);
+  const zoneId = drop?.zoneId ?? ZoneId.Zone1;
+  return resolveMonsterZoneDefaultLevel(zoneId);
+}
+
+/**
+ * Nível autoritativo da criatura derrotada nesta luta PvE.
+ * Preferência: `CombatState.pveEnemyCombatLevel` (gravado no bootstrap via resolveMonsterStats).
+ */
+export function resolveSessionPveDefeatedLevel(
+  state: Pick<CombatState, 'pveEnemyCombatLevel'>,
+  creatureId?: string | null,
+): number {
+  const fromSession = state.pveEnemyCombatLevel;
+  if (typeof fromSession === 'number' && Number.isFinite(fromSession) && fromSession >= 1) {
+    return Math.floor(fromSession);
+  }
+  return creatureId ? resolveDefeatedCreatureLevel(creatureId) : 1;
 }
 
 /** XP de vitória PvE — única fonte para o payload COMBAT_FINISHED. */

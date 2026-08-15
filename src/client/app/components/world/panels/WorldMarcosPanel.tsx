@@ -74,7 +74,7 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
                     <span className="marcos-panel__trail-pick-name">{option.shortLabel}</span>
                     <span className="marcos-panel__trail-pick-focus">
                       {option.branch === 'fluxo'
-                        ? 'Velocidade'
+                        ? 'Agilidade'
                         : option.branch === 'resiliencia'
                           ? 'Defesa'
                           : 'Crítico'}

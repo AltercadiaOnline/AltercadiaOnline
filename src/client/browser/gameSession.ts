@@ -45,6 +45,8 @@ import {
   initGameStateProvider,
   enterBattleFromServer,
   abortCombatJoinOnError,
+  abortPendingCombatJoinSilently,
+  isPendingCombatJoin,
   getGameStateManager,
   resetGameStateManager,
 } from '../game/GameStateProvider.js';
@@ -57,6 +59,7 @@ import {
 import { applyWorldPeersPayload } from '../world/worldPeersStore.js';
 import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
 import { bindPveEncounterWsSender, sendPveEncounterRequest } from '../app/panels/pveEncounterBridge.js';
+import { bindCombatJoinAbortWsSender } from '../app/panels/combatJoinAbortBridge.js';
 import { formatPvpRankedQueueError } from '../../shared/combat/pvp/pvpRankedQueueErrors.js';
 import { isPvpRankedQueueSnapshot } from '../../shared/combat/pvp/pvpRankedQueueProtocol.js';
 import { resolveWorldLoreCredentials } from '../services/worldLoreCredentials.js';
@@ -159,6 +162,7 @@ import {
   waitForWorldPaintSettle,
   waitForWorldSessionReady,
 } from '../world/waitForWorldEntryReady.js';
+import { preloadPlayerSprites } from '../renderPlayer.js';
 
 const DEV_DEBUG_ALLOWED_EMAILS: readonly string[] = ['juninhomc94@gmail.com'];
 
@@ -587,6 +591,19 @@ async function connectSocket(): Promise<void> {
     if (payload && typeof payload.battleId === 'string') {
       registerActiveBattleId(payload.battleId);
     }
+
+    // Join já abortado (timeout) ou START_COMBAT órfão — não monta batalha; libera servidor.
+    const manager = getGameStateManager();
+    if (
+      !isPendingCombatJoin()
+      && manager.isExploration()
+      && !manager.isTransitioning()
+      && !manager.isBattle()
+    ) {
+      void abortPendingCombatJoinSilently('START_COMBAT_REJECTED');
+      return;
+    }
+
     const monsterInstanceId =
       payload && typeof payload.monsterInstanceId === 'string'
         ? payload.monsterInstanceId
@@ -687,6 +704,9 @@ async function connectSocket(): Promise<void> {
 
   // Front só espelha: PVE + PvP rankeado → socket → autoridade (Railway | local authority).
   bindPveEncounterWsSender((type, payload) => {
+    socket?.send(type, payload);
+  });
+  bindCombatJoinAbortWsSender((type, payload) => {
     socket?.send(type, payload);
   });
   bindPvpRankedQueueWsSender((type, payload) => {
@@ -821,8 +841,11 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
         }
       }
     }
+    let playerSpritesReady: Promise<void> = Promise.resolve();
     if (selected && identity) {
       loadSelectedCharacterAppearance();
+      // Prefetch em paralelo com mapa/handshake — revelação só após PNG pronto.
+      playerSpritesReady = preloadPlayerSprites();
       // Identidade do slot (nome/classe/skin) — Level/XP vêm do save ou snapshot.
       getPlayerProfileStore().setDisplayName(identity.displayName);
       const equip = getPlayerEquipmentStore().getSnapshot();
@@ -1068,6 +1091,24 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
         return;
       }
 
+      updatePlayerInitLoadingMessage('Carregando personagem…');
+      try {
+        await playerSpritesReady;
+      } catch (error) {
+        console.error('[Altercadia] Falha ao carregar PNG do personagem:', error);
+        updatePlayerInitLoadingMessage('Falha ao carregar o personagem. Tente novamente.');
+        window.setTimeout(() => {
+          hidePlayerInitLoading();
+          clearGameState();
+          AppScreens.abortGameWorldBootShell();
+          void AppScreens.showCharSelect();
+          AppScreens.renderCharacterHubError(
+            'Não foi possível carregar o sprite do personagem. Verifique a conexão e tente novamente.',
+          );
+        }, 1600);
+        return;
+      }
+
       updatePlayerInitLoadingMessage('Quase pronto…');
       world.prepareFrame(0);
       world.syncWorldDomOverlay(performance.now());
@@ -1161,6 +1202,7 @@ export function clearGameState(): void {
     socket = null;
   }
   bindPveEncounterWsSender(null);
+  bindCombatJoinAbortWsSender(null);
   bindPvpRankedQueueWsSender(null);
   stopLocalPveEncounterRuntime();
   resetLocalPveEncounterRuntime();

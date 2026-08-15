@@ -49,7 +49,7 @@ export function buildInitiativeSpeedLines(input: InitiativeSpeedDisplayInput): r
   const p = input.profile;
   const lines: InitiativeSpeedLine[] = [
     { source: 'fluxo', flat: p.flowSpeedBase ?? 0, includeInTotal: true },
-    { source: 'classe', flat: p.classSpeedBias ?? 0, includeInTotal: true },
+    { source: 'classe', flat: p.classAgility ?? p.classSpeedBias ?? 0, includeInTotal: true },
     { source: 'equip', flat: p.equipSpeedFlat ?? 0, includeInTotal: true },
     { source: 'marcos', flat: p.marcoSpeedFlat ?? 0, includeInTotal: true },
     { source: 'buff', flat: p.buffSpeedFlat ?? 0, includeInTotal: true },

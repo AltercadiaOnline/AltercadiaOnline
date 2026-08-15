@@ -240,6 +240,9 @@ export type WsInboundMessage =
 
   | { readonly type: 'combat-forfeit'; readonly payload: { readonly battleId: string } }
 
+  /** Cliente desistiu do join (timeout / START_COMBAT atrasado) — libera sessão sem penalidade. */
+  | { readonly type: 'combat-join-abort'; readonly payload?: { readonly reason?: string } }
+
   | { readonly type: 'combat-collect-loot'; readonly payload: { readonly lootId: string; readonly battleId: string } }
 
   | { readonly type: 'combat-confirm-loot'; readonly payload: { readonly lootId: string; readonly battleId: string } }
@@ -605,6 +608,20 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
 
       return { type: 'combat-forfeit', payload: { battleId } };
 
+    }
+
+    if (type === 'combat-join-abort') {
+      const payload = record.payload;
+      if (payload === undefined) {
+        return { type: 'combat-join-abort' };
+      }
+      if (typeof payload !== 'object' || payload === null) return null;
+      const reason = (payload as Record<string, unknown>).reason;
+      if (reason === undefined) {
+        return { type: 'combat-join-abort' };
+      }
+      if (typeof reason !== 'string' || reason.length === 0) return null;
+      return { type: 'combat-join-abort', payload: { reason } };
     }
 
     if (type === 'combat-collect-loot' || type === 'combat-confirm-loot') {

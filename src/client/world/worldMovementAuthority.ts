@@ -17,13 +17,15 @@ export type AuthoritativeMoveUpdate = PlayerPositionUpdate & {
  * Grace após último input/passo — cobre RTT típico sem soltar a predição cedo.
  * Enquanto WASD estiver ativo, `extendPredictionLock` renova a janela.
  *
- * Modelo online (freeze, não soft-lerp):
- * - Hold: sprite anda local; sync não puxa.
- * - Soltou: sprite CONGELA nos pés; servidor alcança em silêncio.
- * - Só hard snap (teleporte / desync absurdo) move o sprite.
- * - ZONE_ENSURE / inventário / HUD: nunca resetar prediction/freeze.
+ * Modelo online:
+ * - Hold: sprite anda local (Key Down); sync não puxa.
+ * - Key Up: para na hora e congela nos pés — nunca puxa para posição atrasada.
+ * - Servidor alcança em silêncio; após o freeze, drift moderado = lerp suave.
  */
 export const PREDICTION_LOCK_MS = 480;
+
+/** Tempo máximo de freeze seco após Key Up — depois libera lerp se o servidor não alcançou. */
+export const VISUAL_FREEZE_MS = 360;
 
 /** Âncora de cursor de tile no hold (não mexe no sprite). */
 export const SOFT_TILE_ANCHOR_MS = 250;
@@ -88,8 +90,9 @@ class WorldMovementAuthority {
   private predictionLock: PredictionLockState = { ...EMPTY_LOCK };
   /** Tecla de movimento segurada (WASD/setas). */
   private continuousHoldActive = false;
-  /** Soltou WASD: sprite congelado até soft-confirm ou hard snap. */
+  /** Soltou WASD: sprite congelado até o servidor alcançar ou o freeze expirar. */
   private visualFrozen = false;
+  private visualFrozenAtMs = 0;
   private lastServerAnchor: { x: number; y: number } | null = null;
   private softAnchorDueMs = 0;
 
@@ -98,7 +101,7 @@ class WorldMovementAuthority {
     if (!enabled) {
       this.lastMoveSeq = 0;
       this.continuousHoldActive = false;
-      this.visualFrozen = false;
+      this.clearVisualFreeze();
       this.lastServerAnchor = null;
       this.softAnchorDueMs = 0;
       this.clearPredictionLock();
@@ -114,7 +117,7 @@ class WorldMovementAuthority {
    */
   setContinuousHoldActive(active: boolean): void {
     if (active) {
-      this.visualFrozen = false;
+      this.clearVisualFreeze();
       // Só no início do hold — resetar todo frame impede a âncora de cursor.
       if (!this.continuousHoldActive) {
         this.softAnchorDueMs = performance.now() + SOFT_TILE_ANCHOR_MS;
@@ -127,17 +130,32 @@ class WorldMovementAuthority {
     return this.continuousHoldActive;
   }
 
-  isVisualFrozen(): boolean {
-    return this.visualFrozen;
+  isVisualFrozen(nowMs: number = performance.now()): boolean {
+    return this.visualFrozen && nowMs - this.visualFrozenAtMs <= VISUAL_FREEZE_MS;
   }
 
   /**
-   * Soltou WASD — congela predição nos pés visuais. Sprite não se move até hard snap.
+   * Soltou WASD — congela predição nos pés visuais. Sprite não volta para posição atrasada.
    */
   freezeVisualAt(x: number, y: number, facing: PlayerFacing, nowMs: number = performance.now()): void {
     this.recordPredictedStep(x, y, facing, nowMs);
     this.visualFrozen = true;
+    this.visualFrozenAtMs = nowMs;
     this.softAnchorDueMs = 0;
+  }
+
+  private clearVisualFreeze(): void {
+    this.visualFrozen = false;
+    this.visualFrozenAtMs = 0;
+  }
+
+  private isFreezeWindowActive(nowMs: number): boolean {
+    if (!this.visualFrozen) return false;
+    if (nowMs - this.visualFrozenAtMs > VISUAL_FREEZE_MS) {
+      this.clearVisualFreeze();
+      return false;
+    }
+    return true;
   }
 
   noteServerAnchor(x: number, y: number): void {
@@ -148,7 +166,7 @@ class WorldMovementAuthority {
    * Cursor de tile no hold (opcional). Nunca move sprite.
    */
   takeSoftTileAnchor(nowMs: number = performance.now()): { x: number; y: number } | null {
-    if (!this.continuousHoldActive || this.visualFrozen) return null;
+    if (!this.continuousHoldActive || this.isVisualFrozen(nowMs)) return null;
     if (!this.lastServerAnchor) return null;
     if (this.softAnchorDueMs <= 0 || nowMs < this.softAnchorDueMs) return null;
     const anchor = this.lastServerAnchor;
@@ -159,7 +177,7 @@ class WorldMovementAuthority {
   /** Predição ativa para reconcile visual (lock, retenção, hold ou freeze). */
   isVisuallyPredicting(nowMs: number = performance.now()): boolean {
     return this.continuousHoldActive
-      || this.visualFrozen
+      || this.isVisualFrozen(nowMs)
       || this.isPredictionLockActive(nowMs)
       || this.hasRetainedPrediction();
   }
@@ -240,7 +258,7 @@ class WorldMovementAuthority {
     const tileSize = getActiveMapTileSize();
     const dist = Math.hypot(serverX - predictedX, serverY - predictedY);
     // Hold / freeze: qualquer sync atrás da predição é silêncio (exceto hard no resolve).
-    if (this.continuousHoldActive || this.visualFrozen) {
+    if (this.continuousHoldActive || this.isVisualFrozen(nowMs)) {
       return dist < tileSize * ONLINE_HARD_SNAP_TILES;
     }
     return dist <= tileSize * ONLINE_CORRECTION_TILES;
@@ -248,7 +266,7 @@ class WorldMovementAuthority {
 
   /**
    * Mescla estado remoto com predição local.
-   * Online freeze: hold/freeze = store-only ou silêncio; sprite só em hard snap.
+   * Hold / Key-Up freeze: nunca teleporta o sprite para posição atrasada.
    */
   resolveIncomingPosition(
     update: AuthoritativePositionDelta,
@@ -265,53 +283,23 @@ class WorldMovementAuthority {
     const tileSize = getActiveMapTileSize();
     const hardSnapPx = tileSize * ONLINE_HARD_SNAP_TILES;
     const softConfirmPx = tileSize * 0.55;
+    const freezeActive = this.isFreezeWindowActive(nowMs);
 
     const predictedX = this.predictionLock.predictedX;
     const predictedY = this.predictionLock.predictedY;
     const hasPredicted = predictedX !== null && predictedY !== null;
     const isNewSeq = update.moveSeq !== undefined;
-    const protectingVisual = this.continuousHoldActive || this.visualFrozen || hasPredicted;
+    const protectingVisual = this.continuousHoldActive || freezeActive || hasPredicted;
 
     if (hasPredicted) {
       const dist = Math.hypot(update.x - predictedX!, update.y - predictedY!);
 
-      if (dist >= hardSnapPx) {
-        // Hold: NÃO puxar o sprite — só store; âncora de cursor realinha os intents.
-        // Hard snap no hold = “anda 2–3 e trava/volta” (pior sensação).
-        if (this.continuousHoldActive) {
-          if (isNewSeq) {
-            return {
-              shouldApplyToStore: true,
-              shouldPublishPlayerUpdate: false,
-              shouldApplyRenderTarget: false,
-              position: update,
-            };
-          }
-          return silence(update);
-        }
-        this.visualFrozen = false;
-        this.clearPredictionLock();
-        getMovementNetTelemetry().noteHardSnap();
-        return fullApply(update);
-      }
-
-      // Servidor alcançou os pés — libera freeze; no hold NÃO limpa predição
-      // (senão o cursor de tile morre e o hold trava após 2–3 passos).
       if (dist <= softConfirmPx) {
-        this.visualFrozen = false;
-        if (this.continuousHoldActive) {
-          if (isNewSeq) {
-            return {
-              shouldApplyToStore: true,
-              shouldPublishPlayerUpdate: false,
-              shouldApplyRenderTarget: false,
-              position: update,
-            };
-          }
-          return silence(update);
+        this.clearVisualFreeze();
+        if (!this.continuousHoldActive) {
+          this.clearPredictionLock();
         }
         if (isNewSeq) {
-          this.clearPredictionLock();
           return {
             shouldApplyToStore: true,
             shouldPublishPlayerUpdate: false,
@@ -319,11 +307,28 @@ class WorldMovementAuthority {
             position: update,
           };
         }
-        this.clearPredictionLock();
         return silence(update);
       }
 
-      // Hold / freeze / predição à frente: nunca fullApply (sem soft-lerp).
+      if (this.continuousHoldActive || freezeActive) {
+        if (isNewSeq) {
+          return {
+            shouldApplyToStore: true,
+            shouldPublishPlayerUpdate: false,
+            shouldApplyRenderTarget: false,
+            position: update,
+          };
+        }
+        return silence(update);
+      }
+
+      if (dist >= hardSnapPx) {
+        this.clearVisualFreeze();
+        this.clearPredictionLock();
+        getMovementNetTelemetry().noteHardSnap();
+        return fullApply(update);
+      }
+
       if (protectingVisual) {
         if (isNewSeq) {
           return {
@@ -341,7 +346,7 @@ class WorldMovementAuthority {
       return silence(update);
     }
 
-    if (this.continuousHoldActive || this.visualFrozen) {
+    if (this.continuousHoldActive || freezeActive) {
       return {
         shouldApplyToStore: true,
         shouldPublishPlayerUpdate: false,
@@ -399,7 +404,7 @@ class WorldMovementAuthority {
     this.lastMoveSeq = 0;
     this.online = false;
     this.continuousHoldActive = false;
-    this.visualFrozen = false;
+    this.clearVisualFreeze();
     this.lastServerAnchor = null;
     this.softAnchorDueMs = 0;
     this.clearPredictionLock();

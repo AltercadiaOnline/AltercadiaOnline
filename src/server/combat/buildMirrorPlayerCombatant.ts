@@ -1,4 +1,5 @@
 import { resolveCombatLoadout } from '../../shared/combat/combatLoadoutResolver.js';
+import { resolveClassAgility } from '../../shared/combat/resolveClassAgility.js';
 import { BattleType } from '../../shared/combat/battleType.js';
 import {
   buildMirrorBotActorId,
@@ -10,11 +11,6 @@ import { moveIdsToSkillData } from '../../shared/combat/movesetLoadout.js';
 import { createInitialPetAllianceState } from '../../shared/combat/allianceTurnCycle.js';
 import type { Combatant, CombatState } from '../../shared/types.js';
 import { computePlayerHpMax } from '../../shared/character/playerVitals.js';
-import { loadCombatBalanceConfig } from '../engine/combatBalanceConfig.js';
-
-function resolveClassSpeedBias(classId: ReturnType<typeof pickRandomMirrorClass>): number {
-  return loadCombatBalanceConfig().initiative.classSpeedBias[classId] ?? 0;
-}
 
 export function buildMirrorPlayerCombatant(seed?: number): Combatant {
   const classId = pickRandomMirrorClass(seed);
@@ -32,6 +28,7 @@ export function buildMirrorPlayerCombatant(seed?: number): Combatant {
     flowSpeedBase: 32,
   });
   const maxHp = computePlayerHpMax(12, resolved.modifiers.maxHpBonusPercent);
+  const classAgility = resolveClassAgility(classId);
 
   return {
     id: actorId,
@@ -44,7 +41,8 @@ export function buildMirrorPlayerCombatant(seed?: number): Combatant {
     combatRole: 'PLAYER',
     speedProfile: {
       flowSpeedBase: 32,
-      classSpeedBias: resolveClassSpeedBias(classId),
+      classAgility,
+      classSpeedBias: classAgility,
       marcoSpeedFlat: resolved.marcoSpeedFlat,
       equipSpeedFlat: resolved.modifiers.equipSpeedFlat,
       activeMarcos: [],

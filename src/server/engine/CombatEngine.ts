@@ -1,4 +1,5 @@
 import { calculateDamage } from '../../shared/combat/calculateDamage.js';
+import { resolveClassAgility } from '../../shared/combat/resolveClassAgility.js';
 import { BattleType } from '../../shared/combat/battleType.js';
 import { CombatEventType } from '../../shared/events.js';
 import type { CombatEvent, TurnUpdate } from '../../shared/events.js';
@@ -635,10 +636,13 @@ export class CombatEngine {
     return null;
   }
 
-  private resolveClassSpeedBias(classId: CombatClassId | undefined, explicitBias: number | undefined): number {
-    if (explicitBias !== undefined) return explicitBias;
-    if (!classId) return 0;
-    return this.balance.initiative.classSpeedBias[classId];
+  private resolveActorClassAgility(
+    classId: CombatClassId | undefined,
+    profile: Combatant['speedProfile'],
+  ): number {
+    const explicit = profile?.classAgility ?? profile?.classSpeedBias;
+    if (explicit !== undefined) return explicit;
+    return resolveClassAgility(classId);
   }
 
   private resolveMarcoSpeed(activeMarcos: readonly string[] | undefined, flowSpeedBase: number): number {
@@ -715,9 +719,9 @@ export class CombatEngine {
   private computeEffectiveSpeedRaw(actorId: string, actor: Combatant): number {
     const profile = actor.speedProfile;
     if (!profile) return 0;
-    const classBias = this.resolveClassSpeedBias(actor.classId, profile.classSpeedBias);
+    const classAgility = this.resolveActorClassAgility(actor.classId, profile);
     const speedBonusTotal = this.computeSpeedBonusTotal(actorId, actor);
-    const raw = profile.flowSpeedBase + classBias + speedBonusTotal;
+    const raw = profile.flowSpeedBase + classAgility + speedBonusTotal;
     const clampCfg = this.balance.initiative.effectiveSpeedRawClamp;
     return clamp(raw, clampCfg.min, clampCfg.max);
   }

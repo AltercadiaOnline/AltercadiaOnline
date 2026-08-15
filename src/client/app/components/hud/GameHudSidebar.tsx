@@ -1,12 +1,12 @@
 import { WorldEquipmentSidebar } from '../world/hud/WorldEquipmentSidebar.js';
 import { WorldMinimapPanel } from '../world/hud/WorldMinimapPanel.js';
-import { WorldSidebarConsumablesHotbar } from '../world/hud/WorldSidebarConsumablesHotbar.js';
+import { WorldSidebarBuildDistribution } from '../world/hud/WorldSidebarBuildDistribution.js';
 import { WorldSidebarPetCompact } from '../world/hud/WorldSidebarPetCompact.js';
 import { WorldWalletPanel } from '../world/hud/WorldWalletPanel.js';
 import { UI_LAYER_Z_INDEX } from '../../shell/uiLayers.js';
 
 /**
- * Coluna direita fixa — segmentos: mapa · moedas · vitals/SET · itens/pet.
+ * Coluna direita fixa — segmentos: mapa · moedas · vitals/SET · build/pet.
  * Independente de mundo/batalha; playfield reserva `--game-hud-sidebar-width`.
  */
 export function GameHudSidebar() {
@@ -32,8 +32,8 @@ export function GameHudSidebar() {
         <WorldEquipmentSidebar interactive />
       </section>
 
-      <section className="sidebar-segment sidebar-segment--utility" aria-label="Itens e pet">
-        <WorldSidebarConsumablesHotbar interactive />
+      <section className="sidebar-segment sidebar-segment--utility" aria-label="Build e pet">
+        <WorldSidebarBuildDistribution />
         <WorldSidebarPetCompact />
       </section>
     </aside>

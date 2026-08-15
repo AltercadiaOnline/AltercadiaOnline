@@ -167,6 +167,9 @@ export function finalizeAuthoritativeBattleEnd(
     ...(endReason === 'FORFEIT' && surrenderVoltPenalty !== undefined && surrenderVoltPenalty > 0
       ? { surrenderVoltPenalty }
       : {}),
+    ...(finishedPayload.deathPenaltyOutcome !== undefined
+      ? { deathPenaltyOutcome: finishedPayload.deathPenaltyOutcome }
+      : {}),
   };
 
   return {

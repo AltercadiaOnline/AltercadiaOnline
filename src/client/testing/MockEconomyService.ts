@@ -225,11 +225,11 @@ export class MockEconomyService implements IDevMockEconomyService {
   private cachedWorldProfile: PlayerWorldProfile = createDefaultWorldProfile();
   private worldSnapshotProvider:
     | (() => {
-        readonly mapId: string;
-        readonly x: number;
-        readonly y: number;
-        readonly facing: PlayerFacing;
-      } | null)
+      readonly mapId: string;
+      readonly x: number;
+      readonly y: number;
+      readonly facing: PlayerFacing;
+    } | null)
     | null = null;
   private readonly marcosListeners = new Set<(snapshot: MarcosStateSnapshot) => void>();
   private readonly movesProgressionListeners = new Set<
@@ -576,21 +576,21 @@ export class MockEconomyService implements IDevMockEconomyService {
     const stored = getMutableDataStore().getWorldPosition();
     const base: PlayerWorldProfile = live
       ? {
-          currentMapId: live.mapId,
-          lastPosition: { x: live.x, y: live.y },
-          facing: live.facing,
-        }
+        currentMapId: live.mapId,
+        lastPosition: { x: live.x, y: live.y },
+        facing: live.facing,
+      }
       : stored
         ? {
-            currentMapId: stored.mapId,
-            lastPosition: { x: stored.x, y: stored.y },
-            facing: stored.facing,
-          }
+          currentMapId: stored.mapId,
+          lastPosition: { x: stored.x, y: stored.y },
+          facing: stored.facing,
+        }
         : {
-            currentMapId: this.cachedWorldProfile.currentMapId,
-            lastPosition: { ...this.cachedWorldProfile.lastPosition },
-            facing: this.cachedWorldProfile.facing,
-          };
+          currentMapId: this.cachedWorldProfile.currentMapId,
+          lastPosition: { ...this.cachedWorldProfile.lastPosition },
+          facing: this.cachedWorldProfile.facing,
+        };
 
     const global = getGlobalPlayerStore();
     const itemStore = getPlayerItemStore();
@@ -931,6 +931,8 @@ export class MockEconomyService implements IDevMockEconomyService {
         if (!affection.ok) return { ok: false, reason: affection.reason };
         return { ok: true };
       }
+      case 'ACCEPT_MERCENARY_TASK':
+        return this.acceptMercenaryTask(action.payload.taskId);
       case 'GIFT_TRANSFER':
         return { ok: false, reason: 'Presentes requerem servidor online.' };
       case 'REFRACTION_BOOTH_QUOTE':
@@ -1084,6 +1086,13 @@ export class MockEconomyService implements IDevMockEconomyService {
         }
         return { ok: true };
       }
+      case 'TRADE_REQUEST': {
+        const targetId = action.payload.targetPlayerId.trim();
+        if (!targetId) {
+          return { ok: false, reason: 'Alvo de trade inválido.' };
+        }
+        return { ok: true };
+      }
       default: {
         const _exhaustive: never = action;
         return _exhaustive;
@@ -1165,6 +1174,17 @@ export class MockEconomyService implements IDevMockEconomyService {
       nodeProgression: emptyMarcosNodeProgression(),
     };
     this.bumpRevision('marcosState');
+    return { ok: true };
+  }
+
+  private acceptMercenaryTask(taskId: string): IntentHandleResult {
+    if (!taskId) return { ok: false, reason: 'Task inválida.' };
+    alertSystem(`Tarefa aceita: ${taskId}`);
+    // Minimal local tracking: store accepted task id in marcos.activeMarcos for visibility.
+    if (!this.state.marcos.activeMarcos.includes(taskId)) {
+      this.state.marcos.activeMarcos = [...this.state.marcos.activeMarcos, taskId];
+      this.bumpRevision('marcosState');
+    }
     return { ok: true };
   }
 

@@ -245,11 +245,11 @@ export type CollectBattleLootRequest = {
 
 export type CollectBattleLootResult =
   | {
-      readonly ok: true;
-      readonly payload: LootGrantedPayload;
-      /** Itens que não couberam (slots/CAP) — perdidos após coleta (decisão B). */
-      readonly discardedQuantity?: number;
-    }
+    readonly ok: true;
+    readonly payload: LootGrantedPayload;
+    /** Itens que não couberam (slots/CAP) — perdidos após coleta (decisão B). */
+    readonly discardedQuantity?: number;
+  }
   | { readonly ok: false; readonly message: string };
 
 /** @deprecated Use StageBattleLootRequest flow — mantido para testes legados. */
@@ -605,11 +605,11 @@ export async function consumeChargedEquipmentBattleParticipation(
 
 export type BattleSurrenderPenaltyResult =
   | {
-      readonly ok: true;
-      readonly debited: number;
-      readonly dollarVolt: number;
-      readonly alterCoins: number;
-    }
+    readonly ok: true;
+    readonly debited: number;
+    readonly dollarVolt: number;
+    readonly alterCoins: number;
+  }
   | { readonly ok: false; readonly message: string };
 
 /** Penalidade ao render-se — debita até BATTLE_SURRENDER_VOLT_PENALTY (saldo pode ser parcial). */
@@ -1205,12 +1205,12 @@ export type PurchaseNpcItemAtVendorRequest = {
 
 export type PurchaseNpcItemAtVendorResult =
   | {
-      readonly ok: true;
-      readonly itemId: string;
-      readonly quantity: number;
-      readonly totalVolts: number;
-      readonly inventorySync: InventorySyncPayload;
-    }
+    readonly ok: true;
+    readonly itemId: string;
+    readonly quantity: number;
+    readonly totalVolts: number;
+    readonly inventorySync: InventorySyncPayload;
+  }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Compra em loja NPC — debita VOLTS e concede item (transação ACID). */
@@ -1318,18 +1318,23 @@ export type SellNpcItemAtVendorRequest = {
 
 export type SellNpcItemAtVendorResult =
   | {
-      readonly ok: true;
-      readonly itemId: string;
-      readonly quantity: number;
-      readonly totalVolts: number;
-      readonly inventorySync: InventorySyncPayload;
-    }
+    readonly ok: true;
+    readonly itemId: string;
+    readonly quantity: number;
+    readonly totalVolts: number;
+    readonly inventorySync: InventorySyncPayload;
+  }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Revenda ao NPC — remove item do inventário e credita VOLTS (transação ACID). */
 export async function sellNpcItemAtVendor(
   request: SellNpcItemAtVendorRequest,
 ): Promise<SellNpcItemAtVendorResult> {
+  // Disallow selling to certain NPCs (e.g., mercenario)
+  if (request.vendorId === 'mercenario') {
+    return { ok: false, code: 'SELL_REJECTED', message: 'Este NPC não aceita vendas.' };
+  }
+
   try {
     assertSellItemAllowed(request.itemId);
   } catch (error) {
@@ -1482,11 +1487,11 @@ export type BuyCaelPetRationRequest = {
 
 export type BuyCaelPetRationResult =
   | {
-      readonly ok: true;
-      readonly chargesGranted: number;
-      readonly totalRationCharges: number;
-      readonly priceVolts: number;
-    }
+    readonly ok: true;
+    readonly chargesGranted: number;
+    readonly totalRationCharges: number;
+    readonly priceVolts: number;
+  }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Compra ração especial no Ancião Cael — debita VOLTS e credita cargas (transação ACID). */
@@ -1570,11 +1575,11 @@ export type PurchasePetAtTrainerRequest = {
 
 export type PurchasePetAtTrainerResult =
   | {
-      readonly ok: true;
-      readonly petName: string;
-      readonly priceVolts: number;
-      readonly roster: import('../shared/pet/petRoster.js').PlayerPetRosterSnapshot;
-    }
+    readonly ok: true;
+    readonly petName: string;
+    readonly priceVolts: number;
+    readonly roster: import('../shared/pet/petRoster.js').PlayerPetRosterSnapshot;
+  }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Adoção no Treinador Zeno — debita VOLTS e adiciona pet ao roster (ACID + rollback). */
@@ -1687,11 +1692,11 @@ export type CraftItemGatewayRequest = {
 
 export type CraftItemGatewayResult =
   | {
-      readonly ok: true;
-      readonly outputItemId: string;
-      readonly outputQuantity: number;
-      readonly batches: number;
-    }
+    readonly ok: true;
+    readonly outputItemId: string;
+    readonly outputQuantity: number;
+    readonly batches: number;
+  }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Craft atômico — consome materiais e concede output numa única transação ACID. */
@@ -1782,11 +1787,11 @@ export type DeleteInventoryItemRequest = {
 
 export type DeleteInventoryItemResult =
   | {
-      readonly ok: true;
-      readonly itemId: string;
-      readonly quantity: number;
-      readonly inventorySync: InventorySyncPayload;
-    }
+    readonly ok: true;
+    readonly itemId: string;
+    readonly quantity: number;
+    readonly inventorySync: InventorySyncPayload;
+  }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Descarte autoritativo — remove item do inventário (política inventoryPolicy). */
@@ -1805,9 +1810,9 @@ export async function deleteInventoryItem(
     inventoryStacks: profile.inventory,
     ...(slotState
       ? {
-          slotQuantity: slotState.quantity,
-          lockedQuantity: slotState.lockedQuantity,
-        }
+        slotQuantity: slotState.quantity,
+        lockedQuantity: slotState.lockedQuantity,
+      }
       : {}),
   });
 

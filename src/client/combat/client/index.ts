@@ -66,6 +66,7 @@ import {
   isPostBattleHubInteractive,
 } from '../../ui/battle/battleSceneMount.js';
 import { showBattleResultOverlay } from './battleResultOverlay.js';
+import { formatDeathPenaltySummaryLines } from '../../../shared/progression/deathPenaltySummary.js';
 import { dismissPostBattleHubUi } from '../../app/battle/dismissPostBattleHubUi.js';
 import { resetPlayerHonorCardSession } from '../../ui/battle/PlayerHonorCard.js';
 import {
@@ -330,6 +331,12 @@ function presentationToVictoryPayload(
       ? { monsterInstanceId: exitPayload.monsterInstanceId }
       : {}),
     ...(hasLoot !== undefined ? { hasLoot } : {}),
+    ...(presentation.deathPenaltyOutcome !== undefined
+      ? { deathPenaltyOutcome: presentation.deathPenaltyOutcome }
+      : pendingBattleEndedPayload?.battleId === presentation.battleId
+        && pendingBattleEndedPayload.deathPenaltyOutcome !== undefined
+        ? { deathPenaltyOutcome: pendingBattleEndedPayload.deathPenaltyOutcome }
+        : {}),
   };
 }
 
@@ -379,10 +386,15 @@ function presentPostBattleHubRecovery(
   void showBattleResultOverlay({
     victory: presentation.victory,
     ...(presentation.endReason !== undefined ? { endReason: presentation.endReason } : {}),
-    summaryLines: [
-      presentation.victory ? 'Monstro derrotado.' : 'Batalha encerrada.',
-      'Use SAIR PARA O MAPA abaixo.',
-    ],
+    summaryLines: presentation.victory
+      ? [
+          'Monstro derrotado.',
+          'Use SAIR PARA O MAPA abaixo.',
+        ]
+      : [
+          ...formatDeathPenaltySummaryLines(presentation.deathPenaltyOutcome),
+          'Use SAIR PARA O MAPA abaixo.',
+        ],
     mountRoot: document.body,
     onExit: async () => {
       unmountEmergencyBattleExit();
@@ -476,10 +488,15 @@ async function presentPostBattleHubFallback(
   await showBattleResultOverlay({
     victory: presentation.victory,
     ...(presentation.endReason !== undefined ? { endReason: presentation.endReason } : {}),
-    summaryLines: [
-      presentation.victory ? 'Monstro derrotado.' : 'Batalha encerrada.',
-      'Escolha voltar ao mapa quando estiver pronto.',
-    ],
+    summaryLines: presentation.victory
+      ? [
+          'Monstro derrotado.',
+          'Escolha voltar ao mapa quando estiver pronto.',
+        ]
+      : [
+          ...formatDeathPenaltySummaryLines(presentation.deathPenaltyOutcome),
+          'Escolha voltar ao mapa quando estiver pronto.',
+        ],
     mountRoot: combatMount,
     onExit: async () => {
       await finalizeBattleExit(presentation.battleId, exitPayload);

@@ -60,6 +60,7 @@ import {
   getDevSetMovesetMasteryHandler,
 } from './dev/DevCheatHandlers.js';
 import { getChatGlobalSendHandler } from './social/ChatGlobalSendHandler.js';
+import { getTradeRequestHandler } from './social/TradeRequestHandler.js';
 import { getZoneEnsureHandler } from './world/ZoneEnsureHandler.js';
 
 let bootstrapped = false;
@@ -113,6 +114,7 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getDevSetMovesetMasteryHandler());
   registerIntentHandler(getDevResetPlayerHandler());
   registerIntentHandler(getChatGlobalSendHandler());
+  registerIntentHandler(getTradeRequestHandler());
 
   bootstrapped = true;
 }

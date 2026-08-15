@@ -1,6 +1,6 @@
 {
 	"projectFormatVersion": 1,
-	"savedWithRelease": 49500,
+	"savedWithRelease": 49502,
 	"name": "altercadia.online",
 	"runtime": "c3",
 	"useWorker": "auto",
@@ -55,8 +55,6 @@
 			"casa1",
 			"casa2",
 			"casa3",
-			"poste",
-			"poste2",
 			"arvore",
 			"arbustro",
 			"telao_pvp",
@@ -70,8 +68,12 @@
 			"spawn_cachorro",
 			"spawn_aranha",
 			"teletransporte_asset",
-			"a",
-			"npc_mercenario"
+			"teletransporte",
+			"npc_mercenario",
+			"poste3",
+			"Placa_transito",
+			"hidrante",
+			"lixeira"
 		],
 		"subfolders": []
 	},

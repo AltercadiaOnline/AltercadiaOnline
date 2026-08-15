@@ -8,7 +8,7 @@ import {
 } from '../../../shared/items/itemSchema.js';
 import {
   ITEM_EFFECT_STAT_LABELS,
-  VELOCIDADE_STAT_LABEL,
+  AGILIDADE_STAT_LABEL,
 } from '../../../shared/stats/statDisplayLabels.js';
 
 const TRIGGER_LABELS: Record<string, string> = {
@@ -34,7 +34,7 @@ function buildPotionEffectLines(item: ItemDefinition): readonly string[] {
     } else if (effect.stat === 'PP') {
       lines.push(`Restaura ${effect.value} PP`);
     } else if (effect.stat === 'AGI') {
-      lines.push(`+${effect.value} ${VELOCIDADE_STAT_LABEL} por 2 turnos`);
+      lines.push(`+${effect.value} ${AGILIDADE_STAT_LABEL} por 2 turnos`);
     } else {
       lines.push(formatEffect(effect));
     }

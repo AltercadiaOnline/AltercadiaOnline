@@ -111,6 +111,9 @@ export function buildFinishPayloadFromBattleEnded(
     ...(ended.surrenderVoltPenalty !== undefined && ended.surrenderVoltPenalty > 0
       ? { surrenderVoltPenalty: ended.surrenderVoltPenalty }
       : {}),
+    ...(ended.deathPenaltyOutcome !== undefined
+      ? { deathPenaltyOutcome: ended.deathPenaltyOutcome }
+      : {}),
   };
 }
 
@@ -126,6 +129,8 @@ export function mergeFinishPresentationPayload(
 
   const mergedRanking = pickRankingResult(combat.rankingResult, ended.rankingResult);
   const { progressionGrant, ...combatBase } = combat;
+  const deathPenaltyOutcome =
+    ended.deathPenaltyOutcome ?? combat.deathPenaltyOutcome;
 
   return {
     ...combatBase,
@@ -143,6 +148,9 @@ export function mergeFinishPresentationPayload(
     ...(ended.endReason !== undefined ? { endReason: ended.endReason } : {}),
     ...(ended.surrenderVoltPenalty !== undefined && ended.surrenderVoltPenalty > 0
       ? { surrenderVoltPenalty: ended.surrenderVoltPenalty }
+      : {}),
+    ...(deathPenaltyOutcome !== undefined
+      ? { deathPenaltyOutcome }
       : {}),
   };
 }

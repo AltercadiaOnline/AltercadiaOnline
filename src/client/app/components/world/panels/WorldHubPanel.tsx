@@ -13,7 +13,7 @@ export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) 
   return (
     <section
       id="world-hub-panel"
-      className={`ui-panel ui-panel--hub ui-panel--hub-bar ui-panel--open ui-skin-hybrid pointer-events-auto${
+      className={`ui-panel ui-panel--hub ui-panel--hub-bar ui-panel--open ui-skin-hybrid ui-skin-hybrid--holo-boost pointer-events-auto${
         focused ? ' ui-skin-hybrid--focused' : ''
       }`}
       style={{ zIndex }}
@@ -26,7 +26,10 @@ export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) 
       <div className="ui-panel__body hub-shell hub-shell--bar-only">
         <footer className="ui-hub-bar" data-hub-main-view aria-label="Hub Central">
           <div className="ui-hub-bar__toolbar">
-            <span className="ui-hub-bar__title">HUB SOCIAL</span>
+            <div className="ui-hub-bar__heading">
+              <span className="ui-hub-bar__tag">LINK // SOCIAL</span>
+              <span className="ui-hub-bar__title">HUB SOCIAL</span>
+            </div>
             <button
               type="button"
               className="ui-hub-bar__close"

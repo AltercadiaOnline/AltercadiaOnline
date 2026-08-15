@@ -12,7 +12,6 @@ import {
   beginPendingPveCombatJoin,
   abortCombatJoinOnError,
 } from '../../../game/GameStateProvider.js';
-import { alertSystem } from '../../../ui/alertSystem.js';
 
 function usePveEncounterSnapshot(): PveEncounterSnapshot {
   const store = getPveEncounterStore();
@@ -80,12 +79,13 @@ export function WorldPveEncounterHud(): ReactElement | null {
     if (!beginPendingPveCombatJoin(offer.monsterInstanceId)) {
       getPveEncounterStore().setBusy(false);
       console.warn('[PVE] Aceite bloqueado — provider/encontro indisponível.', offer.monsterInstanceId);
-      alertSystem('Não foi possível iniciar o combate — tente aproximar-se e aceitar de novo.');
+      getPveEncounterStore().showTransientToast(
+        'Não foi possível iniciar o combate — aproxime-se e tente de novo.',
+      );
       return;
     }
     if (!sendPveEncounterAccept(offer.monsterInstanceId)) {
       getPveEncounterStore().setBusy(false);
-      alertSystem('Falha ao enviar aceite de combate.');
       void abortCombatJoinOnError('INVALID_MESSAGE');
     }
   };

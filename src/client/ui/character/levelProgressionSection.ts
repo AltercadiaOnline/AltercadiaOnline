@@ -22,13 +22,13 @@ import type { PlayerVitals } from '../equipment/playerEquipmentStore.js';
 import { resolveLoadoutPpBudget } from '../../../shared/combat/loadoutPpBudget.js';
 import { getGlobalPlayerStore } from '../moveset/globalPlayerStore.js';
 import {
-  VELOCIDADE_STAT_DESCRIPTION,
-  VELOCIDADE_STAT_LABEL,
+  AGILIDADE_STAT_DESCRIPTION,
+  AGILIDADE_STAT_LABEL,
 } from '../../../shared/stats/statDisplayLabels.js';
 
 /**
  * Progressão de Nível na ficha — nível/XP, vitais (HP, PP) e deslocamento no mapa.
- * O stat Velocidade do SET alimenta mapa e iniciativa; aqui exibimos só px/s no mundo.
+ * O stat Agilidade do SET alimenta mapa e iniciativa; aqui exibimos só px/s no mundo.
  */
 
 export type LevelProgressionSectionModel = {
@@ -75,9 +75,9 @@ function renderVitalRows(model: LevelProgressionSectionModel): string {
     { id: 'pp', label: 'PP', value: resolveLoadoutPpDisplayText(), aria: 'Pontos de poder (soma do loadout de 4 moves)' },
     {
       id: 'move-speed',
-      label: VELOCIDADE_STAT_LABEL,
+      label: AGILIDADE_STAT_LABEL,
       value: moveSpeedText,
-      aria: `${VELOCIDADE_STAT_DESCRIPTION} Valor exibido: deslocamento no mapa (px/s).`,
+      aria: `${AGILIDADE_STAT_DESCRIPTION} Valor exibido: deslocamento no mapa (px/s).`,
     },
   ] as const;
 
@@ -156,7 +156,7 @@ export function patchLevelProgressionSection(
   if (moveValue) moveValue.textContent = moveSpeedText;
 }
 
-/** Bônus % de mapa a partir da Velocidade do SET (`statsBonus.agilidade`, espelho local). */
+/** Bônus % de mapa a partir da Agilidade do SET (`statsBonus.agilidade`, espelho local). */
 export function resolveExplorationSpeedBonusFromAgility(agilidade: number): number {
   return computeSpeedBonusTotal(agilidade, 0);
 }

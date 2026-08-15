@@ -11,7 +11,9 @@ export function isChargedEquipmentItemId(itemId: string): boolean {
 
 /** Runas e livros — pilhas com campo `charges` no inventário. */
 export function isChargedInventoryStackItemId(itemId: string): boolean {
-  return isChargedEquipmentItemId(itemId);
+  if (isChargedEquipmentItemId(itemId)) return true;
+  const mechanical = getItemMechanicalById(itemId);
+  return mechanical?.charges !== undefined && mechanical.charges > 0;
 }
 
 export function resolveItemMaxCharges(itemId: string): number {

@@ -137,7 +137,7 @@ export function formatCombatBreakdownLine(line: CombatBreakdownLine): string {
 
 
 
-/** Texto compacto — Moveset: 12 | Equip Força: +5% (+2) | Equip Velocidade: +3% */
+/** Texto compacto — Moveset: 12 | Equip Força: +5% (+2) | Equip Agilidade: +3% */
 
 export function formatCombatActionBreakdown(breakdown: CombatActionBreakdown): string {
 

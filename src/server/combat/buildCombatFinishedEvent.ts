@@ -1,7 +1,7 @@
 import type { CombatFinishedPayload } from '../../shared/combat/combatFinished.js';
 import type { BattleEndReason } from '../../shared/combat/battleEnded.js';
 import { BattleType } from '../../shared/combat/battleType.js';
-import { resolveDefeatedCreatureLevel } from '../../shared/combat/battleXpRewards.js';
+import { resolveSessionPveDefeatedLevel } from '../../shared/combat/battleXpRewards.js';
 import {
   resolveBattleProgressionGrant,
   type BattleProgressionGrantInput,
@@ -33,7 +33,7 @@ export function buildCombatFinishedEvent(
 ): CombatFinishedEvent {
   const victory = didPlayerWinBattle(state, playerActorId);
   const creatureId = resolveBattleCreatureId(state.combatants, playerActorId);
-  const defeatedLevel = creatureId ? resolveDefeatedCreatureLevel(creatureId) : 1;
+  const defeatedLevel = resolveSessionPveDefeatedLevel(state, creatureId);
   const battleType = state.battleType ?? BattleType.PVE;
 
   const progressionGrant = resolveBattleProgressionGrant(

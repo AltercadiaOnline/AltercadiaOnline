@@ -10,7 +10,7 @@ import type { BattleEndReason } from '../../../shared/combat/battleEnded.js';
 import {
   resolveBattleCreatureId,
 } from '../../../shared/items/combatCreatureRegistry.js';
-import { resolveDefeatedCreatureLevel } from '../../../shared/combat/battleXpRewards.js';
+import { resolveSessionPveDefeatedLevel } from '../../../shared/combat/battleXpRewards.js';
 import { createDefaultPlayerProgressionData } from '../../../shared/progression/playerProgressionData.js';
 import type { PlayerCombatLoadout } from '../../../shared/character/equipmentState.js';
 import { equippedToEquipmentUiGrid } from '../../../shared/character/equipmentUiSlots.js';
@@ -270,7 +270,7 @@ async function deliverEnded(
           sourceId: creatureId,
           winnerId: playerActorId,
           characterId,
-          defeatedLevel: resolveDefeatedCreatureLevel(creatureId),
+          defeatedLevel: resolveSessionPveDefeatedLevel(enriched.state, creatureId),
         });
         if (!staged) return;
         send('BATTLE_LOOT_PACKAGE', {
@@ -451,4 +451,14 @@ export function resetLocalCombatAuthority(): void {
   activeMonsterInstanceId = null;
   delivering = false;
   turnWindows.clear();
+}
+
+/**
+ * Espelho de combat-join-abort online — libera sessão local sem FORFEIT/penalidade.
+ */
+export function localCombatAbortJoin(): void {
+  clearLocalTurnTimer();
+  turnWindows.clear();
+  session = null;
+  activeMonsterInstanceId = null;
 }

@@ -30,17 +30,24 @@ type InteractionCardButton = {
 };
 
 /**
- * Card de ações por clique duplo — substitui context menu em entidades do mundo.
+ * Card de ações por clique duplo — NPC (âncora no alvo) ou jogador (HUD móvel).
  */
 export class InteractionCard {
   private readonly root: HTMLDivElement;
+  private readonly headerEl: HTMLElement;
   private readonly titleEl: HTMLSpanElement;
   private readonly typeEl: HTMLSpanElement;
   private readonly actionsEl: HTMLDivElement;
   private readonly options: InteractionCardOptions;
   private target: InteractionCardTarget | null = null;
   private visible = false;
+  private freePositioned = false;
+  private dragging = false;
+  private dragOffsetX = 0;
+  private dragOffsetY = 0;
   private readonly onDocumentMouseDown: (event: MouseEvent) => void;
+  private readonly onDragMove: (event: MouseEvent) => void;
+  private readonly onDragEnd: () => void;
 
   constructor(options: InteractionCardOptions) {
     this.options = options;
@@ -51,8 +58,8 @@ export class InteractionCard {
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-live', 'polite');
 
-    const header = document.createElement('header');
-    header.className = 'interaction-card__header';
+    this.headerEl = document.createElement('header');
+    this.headerEl.className = 'interaction-card__header';
 
     this.titleEl = document.createElement('span');
     this.titleEl.className = 'interaction-card__title';
@@ -66,12 +73,12 @@ export class InteractionCard {
     closeButton.setAttribute('aria-label', 'Fechar');
     closeButton.textContent = '×';
 
-    header.append(this.titleEl, this.typeEl, closeButton);
+    this.headerEl.append(this.titleEl, this.typeEl, closeButton);
 
     this.actionsEl = document.createElement('div');
     this.actionsEl.className = 'interaction-card__actions';
 
-    this.root.append(header, this.actionsEl);
+    this.root.append(this.headerEl, this.actionsEl);
     options.host.append(this.root);
 
     closeButton.addEventListener('click', (event) => {
@@ -99,8 +106,31 @@ export class InteractionCard {
       event.stopPropagation();
     });
 
+    this.headerEl.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || !this.target || this.target.targetType !== TargetType.PLAYER) return;
+      if ((event.target as HTMLElement).closest('.interaction-card__close')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.beginDrag(event.clientX, event.clientY);
+    });
+
+    this.onDragMove = (event: MouseEvent): void => {
+      if (!this.dragging) return;
+      this.placeFree(event.clientX - this.dragOffsetX, event.clientY - this.dragOffsetY);
+    };
+
+    this.onDragEnd = (): void => {
+      if (!this.dragging) return;
+      this.dragging = false;
+      this.root.classList.remove('interaction-card--dragging');
+      window.removeEventListener('mousemove', this.onDragMove);
+      window.removeEventListener('mouseup', this.onDragEnd);
+    };
+
     this.onDocumentMouseDown = (event: MouseEvent): void => {
-      if (!this.visible) return;
+      if (!this.visible || this.dragging) return;
+      // Card de player permanece aberto (móvel) até o alvo sair da tela / fechar.
+      if (this.target?.targetType === TargetType.PLAYER) return;
       if (event.target instanceof Node && this.root.contains(event.target)) return;
       this.hide();
       options.onDismiss();
@@ -110,8 +140,11 @@ export class InteractionCard {
 
   open(target: InteractionCardTarget): void {
     this.target = target;
+    this.freePositioned = false;
     this.titleEl.textContent = target.displayName;
     this.typeEl.textContent = target.targetType === TargetType.NPC ? 'NPC' : 'Jogador';
+    this.root.classList.toggle('interaction-card--player', target.targetType === TargetType.PLAYER);
+    this.root.classList.remove('interaction-card--free', 'interaction-card--dragging');
     this.renderActions(target);
     positionElementAtBufferPoint(
       this.root,
@@ -123,8 +156,11 @@ export class InteractionCard {
   }
 
   hide(): void {
+    this.onDragEnd();
     this.root.classList.add('hidden');
+    this.root.classList.remove('interaction-card--player', 'interaction-card--free', 'interaction-card--dragging');
     this.visible = false;
+    this.freePositioned = false;
     this.target = null;
   }
 
@@ -132,9 +168,33 @@ export class InteractionCard {
     return this.visible;
   }
 
+  getTarget(): InteractionCardTarget | null {
+    return this.target;
+  }
+
   dispose(): void {
+    this.onDragEnd();
     document.removeEventListener('mousedown', this.onDocumentMouseDown);
     this.root.remove();
+  }
+
+  private beginDrag(clientX: number, clientY: number): void {
+    const rect = this.root.getBoundingClientRect();
+    this.dragOffsetX = clientX - rect.left;
+    this.dragOffsetY = clientY - rect.top;
+    this.dragging = true;
+    this.root.classList.add('interaction-card--dragging', 'interaction-card--free');
+    this.freePositioned = true;
+    this.placeFree(rect.left, rect.top);
+    window.addEventListener('mousemove', this.onDragMove);
+    window.addEventListener('mouseup', this.onDragEnd);
+  }
+
+  private placeFree(leftPx: number, topPx: number): void {
+    const maxLeft = Math.max(0, window.innerWidth - this.root.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - this.root.offsetHeight);
+    this.root.style.left = `${Math.max(0, Math.min(leftPx, maxLeft))}px`;
+    this.root.style.top = `${Math.max(0, Math.min(topPx, maxTop))}px`;
   }
 
   private renderActions(target: InteractionCardTarget): void {
@@ -166,8 +226,8 @@ export class InteractionCard {
 
   private buildPlayerButtons(): InteractionCardButton[] {
     return [
-      { action: 'duel', label: 'Duelo' },
       { action: 'trade', label: 'Trade' },
+      { action: 'duel', label: 'PvP' },
       { action: 'follow', label: 'Seguir' },
     ];
   }

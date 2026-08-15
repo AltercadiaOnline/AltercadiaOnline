@@ -1,9 +1,3 @@
-/* altercadia-viewport-lock */
-html, body { width: 640px; height: 360px; overflow: hidden; margin: 0; padding: 0; background: #050a0d; }
-canvas, #c3canvas { left: 0 !important; top: 0 !important; width: 640px !important; height: 360px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; transform: none !important; background: transparent !important; }
-.c3htmlwrap { left: 0 !important; top: 0 !important; width: 640px !important; height: 360px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; transform: none !important; background: transparent !important; pointer-events: none !important; }
-img[src*="loading-logo"] { display: none !important; }
-
 html, body {
 	padding: 0;
 	margin: 0;

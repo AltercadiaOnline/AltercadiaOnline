@@ -223,6 +223,10 @@ export class Player {
     this.locomotion.stop();
   }
 
+  haltManualImpulse(): void {
+    this.locomotion.haltManualImpulse();
+  }
+
   /** Freeze online: aborta qualquer soft-lerp residual. */
   cancelSoftCorrection(): void {
     this.locomotion.cancelSoftCorrection();
@@ -300,6 +304,7 @@ export class Player {
       this.facing = update.facing;
     }
 
+    const holdOrFreeze = authority.isContinuousHoldActive() || authority.isVisualFrozen();
     const reconcile = reconcileAuthoritativePosition({
       local: { x: this.x, y: this.y },
       remote: { x: update.x, y: update.y },
@@ -309,12 +314,11 @@ export class Player {
       isPredicting: authority.isVisuallyPredicting(),
     });
 
-    if (!reconcile.apply) {
+    if (holdOrFreeze) {
       return;
     }
 
-    // Online freeze: sync NUNCA soft-puxa o sprite — só hard snap / teleporte.
-    if (!reconcile.force) {
+    if (!reconcile.apply) {
       return;
     }
 
@@ -322,22 +326,14 @@ export class Player {
       reconcile.position.x,
       reconcile.position.y,
       update.facing,
-      { force: true, soft: false },
+      { force: reconcile.force, soft: reconcile.soft },
     );
 
-    // Realinha cursor de MOVE + predição — sem isso o hold morre após o snap.
-    if (isAuthoritativeWorldSocket(this.worldSocket)) {
+    if (reconcile.force && isAuthoritativeWorldSocket(this.worldSocket)) {
       this.worldSocket.seedPredictedPosition({
         x: reconcile.position.x,
         y: reconcile.position.y,
       });
-    }
-    if (authority.isContinuousHoldActive()) {
-      authority.recordPredictedStep(
-        reconcile.position.x,
-        reconcile.position.y,
-        update.facing ?? this.facing,
-      );
     }
   }
 

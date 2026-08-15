@@ -8,6 +8,7 @@ import {
   resolvePostBattleRankingText,
   resolvePostBattleSubtitleText,
   resolvePostBattleTitleText,
+  shouldShowPostBattleDeathPenalty,
   shouldShowPostBattleRewardsSlot,
 } from '../../../../shared/postBattle/postBattleHubPresentation.js';
 import { getPostBattleHudBridge } from '../../bridge/postBattleHudBridge.js';
@@ -35,6 +36,9 @@ function toSummary(snapshot: PostBattleHudSnapshot): PostBattleHubSummary | null
     xpGain: payload.xpGain,
     ...(payload.endReason !== undefined ? { endReason: payload.endReason } : {}),
     ...(payload.rankingResult !== undefined ? { rankingResult: payload.rankingResult } : {}),
+    ...(payload.deathPenaltyOutcome !== undefined
+      ? { deathPenaltyOutcome: payload.deathPenaltyOutcome }
+      : {}),
   });
 }
 
@@ -108,6 +112,16 @@ export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
       <div className="post-battle-hub__panel">
         <h2 className="post-battle-hub__title">{resolvePostBattleTitleText(summary)}</h2>
         <p className="post-battle-hub__subtitle">{resolvePostBattleSubtitleText(summary)}</p>
+
+        {shouldShowPostBattleDeathPenalty(summary) ? (
+          <ul className="post-battle-hub__penalty" aria-label="Perdas da derrota">
+            {(summary.deathPenaltyLines ?? []).map((line) => (
+              <li key={line} className="post-battle-hub__penalty-line">
+                {line}
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
         <div className="post-battle-hub__actions">
           <button

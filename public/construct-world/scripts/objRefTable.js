@@ -32,8 +32,6 @@ self.C3_JsPropNameTable = [
 	{casa1: 0},
 	{casa2: 0},
 	{casa3: 0},
-	{poste: 0},
-	{poste2: 0},
 	{arvore: 0},
 	{arbustro: 0},
 	{telao_pvp: 0},
@@ -49,8 +47,12 @@ self.C3_JsPropNameTable = [
 	{teletransporte_asset: 0},
 	{city_portal_north: 0},
 	{farm_portal_south: 0},
-	{a: 0},
-	{npc_mercenario: 0}
+	{teletransporte: 0},
+	{npc_mercenario: 0},
+	{poste3: 0},
+	{Placa_transito: 0},
+	{hidrante: 0},
+	{lixeira: 0}
 ];
 
 self.InstanceType = {
@@ -78,8 +80,6 @@ self.InstanceType = {
 	casa1: class extends self.ISpriteInstance {},
 	casa2: class extends self.ISpriteInstance {},
 	casa3: class extends self.ISpriteInstance {},
-	poste: class extends self.ISpriteInstance {},
-	poste2: class extends self.ISpriteInstance {},
 	arvore: class extends self.ISpriteInstance {},
 	arbustro: class extends self.ISpriteInstance {},
 	telao_pvp: class extends self.ISpriteInstance {},
@@ -93,6 +93,10 @@ self.InstanceType = {
 	spawn_cachorro: class extends self.ISpriteInstance {},
 	spawn_aranha: class extends self.ISpriteInstance {},
 	teletransporte_asset: class extends self.ISpriteInstance {},
-	a: class extends self.ISpriteInstance {},
-	npc_mercenario: class extends self.ISpriteInstance {}
+	teletransporte: class extends self.ISpriteInstance {},
+	npc_mercenario: class extends self.ISpriteInstance {},
+	poste3: class extends self.ISpriteInstance {},
+	Placa_transito: class extends self.ISpriteInstance {},
+	hidrante: class extends self.ISpriteInstance {},
+	lixeira: class extends self.ISpriteInstance {}
 }

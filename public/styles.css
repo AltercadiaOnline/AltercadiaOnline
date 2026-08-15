@@ -498,6 +498,9 @@ body[data-react-game-hud-ui='1'] #scene-transition {
   z-index: 1;
   background: #050a0d;
   pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .world-mount-root--input-blocked {
@@ -1517,35 +1520,136 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   height: 100vh;
 }
 
+.pause-menu {
+  isolation: isolate;
+}
+
+.pause-menu__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(58, 208, 214, 0.08) 0%, transparent 52%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 3px,
+      rgba(58, 208, 214, 0.03) 3px 4px
+    ),
+    rgba(3, 8, 12, 0.88);
+}
+
 .pause-menu-panel {
-  min-width: min(320px, 90vw);
-  padding: 2rem 1.5rem;
+  position: relative;
+  z-index: 1;
+  min-width: min(340px, 90vw);
+  max-width: min(380px, 94vw);
+  padding: 1.35rem 1.4rem 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.55rem;
   text-align: center;
-  border: 2px solid #5e4a30;
-  background: rgba(10, 8, 6, 0.95);
+  border: 1px solid rgba(58, 208, 214, 0.42);
+  background: rgba(10, 14, 16, 0.96);
 }
 
+.pause-menu__tag {
+  display: block;
+  margin: 0;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(58, 208, 214, 0.78);
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.35);
+}
+
+.pause-menu__title,
 .pause-menu-panel h2 {
-  letter-spacing: 0.2em;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.2rem;
+  margin: 0;
+  letter-spacing: 0.28em;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ui-text-holo, #9ee8ec);
+  text-shadow:
+    0 0 10px rgba(58, 208, 214, 0.55),
+    0 0 28px rgba(58, 208, 214, 0.28),
+    0 1px 0 rgba(0, 0, 0, 0.8);
 }
 
+.pause-menu__hint {
+  margin: 0 0 0.35rem;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: rgba(160, 200, 210, 0.72);
+  text-shadow: 0 0 6px rgba(58, 208, 214, 0.18);
+}
+
+.pause-menu__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.pause-menu__btn,
 #pause-menu button {
-  padding: 0.75rem 1rem;
-  border: 2px solid #5e4a30;
-  background: rgba(20, 15, 10, 0.95);
-  color: #d4b483;
-  font-family: inherit;
-  font-size: 0.95rem;
+  padding: 0.72rem 1rem;
+  border: 1px solid rgba(58, 208, 214, 0.4);
+  background:
+    linear-gradient(180deg, rgba(58, 208, 214, 0.16) 0%, rgba(18, 26, 28, 0.94) 42%, #101416 100%);
+  color: var(--ui-text-holo, #9ee8ec);
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(120, 230, 240, 0.2),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
+    0 0 12px rgba(58, 208, 214, 0.14);
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.3);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
+.pause-menu__btn:hover,
 #pause-menu button:hover {
-  filter: brightness(1.08);
+  border-color: rgba(58, 208, 214, 0.8);
+  color: #e8fcfd;
+  background:
+    linear-gradient(180deg, rgba(58, 208, 214, 0.3) 0%, rgba(22, 34, 36, 0.96) 45%, #0e1214 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(160, 240, 245, 0.3),
+    0 0 20px rgba(58, 208, 214, 0.42);
+  filter: none;
+}
+
+.pause-menu__btn--danger {
+  border-color: rgba(255, 110, 100, 0.45);
+  color: #ffc4bc;
+  background:
+    linear-gradient(180deg, rgba(255, 90, 80, 0.16) 0%, rgba(28, 14, 14, 0.94) 42%, #140c0c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 160, 150, 0.18),
+    inset 0 0 0 1px rgba(255, 100, 90, 0.1),
+    0 0 12px rgba(255, 80, 70, 0.12);
+  text-shadow: 0 0 8px rgba(255, 100, 90, 0.28);
+}
+
+.pause-menu__btn--danger:hover {
+  border-color: rgba(255, 130, 120, 0.8);
+  color: #ffe0dc;
+  background:
+    linear-gradient(180deg, rgba(255, 100, 90, 0.28) 0%, rgba(36, 16, 16, 0.96) 45%, #120a0a 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 180, 170, 0.28),
+    0 0 20px rgba(255, 90, 80, 0.35);
 }
 
 .scene {
@@ -2431,6 +2535,21 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   image-rendering: crisp-edges;
 }
 
+/* Viewport do jogo — sem seleção nativa do browser (double-click azul). */
+#game-render-column,
+#game-viewport,
+#game-stage-frame,
+#game-stage-scale,
+#game-stage,
+.game-stage-frame,
+.game-stage-scale,
+.game-render-host,
+.construct-world-viewport {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* Core de layout: container lógico 640×360 — escala via JS (updateScale). */
 #game-stage-scale,
 .game-stage-scale {
@@ -2740,10 +2859,26 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
   text-rendering: optimizeSpeed;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .interaction-card.hidden {
   display: none;
+}
+
+.interaction-card--player {
+  max-width: 128px;
+  border-color: rgba(232, 180, 80, 0.9);
+}
+
+.interaction-card--player.interaction-card--free {
+  transform: none;
+}
+
+.interaction-card--dragging {
+  cursor: grabbing;
+  opacity: 0.96;
 }
 
 .interaction-card__header {
@@ -2751,6 +2886,14 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 0.35rem;
+}
+
+.interaction-card--player .interaction-card__header {
+  cursor: grab;
+}
+
+.interaction-card--dragging .interaction-card__header {
+  cursor: grabbing;
 }
 
 .interaction-card__title {
@@ -2915,6 +3058,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 .world-hud-frame {
   /* Vars do hub — antes só existiam em `.ui-layer` (legado); React vive aqui. */
   --ui-hub-anchor-top: 12px;
+  --ui-hub-anchor-right: 28px;
   --ui-hub-cluster-height: 62px;
   --ui-hub-gap-below-launcher: 10px;
   position: absolute;
@@ -2931,6 +3075,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 /* Painéis móveis no App (fora do frame 640×360) — mesmas âncoras do Hub. */
 [data-ui-surface='world-panels'] {
   --ui-hub-anchor-top: 12px;
+  --ui-hub-anchor-right: 28px;
   --ui-hub-cluster-height: 62px;
   --ui-hub-gap-below-launcher: 10px;
   overflow: visible;
@@ -3355,6 +3500,85 @@ body[data-react-game-hud-ui='1'] #game-container {
   gap: 3px;
 }
 
+.sidebar-build {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-build__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  width: 100%;
+}
+
+.sidebar-build__slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 3px 2px;
+  border: 1px solid var(--ui-metal-edge);
+  background: linear-gradient(180deg, #1a1c1e 0%, #0c0d0f 100%);
+  color: var(--ui-text-holo);
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-build__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(58, 208, 214, 0.28) 0%,
+    rgba(58, 208, 214, 0.08) 100%
+  );
+  box-shadow: 0 0 10px rgba(58, 208, 214, 0.2);
+  transition: height 180ms ease;
+}
+
+.sidebar-build__label,
+.sidebar-build__value {
+  position: relative;
+  z-index: 1;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  line-height: 1;
+  text-shadow: 0 0 6px rgba(58, 208, 214, 0.25);
+}
+
+.sidebar-build__label {
+  font-size: 0.48rem;
+  letter-spacing: 0.06em;
+  color: rgba(158, 232, 236, 0.78);
+}
+
+.sidebar-build__value {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ui-text-holo);
+}
+
+.sidebar-build__slot--zero {
+  opacity: 0.45;
+}
+
+.sidebar-build--empty .sidebar-build__value {
+  color: rgba(160, 180, 188, 0.7);
+}
+
 .sidebar-hotbar__grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -3528,23 +3752,22 @@ body[data-react-game-hud-ui='1'] #game-container {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: min(168px, 100%);
+  width: min(196px, 100%);
   max-width: 100%;
   aspect-ratio: 1 / 1;
   height: auto;
   min-height: 0;
   padding: 4px;
-  border: 1px solid var(--ui-metal-edge);
+  border: 1px solid rgba(58, 208, 214, 0.35);
   background:
     linear-gradient(165deg, #0a1412 0%, #040808 55%, #0c1210 100%);
   box-shadow:
     inset 0 0 0 1px rgba(58, 208, 214, 0.18),
     inset 0 2px 10px rgba(0, 0, 0, 0.55),
-    0 0 12px rgba(58, 208, 214, 0.08);
+    0 0 12px rgba(58, 208, 214, 0.1);
   box-sizing: border-box;
   align-self: center;
   overflow: hidden;
-  /* Máscara retangular com cantos chanfrados (chop-corners). */
   clip-path: polygon(
     10px 0,
     calc(100% - 10px) 0,
@@ -3555,10 +3778,6 @@ body[data-react-game-hud-ui='1'] #game-container {
     0 calc(100% - 10px),
     0 10px
   );
-}
-
-.sidebar-minimap--crt {
-  isolation: isolate;
 }
 
 .sidebar-minimap__canvas {
@@ -3572,32 +3791,7 @@ body[data-react-game-hud-ui='1'] #game-container {
   object-fit: contain;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  border-radius: 50%;
-  clip-path: circle(46% at 50% 50%);
-}
-
-.sidebar-minimap__crt-scan {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0 2px,
-    rgba(0, 0, 0, 0.22) 2px 3px
-  );
-  opacity: 0.55;
-  mix-blend-mode: multiply;
-}
-
-.sidebar-minimap__crt-vignette {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  background:
-    radial-gradient(circle at 50% 50%, transparent 42%, rgba(0, 0, 0, 0.55) 78%),
-    linear-gradient(180deg, rgba(58, 208, 214, 0.06) 0%, transparent 30%, transparent 70%, rgba(0, 0, 0, 0.25) 100%);
+  background: #050a0d;
 }
 
 .equipment-sidebar__mount {
@@ -4922,6 +5116,24 @@ body > .loot-casino-screen.loot-casino-screen--force-viewport,
   font-size: 0.9rem;
   text-align: center;
   line-height: 1.45;
+}
+
+.post-battle-hub__penalty {
+  list-style: none;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(220, 90, 90, 0.35);
+  background: rgba(80, 20, 20, 0.35);
+  text-align: left;
+}
+
+.post-battle-hub__penalty-line {
+  margin: 0.2rem 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: rgba(255, 210, 210, 0.92);
 }
 
 .post-battle-hub__actions {
@@ -6741,6 +6953,7 @@ body > .battle-result-overlay,
 /* â”€â”€ Camada de UI desacoplada do canvas â”€â”€ */
 .ui-layer {
   --ui-hub-anchor-top: 21px;
+  --ui-hub-anchor-right: 36px;
   --ui-hub-cluster-height: 5.7rem;
   --ui-hub-gap-below-launcher: 12px;
   position: absolute;
@@ -6756,8 +6969,8 @@ body > .battle-result-overlay,
 
 .ui-hub-social-cluster {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: var(--ui-hub-anchor-top, 12px);
+  right: var(--ui-hub-anchor-right, 28px);
   z-index: 40;
   display: flex !important;
   flex-direction: row;
@@ -8517,13 +8730,13 @@ body > .battle-result-overlay,
   top: calc(
     var(--ui-hub-anchor-top) + var(--ui-hub-cluster-height) + var(--ui-hub-gap-below-launcher)
   );
-  right: var(--ui-hub-anchor-top);
+  right: var(--ui-hub-anchor-right, var(--ui-hub-anchor-top));
   left: auto;
   bottom: auto;
   transform: none;
   z-index: 30;
-  width: min(360px, calc(100% - (var(--ui-hub-anchor-top) * 2)));
-  max-width: min(360px, calc(100% - (var(--ui-hub-anchor-top) * 2)));
+  width: min(360px, calc(100% - (var(--ui-hub-anchor-right, var(--ui-hub-anchor-top)) * 2)));
+  max-width: min(360px, calc(100% - (var(--ui-hub-anchor-right, var(--ui-hub-anchor-top)) * 2)));
   min-width: 0 !important;
   min-height: 0;
   max-height: min(
@@ -8571,21 +8784,43 @@ body > .battle-result-overlay,
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid rgba(58, 63, 68, 0.95);
-  background: linear-gradient(180deg, rgba(48, 52, 56, 0.35) 0%, transparent 100%);
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(58, 208, 214, 0.28);
+  background:
+    linear-gradient(180deg, rgba(58, 208, 214, 0.1) 0%, rgba(48, 52, 56, 0.2) 55%, transparent 100%);
   margin: -0.12rem -0.18rem 0;
   padding-left: 0.18rem;
   padding-right: 0.18rem;
   padding-top: 0.08rem;
+  box-shadow: inset 0 -1px 0 rgba(58, 208, 214, 0.08);
+}
+
+.ui-hub-bar__heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.ui-hub-bar__tag {
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(58, 208, 214, 0.78);
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.35);
 }
 
 .ui-hub-bar__title {
-  font-size: 0.74rem;
-  letter-spacing: 0.14em;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ui-text);
-  text-shadow: 0 0 10px rgba(58, 208, 214, 0.18);
+  color: var(--ui-text-holo, #9ee8ec);
+  text-shadow:
+    0 0 10px rgba(58, 208, 214, 0.45),
+    0 0 20px rgba(58, 208, 214, 0.2);
 }
 
 .ui-hub-bar__grid {
@@ -8607,25 +8842,28 @@ body > .battle-result-overlay,
   min-width: 0;
   min-height: 2.82rem;
   padding: 0.38rem 0.26rem;
-  border: 1px solid var(--ui-metal-edge);
+  border: 1px solid rgba(58, 208, 214, 0.28);
   border-radius: 2px;
   background:
     linear-gradient(
-      165deg,
-      rgba(36, 40, 44, 0.95) 0%,
-      rgba(14, 16, 18, 0.98) 100%
+      180deg,
+      rgba(58, 208, 214, 0.12) 0%,
+      rgba(18, 24, 28, 0.96) 42%,
+      #101416 100%
     );
-  color: var(--ui-text);
-  font-family: inherit;
-  font-size: 0.74rem;
-  letter-spacing: 0.04em;
+  color: var(--ui-text-holo, #9ee8ec);
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
   text-align: center;
   white-space: normal;
   line-height: 1.15;
   cursor: pointer;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 0 1px rgba(58, 208, 214, 0.06);
+    inset 0 1px 0 rgba(120, 230, 240, 0.14),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    0 0 8px rgba(58, 208, 214, 0.08);
+  text-shadow: 0 0 6px rgba(58, 208, 214, 0.2);
   transition:
     border-color 120ms ease,
     color 120ms ease,
@@ -8640,45 +8878,53 @@ body > .battle-result-overlay,
 .ui-hub-bar__btn-key {
   margin-left: 0;
   margin-top: 0.1rem;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--ui-text-muted);
-  opacity: 0.9;
+  letter-spacing: 0.1em;
+  color: rgba(158, 232, 236, 0.62);
+  opacity: 0.95;
 }
 
 .ui-hub-bar__btn:hover {
-  border-color: rgba(58, 208, 214, 0.65);
-  color: var(--ui-text-holo);
+  border-color: rgba(58, 208, 214, 0.82);
+  color: #e8fcfd;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(58, 208, 214, 0.28) 0%,
+      rgba(22, 34, 36, 0.96) 45%,
+      #0e1214 100%
+    );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(58, 208, 214, 0.14),
-    0 0 12px rgba(58, 208, 214, 0.22);
+    inset 0 1px 0 rgba(160, 240, 245, 0.28),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.18),
+    0 0 16px rgba(58, 208, 214, 0.38);
 }
 
 .ui-hub-bar__btn:hover .ui-hub-bar__btn-key {
   color: var(--ui-holo);
+  text-shadow: 0 0 8px rgba(58, 208, 214, 0.45);
 }
 
 .ui-hub-bar__btn--accent {
-  border-color: rgba(58, 208, 214, 0.45);
-  color: var(--ui-text-holo);
+  border-color: rgba(58, 208, 214, 0.55);
+  color: #d7f6f8;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(58, 208, 214, 0.12),
-    0 0 10px rgba(58, 208, 214, 0.12);
+    inset 0 1px 0 rgba(160, 240, 245, 0.2),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.16),
+    0 0 12px rgba(58, 208, 214, 0.22);
 }
 
 .ui-hub-bar__btn--accent .ui-hub-bar__btn-key {
-  color: rgba(158, 232, 236, 0.72);
+  color: rgba(158, 232, 236, 0.78);
 }
 
 .ui-hub-bar__btn--accent:hover {
   border-color: var(--ui-holo);
-  color: #d7f6f8;
+  color: #e8fcfd;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 14px rgba(58, 208, 214, 0.32);
+    inset 0 1px 0 rgba(180, 245, 250, 0.3),
+    0 0 18px rgba(58, 208, 214, 0.42);
 }
 
 .ui-hub-bar__btn--accent:hover .ui-hub-bar__btn-key {
@@ -8690,33 +8936,36 @@ body > .battle-result-overlay,
   width: 1.85rem;
   height: 1.85rem;
   padding: 0;
-  border: 1px solid var(--ui-metal-edge);
+  border: 1px solid rgba(58, 208, 214, 0.35);
   border-radius: 2px;
   background:
     linear-gradient(
-      165deg,
-      rgba(36, 40, 44, 0.95) 0%,
-      rgba(14, 16, 18, 0.98) 100%
+      180deg,
+      rgba(58, 208, 214, 0.12) 0%,
+      rgba(18, 24, 28, 0.96) 100%
     );
-  color: var(--ui-text-muted);
+  color: rgba(158, 232, 236, 0.75);
   font-family: inherit;
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 208, 214, 0.1),
+    0 0 8px rgba(58, 208, 214, 0.1);
   transition: border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
 }
 
 .ui-hub-bar__close:hover {
-  border-color: rgba(58, 208, 214, 0.65);
-  color: var(--ui-text-holo);
-  box-shadow: 0 0 10px rgba(58, 208, 214, 0.22);
+  border-color: rgba(58, 208, 214, 0.8);
+  color: #e8fcfd;
+  box-shadow: 0 0 14px rgba(58, 208, 214, 0.35);
 }
 
 @media (max-width: 720px) {
   .ui-layer,
   .world-hud-frame {
     --ui-hub-anchor-top: 10px;
+    --ui-hub-anchor-right: 22px;
     --ui-hub-gap-below-launcher: 8px;
     --ui-hub-cluster-height: 58px;
   }
@@ -16928,6 +17177,208 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 .login-box.ui-skin-hybrid.ui-skin-hybrid--holo-boost .auth-link-btn:hover:not(:disabled) {
   color: #c8f6f8;
   text-shadow: 0 0 12px rgba(58, 208, 214, 0.55);
+}
+
+/* ── Holo reforçado: menu ESC / pausa ── */
+.pause-menu-panel.ui-skin-hybrid.ui-skin-hybrid--holo-boost {
+  border-color: rgba(58, 208, 214, 0.5) !important;
+  background:
+    radial-gradient(
+      circle at 10px 10px,
+      rgba(180, 230, 235, 0.4) 0 1px,
+      rgba(58, 208, 214, 0.55) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 10px) 10px,
+      rgba(180, 230, 235, 0.4) 0 1px,
+      rgba(58, 208, 214, 0.55) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at 10px calc(100% - 10px),
+      rgba(180, 230, 235, 0.28) 0 1px,
+      rgba(58, 208, 214, 0.4) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 10px) calc(100% - 10px),
+      rgba(180, 230, 235, 0.28) 0 1px,
+      rgba(58, 208, 214, 0.4) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.2) 0%, transparent 52%),
+    linear-gradient(
+      125deg,
+      rgba(58, 208, 214, 0.1) 0%,
+      transparent 34%,
+      transparent 66%,
+      rgba(0, 0, 0, 0.36) 100%
+    ),
+    linear-gradient(165deg, #152426 0%, #101618 46%, #080a0c 100%)
+    !important;
+  box-shadow:
+    inset 0 1px 0 rgba(120, 220, 230, 0.18),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.32),
+    inset 0 0 36px rgba(58, 208, 214, 0.08),
+    0 0 26px rgba(58, 208, 214, 0.34),
+    0 0 56px rgba(58, 208, 214, 0.14),
+    0 18px 44px rgba(0, 0, 0, 0.62) !important;
+}
+
+.pause-menu-panel.ui-skin-hybrid.ui-skin-hybrid--holo-boost::before {
+  background:
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px 8px / 18px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px 8px / 2px 18px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) 8px / 18px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) 8px / 2px 18px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 18px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 2px 18px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 18px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 2px 18px no-repeat,
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 6px,
+      rgba(58, 208, 214, 0.07) 6px 7px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 9px,
+      rgba(58, 208, 214, 0.035) 9px 10px
+    ),
+    radial-gradient(ellipse at 50% 6%, rgba(58, 208, 214, 0.16) 0%, transparent 46%);
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(58, 208, 214, 0.55));
+}
+
+.pause-menu-panel.ui-skin-hybrid.ui-skin-hybrid--holo-boost::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(58, 208, 214, 0.08) 46%,
+    rgba(140, 235, 245, 0.16) 50%,
+    rgba(58, 208, 214, 0.06) 54%,
+    transparent 100%
+  );
+  background-size: 100% 220%;
+  animation: ui-holo-scan-sweep 4.2s ease-in-out infinite;
+  opacity: 0.95;
+  mix-blend-mode: screen;
+}
+
+/* ── Holo reforçado: Hub Social ── */
+.ui-panel--hub.ui-skin-hybrid.ui-skin-hybrid--holo-boost {
+  border-color: rgba(58, 208, 214, 0.48) !important;
+  background:
+    radial-gradient(
+      circle at 10px 10px,
+      rgba(180, 230, 235, 0.38) 0 1px,
+      rgba(58, 208, 214, 0.5) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 10px) 10px,
+      rgba(180, 230, 235, 0.38) 0 1px,
+      rgba(58, 208, 214, 0.5) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at 10px calc(100% - 10px),
+      rgba(180, 230, 235, 0.28) 0 1px,
+      rgba(58, 208, 214, 0.4) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 10px) calc(100% - 10px),
+      rgba(180, 230, 235, 0.28) 0 1px,
+      rgba(58, 208, 214, 0.4) 1.5px 2.8px,
+      #1a1d20 3px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.18) 0%, transparent 50%),
+    linear-gradient(
+      125deg,
+      rgba(58, 208, 214, 0.1) 0%,
+      transparent 36%,
+      transparent 64%,
+      rgba(0, 0, 0, 0.34) 100%
+    ),
+    linear-gradient(165deg, #152426 0%, #101618 48%, #080a0c 100%)
+    !important;
+  box-shadow:
+    inset 0 1px 0 rgba(120, 220, 230, 0.16),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.3),
+    inset 0 0 32px rgba(58, 208, 214, 0.07),
+    0 0 22px rgba(58, 208, 214, 0.3),
+    0 0 48px rgba(58, 208, 214, 0.12),
+    0 16px 40px rgba(0, 0, 0, 0.55) !important;
+}
+
+.ui-panel--hub.ui-skin-hybrid.ui-skin-hybrid--holo-boost::before {
+  background:
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px 8px / 16px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px 8px / 2px 16px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) 8px / 16px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) 8px / 2px 16px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 16px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 2px 16px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 16px 2px no-repeat,
+    linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 2px 16px no-repeat,
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 6px,
+      rgba(58, 208, 214, 0.065) 6px 7px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 9px,
+      rgba(58, 208, 214, 0.03) 9px 10px
+    ),
+    radial-gradient(ellipse at 50% 6%, rgba(58, 208, 214, 0.14) 0%, transparent 46%);
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(58, 208, 214, 0.5));
+}
+
+.ui-panel--hub.ui-skin-hybrid.ui-skin-hybrid--holo-boost::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(58, 208, 214, 0.07) 46%,
+    rgba(140, 235, 245, 0.14) 50%,
+    rgba(58, 208, 214, 0.05) 54%,
+    transparent 100%
+  );
+  background-size: 100% 220%;
+  animation: ui-holo-scan-sweep 4.8s ease-in-out infinite;
+  opacity: 0.9;
+  mix-blend-mode: screen;
+}
+
+.ui-panel--hub.ui-skin-hybrid.ui-skin-hybrid--holo-boost.ui-skin-hybrid--focused {
+  border-color: rgba(58, 208, 214, 0.7) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(140, 230, 240, 0.22),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.38),
+    0 0 28px rgba(58, 208, 214, 0.4),
+    0 0 56px rgba(58, 208, 214, 0.16),
+    0 16px 40px rgba(0, 0, 0, 0.55) !important;
 }
 
 /* ── Char-select: mesmo padrão holo reforçado do login ── */

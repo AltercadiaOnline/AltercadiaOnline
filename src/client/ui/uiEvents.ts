@@ -63,6 +63,8 @@ export const UIEventType = {
   SHOW_RANKING_MONITOR: 'SHOW_RANKING_MONITOR',
   SHOW_PVP_QUEUE: 'SHOW_PVP_QUEUE',
   SHOW_REFRACTION_BOOTH: 'SHOW_REFRACTION_BOOTH',
+  SHOW_MEMORY_TERMINAL: 'SHOW_MEMORY_TERMINAL',
+  SHOW_SPRAY_SOCIAL_PANEL: 'SHOW_SPRAY_SOCIAL_PANEL',
   REFRACTION_CHALLENGE_ACCEPT: 'REFRACTION_CHALLENGE_ACCEPT',
   EQUIPMENT_UPDATED: 'EQUIPMENT_UPDATED',
   PLAYER_ITEMS_UPDATED: 'PLAYER_ITEMS_UPDATED',
@@ -155,6 +157,11 @@ export type UiEventMap = {
     readonly objectId: string;
     readonly label: string;
   };
+  readonly SHOW_MEMORY_TERMINAL: {
+    readonly transitionId: import('../../shared/types/zoneBypass.js').SubZoneTransitionId;
+    readonly zoneName: string;
+  };
+  readonly SHOW_SPRAY_SOCIAL_PANEL: Record<string, never>;
   readonly REFRACTION_CHALLENGE_ACCEPT: Record<string, never>;
   readonly EQUIPMENT_UPDATED: {
     readonly equipment: EquipmentUiGridState;

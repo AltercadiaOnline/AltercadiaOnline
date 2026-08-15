@@ -71,7 +71,13 @@ export type Skill = SkillData;
 
 export interface CombatantSpeedProfile {
   readonly flowSpeedBase: number;
+  /**
+   * Agilidade de classe (`CLASS_CATALOG.bonus.agility`) — entra em effectiveSpeedRaw.
+   * Nome legado `classSpeedBias` no wire; valor = agilidade do catálogo.
+   */
   readonly classSpeedBias?: number;
+  /** Alias preferido — mesma coisa que classSpeedBias. */
+  readonly classAgility?: number;
   readonly marcoSpeedFlat?: number;
   readonly activeMarcos?: readonly string[];
   readonly equipSpeedFlat?: number;
@@ -211,6 +217,11 @@ export interface CombatState {
   readonly combatants: Readonly<Record<string, Combatant>>;
   readonly activeActorId: string | null;
   readonly battleType?: BattleType;
+  /**
+   * PvE: nível efetivo da criatura nesta sessão (`resolveMonsterStats(...).level`).
+   * Única fonte autoritativa para XP / loot / volts — não recalcular pelo catálogo.
+   */
+  readonly pveEnemyCombatLevel?: number;
   readonly alliancePlayerTurnsSincePet?: number;
   readonly petAssistCycleIndex?: number;
   readonly battleWinnerId?: string | null;

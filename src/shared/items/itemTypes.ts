@@ -145,7 +145,7 @@ export type RuneDefinition = {
   /** Procs de combate disponíveis dentro de uma batalha. */
   readonly combatProcsPerBattle: number;
   readonly combatEffect: RuneCombatEffect;
-  /** Stats passivos enquanto equipada (AGI → Velocidade / speedBonusTotal) */
+  /** Stats passivos enquanto equipada (AGI → Agilidade / speedBonusTotal) */
   readonly passiveBuffs?: readonly ItemBuffModifier[];
   readonly description: string;
   readonly weight: number;

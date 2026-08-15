@@ -1,7 +1,9 @@
 import { useEffect, type RefObject } from 'react';
+import type { MapId } from '../../../shared/world/mapRegistry.js';
 import { getGameStateManager } from '../../../shared/state/GameStateManager.js';
-import { CRT_RADAR_THROTTLE_MS } from '../../world/minimap/crtRadarConfig.js';
-import { radarClientClickToWorldTarget } from '../../world/minimap/minimapClickCoords.js';
+import { buildMinimapTerrain } from '../../world/minimap/buildMinimapTerrain.js';
+import { loadMinimapOverview } from '../../world/minimap/loadMinimapOverview.js';
+import { minimapClientClickToWorldTarget } from '../../world/minimap/minimapClickCoords.js';
 import { dispatchMinimapNavigate } from '../../world/minimap/minimapNavigation.js';
 import { MinimapRenderer } from '../../world/minimap/MinimapRenderer.js';
 import type { MinimapSnapshot } from '../../world/minimap/minimapTypes.js';
@@ -11,7 +13,7 @@ import {
 } from '../../world/minimap/minimapState.js';
 
 /**
- * Radar CRT na sidebar — redesenho throttled (150–200ms), sem texturas de terreno.
+ * Minimapa da sidebar — terreno procedural + overview WebP; clique = path.
  */
 export function useWorldMinimap(
   canvasRef: RefObject<HTMLCanvasElement | null>,
@@ -24,38 +26,29 @@ export function useWorldMinimap(
     if (!canvas) return undefined;
 
     const renderer = new MinimapRenderer(canvas);
+    let activeMapId: MapId | null = null;
     let lastSnapshot: MinimapSnapshot | null = null;
-    let pendingSnapshot: MinimapSnapshot | null = null;
-    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastPaintMs = 0;
+    let overviewLoadToken = 0;
 
-    const paint = (snapshot: MinimapSnapshot): void => {
+    const onSnapshot = (snapshot: MinimapSnapshot): void => {
       lastSnapshot = snapshot;
-      lastPaintMs = performance.now();
-      renderer.render(snapshot);
-    };
 
-    const schedulePaint = (snapshot: MinimapSnapshot): void => {
-      pendingSnapshot = snapshot;
-      const elapsed = performance.now() - lastPaintMs;
-      if (elapsed >= CRT_RADAR_THROTTLE_MS) {
-        if (throttleTimer !== null) {
-          clearTimeout(throttleTimer);
-          throttleTimer = null;
-        }
-        paint(snapshot);
-        pendingSnapshot = null;
+      if (activeMapId !== snapshot.mapId) {
+        activeMapId = snapshot.mapId;
+        const terrain = buildMinimapTerrain(snapshot.mapId);
+        renderer.setTerrain(terrain, null);
+        renderer.render(snapshot);
+
+        const token = ++overviewLoadToken;
+        void loadMinimapOverview(snapshot.mapId).then((overview) => {
+          if (token !== overviewLoadToken || activeMapId !== snapshot.mapId) return;
+          renderer.setTerrain(terrain, overview);
+          if (lastSnapshot) renderer.render(lastSnapshot);
+        });
         return;
       }
 
-      if (throttleTimer !== null) return;
-      throttleTimer = setTimeout(() => {
-        throttleTimer = null;
-        if (pendingSnapshot) {
-          paint(pendingSnapshot);
-          pendingSnapshot = null;
-        }
-      }, Math.max(0, CRT_RADAR_THROTTLE_MS - elapsed));
+      renderer.render(snapshot);
     };
 
     const onMinimapClick = (event: MouseEvent): void => {
@@ -66,12 +59,10 @@ export function useWorldMinimap(
       const snapshot = lastSnapshot ?? getMinimapSnapshot();
       if (!snapshot) return;
 
-      const target = radarClientClickToWorldTarget(
+      const target = minimapClientClickToWorldTarget(
         event.clientX,
         event.clientY,
         canvas,
-        snapshot.playerTileX,
-        snapshot.playerTileY,
         snapshot.tilesWide,
         snapshot.tilesHigh,
       );
@@ -81,16 +72,16 @@ export function useWorldMinimap(
     };
 
     canvas.addEventListener('click', onMinimapClick);
-    const unsub = subscribeMinimapSnapshot(schedulePaint);
+    const unsub = subscribeMinimapSnapshot(onSnapshot);
 
     const existing = getMinimapSnapshot();
     if (existing) {
-      paint(existing);
+      onSnapshot(existing);
     }
 
     return () => {
+      overviewLoadToken += 1;
       unsub();
-      if (throttleTimer !== null) clearTimeout(throttleTimer);
       canvas.removeEventListener('click', onMinimapClick);
     };
   }, [canvasRef, enabled]);

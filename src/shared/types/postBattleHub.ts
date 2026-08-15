@@ -9,6 +9,8 @@ export type PostBattleHubSummary = {
   readonly xpGain?: number;
   readonly endReason?: BattleEndReason;
   readonly rankingResult?: BattleRankingResult;
+  /** Linhas já formatadas a partir do outcome autoritativo (derrota PVE). */
+  readonly deathPenaltyLines?: readonly string[];
 };
 
 /** Estado do botão Recompensas enquanto aguarda pacote de loot do servidor. */

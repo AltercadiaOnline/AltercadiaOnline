@@ -362,74 +362,125 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
                 )}
               </ul>
             </section>
+            {/* If vendor is mercenario, we do not show the sell/revenda section */}
+            {vendor.vendorId !== 'mercenario' && (
+              <section
+                className="vendor-shop__list-wrap vendor-shop__list-wrap--inventory"
+                aria-label="Revender drops do inventário"
+              >
+                <h3 className="vendor-shop__section-title">Revender drops</h3>
+                <div className="vendor-shop__list-head vendor-shop__list-head--inventory" aria-hidden="true">
+                  <span className="vendor-shop__col vendor-shop__col--item">Item</span>
+                  <span className="vendor-shop__col vendor-shop__col--base">Valor Base</span>
+                  <span className="vendor-shop__col vendor-shop__col--sell">Preço Revenda</span>
+                </div>
+                <ul className="vendor-shop__list">
+                  {state.inventoryRows.length === 0 ? (
+                    <li className="ui-empty">
+                      Nenhum drop revendável. Só materiais Comum/Incomum (ex.: escamas).
+                    </li>
+                  ) : (
+                    state.inventoryRows.map((row) => {
+                      const selected = state.tradeMode === 'inventory'
+                        && state.selectedItemId === row.itemId;
+                      const kindClass = resolveInventoryItemKindClass(row.itemId);
 
-            <section
-              className="vendor-shop__list-wrap vendor-shop__list-wrap--inventory"
-              aria-label="Revender drops do inventário"
-            >
-              <h3 className="vendor-shop__section-title">Revender drops</h3>
-              <div className="vendor-shop__list-head vendor-shop__list-head--inventory" aria-hidden="true">
-                <span className="vendor-shop__col vendor-shop__col--item">Item</span>
-                <span className="vendor-shop__col vendor-shop__col--base">Valor Base</span>
-                <span className="vendor-shop__col vendor-shop__col--sell">Preço Revenda</span>
-              </div>
-              <ul className="vendor-shop__list">
-                {state.inventoryRows.length === 0 ? (
-                  <li className="ui-empty">
-                    Nenhum drop revendável. Só materiais Comum/Incomum (ex.: escamas).
-                  </li>
-                ) : (
-                  state.inventoryRows.map((row) => {
-                    const selected = state.tradeMode === 'inventory'
-                      && state.selectedItemId === row.itemId;
-                    const kindClass = resolveInventoryItemKindClass(row.itemId);
-
-                    return (
-                      <li key={row.itemId}>
-                        <button
-                          type="button"
-                          className={[
-                            'vendor-shop__row',
-                            'vendor-shop__row--inventory',
-                            kindClass,
-                            selected ? 'is-selected' : '',
-                          ].filter(Boolean).join(' ')}
-                          aria-pressed={selected}
-                          onClick={() => state.selectInventoryItem(row.itemId)}
-                          {...bindItemHoverHandlers(row.itemId)}
-                        >
-                          <span className="vendor-shop__col vendor-shop__col--item">
-                            <span className="vendor-shop__icon" aria-hidden="true">
-                              <ItemSlotIcon itemId={row.itemId} />
-                            </span>
-                            <span className="vendor-shop__item-text">
-                              <span className="vendor-shop__name">{row.label}</span>
-                              <span className="vendor-shop__market-value vendor-shop__market-value--inline">
-                                ×{row.quantity} no inventário
+                      return (
+                        <li key={row.itemId}>
+                          <button
+                            type="button"
+                            className={[
+                              'vendor-shop__row',
+                              'vendor-shop__row--inventory',
+                              kindClass,
+                              selected ? 'is-selected' : '',
+                            ].filter(Boolean).join(' ')}
+                            aria-pressed={selected}
+                            onClick={() => state.selectInventoryItem(row.itemId)}
+                            {...bindItemHoverHandlers(row.itemId)}
+                          >
+                            <span className="vendor-shop__col vendor-shop__col--item">
+                              <span className="vendor-shop__icon" aria-hidden="true">
+                                <ItemSlotIcon itemId={row.itemId} />
+                              </span>
+                              <span className="vendor-shop__item-text">
+                                <span className="vendor-shop__name">{row.label}</span>
+                                <span className="vendor-shop__market-value vendor-shop__market-value--inline">
+                                  ×{row.quantity} no inventário
+                                </span>
                               </span>
                             </span>
-                          </span>
-                          <span className="vendor-shop__col vendor-shop__col--base">
-                            <span className="vendor-shop__price vendor-shop__price--base">
-                              {formatVoltsShort(row.valorBase)}
+                            <span className="vendor-shop__col vendor-shop__col--base">
+                              <span className="vendor-shop__price vendor-shop__price--base">
+                                {formatVoltsShort(row.valorBase)}
+                              </span>
                             </span>
-                          </span>
-                          <span className="vendor-shop__col vendor-shop__col--sell">
-                            <span className="vendor-shop__price vendor-shop__price--sell">
-                              {formatVoltsShort(row.sellUnitPrice)}
+                            <span className="vendor-shop__col vendor-shop__col--sell">
+                              <span className="vendor-shop__price vendor-shop__price--sell">
+                                {formatVoltsShort(row.sellUnitPrice)}
+                              </span>
                             </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </section>
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </section>
+            )}
           </div>
 
           <aside className="vendor-shop__trade-hub" aria-label="Negociação">
-            {state.selectedListing ? (
+            {vendor.vendorId === 'mercenario' ? (
+              <>
+                <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--tasks">
+                  <span className="vendor-shop__trade-tag">NODE::TASKS</span>
+                  <div className="vendor-shop__tasks">
+                    <div className="vendor-shop__task-row">
+                      <p className="vendor-shop__task">Task 1: Mate 25 ratos</p>
+                      <button
+                        type="button"
+                        className="vendor-shop__task-accept"
+                        onClick={() => getActionDispatcher().dispatch({ type: 'ACCEPT_MERCENARY_TASK', payload: { taskId: 'mate_25_ratos' } })}
+                      >
+                        Aceitar
+                      </button>
+                    </div>
+                    <div className="vendor-shop__task-row">
+                      <p className="vendor-shop__task">Task 2: Mate 50 morcegos</p>
+                      <button
+                        type="button"
+                        className="vendor-shop__task-accept"
+                        onClick={() => getActionDispatcher().dispatch({ type: 'ACCEPT_MERCENARY_TASK', payload: { taskId: 'mate_50_morcegos' } })}
+                      >
+                        Aceitar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {state.selectedListing ? (
+                  <CatalogTradeHub
+                    listing={state.selectedListing}
+                    tradeQuantity={state.tradeQuantity}
+                    owned={state.countInventoryItem(state.selectedListing.itemId)}
+                    purchasePending={purchaseGateway.pending}
+                    sellPending={sellGateway.pending}
+                    onQuantityChange={state.setClampedTradeQuantity}
+                    onPurchase={purchaseGateway.submit}
+                    onSell={sellGateway.submit}
+                    onCancel={state.cancelSelection}
+                  />
+                ) : (
+                  <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--idle">
+                    <span className="vendor-shop__trade-tag">NODE::SELECIONE</span>
+                    <p className="vendor-shop__trade-idle">
+                      Selecione um spray na lista para comprar aqui.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : state.selectedListing ? (
               <CatalogTradeHub
                 listing={state.selectedListing}
                 tradeQuantity={state.tradeQuantity}

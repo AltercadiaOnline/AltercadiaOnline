@@ -39,7 +39,7 @@ export const MARCO_BRANCH_SHORT_LABELS: Readonly<Record<MarcoTreeBranch, string>
 };
 
 export const MARCO_BRANCH_FOCUS: Readonly<Record<MarcoTreeBranch, string>> = {
-  fluxo: 'Velocidade / iniciativa',
+  fluxo: 'Agilidade / iniciativa',
   resiliencia: 'Defesa / redução de dano',
   precisao: 'Crítico / precisão',
 };

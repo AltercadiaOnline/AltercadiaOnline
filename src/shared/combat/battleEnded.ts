@@ -2,6 +2,7 @@ import type { BattleLootPreview } from '../loot/lootTypes.js';
 import { isLootRevealSlots, type LootRevealSlot } from '../loot/lootRevealSlots.js';
 import type { BattleRankingResult, BattleType } from './battleType.js';
 import { isBattleRankingResult, isBattleType } from './battleType.js';
+import type { DeathPenaltyOutcome } from '../progression/ProgressionPenaltyManager.js';
 
 /** Motivo autoritativo de encerramento — cliente usa só para feedback visual. */
 export type BattleEndReason = 'VICTORY' | 'DEFEAT' | 'FORFEIT';
@@ -23,6 +24,8 @@ export type BattleEndedPayload = {
   readonly surrenderVoltPenalty?: number;
   readonly battleType?: BattleType;
   readonly rankingResult?: BattleRankingResult;
+  /** Penalidade de derrota — espelho de COMBAT_FINISHED (cliente só exibe). */
+  readonly deathPenaltyOutcome?: DeathPenaltyOutcome;
 };
 
 export function isBattleEndedPayload(value: unknown): value is BattleEndedPayload {

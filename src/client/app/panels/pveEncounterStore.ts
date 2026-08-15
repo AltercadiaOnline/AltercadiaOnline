@@ -87,6 +87,18 @@ class PveEncounterStore {
     this.emit();
   }
 
+  /** Toast curto no mundo (join falhou / timeout) — sem modal. */
+  showTransientToast(message: string): void {
+    const text = message.trim();
+    if (!text) return;
+    this.snapshot = {
+      ...this.snapshot,
+      busy: false,
+      lastFleeMessage: text,
+    };
+    this.emit();
+  }
+
   reset(): void {
     this.snapshot = emptySnapshot();
     this.emit();

@@ -1,19 +1,25 @@
 import type { Player } from '../entities/Player.js';
 import type { NPCManager } from '../managers/NPCManager.js';
+import type { Camera } from '../scenes/Camera.js';
 import {
   InteractionCard,
   type InteractionCardActionPayload,
 } from '../ui/components/InteractionCard.js';
 import type { InteractionCardTarget } from '../../shared/world/interactionCardTypes.js';
 import { InteractionTargetType } from '../../shared/world/interactionCardTypes.js';
+import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { postSystemNotification } from '../ui/logService.js';
 import { InputHandler } from '../inputHandler.js';
 import type { Disposable } from '../utils/Disposable.js';
+import { getActionDispatcher } from '../ActionDispatcher.js';
+import { getWorldPlayerPickById } from './worldPlayerPickRegistry.js';
+import { worldToScreenPixel } from './screenCoords.js';
 
 export type InteractionCardControllerOptions = {
   readonly host: HTMLElement;
   readonly npcManager: NPCManager;
   readonly player: Player;
+  readonly getCamera: () => Camera;
 };
 
 /** Ponte entre InteractionCard e ações do mundo (NPC / jogador). */
@@ -21,10 +27,12 @@ export class InteractionCardController implements Disposable {
   private readonly card: InteractionCard;
   private readonly npcManager: NPCManager;
   private readonly player: Player;
+  private readonly getCamera: () => Camera;
 
   constructor(options: InteractionCardControllerOptions) {
     this.npcManager = options.npcManager;
     this.player = options.player;
+    this.getCamera = options.getCamera;
 
     this.card = new InteractionCard({
       host: options.host,
@@ -51,6 +59,40 @@ export class InteractionCardController implements Disposable {
 
   isVisible(): boolean {
     return this.card.isVisible();
+  }
+
+  getOpenTarget(): InteractionCardTarget | null {
+    return this.card.getTarget();
+  }
+
+  /**
+   * Fecha o card de player se o alvo sair do viewport 640×360 (ou do pick registry).
+   * Chamar no tick de exploração.
+   */
+  tickPlayerCardVisibility(): void {
+    if (!this.card.isVisible()) return;
+    const target = this.card.getTarget();
+    if (!target || target.targetType !== InteractionTargetType.PLAYER) return;
+
+    const entry = getWorldPlayerPickById(target.targetId);
+    if (!entry) {
+      this.card.hide();
+      return;
+    }
+
+    const screen = worldToScreenPixel(this.getCamera(), entry.worldX, entry.worldY);
+    const vw = DESIGN_CONFIG.VIEWPORT.WIDTH;
+    const vh = DESIGN_CONFIG.VIEWPORT.HEIGHT;
+    const margin = 24;
+    const onScreen =
+      screen.screenX >= -margin
+      && screen.screenX <= vw + margin
+      && screen.screenY >= -margin
+      && screen.screenY <= vh + margin;
+
+    if (!onScreen) {
+      this.card.hide();
+    }
   }
 
   dispose(): void {
@@ -89,11 +131,24 @@ export class InteractionCardController implements Disposable {
   ): void {
     const name = target.displayName;
     switch (action) {
-      case 'duel':
-        postSystemNotification(`Duelo com ${name} — em breve.`);
+      case 'trade': {
+        const result = getActionDispatcher().dispatch({
+          type: 'TRADE_REQUEST',
+          payload: { targetPlayerId: target.targetId },
+        });
+        if (!result.ok) {
+          postSystemNotification(result.reason, 'normal');
+          return;
+        }
+        if (result.status === 'applied') {
+          postSystemNotification(`Pedido de trade enviado para ${name}.`);
+          return;
+        }
+        postSystemNotification(`Enviando pedido de trade para ${name}…`);
         break;
-      case 'trade':
-        postSystemNotification(`Trade com ${name} — em breve.`);
+      }
+      case 'duel':
+        postSystemNotification(`PvP casual com ${name} — em breve.`);
         break;
       case 'follow':
         postSystemNotification(`Seguir ${name} — em breve.`);
@@ -116,6 +171,17 @@ export function openInteractionCard(target: InteractionCardTarget): void {
 
 export function hideInteractionCard(): void {
   activeController?.hide();
+}
+
+export function hideNpcInteractionCard(): void {
+  const target = activeController?.getOpenTarget();
+  if (target?.targetType === InteractionTargetType.NPC) {
+    activeController?.hide();
+  }
+}
+
+export function tickInteractionCardVisibility(): void {
+  activeController?.tickPlayerCardVisibility();
 }
 
 export function resetInteractionCardController(): void {

@@ -145,6 +145,11 @@ function ensureWsInboundRoutesRegistered(): void {
     await host.routeCombatForfeit(ws, connectionId, message.payload);
   });
 
+  registerWsInboundRoute('combat-join-abort', (host, ws, connectionId, message) => {
+    if (message.type !== 'combat-join-abort') return;
+    host.routeCombatJoinAbort(ws, connectionId, message.payload);
+  });
+
   registerWsInboundRoute('combat-collect-loot', async (host, ws, connectionId, message) => {
     if (message.type !== 'combat-collect-loot') return;
     await host.handleCollectLoot(ws, connectionId, message.payload);

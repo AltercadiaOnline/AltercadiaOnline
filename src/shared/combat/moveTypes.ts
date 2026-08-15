@@ -1,6 +1,6 @@
 /** Tipos compartilhados de movimento (classes + monstros). */
 
-import { VELOCIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
+import { AGILIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
 
 export const MoveCategory = {
   Attack: 'ATTACK',
@@ -29,7 +29,7 @@ export type MoveScalingStat = (typeof MoveScalingStat)[keyof typeof MoveScalingS
 
 export const MOVE_SCALING_STAT_LABELS: Record<MoveScalingStat, string> = {
   [MoveScalingStat.STR]: 'Força',
-  [MoveScalingStat.AGI]: VELOCIDADE_STAT_LABEL,
+  [MoveScalingStat.AGI]: AGILIDADE_STAT_LABEL,
   [MoveScalingStat.DEF]: 'Defesa',
   [MoveScalingStat.CRIT]: 'Crítico',
 };

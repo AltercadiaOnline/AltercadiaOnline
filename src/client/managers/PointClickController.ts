@@ -36,7 +36,7 @@ import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 import type { InteractionCardTarget } from '../../shared/world/interactionCardTypes.js';
 import { InteractionTargetType } from '../../shared/world/interactionCardTypes.js';
 import type { Disposable } from '../utils/Disposable.js';
-import { openInteractionCard, hideInteractionCard } from '../world/interactionCardController.js';
+import { openInteractionCard, hideInteractionCard, hideNpcInteractionCard } from '../world/interactionCardController.js';
 import {
   getWorldPlayerPickById,
   isWorldPlayerWithinInteractionRadius,
@@ -142,7 +142,7 @@ export class PointClickController implements Disposable {
     if (this.prompt.isVisible()) {
       this.dismissPrompt();
     }
-    hideInteractionCard();
+    hideNpcInteractionCard();
 
     const pick = screenToTile(
       this.camera,
@@ -166,7 +166,7 @@ export class PointClickController implements Disposable {
     this.moveTarget = null;
     this.player.clearWalkPath();
     this.onNavigationDestination?.(null);
-    hideInteractionCard();
+    hideNpcInteractionCard();
   }
 
   /** Click-to-move a partir de tile (minimapa ou script). */
@@ -258,6 +258,12 @@ export class PointClickController implements Disposable {
 
     const target = this.resolveInteractionCardTarget(pick.tileX, pick.tileY, screenX, screenY);
     if (!target) return;
+
+    // Player card: abre enquanto o alvo está na tela (sem exigir caminhar até o raio).
+    if (target.targetType === InteractionTargetType.PLAYER) {
+      openInteractionCard(target);
+      return;
+    }
 
     if (this.canOpenInteractionCardNow(target)) {
       openInteractionCard(target);

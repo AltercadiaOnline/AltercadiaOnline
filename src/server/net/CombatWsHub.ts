@@ -64,7 +64,7 @@ import { getWorldLoreLog } from '../world/WorldLoreLog.js';
 import { recordPlayerLastSeen } from '../world/playerPresenceStore.js';
 import type { StagedBattleLootResult } from '../../Economy/economyGateway.js';
 import type { BattleLootPreview } from '../../shared/loot/lootTypes.js';
-import { resolveDefeatedCreatureLevel } from '../../shared/combat/battleXpRewards.js';
+import { resolveSessionPveDefeatedLevel } from '../../shared/combat/battleXpRewards.js';
 import { finalizeAuthoritativeBattleEnd } from '../combat/finalizeAuthoritativeBattleEnd.js';
 import { finalizeAuthoritativeRankedPvpEnd } from '../combat/finalizeAuthoritativeRankedPvpEnd.js';
 import {
@@ -153,6 +153,7 @@ import {
 } from '../supabase/persistAuthoritativeLoginSnapshot.js';
 import { CombatTurnController } from './ws/combatTurnController.js';
 import { EconomyEventForwarder } from './ws/economyEventForwarder.js';
+import { bindPlayerSocketLookup } from './playerSocketLookup.js';
 import { routeWsInboundMessage } from './ws/registerWsInboundRoutes.js';
 import type { CombatWsRouteHost } from './ws/wsInboundRouter.js';
 import {
@@ -259,6 +260,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       },
     });
     this.wss.on('connection', (ws) => this.onConnection(ws as LiveSocket));
+    bindPlayerSocketLookup((playerId) => this.socketsByPlayerId.get(playerId));
     this.economyEventForwarder.bind({
       getSocketByPlayerId: (playerId) => this.socketsByPlayerId.get(playerId),
       syncAuthority: this.syncAuthority,
@@ -298,6 +300,7 @@ export class CombatWsHub implements CombatWsRouteHost {
 
   public close(): Promise<void> {
     unbindChatGlobalBroadcast();
+    bindPlayerSocketLookup(null);
     this.worldTickScheduler.stop();
     this.persistenceScheduler.stop();
     void this.persistenceScheduler.flushAllActive('shutdown');
@@ -480,6 +483,42 @@ export class CombatWsHub implements CombatWsRouteHost {
       'FORFEIT',
       surrenderVoltPenalty,
     );
+  }
+
+  /**
+   * Cliente nunca entrou na BattleScreen (timeout / START_COMBAT rejeitado).
+   * Libera sessão e claim sem death penalty nem taxa de rendição.
+   */
+  routeCombatJoinAbort(
+    _ws: LiveSocket,
+    connectionId: string,
+    payload?: { readonly reason?: string },
+  ): void {
+    const session = this.sessions.get(connectionId);
+    if (session) {
+      const monsterInstanceId = session.getMonsterInstanceId();
+      this.combatTurnController.clearTurnTimer(connectionId);
+      this.combatTurnController.clearChoiceWindow(connectionId);
+      if (monsterInstanceId) {
+        releasePveMonsterClaim(monsterInstanceId);
+      }
+      this.cleanupBattleSession(connectionId, session);
+      this.gameState.setStatus(connectionId, 'exploring');
+      console.warn('[WS] combat-join-abort — sessão PVE liberada sem penalidade', {
+        connectionId,
+        playerId: session.getPlayerActorId(),
+        characterId: session.getCharacterId(),
+        monsterInstanceId,
+        reason: payload?.reason ?? null,
+      });
+      return;
+    }
+
+    const world = this.worldConnections.get(connectionId);
+    if (world) {
+      this.releaseOrphanBattleFlag(world.playerId, world.characterId);
+      this.gameState.setStatus(connectionId, 'exploring');
+    }
   }
 
   async routeCombatAction(
@@ -1247,7 +1286,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       sourceId: creatureId,
       winnerId: playerActorId,
       characterId,
-      defeatedLevel: resolveDefeatedCreatureLevel(creatureId),
+      defeatedLevel: resolveSessionPveDefeatedLevel(state, creatureId),
     });
   }
 

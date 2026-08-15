@@ -26,11 +26,8 @@
         "runeSpeedConditionalMax": 7
       }
     },
-    "classSpeedBias": {
-      "IMPETUS": 2,
-      "COGITOR": 1,
-      "TUTATOR": -1,
-      "DISSOLUTUS": 0
+    "effectiveSpeedRaw": {
+      "formula": "flowSpeedBase + classAgility(CLASS_CATALOG) + speedBonusTotal"
     },
     "tieBreak": {
       "order": [

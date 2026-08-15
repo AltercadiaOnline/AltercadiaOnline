@@ -111,6 +111,8 @@ export class WorldMapRenderer implements Disposable {
     this.inputSurface.addEventListener('mousemove', this.onPointerMove);
     window.addEventListener('mouseup', this.onPointerUp);
     this.inputSurface.addEventListener('mouseleave', this.onPointerLeave);
+    this.inputSurface.addEventListener('selectstart', this.onSelectStart);
+    this.inputSurface.addEventListener('dblclick', this.onNativeDoubleClick);
   }
 
   public dispose(): void {
@@ -120,7 +122,17 @@ export class WorldMapRenderer implements Disposable {
     this.inputSurface.removeEventListener('mousemove', this.onPointerMove);
     window.removeEventListener('mouseup', this.onPointerUp);
     this.inputSurface.removeEventListener('mouseleave', this.onPointerLeave);
+    this.inputSurface.removeEventListener('selectstart', this.onSelectStart);
+    this.inputSurface.removeEventListener('dblclick', this.onNativeDoubleClick);
   }
+
+  private readonly onSelectStart = (event: Event): void => {
+    event.preventDefault();
+  };
+
+  private readonly onNativeDoubleClick = (event: MouseEvent): void => {
+    event.preventDefault();
+  };
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (event.button !== 0) return;

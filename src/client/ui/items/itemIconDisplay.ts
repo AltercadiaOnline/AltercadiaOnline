@@ -21,6 +21,17 @@ function escapeHtml(value: string): string {
 export function resolveItemIconSrc(itemId: string): string {
   const item = getItemById(itemId);
   if (!item) return UNKNOWN_ITEM_ICON_PATH;
+
+  // Special-case: tactical spray items should show the spray-can HUD icon
+  // instead of the ground stencil asset. Map known spray ids to can icons.
+  const sprayCanMap: Record<string, string> = {
+    spray_terminal_hackeado: '/assets/items/assets_sprays/item_spray_1/base/rotations/unknown.png',
+    spray_alerta_binario: '/assets/items/assets_sprays/item_spray_2/base/rotations/unknown.png',
+    spray_vigilante: '/assets/items/assets_sprays/item_spray_3/base/rotations/unknown.png',
+  };
+
+  if (sprayCanMap[itemId]) return sprayCanMap[itemId];
+
   // Convenção: /assets/items/{itemId}.png — iconPath explícito sobrescreve (ex.: .svg).
   return getItemIconPath(itemId, item.iconPath);
 }

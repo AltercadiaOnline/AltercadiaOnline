@@ -162,6 +162,8 @@ export class PlayerController {
   private readonly numpadKeysHeld = new Set<string>();
   /** Pivot CTRL — gira uma vez por combinação CTRL+direção (evita spam e travamento). */
   private pivotLatchDirection: MoveDirection | null = null;
+  private boundPlayer: Player | null = null;
+  private boundAvatar: PlayerSprite | undefined;
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target)) return;
@@ -225,15 +227,18 @@ export class PlayerController {
     if (this.keysPressed.control) {
       this.pivotLatchDirection = null;
     }
+    if (!this.hasMovementInput()) {
+      this.haltHeldMovement();
+    }
   };
 
   private readonly onWindowBlur = (): void => {
-    this.resetKeys();
+    this.emergencyStop(this.boundPlayer ?? undefined, this.boundAvatar);
   };
 
   private readonly onVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden') {
-      this.resetKeys();
+      this.emergencyStop(this.boundPlayer ?? undefined, this.boundAvatar);
     }
   };
 
@@ -266,6 +271,8 @@ export class PlayerController {
     this.unsubGameState?.();
     this.unsubGameState = null;
     this.onMovementInputStart = null;
+    this.boundPlayer = null;
+    this.boundAvatar = undefined;
     this.resetKeys();
   }
 
@@ -304,11 +311,18 @@ export class PlayerController {
   }
 
   emergencyStop(player?: Player, avatar?: PlayerSprite): void {
+    const target = player ?? this.boundPlayer ?? undefined;
+    const targetAvatar = avatar ?? this.boundAvatar;
     this.resetKeys();
     getWorldMovementAuthority().setContinuousHoldActive(false);
-    player?.clearMovementInput();
-    player?.clearWalkPath();
-    avatar?.setMoving(false);
+    target?.haltManualImpulse();
+    target?.clearWalkPath();
+    if (target) {
+      target.cancelSoftCorrection();
+      getWorldMovementAuthority().freezeVisualAt(target.x, target.y, target.facing);
+      emitSoftTileAnchor({ x: target.x, y: target.y });
+    }
+    targetAvatar?.setMoving(false);
   }
 
   applyKeyState(key: string, code: string, pressed: boolean): void {
@@ -493,9 +507,11 @@ export class PlayerController {
     const pauseMenuOpen = options.pauseMenuOpen ?? isPauseMenuOpen();
     const deltaMs = options.deltaMs ?? 16.67;
     const mapData = options.mapData;
+    this.boundPlayer = player;
+    this.boundAvatar = avatar;
 
     if (!shouldAcceptMovementInput(pauseMenuOpen)) {
-      player.clearMovementInput();
+      this.haltHeldMovement();
       player.clearWalkPath();
       avatar?.setMoving(false);
       this.syncAvatarAnimation(player, avatar);
@@ -511,10 +527,7 @@ export class PlayerController {
     authority.setContinuousHoldActive(Boolean(movementKeys));
 
     if (wasHold && !movementKeys) {
-      // Freeze seco: fica onde soltou. Sem soft-lerp / sem puxar pro servidor.
-      player.cancelSoftCorrection();
-      authority.freezeVisualAt(player.x, player.y, player.facing);
-      emitSoftTileAnchor({ x: player.x, y: player.y });
+      this.haltHeldMovement();
     }
 
     if (!movementKeys) {
@@ -554,6 +567,19 @@ export class PlayerController {
     } else {
       this.syncAvatarAnimation(player, avatar);
     }
+  }
+
+  /** Key Up: zera impulso local agora — sem esperar o próximo frame. */
+  private haltHeldMovement(): void {
+    const player = this.boundPlayer;
+    const authority = getWorldMovementAuthority();
+    authority.setContinuousHoldActive(false);
+    if (!player) return;
+    player.haltManualImpulse();
+    player.cancelSoftCorrection();
+    authority.freezeVisualAt(player.x, player.y, player.facing);
+    emitSoftTileAnchor({ x: player.x, y: player.y });
+    this.boundAvatar?.setMoving(false);
   }
 }
 

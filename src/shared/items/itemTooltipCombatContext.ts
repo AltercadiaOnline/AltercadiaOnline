@@ -5,7 +5,7 @@ import { getBookDefinition, getRuneDefinition } from './runesBooksCatalog.js';
 const STAT_COMBAT_HINTS: Record<string, string> = {
   STR: 'Soma no termo de ataque (golpes com Força).',
   CRIT: 'Aumenta chance de crítico nos golpes (não soma no “Golpe” do log).',
-  AGI: 'Velocidade: iniciativa no combate e deslocamento no mapa.',
+  AGI: 'Agilidade: iniciativa no combate e deslocamento no mapa.',
   DEF: 'Reduz dano recebido (termo Defesa do log).',
   HP: 'Aumenta HP máximo fora do turno de golpe.',
   DODGE: 'Chance de esquivar o golpe inimigo.',

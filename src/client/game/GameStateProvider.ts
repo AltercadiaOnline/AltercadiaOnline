@@ -21,7 +21,8 @@ import {
   type GameStateTransitionHooks,
 } from '../../shared/state/GameStateManager.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
-import { alertSystem } from '../ui/alertSystem.js';
+import { PENDING_COMBAT_JOIN_TIMEOUT_MS } from '../../shared/combat/pendingCombatJoinConstants.js';
+import { sendCombatJoinAbort } from '../app/panels/combatJoinAbortBridge.js';
 import {
   clearBattleSessionUi,
   prepareNextBattle,
@@ -51,6 +52,9 @@ export type GameStateProviderDeps = {
 type GameStateProviderSlot = {
   hooks: GameStateTransitionHooks | null;
   pendingCombatJoin: boolean;
+  /** Epoch do join pendente — invalida timeout atrasado. */
+  pendingCombatJoinEpoch: number;
+  pendingCombatJoinTimer: ReturnType<typeof setTimeout> | null;
   pendingBattleEnd: BattleEndResult | null;
   offBattleFinished: (() => void) | null;
   loadingScreen: LoadingScreen | null;
@@ -66,12 +70,54 @@ function getGameStateProviderSlot(): GameStateProviderSlot {
     g.__ALTERCADIA_GAME_STATE_PROVIDER__ = {
       hooks: null,
       pendingCombatJoin: false,
+      pendingCombatJoinEpoch: 0,
+      pendingCombatJoinTimer: null,
       pendingBattleEnd: null,
       offBattleFinished: null,
       loadingScreen: null,
     };
+  } else {
+    const existing = g.__ALTERCADIA_GAME_STATE_PROVIDER__;
+    if (typeof existing.pendingCombatJoinEpoch !== 'number') {
+      existing.pendingCombatJoinEpoch = 0;
+    }
+    if (existing.pendingCombatJoinTimer === undefined) {
+      existing.pendingCombatJoinTimer = null;
+    }
   }
   return g.__ALTERCADIA_GAME_STATE_PROVIDER__;
+}
+
+function clearPendingCombatJoinTimer(): void {
+  const slot = getGameStateProviderSlot();
+  if (slot.pendingCombatJoinTimer !== null) {
+    clearTimeout(slot.pendingCombatJoinTimer);
+    slot.pendingCombatJoinTimer = null;
+  }
+}
+
+function schedulePendingCombatJoinTimeout(): void {
+  const slot = getGameStateProviderSlot();
+  clearPendingCombatJoinTimer();
+  const epoch = slot.pendingCombatJoinEpoch;
+  slot.pendingCombatJoinTimer = setTimeout(() => {
+    const current = getGameStateProviderSlot();
+    if (!current.pendingCombatJoin || current.pendingCombatJoinEpoch !== epoch) return;
+    void abortPendingCombatJoinSilently('JOIN_TIMEOUT');
+  }, PENDING_COMBAT_JOIN_TIMEOUT_MS);
+}
+
+function markPendingCombatJoinActive(): void {
+  const slot = getGameStateProviderSlot();
+  slot.pendingCombatJoin = true;
+  slot.pendingCombatJoinEpoch += 1;
+  schedulePendingCombatJoinTimeout();
+}
+
+function clearPendingCombatJoinState(): void {
+  const slot = getGameStateProviderSlot();
+  clearPendingCombatJoinTimer();
+  slot.pendingCombatJoin = false;
 }
 
 const COMBAT_JOIN_ABORT_REASONS = new Set([
@@ -212,7 +258,7 @@ export function initGameStateProvider(deps: GameStateProviderDeps): () => void {
     runtime.offBattleFinished = null;
     runtime.hooks = null;
     runtime.pendingBattleEnd = null;
-    runtime.pendingCombatJoin = false;
+    clearPendingCombatJoinState();
     runtime.loadingScreen?.destroy();
     runtime.loadingScreen = null;
     resetGameStateManager();
@@ -269,7 +315,7 @@ export function beginPendingPveCombatJoin(monsterInstanceId: string): boolean {
   }
 
   const slot = getGameStateProviderSlot();
-  slot.pendingCombatJoin = true;
+  markPendingCombatJoinActive();
   prepareNextBattle();
   getPlayerPetStore().markBattleAffinityBaseline();
 
@@ -287,7 +333,7 @@ export async function startBattle(monsterId: string): Promise<boolean> {
   const hooks = getGameStateProviderSlot().hooks;
   if (!encounter || !hooks) return false;
 
-  getGameStateProviderSlot().pendingCombatJoin = true;
+  markPendingCombatJoinActive();
   prepareNextBattle();
   getPlayerPetStore().markBattleAffinityBaseline();
   return getGameStateManager().prepareCombatJoin(encounter, hooks);
@@ -302,7 +348,7 @@ async function endBattleWithResult(result: BattleEndResult): Promise<void> {
   const hooks = getGameStateProviderSlot().hooks;
   if (!hooks) return;
   const slot = getGameStateProviderSlot();
-  slot.pendingCombatJoin = false;
+  clearPendingCombatJoinState();
   await getGameStateManager().endBattle(result, hooks);
   slot.pendingBattleEnd = null;
 }
@@ -334,7 +380,7 @@ export async function enterBattleFromServer(
   const hooks = getGameStateProviderSlot().hooks;
   if (!hooks) return;
 
-  getGameStateProviderSlot().pendingCombatJoin = false;
+  clearPendingCombatJoinState();
   getPveEncounterStore().setBusy(false);
 
   let encounter = getGlobalPlayerStore().getActiveEncounter();
@@ -357,8 +403,40 @@ export async function enterBattleFromServer(
 }
 
 /**
- * combat-error / join rejeitado — limpa busy e volta ao mundo se o join ainda estava pendente
- * ou se a UI já entrou em transição/batalha sem sessão válida.
+ * Falha de join — permanece no mundo (fail-closed).
+ * Sem modal de cancelar; toast curto + limpeza local + abort no servidor se a sessão já existia.
+ */
+export async function abortPendingCombatJoinSilently(
+  reason: 'JOIN_TIMEOUT' | 'START_COMBAT_REJECTED' | string = 'JOIN_TIMEOUT',
+): Promise<void> {
+  const slot = getGameStateProviderSlot();
+  if (!slot.pendingCombatJoin && !getGameStateManager().isTransitioning()) {
+    // Já limpo — ainda pede abort server-side se START_COMBAT atrasado.
+    if (reason === 'START_COMBAT_REJECTED') {
+      sendCombatJoinAbort(reason);
+    }
+    return;
+  }
+
+  clearPendingCombatJoinState();
+  getPveEncounterStore().showTransientToast(
+    reason === 'JOIN_TIMEOUT'
+      ? 'Combate não iniciou — continue explorando.'
+      : 'Não foi possível iniciar o combate.',
+  );
+  sendCombatJoinAbort(reason);
+
+  if (!slot.hooks) {
+    getGlobalPlayerStore().clearActiveEncounter();
+    return;
+  }
+
+  await getGameStateManager().abortCombatJoin(slot.hooks);
+  syncGameScenesToCurrentState();
+}
+
+/**
+ * combat-error / join rejeitado — limpa busy e segue no mundo (sem entrar na batalha).
  */
 export async function abortCombatJoinOnError(reason: string): Promise<void> {
   const manager = getGameStateManager();
@@ -366,14 +444,15 @@ export async function abortCombatJoinOnError(reason: string): Promise<void> {
   const knownJoinFailure = COMBAT_JOIN_ABORT_REASONS.has(reason);
   const slot = getGameStateProviderSlot();
 
-  getPveEncounterStore().setBusy(false);
-
   if (!slot.pendingCombatJoin && !(inCombatUi && knownJoinFailure)) {
+    getPveEncounterStore().setBusy(false);
     return;
   }
 
-  slot.pendingCombatJoin = false;
-  alertSystem(`Combate recusado: ${reason}`);
+  clearPendingCombatJoinState();
+  getPveEncounterStore().showTransientToast('Não foi possível iniciar o combate.');
+  // Servidor pode ter criado sessão órfã no bootstrap — libera sem penalidade.
+  sendCombatJoinAbort(reason);
 
   if (!slot.hooks) {
     getGlobalPlayerStore().clearActiveEncounter();
@@ -398,6 +477,7 @@ export async function returnToExplorationFromBattle(
   }
 
   getGameStateProviderSlot().pendingCombatJoin = false;
+  clearPendingCombatJoinTimer();
 
   // Derrota (não fuga) → centro da cidade (espelha respawn autoritativo do servidor).
   if (!options.victory && options.endReason !== 'FORFEIT') {

@@ -4,6 +4,8 @@ import {
   formatBattleRankingSummary,
   type BattleRankingResult,
 } from '../combat/battleType.js';
+import type { DeathPenaltyOutcome } from '../progression/ProgressionPenaltyManager.js';
+import { formatDeathPenaltySummaryLines } from '../progression/deathPenaltySummary.js';
 import type { PostBattleHubSummary } from '../types/postBattleHub.js';
 
 export function resolvePostBattleTitleText(summary: PostBattleHubSummary): string {
@@ -16,9 +18,15 @@ export function resolvePostBattleSubtitleText(summary: PostBattleHubSummary): st
   if (summary.battleType === BattleType.PVP) {
     return 'Duelo encerrado. O chat da arena permanece ativo — interaja antes de sair.';
   }
-  return summary.victory
-    ? 'Batalha encerrada. Veja estatísticas ou abra Recompensas (vitória PVE).'
-    : 'Batalha encerrada.';
+  if (summary.victory) {
+    return 'Batalha encerrada. Veja estatísticas ou abra Recompensas (vitória PVE).';
+  }
+  if (summary.endReason === 'FORFEIT') {
+    return 'Você fugiu. O monstro continua no mapa.';
+  }
+  return summary.deathPenaltyLines && summary.deathPenaltyLines.length > 0
+    ? 'Confira o que foi perdido antes de voltar ao mapa.'
+    : 'Batalha encerrada. Você voltará à cidade segura.';
 }
 
 export function resolvePostBattleRankingLabel(summary: PostBattleHubSummary): string {
@@ -33,6 +41,15 @@ export function shouldShowPostBattleRewardsSlot(summary: PostBattleHubSummary): 
   return summary.battleType !== BattleType.PVP && summary.victory;
 }
 
+export function shouldShowPostBattleDeathPenalty(summary: PostBattleHubSummary): boolean {
+  return (
+    summary.battleType !== BattleType.PVP
+    && !summary.victory
+    && summary.endReason !== 'FORFEIT'
+    && Boolean(summary.deathPenaltyLines && summary.deathPenaltyLines.length > 0)
+  );
+}
+
 export function isPostBattlePvp(summary: PostBattleHubSummary): boolean {
   return summary.battleType === BattleType.PVP;
 }
@@ -44,12 +61,19 @@ export function buildPostBattleHubSummary(input: {
   readonly xpGain?: number;
   readonly endReason?: BattleEndReason;
   readonly rankingResult?: BattleRankingResult;
+  readonly deathPenaltyOutcome?: DeathPenaltyOutcome;
 }): PostBattleHubSummary {
+  const deathPenaltyLines =
+    !input.victory && input.endReason !== 'FORFEIT' && input.battleType !== BattleType.PVP
+      ? formatDeathPenaltySummaryLines(input.deathPenaltyOutcome)
+      : undefined;
+
   return {
     battleType: input.battleType,
     victory: input.victory,
     ...(input.xpGain !== undefined ? { xpGain: input.xpGain } : {}),
     ...(input.endReason !== undefined ? { endReason: input.endReason } : {}),
     ...(input.rankingResult !== undefined ? { rankingResult: input.rankingResult } : {}),
+    ...(deathPenaltyLines !== undefined ? { deathPenaltyLines } : {}),
   };
 }

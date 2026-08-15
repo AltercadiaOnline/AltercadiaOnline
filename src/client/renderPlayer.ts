@@ -37,7 +37,11 @@ export function renderPlayer(
   avatar.draw(ctx, player, frameMs);
 }
 
-/** Pré-carrega metadata + sprites do bundle teenage. */
-export function preloadPlayerSprites(): Promise<void> {
-  return getSharedPlayerSprite().ready();
+/** Pré-carrega metadata + PNGs do bundle ativo — rejeita se ainda só haveria placeholder. */
+export async function preloadPlayerSprites(): Promise<void> {
+  const avatar = getSharedPlayerSprite();
+  await avatar.ready();
+  if (!avatar.isPaintReady()) {
+    throw new Error('Sprite do personagem incompleto — PNG ainda não pronto para desenhar.');
+  }
 }

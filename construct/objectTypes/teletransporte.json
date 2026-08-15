@@ -1,0 +1,67 @@
+{
+	"name": "teletransporte",
+	"plugin-id": "Sprite",
+	"sid": 770898479671579,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [
+		{
+			"name": "city_portal_north",
+			"type": "string",
+			"desc": "",
+			"show": true,
+			"sid": 688981359708634
+		},
+		{
+			"name": "farm_portal_south",
+			"type": "string",
+			"desc": "",
+			"show": true,
+			"sid": 156975312877200
+		}
+	],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 45,
+						"height": 40,
+						"originX": 0.4666666666666667,
+						"originY": 0.625,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 8327712,
+						"collisionPoly": {
+							"points": [
+								0,
+								0.025,
+								1,
+								0.025,
+								1,
+								1,
+								0,
+								1
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 691252797386078,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

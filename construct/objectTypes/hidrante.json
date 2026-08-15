@@ -1,0 +1,60 @@
+{
+	"name": "hidrante",
+	"plugin-id": "Sprite",
+	"sid": 367307256382046,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 411894687642057
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 39,
+						"height": 41,
+						"originX": 1.3076923076923077,
+						"originY": -1.3414634146341464,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 788749,
+						"collisionPoly": {
+							"points": [
+								0.2632478632478635,
+								0.2991869918699184,
+								0.5299145299145291,
+								0.13333333333333316,
+								0.6991452991452995,
+								0.2666666666666669,
+								0.6786324786324798,
+								0.757723577235772,
+								0.31794871794871793,
+								0.73658536585366
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 520100123978992,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

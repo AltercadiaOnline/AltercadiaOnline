@@ -2,8 +2,8 @@ import type { BattleEndReason, BattleEndedPayload } from '../../../shared/combat
 import type { BattleLootPreview } from '../../../shared/loot/lootTypes.js';
 import { hasLootContent } from '../../../shared/loot/lootTypes.js';
 import { formatVolts } from '../../../shared/economy/premiumCurrency.js';
-import { BATTLE_SURRENDER_VOLT_PENALTY } from '../../../shared/combat/battleSurrenderConstants.js';
-import { buildDeathPenaltyOutcome } from '../../progression/deathPenaltyClient.js';
+import type { DeathPenaltyOutcome } from '../../../shared/progression/ProgressionPenaltyManager.js';
+import { formatDeathPenaltySummaryLines } from '../../../shared/progression/deathPenaltySummary.js';
 
 export type BattleResultOverlayOptions = {
   readonly victory: boolean;
@@ -18,6 +18,7 @@ export function buildSimpleBattleSummaryLines(payload: {
   readonly victory: boolean;
   readonly xpGain?: number;
   readonly endReason?: BattleEndReason;
+  readonly deathPenaltyOutcome?: DeathPenaltyOutcome;
 }): readonly string[] {
   if (payload.endReason === 'FORFEIT') {
     return ['Você fugiu da batalha.', 'O monstro continua no mapa.'];
@@ -29,7 +30,7 @@ export function buildSimpleBattleSummaryLines(payload: {
     lines.push('Recompensas em breve.');
     return lines;
   }
-  return ['Você foi derrotado.', 'Retorne ao mapa para continuar.'];
+  return formatDeathPenaltySummaryLines(payload.deathPenaltyOutcome);
 }
 
 /** Monta linhas de resumo (Volts ou penalidade) para o modal de encerramento. */
@@ -59,32 +60,14 @@ export function buildBattleResultSummaryLines(
   }
 
   if (endReason === 'FORFEIT') {
-    return ['Você fugiu da batalha. O monstro continua no mapa.'];
+    const lines = ['Você fugiu da batalha. O monstro continua no mapa.'];
+    if (payload.surrenderVoltPenalty && payload.surrenderVoltPenalty > 0) {
+      lines.push(`−${formatVolts(payload.surrenderVoltPenalty)} (taxa de rendição)`);
+    }
+    return lines;
   }
 
-  const penalty = buildDeathPenaltyOutcome();
-  if (!penalty.applied) {
-    return ['Derrota registrada — sem penalidade de progressão neste nível.'];
-  }
-
-  const lines: string[] = [];
-  if (penalty.xpRemoved > 0) {
-    lines.push(`−${penalty.xpRemoved} XP de progressão`);
-  }
-  if (penalty.milestoneProgressRemoved > 0) {
-    lines.push(`−${penalty.milestoneProgressRemoved.toFixed(1)}% nos Marcos`);
-  }
-
-  const masteryLoss = Object.values(penalty.masteryRemoved).reduce((sum, value) => sum + value, 0);
-  if (masteryLoss > 0) {
-    lines.push(`Domínio de habilidades reduzido (−${masteryLoss.toFixed(1)}% total)`);
-  }
-
-  if (lines.length === 0) {
-    lines.push('Progresso penalizado permanentemente.');
-  }
-
-  return lines;
+  return formatDeathPenaltySummaryLines(payload.deathPenaltyOutcome);
 }
 
 function resolveResultTitle(victory: boolean, endReason?: BattleEndReason): string {

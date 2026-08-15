@@ -5,7 +5,7 @@ import {
   ENCUMBERED_STEP_MS,
   GRID_STEP_MS,
 } from '../world/gridMovement.js';
-import { VELOCIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
+import { AGILIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
 
 /**
  * Bônus acumulados do SET equipado — valores iniciais em zero.
@@ -35,7 +35,7 @@ export const PLAYER_STATS_BONUS_LABELS: Record<keyof PlayerStatsBonus, string> =
   defesa: 'Defesa',
   esquiva: 'Esquiva',
   vida: 'Vida (%)',
-  agilidade: VELOCIDADE_STAT_LABEL,
+  agilidade: AGILIDADE_STAT_LABEL,
   critico: 'Crítico',
   forca: 'Força',
 };
@@ -71,7 +71,7 @@ export function calculateStatsBonusFromEquipment(
   return bonus;
 }
 
-/** Bônus % de deslocamento no mapa a partir da Velocidade do SET (mesmo stat que alimenta iniciativa na batalha). */
+/** Bônus % de deslocamento no mapa a partir da Agilidade do SET (mesmo stat que alimenta iniciativa na batalha). */
 export function computeSpeedBonusTotal(
   agilidade: number,
   baseSpeed = 0,

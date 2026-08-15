@@ -27,6 +27,20 @@ export function updateWorldPlayerPickPosition(
   entries.set(playerId, { ...current, worldX, worldY });
 }
 
+/** Substitui o conjunto de picks visíveis (state-sync / tick de exploração). */
+export function syncWorldPlayerPicks(next: readonly WorldPlayerPickEntry[]): void {
+  const seen = new Set<string>();
+  for (const entry of next) {
+    seen.add(entry.playerId);
+    entries.set(entry.playerId, entry);
+  }
+  for (const playerId of entries.keys()) {
+    if (!seen.has(playerId)) {
+      entries.delete(playerId);
+    }
+  }
+}
+
 export function clearWorldPlayerPicks(): void {
   entries.clear();
 }

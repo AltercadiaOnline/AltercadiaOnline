@@ -44,7 +44,13 @@ export function buildEnemyActorId(creatureId: string): string {
   return `enemy_${creatureId}`;
 }
 
-function buildEnemyFromCreature(creatureId: string, playerLevel: number): Combatant {
+type BuiltPveEnemy = {
+  readonly combatant: Combatant;
+  /** Nível clampado da zona — mesmo valor usado em HP/Atk (`resolveMonsterStats`). */
+  readonly combatLevel: number;
+};
+
+function buildEnemyFromCreature(creatureId: string, playerLevel: number): BuiltPveEnemy {
   const catalog = getMonsterByCreatureId(creatureId);
   const drop = getCreatureDropEntry(creatureId);
   const zoneId = drop?.zoneId ?? ZoneId.Zone1;
@@ -53,21 +59,24 @@ function buildEnemyFromCreature(creatureId: string, playerLevel: number): Combat
   const skills = (catalog?.skillIds ?? ['rat_bite']).map((skillId) => moveToSkill(skillId));
 
   return {
-    id: actorId,
-    name: catalog?.name ?? 'Criatura',
-    hp: stats.maxHp,
-    maxHp: stats.maxHp,
-    hpCurrent: stats.maxHp,
-    hpMax: stats.maxHp,
-    baseAttack: stats.attack,
-    classId: stats.classId,
-    speedProfile: { flowSpeedBase: stats.flowSpeedBase },
-    skills,
-    statusEffects: [],
-    activeStatuses: [],
-    activeShields: [],
-    temporaryModifiers: [],
-    lockedSkillIds: [],
+    combatLevel: stats.level,
+    combatant: {
+      id: actorId,
+      name: catalog?.name ?? 'Criatura',
+      hp: stats.maxHp,
+      maxHp: stats.maxHp,
+      hpCurrent: stats.maxHp,
+      hpMax: stats.maxHp,
+      baseAttack: stats.attack,
+      classId: stats.classId,
+      speedProfile: { flowSpeedBase: stats.flowSpeedBase },
+      skills,
+      statusEffects: [],
+      activeStatuses: [],
+      activeShields: [],
+      temporaryModifiers: [],
+      lockedSkillIds: [],
+    },
   };
 }
 
@@ -83,7 +92,8 @@ export function createPveBattleBootstrap(
   const creatureId = resolveCreatureIdForMonsterInstance(monsterInstanceId);
   const battleSkills = resolveBattleSkills(loadout);
   const player = buildCombatantFromLoadout(loadout, battleSkills, loadout.displayName ?? 'Operative');
-  const enemy = buildEnemyFromCreature(creatureId, loadout.level ?? 1);
+  const enemyBuilt = buildEnemyFromCreature(creatureId, loadout.level ?? 1);
+  const enemy = enemyBuilt.combatant;
   const runeDurability = resolveEquippedRuneDurability(loadout.inventory, loadout.equipped);
   const combatProcs = loadout.equipped.rune
     ? resolveRuneCombatProcsPerBattle(loadout.equipped.rune)
@@ -112,6 +122,8 @@ export function createPveBattleBootstrap(
     activeActorId: null,
     combatants,
     battleType: BattleType.PVE,
+    /** Mesmo nível que gerou HP/Atk via monsterZoneScaling. */
+    pveEnemyCombatLevel: enemyBuilt.combatLevel,
     ...(hasPet ? createInitialPetAllianceState() : {}),
   };
 

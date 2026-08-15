@@ -1,0 +1,22 @@
+{
+  "group_id": "4d9d710d-7ee7-4181-8064-2790523bd0ea",
+  "objects": [
+    {
+      "id": "bff37464-64b3-4cfe-bc05-329845b8401d",
+      "name": "base",
+      "prompt": "A top-down 2D floor graffiti decal, retro 90s anime cyberpunk style, bold dark outlines, flat color blocks, urban street art texture, isolated on a transparent background, video game map asset --ar 1:1",
+      "size": {
+        "width": 88,
+        "height": 88
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-08-09T00:34:17.890338"
+}

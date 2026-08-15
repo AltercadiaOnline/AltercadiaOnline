@@ -10,6 +10,8 @@ import { snapToPixel } from '../../render/pixelSnap.js';
 import { renderWorldNpcSnapshot } from '../../world/npcRenderer.js';
 import { renderPetSprite } from '../../entities/pet/petRenderer.js';
 import { PetSpriteLoader } from '../../entities/pet/PetSpriteLoader.js';
+import { tacticalSprayService } from '../../../shared/social/tacticalSprayStore.js';
+import { OFFICIAL_SPRAY_STENCILS } from '../../../shared/types/tacticalSpray.js';
 
 const VIEWPORT_W = DESIGN_CONFIG.VIEWPORT.WIDTH;
 const VIEWPORT_H = DESIGN_CONFIG.VIEWPORT.HEIGHT;
@@ -83,6 +85,49 @@ export class ConstructEntityOverlay {
         continue;
       }
       this.renderCreature(ctx, actor);
+    }
+
+    // Desenhar pichações ativas sob o mapa antes de desenhar o jogador e o pet.
+    try {
+      const tileSize = DESIGN_CONFIG.TILE.SIZE;
+      const zoneId = String(frame.mapId);
+      const sprays = tacticalSprayService.getSpraysInZone(zoneId);
+      const imageCache: Map<string, HTMLImageElement | 'error'> = (ConstructEntityOverlay as any)._sprayImageCache || new Map();
+      (ConstructEntityOverlay as any)._sprayImageCache = imageCache;
+      for (const sp of sprays) {
+        const feetX = sp.posX * tileSize + tileSize / 2;
+        const feetY = sp.posY * tileSize + tileSize;
+        ctx.save();
+        disableCanvasImageSmoothing(ctx);
+        ctx.globalAlpha = 0.95;
+        const stencil = OFFICIAL_SPRAY_STENCILS?.[sp.sprayAssetId];
+        const nameFallback = (sp.sprayAssetId || '').replace('spray_', '');
+        const assetUrl = stencil?.renderAssetUrl || `/assets/sprays/renders/${nameFallback}.png`;
+
+        const cached = imageCache.get(assetUrl);
+        if (cached instanceof HTMLImageElement && cached.complete && cached.naturalWidth > 0) {
+          const img = cached;
+          const drawW = img.naturalWidth;
+          const drawH = img.naturalHeight;
+          const dx = Math.round(feetX - drawW / 2);
+          const dy = Math.round(feetY - drawH);
+          ctx.drawImage(img, dx, dy, drawW, drawH);
+        } else if (!cached) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            imageCache.set(assetUrl, img);
+          };
+          img.onerror = () => {
+            imageCache.set(assetUrl, 'error');
+          };
+          imageCache.set(assetUrl, img);
+          img.src = assetUrl;
+        }
+        ctx.restore();
+      }
+    } catch {
+      // no-op: render loop must not throw
     }
 
     const pet = frame.pet;

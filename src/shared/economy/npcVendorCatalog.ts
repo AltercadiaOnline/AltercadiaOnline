@@ -37,6 +37,29 @@ const CATEGORY_TO_LAB_TAB: Partial<Record<ItemCategory, LabShopTabId>> = {
 /** Catálogo data-driven — um registro por NPC vendedor. */
 export const NPC_VENDOR_CATALOG: readonly NpcVendorCatalogEntry[] = [
   {
+    vendorId: 'mercenario',
+    listings: [
+      {
+        itemId: 'spray_alerta_binario',
+        npcBuyPriceVolts: 40,
+        npcSellPriceVolts: 15,
+        marketValueVolts: 30,
+      },
+      {
+        itemId: 'spray_terminal_hackeado',
+        npcBuyPriceVolts: 60,
+        npcSellPriceVolts: 25,
+        marketValueVolts: 45,
+      },
+      {
+        itemId: 'spray_vigilante',
+        npcBuyPriceVolts: 80,
+        npcSellPriceVolts: 35,
+        marketValueVolts: 60,
+      },
+    ],
+  },
+  {
     vendorId: VENDEDOR_NPC,
     listings: [],
   },

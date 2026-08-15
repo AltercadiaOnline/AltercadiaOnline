@@ -27,8 +27,8 @@ export function WorldHubSocialCluster() {
       aria-label="Hub Social e relógio do mundo"
       style={{
         position: 'absolute',
-        top: 12,
-        right: 12,
+        top: 'var(--ui-hub-anchor-top, 12px)',
+        right: 'var(--ui-hub-anchor-right, 28px)',
         zIndex: 40,
         display: 'flex',
         flexDirection: 'row',

@@ -42,8 +42,8 @@ export type HybridLocomotionSnapshot = {
 
 /**
  * Locomoção híbrida estilo MMO clássico:
- * - MANUAL: teclado com aceleração snap (vetorial float)
- * - AUTO: path-follower com velocidade constante (sem aceleração)
+ * - MANUAL: teclado com impulso linear (velocidade máxima no Key Down, zero no Key Up)
+ * - AUTO: path-follower com velocidade constante
  */
 export class PlayerHybridLocomotion {
   movementMode: MovementMode = 'MANUAL';
@@ -68,7 +68,7 @@ export class PlayerHybridLocomotion {
     this.setWorldPosition(worldX, worldY, facing);
   }
 
-  private static readonly SOFT_CORRECT_MS = 80;
+  private static readonly SOFT_CORRECT_MS = 120;
 
   get isMoving(): boolean {
     if (this.movementMode === 'AUTO') {
@@ -116,6 +116,13 @@ export class PlayerHybridLocomotion {
   stop(): void {
     this.snapEngine.reset();
     this.clearPathQueue();
+  }
+
+  /** Zera impulso manual (WASD/dash) sem tocar no path de clique. */
+  haltManualImpulse(): void {
+    this.snapEngine.reset();
+    this.autoWalkVelocity = { x: 0, y: 0 };
+    this.clearSoftCorrection();
   }
 
   enterManualFromKeyboard(): void {

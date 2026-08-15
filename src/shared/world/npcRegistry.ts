@@ -88,8 +88,8 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     sprite: 'mercenary',
     mapId: CITY_01_ID,
     ...CONSTRUCT_POS,
-    actionType: NpcActionType.OPEN_QUEST,
-    dialogue: 'Tenho contratos perigosos para quem tiver coragem.',
+    actionType: NpcActionType.OPEN_NPC_VENDOR,
+    dialogue: 'Contratos e suprimentos táticos — Latas de Spray disponíveis.',
     dimensions: DESIGN_NPC_DIMENSIONS,
   },
   {

@@ -20,6 +20,8 @@ export type BattleVictoryUiReadyPayload = {
   readonly rankingResult?: BattleRankingResult;
   /** Servidor indica se haverá pacote de loot PVE (4 slots). */
   readonly hasLoot?: boolean;
+  /** Penalidade autoritativa — hub só formata/exibe. */
+  readonly deathPenaltyOutcome?: import('../../shared/progression/ProgressionPenaltyManager.js').DeathPenaltyOutcome;
 };
 
 export type BattleUiEventMap = {

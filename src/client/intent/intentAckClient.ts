@@ -30,6 +30,7 @@ import { clampPetSlotIndex } from '../../shared/pet/petRoster.js';
 import { sanitizePetSnapshotFromClient } from '../../shared/pet/parsePetSnapshotInput.js';
 import { notifyActivateBookIntentSuccess } from '../economy/activateBookClient.js';
 import { notifyBattleLootCollectIntentResult } from '../game/battleLootClient.js';
+import { postSystemNotification } from '../ui/logService.js';
 import {
   notifyRefractionBoothCompleteResult,
   notifyRefractionBoothQuoteResult,
@@ -79,6 +80,28 @@ function tryNotifyActivateBookSuccess(intentId: string, data: unknown): void {
   const expiresAt = typeof record.expiresAt === 'number' ? record.expiresAt : null;
   if (!bookId || expiresAt === null || !Number.isFinite(expiresAt)) return;
   notifyActivateBookIntentSuccess(bookId, expiresAt);
+}
+
+function tryNotifyTradeRequestResult(intentId: string, success: boolean, data?: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending || pending.action.type !== 'TRADE_REQUEST') return;
+
+  if (success) {
+    const message =
+      data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
+        ? (data as { message: string }).message
+        : 'Pedido de trade enviado.';
+    postSystemNotification(message);
+    return;
+  }
+
+  const reason =
+    data && typeof data === 'object' && typeof (data as { reason?: unknown }).reason === 'string'
+      ? (data as { reason: string }).reason
+      : typeof data === 'string'
+        ? data
+        : 'Não foi possível enviar o pedido de trade.';
+  postSystemNotification(reason, 'normal');
 }
 
 function tryNotifyBattleLootCollect(intentId: string, success: boolean, data?: unknown): void {
@@ -389,6 +412,7 @@ export function handleIntentResultPayload(raw: unknown): void {
   if (raw.success) {
     tryNotifyActivateBookSuccess(raw.intentId, raw.data);
     tryNotifyBattleLootCollect(raw.intentId, true, raw.data);
+    tryNotifyTradeRequestResult(raw.intentId, true, raw.data);
     tryNotifyRefractionResult(raw.intentId, true, raw.data);
     const petRosterApplied = tryApplyPetRosterFromIntentData(raw.intentId, raw.data);
     const inventoryApplied = tryApplyInventoryFromIntentData(raw.intentId, raw.data);
@@ -419,6 +443,7 @@ export function handleIntentResultPayload(raw: unknown): void {
   }
 
   tryNotifyBattleLootCollect(raw.intentId, false, raw.data);
+  tryNotifyTradeRequestResult(raw.intentId, false, raw.error ?? 'INTENT_REJECTED');
   tryNotifyRefractionResult(raw.intentId, false, { reason: raw.error ?? 'INTENT_REJECTED' });
 
   if (pendingInRegistry) {

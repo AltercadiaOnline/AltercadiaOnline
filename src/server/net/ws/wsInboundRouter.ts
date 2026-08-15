@@ -149,6 +149,12 @@ export type CombatWsRouteHost = {
     payload: { readonly battleId: string },
   ): Promise<void>;
 
+  routeCombatJoinAbort(
+    ws: LiveSocket,
+    connectionId: string,
+    payload?: { readonly reason?: string },
+  ): void;
+
   routeCombatAction(
     ws: LiveSocket,
     connectionId: string,
