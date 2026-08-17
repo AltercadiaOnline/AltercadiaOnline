@@ -28,7 +28,7 @@ import {
 
 /**
  * Progressão de Nível na ficha — nível/XP, vitais (HP, PP) e deslocamento no mapa.
- * O stat Agilidade do SET alimenta mapa e iniciativa; aqui exibimos só px/s no mundo.
+ * O stat Agilidade do SET alimenta mapa (px/s) e tempo de combate (ordem / golpe extra).
  */
 
 export type LevelProgressionSectionModel = {
@@ -57,7 +57,12 @@ function patchPlayerLevelTooltipAttrs(
 }
 
 function resolveMoveSpeedView(model: LevelProgressionSectionModel): WorldExplorationMoveSpeedSnapshot {
-  return resolveWorldExplorationMoveSpeed(model.speedBonusTotal, model.isEncumbered);
+  return resolveWorldExplorationMoveSpeed(
+    model.speedBonusTotal,
+    model.isEncumbered,
+    undefined,
+    model.profile.level,
+  );
 }
 
 function resolveLoadoutPpDisplayText(): string {

@@ -62,11 +62,13 @@ export function finalizeAuthoritativeRankedPvpEnd(
       forced ?? (forfeited ? 'FORFEIT' : undefined),
     );
 
-    const rankingResult = applyPvpRankedRatingDelta(
-      peer.playerId,
-      peer.characterId,
-      victory,
-    );
+    const rankingResult = session.appliesRankedRating()
+      ? applyPvpRankedRatingDelta(
+        peer.playerId,
+        peer.characterId,
+        victory,
+      )
+      : undefined;
 
     const finishedPayload: CombatFinishedPayload = {
       battleId: basePayload.state.battleId,
@@ -76,7 +78,7 @@ export function finalizeAuthoritativeRankedPvpEnd(
       lootReveal: buildEmptyLootRevealSlots(),
       battleType: BattleType.PVP,
       endReason,
-      rankingResult,
+      ...(rankingResult ? { rankingResult } : {}),
     };
 
     const enriched: CombatDispatchPayload = {
@@ -105,7 +107,7 @@ export function finalizeAuthoritativeRankedPvpEnd(
       hasLoot: false,
       endReason,
       battleType: BattleType.PVP,
-      rankingResult,
+      ...(rankingResult ? { rankingResult } : {}),
     };
 
     peers.push({

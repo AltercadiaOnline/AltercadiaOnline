@@ -6,6 +6,8 @@ import { resetPlayerWalletStore, getPlayerWalletStore } from '../ui/wallet/playe
 import { resetPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { resetPlayerProgressionStore } from '../progression/playerProgressionStore.js';
 import { resetPlayerMarcosStore } from '../ui/marcos/playerMarcosStore.js';
+import { resetMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
+import { resetFriendListStore } from '../world/friendListStore.js';
 import { resetInventorySyncScheduler } from '../game/PlayerItemSession.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
 import { getActionDispatcher } from '../ActionDispatcher.js';
@@ -29,6 +31,8 @@ export function initializePlayerState(options: InitializePlayerStateOptions = {}
   resetPlayerPetStore();
   resetPlayerProgressionStore();
   resetPlayerMarcosStore();
+  resetMercenaryQuestStore();
+  resetFriendListStore();
   resetPlayerWalletStore();
   getPlayerWalletStore().applyBalances({ dollarVolt: 0, alterCoins: 0 });
 

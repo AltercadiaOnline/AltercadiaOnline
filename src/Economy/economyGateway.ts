@@ -3,6 +3,8 @@ import { battleLootPreviewFromBundle, hasLootContent } from '../shared/loot/loot
 import type { LootRevealSlot } from '../shared/loot/lootRevealSlots.js';
 import { getLootManager } from './LootManager.js';
 import { generateEmptyBattleLoot } from './LootGenerator.js';
+import { clampPveEncounterPackSize } from '../shared/combat/pveEncounterPack.js';
+import type { LootItemRoll } from '../shared/loot/lootTypes.js';
 import {
   consumePendingLoot,
   discardPendingLoot,
@@ -32,7 +34,6 @@ import {
   isValidAlterExchangeAmount,
 } from '../shared/economy/premiumCurrency.js';
 import { BATTLE_SURRENDER_VOLT_PENALTY } from '../shared/combat/battleSurrenderConstants.js';
-import { mergeAuthorizedEquippedSnapshot } from '../shared/economy/authorizeEquippedSnapshot.js';
 import type { EquippedSlots, InventoryStack, PlayerWorldVitals } from '../shared/character/equipmentState.js';
 import type { EquipmentUiSlotId } from '../shared/character/equipmentUiSlots.js';
 import {
@@ -55,12 +56,14 @@ import {
 import { globalEventBus } from './EventBus.js';
 import {
   executeEconomyTransaction,
+  executeTwoPartyEconomyTransaction,
   getActiveLootBonusMultiplier,
   getAuthoritativePlayerLoadout,
   getCharacterProfile,
   getPlayerWallet,
   syncAuthoritativeLoadoutFromEconomyProfile,
   getCharacterInventoryStacks,
+  hasCharacterEconomyLoaded,
   setCharacterInventoryStacks,
 } from './economyStore.js';
 import { validateCraftItemRequest } from '../shared/crafting/craftValidation.js';
@@ -235,6 +238,8 @@ export type StageBattleLootRequest = {
   readonly winnerId: string;
   readonly characterId: number;
   readonly defeatedLevel?: number;
+  /** Giros da roleta = monstros enfrentados (1–3). */
+  readonly spinCount?: number;
 };
 
 export type CollectBattleLootRequest = {
@@ -287,6 +292,8 @@ export type ActivateBookResult =
 export type StagedBattleLootResult = {
   readonly preview: BattleLootPreview;
   readonly lootReveal: readonly LootRevealSlot[];
+  readonly lootReveals: readonly (readonly LootRevealSlot[])[];
+  readonly spinCount: number;
 };
 
 /** Alias de produto — pacote com 4 slots + preview pendente de coleta. */
@@ -294,22 +301,52 @@ export type LootPackage = StagedBattleLootResult & {
   readonly lootId: string;
 };
 
-/** Calcula loot (4 slots + bundle) e mantém pendente até o jogador coletar na HUD. */
+/** Calcula loot (4 slots × giros + bundle) e mantém pendente até o jogador coletar na HUD. */
 export function stageBattleLoot(request: StageBattleLootRequest): StagedBattleLootResult | null {
   const lootBonus = getActiveLootBonusMultiplier(request.winnerId, request.characterId);
-  let generated = getLootManager().generateBattleLoot(request.sourceId, request.winnerId, {
-    defeatedLevel: request.defeatedLevel ?? 1,
-    lootBonusMultiplier: lootBonus,
-  });
+  const spinCount = clampPveEncounterPackSize(request.spinCount ?? 1);
+  const lootReveals: LootRevealSlot[][] = [];
+  const itemMap = new Map<string, LootItemRoll>();
+  let voltReward = 0;
 
-  if (!generated) {
-    generated = generateEmptyBattleLoot(request.sourceId, request.winnerId);
+  for (let spin = 0; spin < spinCount; spin += 1) {
+    let generated = getLootManager().generateBattleLoot(request.sourceId, request.winnerId, {
+      defeatedLevel: request.defeatedLevel ?? 1,
+      lootBonusMultiplier: lootBonus,
+    });
+    if (!generated) {
+      generated = generateEmptyBattleLoot(request.sourceId, request.winnerId);
+    }
+    lootReveals.push([...generated.lootReveal]);
+    voltReward += generated.bundle.voltReward;
+    for (const item of generated.bundle.items) {
+      const existing = itemMap.get(item.itemId);
+      if (existing) {
+        itemMap.set(item.itemId, {
+          ...existing,
+          quantity: existing.quantity + item.quantity,
+        });
+      } else {
+        itemMap.set(item.itemId, { ...item });
+      }
+    }
   }
 
-  stagePendingLoot(generated.bundle, request.characterId);
+  const first = lootReveals[0] ?? [];
+  const mergedBundle = {
+    lootId: crypto.randomUUID(),
+    sourceId: request.sourceId,
+    winnerId: request.winnerId,
+    voltReward,
+    items: [...itemMap.values()],
+  };
+  stagePendingLoot(mergedBundle, request.characterId);
+  const preview = battleLootPreviewFromBundle(mergedBundle);
   return {
-    preview: generated.preview,
-    lootReveal: generated.lootReveal,
+    preview,
+    lootReveal: first,
+    lootReveals,
+    spinCount,
   };
 }
 
@@ -319,22 +356,8 @@ export function stageBattleLootForCreature(
   winnerId: string,
   characterId: number,
   level: number,
-  lootBonusMultiplier?: number,
+  _lootBonusMultiplier?: number,
 ): StagedBattleLootResult | null {
-  if (lootBonusMultiplier !== undefined && lootBonusMultiplier > 1) {
-    let generated = getLootManager().generateBattleLoot(creatureId, winnerId, {
-      defeatedLevel: level,
-      lootBonusMultiplier,
-    });
-    if (!generated) {
-      generated = generateEmptyBattleLoot(creatureId, winnerId);
-    }
-    stagePendingLoot(generated.bundle, characterId);
-    return {
-      preview: generated.preview,
-      lootReveal: generated.lootReveal,
-    };
-  }
   return stageBattleLoot({
     sourceId: creatureId,
     winnerId,
@@ -552,28 +575,14 @@ export type SyncEquippedSnapshotResult =
   | { readonly ok: true; readonly equipped: EquippedSlots }
   | { readonly ok: false; readonly message: string };
 
-/** Persiste equipamento validado do cliente antes do combate (fonte: economyStore). */
+/** SET de combate = perfil autoritativo. Snapshot do cliente é ignorado. */
 export async function syncCharacterEquippedSnapshotForCombat(
   playerId: string,
   characterId: number,
-  equipmentSnapshot: EquippedSlots,
+  _equipmentSnapshot?: EquippedSlots,
 ): Promise<SyncEquippedSnapshotResult> {
   const profile = getCharacterProfile(playerId, characterId);
-  const merged = mergeAuthorizedEquippedSnapshot(
-    profile.equipped,
-    equipmentSnapshot,
-    profile.inventory,
-  );
-
-  const tx = await executeEconomyTransaction(playerId, characterId, async (store) => {
-    store.setEquippedSlots(merged);
-  });
-
-  if (!tx.ok) {
-    return { ok: false, message: tx.message };
-  }
-
-  return { ok: true, equipped: merged };
+  return { ok: true, equipped: { ...profile.equipped } };
 }
 
 export async function consumeChargedEquipmentBattleParticipation(
@@ -1928,7 +1937,7 @@ export function validateGiftTransferRequest(
   return { ok: true, quantity };
 }
 
-/** Pós-RPC — sync inventário remetente + audit TRADE. */
+/** Pós-RPC legado — preferir `commitAuthoritativeGiftTransfer`. */
 export function finalizeGiftTransferSender(
   senderPlayerId: string,
   senderCharacterId: number,
@@ -1945,6 +1954,78 @@ export function finalizeGiftTransferSender(
     transfer.quantity,
     `gift_to:${transfer.targetPlayerId}`,
   );
+}
+
+export type CommitGiftTransferInput = {
+  readonly senderPlayerId: string;
+  readonly senderCharacterId: number;
+  readonly targetPlayerId: string;
+  readonly targetCharacterId: number;
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly intentId?: string;
+};
+
+/** Gift atômico no economyStore — mesma autoridade do trade (file). Destinatário precisa já estar hidratado. */
+export async function commitAuthoritativeGiftTransfer(
+  input: CommitGiftTransferInput,
+): Promise<{ readonly ok: true; readonly data: GiftTransferSuccess } | { readonly ok: false; readonly message: string }> {
+  if (input.senderPlayerId === input.targetPlayerId && input.senderCharacterId === input.targetCharacterId) {
+    return { ok: false, message: 'Não é possível enviar presente para si mesmo.' };
+  }
+  if (!hasCharacterEconomyLoaded(input.targetPlayerId, input.targetCharacterId)) {
+    return { ok: false, message: 'Destinatário precisa estar no mundo.' };
+  }
+
+  const policy = validateGiftTransferRequest({
+    senderPlayerId: input.senderPlayerId,
+    senderCharacterId: input.senderCharacterId,
+    itemId: input.itemId,
+    quantity: input.quantity,
+  });
+  if (!policy.ok) return { ok: false, message: policy.message };
+
+  const tx = await executeTwoPartyEconomyTransaction(
+    { playerId: input.senderPlayerId, characterId: input.senderCharacterId },
+    { playerId: input.targetPlayerId, characterId: input.targetCharacterId },
+    (sender, target) => {
+      sender.consumeInventoryItem(input.itemId, policy.quantity);
+      target.addInventoryItem(input.itemId, policy.quantity);
+    },
+  );
+  if (!tx.ok) return { ok: false, message: tx.message };
+
+  const revision = Date.now();
+  publishTwoPartyTradeResult(
+    { playerId: input.senderPlayerId, characterId: input.senderCharacterId },
+    tx.parties[0],
+    input.intentId,
+    revision,
+  );
+  publishTwoPartyTradeResult(
+    { playerId: input.targetPlayerId, characterId: input.targetCharacterId },
+    tx.parties[1],
+    undefined,
+    revision,
+  );
+  auditEconomyMutation(
+    input.senderPlayerId,
+    EconomyAuditAction.Trade,
+    input.itemId,
+    policy.quantity,
+    `gift_to:${input.targetPlayerId}`,
+  );
+
+  return {
+    ok: true,
+    data: {
+      ok: true,
+      senderStacks: tx.parties[0].inventorySnapshot,
+      itemId: input.itemId,
+      quantity: policy.quantity,
+      targetPlayerId: input.targetPlayerId,
+    },
+  };
 }
 
 export type FeedPetSpecialRationRequest = {
@@ -2374,6 +2455,161 @@ export function applyPetAffectionOnServer(request: PetRosterMutationRequest): Pe
   });
 
   return { ok: true, xpGained: PET_AFFECTION_CONFIG.affinityReward };
+}
+
+export type TradeSideReservation = {
+  readonly items: readonly { readonly itemId: string; readonly quantity: number }[];
+  readonly volts: number;
+};
+
+function totalLockedQuantity(stacks: readonly InventoryStack[], itemId: string): number {
+  return stacks
+    .filter((row) => row.itemId === itemId)
+    .reduce((sum, row) => sum + Math.max(0, Math.floor(row.lockedQuantity ?? 0)), 0);
+}
+
+/** Troca a reserva da oferta (unlock anterior + lock novo) numa tx. Rollback restaura o lock velho. */
+export async function replaceTradeSideReservation(
+  playerId: string,
+  characterId: number,
+  previous: TradeSideReservation,
+  next: TradeSideReservation,
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+  for (const item of next.items) {
+    try {
+      assertTransferItemAllowed(item.itemId);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Item não pode ser trocado.',
+      };
+    }
+  }
+
+  const tx = await executeEconomyTransaction(playerId, characterId, (store) => {
+    for (const item of previous.items) {
+      store.unlockInventoryItem(item.itemId, item.quantity);
+    }
+    if (previous.volts > 0) store.unlockDollarVolt(previous.volts);
+    for (const item of next.items) {
+      store.lockInventoryItem(item.itemId, item.quantity);
+    }
+    if (next.volts > 0) store.lockDollarVolt(next.volts);
+  });
+
+  if (!tx.ok) return { ok: false, message: tx.message };
+  syncAuthoritativeLoadoutFromEconomyProfile(playerId, characterId);
+  const revision = Date.now();
+  publishInventoryUpdated(playerId, characterId, tx.inventorySnapshot, { revision });
+  publishWalletUpdated(playerId, characterId, tx, { revision });
+  return { ok: true };
+}
+
+export async function releaseTradeSideReservation(
+  playerId: string,
+  characterId: number,
+  reservation: TradeSideReservation,
+): Promise<void> {
+  if (reservation.items.length === 0 && reservation.volts <= 0) return;
+  await replaceTradeSideReservation(playerId, characterId, reservation, { items: [], volts: 0 });
+}
+
+export type CommitPlayerTradeInput = {
+  readonly partyA: { readonly playerId: string; readonly characterId: number };
+  readonly partyB: { readonly playerId: string; readonly characterId: number };
+  readonly offerA: TradeSideReservation;
+  readonly offerB: TradeSideReservation;
+  readonly intentId?: string;
+};
+
+function assertTradeOfferLocked(
+  playerId: string,
+  characterId: number,
+  offer: TradeSideReservation,
+): void {
+  const stacks = getCharacterInventoryStacks(playerId, characterId);
+  for (const item of offer.items) {
+    assertTransferItemAllowed(item.itemId);
+    if (totalLockedQuantity(stacks, item.itemId) < item.quantity) {
+      throw new Error('Oferta inválida — item não está mais reservado.');
+    }
+  }
+  if (offer.volts > 0) {
+    const wallet = getPlayerWallet(playerId, characterId);
+    if (wallet.lockedDollarVolt < offer.volts || wallet.dollarVolt < offer.volts) {
+      throw new Error('Oferta inválida — VOLTS não estão reservados.');
+    }
+  }
+}
+
+function applyTradeOfferToMutator(
+  store: import('./economyStore.js').EconomyStoreMutator,
+  offer: TradeSideReservation,
+): void {
+  for (const item of offer.items) {
+    store.consumeInventoryItem(item.itemId, item.quantity);
+  }
+  if (offer.volts > 0) store.spendLockedDollarVolt(offer.volts);
+}
+
+function creditTradeOfferToMutator(
+  store: import('./economyStore.js').EconomyStoreMutator,
+  offer: TradeSideReservation,
+): void {
+  for (const item of offer.items) {
+    store.addInventoryItem(item.itemId, item.quantity);
+  }
+  if (offer.volts > 0) store.addDollarVolt(offer.volts);
+}
+
+function publishTwoPartyTradeResult(
+  party: { readonly playerId: string; readonly characterId: number },
+  result: {
+    readonly walletBalance: number;
+    readonly alterCoins: number;
+    readonly inventorySnapshot: readonly InventoryStack[];
+  },
+  intentId: string | undefined,
+  revision: number,
+): void {
+  syncAuthoritativeLoadoutFromEconomyProfile(party.playerId, party.characterId);
+  publishInventoryUpdated(party.playerId, party.characterId, result.inventorySnapshot, {
+    revision,
+    ...(intentId ? { intentId } : {}),
+  });
+  publishWalletUpdated(party.playerId, party.characterId, result, {
+    revision,
+    ...(intentId ? { intentId } : {}),
+  });
+}
+
+/** Commit atômico da mesa — os dois personagens ou nenhum. */
+export async function commitAuthoritativePlayerTrade(
+  input: CommitPlayerTradeInput,
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+  try {
+    assertTradeOfferLocked(input.partyA.playerId, input.partyA.characterId, input.offerA);
+    assertTradeOfferLocked(input.partyB.playerId, input.partyB.characterId, input.offerB);
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Oferta inválida.',
+    };
+  }
+
+  const tx = await executeTwoPartyEconomyTransaction(input.partyA, input.partyB, (storeA, storeB) => {
+    applyTradeOfferToMutator(storeA, input.offerA);
+    applyTradeOfferToMutator(storeB, input.offerB);
+    creditTradeOfferToMutator(storeA, input.offerB);
+    creditTradeOfferToMutator(storeB, input.offerA);
+  });
+
+  if (!tx.ok) return { ok: false, message: tx.message };
+
+  const revision = Date.now();
+  publishTwoPartyTradeResult(input.partyA, tx.parties[0], input.intentId, revision);
+  publishTwoPartyTradeResult(input.partyB, tx.parties[1], undefined, revision);
+  return { ok: true };
 }
 
 export { ALTER_TO_VOLTS_EXCHANGE_RATE };

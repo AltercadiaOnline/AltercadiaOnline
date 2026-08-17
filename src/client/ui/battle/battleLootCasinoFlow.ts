@@ -89,7 +89,10 @@ export async function openBattleLootCasinoOnDemand(
   try {
     const pkg = await loadBattleLootPackageOnDemand(battleId, undefined, lootContext);
     console.log('[PostBattle] Pacote de loot pronto', { battleId, lootId: pkg.lootId });
-    bridge.presentScreen(battleId, pkg.lootId, pkg.lootReveal);
+    bridge.presentScreen(battleId, pkg.lootId, pkg.lootReveal, {
+      ...(pkg.lootReveals ? { lootReveals: pkg.lootReveals } : {}),
+      ...(pkg.spinCount !== undefined ? { spinCount: pkg.spinCount } : {}),
+    });
     getPostBattleHudBridge().setRewardsOpening(false);
   } catch (error) {
     dimPostBattleHub(false);

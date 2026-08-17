@@ -10,6 +10,10 @@ import {
   sweepExpiredInventoryLocks,
 } from '../../Economy/economyGateway.js';
 import { seedAuthoritativePlayerEconomyIfEmpty } from '../economy/seedAuthoritativePlayerEconomy.js';
+import {
+  markMarketplaceStallOffline,
+  markMarketplaceStallOnline,
+} from '../../Economy/marketplaceStallPresence.js';
 import { isOriginAllowed } from '../config/cors.js';
 import type { ActionRequest } from '../../shared/events.js';
 import type { CombatDispatchPayload } from '../../shared/combatWire.js';
@@ -24,6 +28,7 @@ import {
   didPlayerWinBattle,
   resolveBattleCreatureId,
 } from '../../shared/items/combatCreatureRegistry.js';
+import { resolvePveLootSpinCount } from '../../shared/combat/pveEncounterPack.js';
 import { parseWsInbound, serializeWsOutbound, type WsOutboundMessage } from '../../shared/wsProtocol.js';
 import { CombatSession } from '../combat/CombatSession.js';
 import {
@@ -71,6 +76,8 @@ import {
   getPvpRankedQueueManager,
   type PvpRankedMatchPair,
 } from '../combat/pvp/PvpRankedQueueManager.js';
+import { getCasualDuelInviteStore, type CasualDuelMatchPair } from '../social/casualDuelInviteStore.js';
+import { getPlayerTradeStore } from '../social/playerTradeStore.js';
 import { createPvpRankedBattleBootstrap } from '../combat/pvp/buildPvpRankedBattle.js';
 import { RankedPvpCombatSession } from '../combat/pvp/RankedPvpCombatSession.js';
 import {
@@ -80,6 +87,7 @@ import {
 } from '../../shared/character/playerSkinBundle.js';
 import { PVP_RANKED_STATION_ID } from '../../shared/combat/pvp/pvpRankedQueueConfig.js';
 import type { PvpRankedQueueSnapshot } from '../../shared/combat/pvp/pvpRankedQueueProtocol.js';
+import { validatePvpRankedStationAccess } from '../../shared/combat/pvp/pvpRankedStationAccess.js';
 import {
   getAuthoritativeProgression,
   patchAuthoritativeProgression,
@@ -90,6 +98,7 @@ import { getInventoryPersistenceBridge } from '../supabase/inventoryPersistenceB
 import { getPersistenceManager } from '../supabase/persistenceManagerRegistry.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { ChatGlobalPayload } from '../../shared/world/globalChatTypes.js';
+import type { ChatWhisperPayload } from '../../shared/social/chatWhisperTypes.js';
 import { normalizeSpeechBubbleText } from '../../shared/world/speechBubbleText.js';
 import { validateGlobalChatOnServer } from '../chat/globalChatModeratorServer.js';
 import {
@@ -98,6 +107,10 @@ import {
   broadcastChatGlobalPayload,
   unbindChatGlobalBroadcast,
 } from '../chat/chatGlobalBroadcast.js';
+import {
+  bindChatWhisperDeliverer,
+  unbindChatWhisperDeliverer,
+} from '../chat/chatWhisperDeliver.js';
 import { WORLD_TICK_MS } from '../../shared/sync/syncProtocol.js';
 import type { StateSyncBody } from '../../shared/sync/syncProtocol.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
@@ -276,6 +289,9 @@ export class CombatWsHub implements CombatWsRouteHost {
     bindChatGlobalBroadcaster((payload) => {
       this.broadcastChatGlobal(payload);
     });
+    bindChatWhisperDeliverer((connectionIds, payload) => {
+      this.deliverChatWhisper(connectionIds, payload);
+    });
     bindChatGlobalDisplayNameResolver((playerId, characterId) => {
       for (const world of this.worldConnections.values()) {
         if (world.playerId === playerId && world.characterId === characterId) {
@@ -291,6 +307,17 @@ export class CombatWsHub implements CombatWsRouteHost {
     rankedQueue.onMatchReady((match) => {
       void this.bootstrapRankedPvpMatch(match);
     });
+    const casualDuels = getCasualDuelInviteStore();
+    casualDuels.subscribe((snapshot, connectionIds) => {
+      this.broadcastCasualDuelSnapshot(snapshot, connectionIds);
+    });
+    casualDuels.onMatchReady((match) => {
+      void this.bootstrapCasualDuelMatch(match);
+    });
+    const playerTrades = getPlayerTradeStore();
+    playerTrades.subscribe((snapshot, connectionIds) => {
+      this.broadcastPlayerTradeSnapshot(snapshot, connectionIds);
+    });
     console.log('[WS] CombatWsHub ativo — path=/ws (tick 20Hz)');
   }
 
@@ -300,6 +327,7 @@ export class CombatWsHub implements CombatWsRouteHost {
 
   public close(): Promise<void> {
     unbindChatGlobalBroadcast();
+    unbindChatWhisperDeliverer();
     bindPlayerSocketLookup(null);
     this.worldTickScheduler.stop();
     this.persistenceScheduler.stop();
@@ -329,6 +357,8 @@ export class CombatWsHub implements CombatWsRouteHost {
       this.socketsByConnectionId.delete(connectionId);
       void this.handleRankedDisconnect(connectionId);
       getPvpRankedQueueManager().onDisconnect(connectionId);
+      getCasualDuelInviteStore().onDisconnect(connectionId);
+      getPlayerTradeStore().onDisconnect(connectionId);
       const session = this.sessions.get(connectionId);
       if (session) {
         clearBattleSessionLease(session.getPlayerActorId(), session.getCharacterId());
@@ -379,6 +409,9 @@ export class CombatWsHub implements CombatWsRouteHost {
         abandonPveEncounterOnDisconnect(worldState.playerId, worldState.characterId);
       }
       this.worldConnections.delete(connectionId);
+      if (worldState) {
+        markMarketplaceStallOffline(worldState.playerId, worldState.characterId);
+      }
       this.movementIntentHandler.clearConnection(connectionId);
       clearCreatureSyncConnection(connectionId);
       console.log('[WS] Desconectado', connectionId);
@@ -919,6 +952,18 @@ export class CombatWsHub implements CombatWsRouteHost {
       return;
     }
 
+    const profile = getWorldProfile(world.playerId, world.characterId);
+    const stationAccess = validatePvpRankedStationAccess({
+      mapId: profile.currentMapId,
+      worldX: profile.lastPosition.x,
+      worldY: profile.lastPosition.y,
+      stationId: payload.stationId || PVP_RANKED_STATION_ID,
+    });
+    if (!stationAccess.ok) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: stationAccess.reason } });
+      return;
+    }
+
     const progression = getAuthoritativeProgression(world.playerId, world.characterId);
     const skinRaw = payload.skinBundleId ?? progression.characterProfile.skinBundleId;
     const skinBundleId: PlayerSkinBundleId = isValidPlayerSkinBundleId(skinRaw ?? '')
@@ -1111,6 +1156,111 @@ export class CombatWsHub implements CombatWsRouteHost {
     }
   }
 
+  private broadcastCasualDuelSnapshot(
+    snapshot: import('../../shared/social/casualDuelTypes.js').CasualDuelSnapshot,
+    connectionIds: readonly string[],
+  ): void {
+    for (const connectionId of connectionIds) {
+      const peerWs = this.socketsByConnectionId.get(connectionId);
+      if (!peerWs) continue;
+      this.send(peerWs, { type: 'casual-duel-snapshot', payload: snapshot });
+    }
+  }
+
+  private broadcastPlayerTradeSnapshot(
+    snapshot: import('../../shared/social/playerTradeTypes.js').TradeSnapshot,
+    connectionIds: readonly string[],
+  ): void {
+    for (const connectionId of connectionIds) {
+      const peerWs = this.socketsByConnectionId.get(connectionId);
+      if (!peerWs) continue;
+      this.send(peerWs, { type: 'player-trade-snapshot', payload: snapshot });
+    }
+  }
+
+  private async bootstrapCasualDuelMatch(match: CasualDuelMatchPair): Promise<void> {
+    const store = getCasualDuelInviteStore();
+    store.markStarting(match.inviteId);
+    if (this.rankedMatchBootstrapInFlight) {
+      store.failInvite(match.inviteId, 'busy');
+      return;
+    }
+    this.rankedMatchBootstrapInFlight = true;
+    try {
+      const [memberA, memberB] = match.peers;
+      for (const member of match.peers) {
+        if (this.sessions.has(member.connectionId) || isPlayerInBattle(member.playerId, member.characterId)) {
+          store.failInvite(match.inviteId, 'busy');
+          return;
+        }
+      }
+
+      await consumeChargedEquipmentBattleParticipation(memberA.playerId, memberA.characterId);
+      await consumeChargedEquipmentBattleParticipation(memberB.playerId, memberB.characterId);
+
+      const loadoutA = resolveAuthoritativeCombatLoadout(memberA.playerId, memberA.characterId);
+      const loadoutB = resolveAuthoritativeCombatLoadout(memberB.playerId, memberB.characterId);
+      const bootstrap = createPvpRankedBattleBootstrap(loadoutA, loadoutB, match.matchId);
+
+      const session = new RankedPvpCombatSession(bootstrap.state, {
+        matchId: match.matchId,
+        firstActorId: bootstrap.firstActorId,
+        ruleManifest: bootstrap.ruleManifest,
+        appliesRankedRating: false,
+        casualInviteId: match.inviteId,
+        peerA: {
+          connectionId: memberA.connectionId,
+          playerId: memberA.playerId,
+          characterId: memberA.characterId,
+          actorId: bootstrap.actorAId,
+          loadout: loadoutA,
+        },
+        peerB: {
+          connectionId: memberB.connectionId,
+          playerId: memberB.playerId,
+          characterId: memberB.characterId,
+          actorId: bootstrap.actorBId,
+          loadout: loadoutB,
+        },
+      });
+
+      const battleId = session.getBattleId();
+      this.rankedSessionsByBattleId.set(battleId, session);
+      for (const peer of session.listPeers()) {
+        this.rankedBattleByConnectionId.set(peer.connectionId, battleId);
+        this.movementIntentHandler.clearConnection(peer.connectionId);
+        setPlayerInBattle(peer.playerId, peer.characterId, true);
+        this.gameState.setStatus(peer.connectionId, 'battle');
+        registerBattleSessionLease(peer.connectionId, peer.playerId, peer.characterId);
+        const peerWs = this.socketsByConnectionId.get(peer.connectionId);
+        if (peerWs) this.socketsByPlayerId.set(peer.playerId, peerWs);
+      }
+
+      const startPayloads = session.start();
+      for (const peer of session.listPeers()) {
+        const peerWs = this.socketsByConnectionId.get(peer.connectionId);
+        if (!peerWs) continue;
+        this.send(peerWs, {
+          type: 'START_COMBAT',
+          payload: {
+            battleId,
+            matchId: match.matchId,
+            battleType: 'PVP',
+          },
+        });
+        const payload = startPayloads.get(peer.connectionId);
+        if (payload) {
+          this.send(peerWs, { type: 'combat-event', payload });
+        }
+      }
+    } catch (error) {
+      console.error('[WS] bootstrapCasualDuelMatch falhou', { inviteId: match.inviteId, error });
+      store.failInvite(match.inviteId, 'busy');
+    } finally {
+      this.rankedMatchBootstrapInFlight = false;
+    }
+  }
+
   private async routeRankedCombatAction(
     ws: LiveSocket,
     connectionId: string,
@@ -1212,7 +1362,12 @@ export class CombatWsHub implements CombatWsRouteHost {
       this.combatTurnController.clearChoiceWindow(peer.connectionId);
     }
     this.rankedSessionsByBattleId.delete(battleId);
-    getPvpRankedQueueManager().clearAfterBattle();
+    const casualInviteId = session.getCasualInviteId();
+    if (casualInviteId) {
+      getCasualDuelInviteStore().clearAfterBattle(casualInviteId);
+    } else {
+      getPvpRankedQueueManager().clearAfterBattle();
+    }
   }
 
   private dispatchPveEncounterOutbound(message: PveEncounterOutbound): void {
@@ -1260,6 +1415,8 @@ export class CombatWsHub implements CombatWsRouteHost {
             battleId,
             lootId: staged.preview.lootId,
             lootReveal: staged.lootReveal,
+            lootReveals: staged.lootReveals,
+            spinCount: staged.spinCount,
             lootPreview: staged.preview,
           },
         });
@@ -1287,6 +1444,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       winnerId: playerActorId,
       characterId,
       defeatedLevel: resolveSessionPveDefeatedLevel(state, creatureId),
+      spinCount: resolvePveLootSpinCount(state.combatants, state.pveEncounterPackSize),
     });
   }
 
@@ -1549,6 +1707,7 @@ export class CombatWsHub implements CombatWsRouteHost {
     }
     clearForceJoinInFlight(world.playerId, world.characterId);
     this.worldConnections.delete(connectionId);
+    markMarketplaceStallOffline(world.playerId, world.characterId);
     clearCreatureSyncConnection(connectionId);
     clearPlayerSessionFlags(world.playerId, world.characterId);
     clearIntentReplaySession(world.playerId, world.characterId);
@@ -1828,6 +1987,7 @@ export class CombatWsHub implements CombatWsRouteHost {
 
       this.evictDuplicateWorldSession(authUserId, payload.characterId, connectionId);
 
+      const previousWorld = this.worldConnections.get(connectionId);
       this.worldConnections.set(connectionId, {
         playerId: authUserId,
         characterId: payload.characterId,
@@ -1844,6 +2004,7 @@ export class CombatWsHub implements CombatWsRouteHost {
         status: 'exploring',
       });
       this.socketsByPlayerId.set(authUserId, ws);
+      this.syncMarketplaceStallPresence(previousWorld, authUserId, payload.characterId);
 
       // Personagem sem save: perfil vazio (sem DEMO / VOLTS de teste).
       if (!hadPersistedSave && bootstrap.profileReady) {
@@ -2010,6 +2171,18 @@ export class CombatWsHub implements CombatWsRouteHost {
     for (const [connectionId, socket] of this.socketsByConnectionId) {
       if (!this.worldConnections.has(connectionId)) continue;
       this.send(socket, { type: 'chat-global', payload });
+    }
+  }
+
+  /** Whisper — só os dois sockets da conversa. Sem persistência. */
+  private deliverChatWhisper(connectionIds: readonly string[], payload: ChatWhisperPayload): void {
+    const seen = new Set<string>();
+    for (const connectionId of connectionIds) {
+      if (seen.has(connectionId)) continue;
+      seen.add(connectionId);
+      const socket = this.socketsByConnectionId.get(connectionId);
+      if (!socket) continue;
+      this.send(socket, { type: 'chat-whisper', payload });
     }
   }
 
@@ -2201,6 +2374,21 @@ export class CombatWsHub implements CombatWsRouteHost {
     } catch (error) {
       console.warn('[WS] Falha ao enviar mensagem', error);
     }
+  }
+
+  /** Espelha quem está no mundo — só para empurrar o livro P2P aos clientes conectados. */
+  private syncMarketplaceStallPresence(
+    previousWorld: WorldConnectionState | undefined,
+    playerId: string,
+    characterId: number,
+  ): void {
+    if (
+      previousWorld
+      && (previousWorld.playerId !== playerId || previousWorld.characterId !== characterId)
+    ) {
+      markMarketplaceStallOffline(previousWorld.playerId, previousWorld.characterId);
+    }
+    markMarketplaceStallOnline(playerId, characterId);
   }
 
   /** Encerra sessão anterior do mesmo personagem (evita ghost connections em 100+ online). */

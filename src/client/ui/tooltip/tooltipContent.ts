@@ -61,10 +61,15 @@ function formatItemEffect(stat: string, value: number, type: ItemEffectValueType
 function buildItemModel(
   item: ItemDefinition,
   heldAmountLabel?: string,
+  chargesLabel?: string,
 ): TooltipRenderModel {
   const lines: string[] = [
     ITEM_CATEGORY_LABELS[item.category] ?? item.category,
   ];
+
+  if (chargesLabel) {
+    lines.push(chargesLabel);
+  }
 
   if (item.category === ItemCategory.Currency && heldAmountLabel) {
     lines.push(`Em posse: ${heldAmountLabel}`);
@@ -151,7 +156,7 @@ function buildHintModel(data: TooltipData & { kind: 'hint' }): TooltipRenderMode
 
 export function buildTooltipRenderModel(data: TooltipData): TooltipRenderModel | null {
   if (data.kind === 'item') {
-    return buildItemModel(data.data, data.heldAmountLabel);
+    return buildItemModel(data.data, data.heldAmountLabel, data.chargesLabel);
   }
   if (data.kind === 'marco') {
     return buildMarcoModel(data);

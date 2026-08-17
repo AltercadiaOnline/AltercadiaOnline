@@ -31,6 +31,7 @@ export function createServerPublicClientConfig(
     ...(env.publicSiteUrl ? { publicSiteUrl: env.publicSiteUrl } : {}),
     serverId: env.serverInstance.id,
     serverName: env.serverInstance.displayName,
+    defaultGameMode: env.defaultGameMode,
     ...(clientDevStamp ? { clientDevStamp } : {}),
   });
 }

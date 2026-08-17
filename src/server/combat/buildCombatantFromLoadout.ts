@@ -22,6 +22,7 @@ export function buildCombatantFromLoadout(
     activeMarcos: loadout.activeMarcos,
     nodeProgression: loadout.nodeProgression,
     equipped: loadout.equipped,
+    ...(loadout.equippedItemIds ? { equippedItemIds: loadout.equippedItemIds } : {}),
     flowSpeedBase: loadout.flowSpeedBase,
   });
 
@@ -68,6 +69,7 @@ export function buildCombatantFromLoadout(
     hpCurrent,
     hpMax: maxHp,
     classId: loadout.classId,
+    level: loadout.level,
     combatRole: 'PLAYER',
     speedProfile: {
       flowSpeedBase: loadout.flowSpeedBase,

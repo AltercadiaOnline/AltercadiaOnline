@@ -2,6 +2,11 @@
 
 **Versão 1.0 | Maio 2026**
 
+> **Histórico (fatia C, 2026-08)** — desenho de produto, não checklist do repo.
+> **No código agora:** Cabine de Refração (VORTEX). **Ainda não:** pesca de fragmentos (`fissure_sync_spot`), telão/espectador.
+> Código vivo: `docs/context/progressao-pets-quests.md` não cobre isto — ver `src/shared/cityMinigames/` e `WorldRefractionBoothPanel.tsx`.
+> Não apagar este arquivo; não tratar §03–§04 como implementados.
+
 > Estande de tiro e pesca de fragmentos existem **só na cidade** para dar loop de lazer fora do combate. **Não** alteram stats de batalha, marcos ou dash. A **arena social** (espectador + apostas) é módulo separado — ver `MODULO-ATIVIDADES-CIDADE-v1.0.md` e extensão espectador abaixo.
 
 ---

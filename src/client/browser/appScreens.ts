@@ -77,6 +77,7 @@ import { AuthOperationTimeoutError, withAuthDeadline } from '../auth/authDeadlin
 import { isSupabaseEmailConfirmed, isGoogleAuthUser } from '../../shared/auth/emailConfirmationPolicy.js';
 import { getCharSelectBridge } from '../app/bridge/charSelectBridge.js';
 import { getAppScreenBridge } from '../app/bridge/appScreenBridge.js';
+import { getAudioManager } from '../audio/AudioManager.js';
 import { authLoginFormHasUserInput, getAuthScreenController } from '../app/screen/authScreenController.js';
 import { setAuthStatusMessage } from '../app/bridge/authBridge.js';
 import { isEmailCredentialAuthInFlight } from '../services/auth/oauthPending.js';
@@ -245,6 +246,7 @@ export const AppScreens = {
   authService: createAuthService(),
 
   showLogin(): void {
+    getAudioManager().unlockMenuBgm();
     showScreen('login-screen');
   },
 
@@ -440,6 +442,7 @@ export const AppScreens = {
       game.classList.remove('game-container--booting');
       game.setAttribute('aria-hidden', 'true');
     }
+    getAudioManager().unlockMenuBgm();
     showScreen('char-select-screen');
     getCharSelectBridge().setEnterWorldBusy(false);
     this.syncCharacterSelectionUi();
@@ -661,6 +664,7 @@ export const AppScreens = {
     }
 
     getCharSelectBridge().setEnterWorldBusy(true);
+    getAudioManager().lockForWorldEnter();
 
     this.clearCharacterHubError();
 
@@ -687,6 +691,8 @@ export const AppScreens = {
     } finally {
       // Em sucesso: loading + busy ficam até revealGameWorldAfterBoot().
       if (!enteredWorld) {
+        getAudioManager().unlockMenuBgm();
+        getAudioManager().playBGM('login');
         hidePlayerInitLoading();
         getCharSelectBridge().setEnterWorldBusy(false);
       }

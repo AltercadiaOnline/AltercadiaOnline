@@ -41,7 +41,7 @@ export const WORLD_PANEL_TITLES: Partial<Record<UiWindowId, string>> = {
   characters: 'Personagens',
   moveset: 'Moveset',
   marcos: 'Marcos',
-  quest: 'Missões',
+  quest: 'Quadro de Agente',
   social: 'Social',
   shop: 'Loja',
   market: 'Mercado',

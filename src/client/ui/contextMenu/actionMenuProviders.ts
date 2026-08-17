@@ -162,5 +162,5 @@ function buildEquipSlotActions(context: ActionMenuContext): readonly ActionMenuI
 }
 
 function buildInventorySlotActions(context: ActionMenuContext): readonly ActionMenuItem[] {
-  return buildInventorySlotContextActions(context.target as InventorySlotMenuTarget | undefined);
+  return buildInventorySlotContextActions(context.target as InventorySlotMenuTarget | undefined, context);
 }

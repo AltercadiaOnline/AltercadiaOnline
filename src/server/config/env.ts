@@ -35,6 +35,11 @@ export type ServerEnv = {
   readonly serverInstance: ServerInstanceDefinition;
   /** Protege GET /ops/* — ausente em dev; obrigatório em produção. */
   readonly opsToken: string | null;
+  /**
+   * Default do cliente em GET /config/client.
+   * Produção sempre `online`. Dev: `ALTERCADIA_DEFAULT_GAME_MODE=local` só para Mock.
+   */
+  readonly defaultGameMode: 'local' | 'online';
 };
 
 function parseNodeEnv(raw: string | undefined): NodeEnv {
@@ -117,5 +122,9 @@ export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     database: loadDatabaseEnv(env, serverInstance),
     serverInstance,
     opsToken: sanitizeEnvSecret(env.OPS_TOKEN),
+    defaultGameMode:
+      nodeEnv === 'production' || env.ALTERCADIA_DEFAULT_GAME_MODE !== 'local'
+        ? 'online'
+        : 'local',
   };
 }

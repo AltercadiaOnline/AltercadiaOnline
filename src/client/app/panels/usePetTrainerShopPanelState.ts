@@ -4,10 +4,7 @@ import {
   PET_KIND_ORDER,
   type PetKindId,
 } from '../../../shared/pet/petCatalog.js';
-import {
-  getDefaultPetColorId,
-  type PetColorId,
-} from '../../../shared/pet/petColorPalette.js';
+import { getDefaultPetColorId } from '../../../shared/pet/petColorPalette.js';
 import {
   getDefaultPetGenderId,
   type PetGenderId,
@@ -47,7 +44,6 @@ export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
   const [selectedKind, setSelectedKind] = useState<PetKindId | null>(null);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [petName, setPetName] = useState('');
-  const [selectedColor, setSelectedColor] = useState<PetColorId | null>(null);
   const [selectedGender, setSelectedGender] = useState<PetGenderId>(getDefaultPetGenderId());
 
   useEffect(() => {
@@ -99,7 +95,6 @@ export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
   const openCustomize = () => {
     if (!selectedKind || isKindOwned(selectedKind)) return;
     setCustomizeOpen(true);
-    setSelectedColor(getDefaultPetColorId(selectedKind));
     setSelectedGender(getDefaultPetGenderId());
     const def = getPetDefinition(selectedKind);
     if (!petName.trim()) setPetName(def.name);
@@ -109,9 +104,7 @@ export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
     setCustomizeOpen(false);
   };
 
-  const effectiveColor = selectedKind
-    ? (selectedColor ?? getDefaultPetColorId(selectedKind))
-    : null;
+  const effectiveColor = selectedKind ? getDefaultPetColorId(selectedKind) : null;
 
   const effectiveName = petName.trim()
     || (selectedKind ? getPetDefinition(selectedKind).name : '');
@@ -136,7 +129,6 @@ export function usePetTrainerShopPanelState(vendor: PetTrainerShopView) {
     openCustomize,
     backToCatalog,
     setPetName,
-    setSelectedColor,
     setSelectedGender,
     effectiveName,
   };

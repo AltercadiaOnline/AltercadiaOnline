@@ -11,7 +11,7 @@ export const VELOCIDADE_STAT_LABEL = AGILIDADE_STAT_LABEL;
 
 /** Texto de ajuda (ficha, aria, docs curtos). */
 export const AGILIDADE_STAT_DESCRIPTION =
-  'Soma da classe, equipamento e buffs: acelera no mapa e define quem age primeiro no combate.';
+  'No mapa acelera o deslocamento. No combate dá viés na ordem de ação e chance de golpe extra — nunca trava o primeiro turno nem acelera a animação.';
 
 /** @deprecated Use AGILIDADE_STAT_DESCRIPTION. */
 export const VELOCIDADE_STAT_DESCRIPTION = AGILIDADE_STAT_DESCRIPTION;

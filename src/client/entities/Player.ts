@@ -11,6 +11,7 @@ import {
 } from '../../shared/character/carryCapacity.js';
 import {
   createEmptyStatsBonus,
+  resolveMoveSpeedPxPerSec,
   type PlayerStatsBonus,
 } from '../../shared/character/playerStatsBonus.js';
 import { getPlayerStatsGateway } from '../gateway/PlayerStatsGateway.js';
@@ -24,7 +25,11 @@ import { gridPathToWorldQueue } from '../../shared/world/pathQueue.js';
 import type { GridTileCoord } from '../../shared/world/gridMovement.js';
 import { resolvePlayerHeightOnTowerStep } from '../../shared/world/localizedHeight.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
-import type { WorldPosition } from '../../shared/world/movement.js';
+import {
+  resolvePlayerMoveSpeedPxPerSec,
+  type WorldPosition,
+} from '../../shared/world/movement.js';
+import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import type { PlayerRenderSnapshot } from './player/index.js';
 import {
   createDefaultPlayerSkin,
@@ -144,6 +149,16 @@ export class Player {
     return this.locomotion.isMoving;
   }
 
+  /** Mesma px/s da locomoção de exploração — o pet usa isto para acompanhar. */
+  getExplorationMoveSpeedPxPerSec(): number {
+    return resolveMoveSpeedPxPerSec(
+      this.speedBonusTotal,
+      this._isEncumbered,
+      resolvePlayerMoveSpeedPxPerSec(getActiveMapTileSize()),
+      this.level,
+    );
+  }
+
   setSkin(skin: PlayerSkin): void {
     this.skin = { ...skin };
   }
@@ -253,6 +268,7 @@ export class Player {
       {
         speedBonusTotal: this.speedBonusTotal,
         isEncumbered: this._isEncumbered,
+        playerLevel: this.level,
       },
       (step) => {
         this.worldSocket.emit('move', { stepX: step.stepX, stepY: step.stepY });

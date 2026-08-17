@@ -23,6 +23,7 @@ let chatLineSequence = 0;
 const DEFAULT_PET: BattleHudPetSnapshot = {
   visible: false,
   name: '—',
+  kindId: null,
   hp: 0,
   maxHp: 1,
   hpRatio: 0,
@@ -60,8 +61,12 @@ export const INITIAL_BATTLE_HUD_STATE: BattleHudState = {
   itemsEnabled: false,
   player: null,
   opponent: null,
+  opponents: [],
+  selectedFoeActorId: null,
   pet: DEFAULT_PET,
   turnTimer: DEFAULT_TIMER,
+  finishPromptVisible: false,
+  finishPromptVictory: false,
 };
 
 function formatBattleLogTimestamp(): string {
@@ -86,13 +91,22 @@ type BattleHudStoreActions = {
     player: BattleHudFighterSnapshot | null,
     opponent: BattleHudFighterSnapshot | null,
     pet: BattleHudPetSnapshot,
+    opponents?: readonly BattleHudFighterSnapshot[],
   ) => void;
-  patchFighterHp: (side: 'player' | 'opponent' | 'pet', hp: number, maxHp: number) => void;
+  selectFoe: (actorId: string | null) => void;
+  patchFighterHp: (
+    side: 'player' | 'opponent' | 'pet',
+    hp: number,
+    maxHp: number,
+    actorId?: string,
+  ) => void;
   setTurnTimer: (timer: BattleHudTurnTimerSnapshot) => void;
   appendLogLine: (
     line: Omit<BattleHudLogLine, 'id' | 'timestamp'> & { readonly timestamp?: string },
   ) => void;
   appendChatLine: (author: string, text: string) => void;
+  showFinishPrompt: (victory: boolean) => void;
+  hideFinishPrompt: () => void;
   resetSession: () => void;
   clearLogLines: () => void;
   clearChatLines: () => void;
@@ -106,6 +120,21 @@ export const useBattleHudStore = (() => {
   };
   if (!g.__ALTERCADIA_USE_BATTLE_HUD_STORE__) {
     g.__ALTERCADIA_USE_BATTLE_HUD_STORE__ = createBattleHudStore();
+  } else {
+    const store = g.__ALTERCADIA_USE_BATTLE_HUD_STORE__;
+    const snapshot = store.getState();
+    if (!Array.isArray(snapshot.opponents)) {
+      store.setState({
+        opponents: [],
+        selectedFoeActorId: snapshot.selectedFoeActorId ?? null,
+      });
+    }
+    if (typeof snapshot.finishPromptVisible !== 'boolean') {
+      store.setState({
+        finishPromptVisible: false,
+        finishPromptVictory: false,
+      });
+    }
   }
   return g.__ALTERCADIA_USE_BATTLE_HUD_STORE__;
 })();
@@ -146,9 +175,27 @@ function createBattleHudStore() {
 
   setPaletteTurnBlocked: (paletteTurnBlocked) => set({ paletteTurnBlocked }),
 
-  setVitals: (player, opponent, pet) => set({ player, opponent, pet }),
+  setVitals: (player, opponent, pet, opponents) => {
+    const nextOpponents = opponents ? [...opponents] : opponent ? [opponent] : [];
+    const living = nextOpponents.filter((entry) => entry.actorId && entry.hp > 0);
+    const previousSelected = get().selectedFoeActorId;
+    const selectedStillValid = previousSelected
+      ? living.some((entry) => entry.actorId === previousSelected)
+      : false;
+    set({
+      player,
+      opponent,
+      pet,
+      opponents: nextOpponents,
+      selectedFoeActorId: selectedStillValid
+        ? previousSelected
+        : (living[0]?.actorId ?? opponent?.actorId ?? null),
+    });
+  },
 
-  patchFighterHp: (side, hp, maxHp) => {
+  selectFoe: (actorId) => set({ selectedFoeActorId: actorId }),
+
+  patchFighterHp: (side, hp, maxHp, actorId) => {
     const max = Math.max(1, maxHp);
     const hpRatio = Math.min(100, Math.max(0, (hp / max) * 100));
 
@@ -164,16 +211,28 @@ function createBattleHudStore() {
       return;
     }
 
-    const key = side === 'player' ? 'player' : 'opponent';
-    const fighter = key === 'player' ? get().player : get().opponent;
-    if (!fighter) return;
-
-    const patch = { ...fighter, hp, maxHp: max, hpRatio };
-    if (key === 'player') {
-      set({ player: patch });
-    } else {
-      set({ opponent: patch });
+    if (side === 'player') {
+      const fighter = get().player;
+      if (!fighter) return;
+      set({ player: { ...fighter, hp, maxHp: max, hpRatio } });
+      return;
     }
+
+    const opponents = get().opponents.map((entry) => (
+      actorId && entry.actorId === actorId
+        ? { ...entry, hp, maxHp: max, hpRatio }
+        : entry
+    ));
+    const fighter = get().opponent;
+    const shouldPatchPrimary = !fighter
+      ? false
+      : !actorId || fighter.actorId === actorId || !fighter.actorId;
+    set({
+      opponents,
+      opponent: fighter && shouldPatchPrimary
+        ? { ...fighter, hp, maxHp: max, hpRatio }
+        : fighter,
+    });
   },
 
   setTurnTimer: (turnTimer) => set({ turnTimer }),
@@ -203,6 +262,16 @@ function createBattleHudStore() {
     set({ chatLines: nextLines });
   },
 
+  showFinishPrompt: (victory) => set({
+    finishPromptVisible: true,
+    finishPromptVictory: victory,
+  }),
+
+  hideFinishPrompt: () => set({
+    finishPromptVisible: false,
+    finishPromptVictory: false,
+  }),
+
   resetSession: () => {
     const { controllerReady, battleHudActive } = get();
     set({
@@ -223,9 +292,7 @@ function createBattleHudStore() {
  */
 export function useBattleHud(): BattleHudState | null {
   const viewMode = useGameStore((state) => state.viewMode);
-  const controllerReady = useBattleHudStore((state) => state.controllerReady);
-  const battleHudActive = useBattleHudStore((state) => state.battleHudActive);
-  if (viewMode !== 'battle' || !controllerReady || !battleHudActive) {
+  if (viewMode !== 'battle') {
     return null;
   }
   // Snapshot pontual — não assina a store inteira (evita storm do timer).

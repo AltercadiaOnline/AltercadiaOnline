@@ -5,6 +5,7 @@ import {
   COMBAT_EVENT_GAP_MS,
   COMBAT_INSTANT_EVENT_GAP_MS,
 } from '../../shared/combat/combatSequenceConstants.js';
+import { isAgilityTempoLogLine } from '../../shared/combat/agilityTempo.js';
 import { CombatAnimator } from './CombatAnimator.js';
 import { isBattlePlaybackClosing } from './combatPlaybackState.js';
 
@@ -32,12 +33,13 @@ function resolveGapAfterEvent(event: CombatEvent, defaultGapMs: number): number 
     case CombatEventType.COMBAT_FINISHED:
     case CombatEventType.TURN_RESOLVED:
     case CombatEventType.TURN_ORDER_RESOLVED:
-    case CombatEventType.TURN_START:
     case CombatEventType.SKILL_USED:
     case CombatEventType.STATUS_EVENT:
       return COMBAT_INSTANT_EVENT_GAP_MS;
     case CombatEventType.DAMAGE_DEALT:
       return COMBAT_DAMAGE_EVENT_GAP_MS;
+    case CombatEventType.COMBAT_LOG:
+      return isAgilityTempoLogLine(event.line) ? COMBAT_INSTANT_EVENT_GAP_MS : defaultGapMs;
     default:
       return defaultGapMs;
   }

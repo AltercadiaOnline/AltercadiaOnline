@@ -1,0 +1,15 @@
+---
+description: Persistência file — personagem + sprays; postgres stub bloqueado
+globs: src/server/persistence/**/*.ts,src/shared/persistence/**/*.ts,src/client/persistence/**/*.ts
+alwaysApply: false
+---
+
+# Persistência
+
+Ficha: `docs/context/persistencia.md`
+
+- Runtime: `PERSISTENCE_MODE=file`. Não ligar `postgres` (stub).
+- Personagem: `PersistenceGateway` + `CharacterPersistenceRecord`.
+- Sprays mundo: `worldSprayPersistence.ts` (JSON no data dir).
+- Local: mesmo schema em `localCharacterSave.ts`.
+- `legacyMessage` vive no profile, não no tile.

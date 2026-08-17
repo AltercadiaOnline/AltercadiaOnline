@@ -25,6 +25,7 @@ const NOT_YOUR_TURN_MESSAGE = 'Não é sua vez!';
 const WAITING_OPPONENT_MESSAGE = 'Aguardando ação do oponente…';
 
 const YOUR_TURN_MESSAGE = 'Sua vez — escolha um movimento';
+const AGILITY_EXTRA_STRIKE_MESSAGE = 'Golpe extra de Agilidade — ataque agora';
 
 
 
@@ -44,6 +45,7 @@ export class TurnStateGuard {
   private turnChoiceBudgetMs = BATTLE_TURN_CHOICE_BUDGET_MS;
   private lastTurnWindowKey: string | null = null;
   private lastUiTurnKey: string | null = null;
+  private agilityExtraStrike = false;
   private onChoiceWindowExpired: (() => void) | null = null;
   private readonly turnTimer: BattleTurnTimer;
   private readonly ui: TurnGuardUi = {
@@ -109,6 +111,8 @@ export class TurnStateGuard {
     this.lastTurnWindowKey = null;
 
     this.lastUiTurnKey = null;
+
+    this.agilityExtraStrike = false;
 
     getGameStore().updateBattleState({
       status: 'idle',
@@ -217,7 +221,9 @@ export class TurnStateGuard {
 
     this.isMyTurn = nextTurn;
 
-
+    const nextExtra = Boolean(ui.agilityExtraStrike);
+    const extraChanged = nextExtra !== this.agilityExtraStrike;
+    this.agilityExtraStrike = nextExtra;
 
     const turnWindowChanged = turnWindowKey !== this.lastTurnWindowKey;
 
@@ -251,7 +257,7 @@ export class TurnStateGuard {
 
 
 
-    if (uiTurnKey !== this.lastUiTurnKey || turnWindowChanged) {
+    if (uiTurnKey !== this.lastUiTurnKey || turnWindowChanged || extraChanged) {
 
       this.lastUiTurnKey = uiTurnKey;
 
@@ -333,7 +339,7 @@ export class TurnStateGuard {
 
     getBattleHudBridge().setPaletteTurnBlocked(blocked);
     const phaseText = this.isMyTurn
-      ? YOUR_TURN_MESSAGE
+      ? (this.agilityExtraStrike ? AGILITY_EXTRA_STRIKE_MESSAGE : YOUR_TURN_MESSAGE)
       : WAITING_OPPONENT_MESSAGE;
     getBattleHudBridge().setTurnPhase(phaseText, this.isMyTurn);
   }

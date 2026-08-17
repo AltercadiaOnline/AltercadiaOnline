@@ -378,6 +378,22 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
     2.5,
     'Equipado: +4% Defesa. Ativar: +10% loot por 15 min. 10 cargas — −1 por batalha.',
   ),
+  book(
+    'livro_critico',
+    'Livro de Crítico',
+    [pct('CRIT', 3)],
+    15,
+    2.2,
+    'Equipado: +3% Crítico. Ativar: +15% loot por 10 min. 10 cargas — −1 por batalha.',
+  ),
+  book(
+    'livro_forca',
+    'Livro de Força',
+    [pct('STR', 4)],
+    12,
+    2.2,
+    'Equipado: +4% Força. Ativar: +12% loot por 10 min. 10 cargas — −1 por batalha.',
+  ),
   generic(
     'spray_terminal_hackeado',
     'Spray Tático: Terminal Hackeado',

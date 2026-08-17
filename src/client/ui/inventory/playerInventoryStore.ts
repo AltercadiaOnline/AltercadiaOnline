@@ -63,11 +63,6 @@ class PlayerInventoryStore {
     this.publish();
   }
 
-  /** @deprecated Zero-start — não injeta inventário demo. */
-  seedDemoInventory(): void {
-    this.reset();
-  }
-
   getSlot(index: number): InventorySlotState | null {
     if (index < 0 || index >= this.slots.length) return null;
     return this.slots[index] ?? null;

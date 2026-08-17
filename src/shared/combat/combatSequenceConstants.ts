@@ -1,4 +1,7 @@
-/** Ritmo global da fila de combate (0.7 ≈ 30% mais rápido que o baseline original). */
+/**
+ * Ritmo global da fila de combate (0.7 ≈ 30% mais rápido que o baseline original).
+ * Agilidade de SET/classe **nunca** escala estes tempos — playback é o mesmo para todos.
+ */
 const COMBAT_PLAYBACK_SPEED = 0.7;
 
 function combatMs(base: number): number {
@@ -13,6 +16,12 @@ export const COMBAT_DAMAGE_EVENT_GAP_MS = combatMs(420);
 
 /** Duração do flash/impacto em retratos side-view (ms). */
 export const COMBAT_HIT_ANIM_MS = combatMs(320);
+
+/** Dash até o contato (ms) — cabe no relógio do cue de ataque. */
+export const COMBAT_STRIKE_DASH_MS = combatMs(180);
+
+/** Recuo até a âncora de casa (ms). */
+export const COMBAT_STRIKE_RECOVER_MS = combatMs(200);
 
 /** Windup do atacante antes do impacto visual (ms). */
 export const COMBAT_ATTACK_WINDUP_MS = combatMs(300);

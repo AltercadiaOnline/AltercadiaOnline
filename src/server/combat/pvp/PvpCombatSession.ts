@@ -12,6 +12,8 @@ import {
   cloneManifest,
   remainingRuneCharges,
   resolveSkillRuneTrigger,
+  isPersistentImpactCritBonus,
+  peekRuneCharge,
   tryConsumeRuneCharge,
   type MutableCombatRuleManifest,
 } from '../runeCombat.js';
@@ -203,6 +205,12 @@ export class PvpCombatSession {
   private applyRuneModifiers(action: ResolvedCombatAction): { action: ResolvedCombatAction; events: CombatEvent[] } {
     const trigger = resolveSkillRuneTrigger(action.skillId);
     if (!trigger) return { action, events: [] };
+
+    const pending = peekRuneCharge(this.ruleManifest, trigger);
+    if (!pending) return { action, events: [] };
+    if (isPersistentImpactCritBonus(pending)) {
+      return { action, events: [] };
+    }
 
     const entry = tryConsumeRuneCharge(this.ruleManifest, trigger);
     if (!entry) return { action, events: [] };

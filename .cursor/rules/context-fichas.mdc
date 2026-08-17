@@ -1,0 +1,17 @@
+---
+description: Protocolo de contexto — fichas docs/context, não varrer o repo
+alwaysApply: true
+---
+
+# Contexto curto
+
+Repo grande. Antes de explorar pastas:
+
+1. Se o usuário citou um módulo, leia **só** `docs/context/<ficha>.md` (índice: `docs/context/INDEX.md`).
+2. Abra os arquivos listados na ficha. Não rode explore/Task em `src/` inteiro.
+3. `AGENTS.md` + `docs/LEIA-PRIMEIRO.md` definem o hábito: **uma ficha por tarefa**.
+4. Docs `GDD`, `lore`, `CLASS-MOVES` só se a tarefa for design/narrativa/kit.
+5. Phaser/Tiled nos docs antigos = sucata. Mundo = Construct.
+6. Chat: `docs/context/workflow-cursor.md`. Limpeza só com fatia explícita (`limpeza-segura.md`). Não apagar `src/game`, `generate-assets` ou atlas sem prova de import + `deploy:check`.
+
+Não duplicar aqui as regras já always-on (Construct, colisão STOP, identidade, local=online, economyGateway).

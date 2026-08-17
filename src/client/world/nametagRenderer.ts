@@ -44,6 +44,15 @@ export function formatNametagLabel(name: string, level: number): string {
   return renderNameTag(name, level);
 }
 
+/** Nametag de peer: nome + nível só quando o snapshot autoritativo trouxe o nível. */
+export function formatRemotePlayerNametag(name: string, level?: number): string {
+  const trimmed = name.trim() || 'Jogador';
+  if (typeof level === 'number' && Number.isFinite(level) && level >= 1) {
+    return formatNametagLabel(trimmed, Math.floor(level));
+  }
+  return trimmed;
+}
+
 /** Lê nome e nível do perfil global — atualiza a cada frame ou após PLAYER_PROFILE_UPDATED. */
 export function resolvePlayerNametagView(): NametagView {
   const profile = getPlayerProfileStore().getSnapshot();

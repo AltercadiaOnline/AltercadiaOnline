@@ -75,6 +75,13 @@ export class CombatGateway {
     this.engine.setPetAllianceProgress(progress);
   }
 
+  public setAgilityTempoProgress(progress: {
+    readonly agilitySkipEnemyReaction: boolean;
+    readonly agilityLastExtraTurn: number | null;
+  }): void {
+    this.engine.setAgilityTempoProgress(progress);
+  }
+
   private toDispatchResult(rawEvents: readonly CombatEvent[]): DispatchResult {
     return {
       events: mapEventsForClient(rawEvents),

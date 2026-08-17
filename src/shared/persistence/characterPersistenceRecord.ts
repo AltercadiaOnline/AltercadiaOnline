@@ -12,6 +12,8 @@ import { createEmptyPetRoster } from '../pet/petRoster.js';
 import type { MemorialEntry } from '../pet/petMemorial.js';
 import type { SkinSlotId } from '../character/playerSkin.js';
 import type { ClassType } from '../types/classes.js';
+import type { MercenaryQuestProgress } from '../quests/mercenaryQuestTypes.js';
+import type { FriendListEntry } from '../social/friendListTypes.js';
 
 /** Versão do schema JSON — incrementar ao mudar formato. */
 export const CHARACTER_PERSISTENCE_SCHEMA_VERSION = 2;
@@ -39,6 +41,12 @@ export type PersistedCharacterProfileSlice = {
   readonly pvpRating?: number;
   readonly pvpWins?: number;
   readonly pvpLosses?: number;
+  readonly pvpMatches?: number;
+  readonly pveKills?: number;
+  readonly pveBossKills?: number;
+  readonly pveDungeonClears?: number;
+  /** Mensagem de legado exibida em sprays do autor. */
+  readonly legacyMessage?: string;
 };
 
 export type PersistedMarcosSlice = {
@@ -107,6 +115,10 @@ export type CharacterPersistenceRecord = {
   readonly petMemorial?: readonly MemorialEntry[];
   readonly ownedSkins?: PersistedOwnedSkinsSlice;
   readonly marketplace?: PersistedMarketplaceSlice;
+  /** Quadro de Agente — contratos aceitos/concluídos (catálogo em mercenaryQuestCatalog). */
+  readonly mercenaryQuests?: MercenaryQuestProgress;
+  /** Lista unilateral de amigos (nomes). Mensagens privadas não entram no save. */
+  readonly friends?: readonly FriendListEntry[];
 };
 
 export function characterPersistenceKey(playerId: string, characterId: number): string {

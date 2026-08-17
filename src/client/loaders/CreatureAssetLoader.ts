@@ -173,7 +173,7 @@ export async function startLoadingZone(zoneId: string = ZONE1_ID): Promise<void>
   initializedZones.add(zoneId);
 }
 
-/** @deprecated Use `startLoadingZone` na PreloaderScene. */
+/** Alias de `startLoadingZone` (overlay Construct — não há PreloaderScene). */
 export async function initializeZoneAssets(zoneId: string = ZONE1_ID): Promise<void> {
   return startLoadingZone(zoneId);
 }

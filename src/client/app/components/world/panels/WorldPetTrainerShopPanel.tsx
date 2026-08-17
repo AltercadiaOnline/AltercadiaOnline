@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useMemo, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   getPetDefinition,
   type PetKindId,
 } from '../../../../../shared/pet/petCatalog.js';
 import {
-  getPetColorPalette,
-  PET_COLOR_ORDER,
-} from '../../../../../shared/pet/petColorPalette.js';
-import {
   getPetGenderLabel,
   PET_GENDER_ORDER,
 } from '../../../../../shared/pet/petGender.js';
+import { getDefaultPetColorId } from '../../../../../shared/pet/petColorPalette.js';
 import { validatePetPurchase } from '../../../../../shared/economy/petTrainerService.js';
 import { formatVolts } from '../../../../../shared/economy/premiumCurrency.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
@@ -80,14 +77,15 @@ export function WorldPetTrainerShopPanel({
   }, []);
 
   const handlePurchase = useCallback(() => {
-    if (!state.selectedKind || !state.selectedColor) return undefined;
+    if (!state.selectedKind) return undefined;
 
+    const colorId = getDefaultPetColorId(state.selectedKind);
     const walletVolts = getPlayerWalletStore().getSnapshot().dollarVolt;
     const validation = validatePetPurchase({
       vendorId: vendor.vendorId,
       kindId: state.selectedKind,
       name: state.effectiveName,
-      colorId: state.selectedColor,
+      colorId,
       gender: state.selectedGender,
       walletVolts,
       ownedPetCount: getPlayerPetStore().getRoster().pets.length,
@@ -110,7 +108,6 @@ export function WorldPetTrainerShopPanel({
     });
   }, [
     state.effectiveName,
-    state.selectedColor,
     state.selectedGender,
     state.selectedKind,
     vendor.vendorId,
@@ -132,7 +129,7 @@ export function WorldPetTrainerShopPanel({
   return (
     <MovablePanelFrame
       windowId="petTrainerShop"
-      title={customize ? 'Nome, Sexo e Cor' : vendor.vendorName}
+      title={customize ? 'Nome e Sexo' : vendor.vendorName}
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--pet-trainer-shop ui-panel--pet-trainer-shop"
@@ -186,34 +183,6 @@ export function WorldPetTrainerShopPanel({
                     onClick={() => state.setSelectedGender(genderId)}
                   >
                     {symbol} {getPetGenderLabel(genderId)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="pet-trainer-customize__palette">
-            <span className="pet-trainer-customize__label">Paleta techwear</span>
-            <div className="pet-trainer-customize__swatches">
-              {PET_COLOR_ORDER.map((colorId) => {
-                const palette = getPetColorPalette(colorId);
-                const selected = state.selectedColor === colorId;
-                return (
-                  <button
-                    key={colorId}
-                    type="button"
-                    className={`pet-trainer-palette${selected ? ' pet-trainer-palette--selected' : ''}`}
-                    aria-pressed={selected}
-                    title={palette.label}
-                    disabled={purchaseGateway.pending}
-                    style={{
-                      '--pet-swatch': palette.fur,
-                      '--pet-led': palette.led,
-                    } as CSSProperties}
-                    onClick={() => state.setSelectedColor(colorId)}
-                  >
-                    <span className="pet-trainer-palette__fur" />
-                    <span className="pet-trainer-palette__led" />
                   </button>
                 );
               })}

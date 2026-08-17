@@ -24,6 +24,8 @@ import {
 
   COMBAT_HP_ANIM_MS,
 
+  COMBAT_STRIKE_RECOVER_MS,
+
   COMBAT_STATUS_PORTRAIT_FAST_MS,
 
   COMBAT_STATUS_PORTRAIT_MS,
@@ -60,6 +62,7 @@ import {
 import { flashStatusPortraitCue } from './statusEventPortraitCue.js';
 
 import { isBattlePlaybackClosing } from './combatPlaybackState.js';
+import { isAgilityTempoLogLine } from '../../shared/combat/agilityTempo.js';
 import type { CombatFeedbackStep } from '../../shared/combat/combatVisualFeedback.js';
 import { resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels.js';
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
@@ -82,7 +85,7 @@ function showCombatHitImpactBundle(options: {
       compactScene: true,
       suppressFinalDamage: options.amount > 0,
       lessonMath: true,
-      durationMs: 2000,
+      durationMs: 4200,
       side,
     });
     if (options.amount > 0) {
@@ -229,7 +232,7 @@ export class BattleController {
 
       case CombatEventType.COMBAT_LOG:
 
-        if (!isBattlePlaybackClosing()) {
+        if (!isBattlePlaybackClosing() && !isAgilityTempoLogLine(event.line)) {
 
           await CombatAnimator.wait(Math.min(COMBAT_HIT_ANIM_MS, COMBAT_HIT_ANIM_LOG_CAP_MS));
 
@@ -291,7 +294,9 @@ export class BattleController {
 
     if (isBattlePlaybackClosing()) {
 
-      screen.setPortraitStance(sourceId, 'idle');
+      if (hpAfter > 0) {
+        screen.setPortraitStance(sourceId, 'idle');
+      }
 
       const hpTargets = screen.getHpBarTargets(targetId);
       if (hpTargets) {
@@ -343,7 +348,9 @@ export class BattleController {
         await this.healthBar.animateTo(hpTargets, hpAfter, COMBAT_HP_ANIM_MS);
       }
       screen.commitCombatantHp(targetId, hpAfter);
-      screen.setPortraitStance(sourceId, 'idle');
+      if (hpAfter > 0) {
+        screen.setPortraitStance(sourceId, 'idle');
+      }
       return;
     }
 
@@ -429,9 +436,10 @@ export class BattleController {
     }
     screen.commitCombatantHp(targetId, hpAfter);
 
-
-
-    screen.setPortraitStance(sourceId, 'idle');
+    if (hpAfter > 0) {
+      screen.setPortraitStance(sourceId, 'idle');
+      await CombatAnimator.wait(COMBAT_STRIKE_RECOVER_MS);
+    }
 
   }
 

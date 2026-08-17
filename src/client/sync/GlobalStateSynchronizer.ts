@@ -40,6 +40,7 @@ import {
   resolveMapIdFromCreatureSnapshots,
 } from '../world/worldCreatureSyncBridge.js';
 import { parseAndApplyRemotePlayerSnapshots } from '../world/remoteEntitySyncBridge.js';
+import { parseAndApplyWorldSpraySnapshots } from '../world/worldSpraySyncBridge.js';
 import { isVisualDebugModeEnabled } from '../debug/visualDebugMode.js';
 import { resetAuthoritativeRenderStore } from '../render/AuthoritativeRenderStore.js';
 import { clearRemoteEntitySyncBridge } from '../world/remoteEntitySyncBridge.js';
@@ -274,6 +275,15 @@ export class GlobalStateSynchronizer {
             tickDelta.nearbyPlayers,
             tickDelta.serverTimeMs,
           );
+        }
+      }
+
+      if (tickDelta.sprays) {
+        const mapId =
+          tickDelta.position?.mapId
+          ?? getMutableDataStore().getWorldPosition()?.mapId;
+        if (mapId) {
+          parseAndApplyWorldSpraySnapshots(mapId, tickDelta.sprays);
         }
       }
 

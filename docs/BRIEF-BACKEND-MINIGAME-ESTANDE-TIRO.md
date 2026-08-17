@@ -1,5 +1,11 @@
 # Brief Backend — Minigame Estande de Tiro (Simulador de Refração)
 
+> **Histórico (fatia C, 2026-08)** — spec de implementação. **Não é SSOT do runtime.**
+> No jogo de hoje a Cabine de Refração já existe: `src/shared/cityMinigames/`, `src/server/handlers/city/RefractionBoothHandlers.ts`, painel `WorldRefractionBoothPanel`.
+> Não copiar este brief para um segundo minigame paralelo. Pesca / telão descritos noutros módulos de cidade **não** estão no código.
+
+**Versão:** MVP v1.0 · **Escopo:** simples, otimizado, só cidade — **sem combate**
+
 **Versão:** MVP v1.0 · **Escopo:** simples, otimizado, só cidade — **sem combate**
 
 Documento para implementação no servidor. O cliente (outro fluxo) abre HUD após confirmação; este brief cobre **autoridade, economia e validação**.

@@ -1,0 +1,15 @@
+---
+description: HUD React — App, painéis, z-index, sem Phaser
+globs: src/client/app/**/*.ts,src/client/app/**/*.tsx
+alwaysApply: false
+---
+
+# UI cliente
+
+Ficha: `docs/context/ui-cliente.md`
+
+- Roots: `#game-render-host` Construct, `#game-react-hud-root` React in-game.
+- Z: shell 920, battle 921, sidebar 930, painéis 940, overlay 10000 (`uiLayers.ts`).
+- Painéis: `worldPanelRegistry.ts` — todos implementados, não stub.
+- SprayInspectHud monta em `App.tsx` (irmã dos painéis), `position: fixed`.
+- Sem Phaser, sem segundo bundle React.

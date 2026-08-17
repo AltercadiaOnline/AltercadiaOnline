@@ -17,11 +17,17 @@ export function resolveWorldExplorationMoveSpeed(
   speedBonusTotal: number,
   isEncumbered: boolean,
   tileSize = getActiveMapTileSize(),
+  playerLevel = 1,
 ): WorldExplorationMoveSpeedSnapshot {
   const basePxPerSec = resolvePlayerMoveSpeedPxPerSec(tileSize);
   return {
     basePxPerSec,
-    currentPxPerSec: resolveMoveSpeedPxPerSec(speedBonusTotal, isEncumbered, basePxPerSec),
+    currentPxPerSec: resolveMoveSpeedPxPerSec(
+      speedBonusTotal,
+      isEncumbered,
+      basePxPerSec,
+      playerLevel,
+    ),
   };
 }
 

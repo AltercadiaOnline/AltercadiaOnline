@@ -7,6 +7,8 @@ export type LootCasinoHudSnapshot = {
   readonly battleId: string | null;
   readonly lootId: string | null;
   readonly slots: readonly LootRevealSlot[];
+  readonly lootReveals: readonly (readonly LootRevealSlot[])[];
+  readonly spinCount: number;
   readonly errorMessage: string | null;
   readonly spinning: boolean;
   readonly hubDimmed: boolean;
@@ -21,6 +23,8 @@ const DEFAULT_SNAPSHOT: LootCasinoHudSnapshot = {
   battleId: null,
   lootId: null,
   slots: EMPTY_SLOTS,
+  lootReveals: [],
+  spinCount: 1,
   errorMessage: null,
   spinning: false,
   hubDimmed: false,
@@ -47,6 +51,8 @@ class LootCasinoHudBridge {
       battleId,
       lootId: null,
       slots: EMPTY_SLOTS,
+      lootReveals: [],
+      spinCount: 1,
       errorMessage: null,
       spinning: false,
       hubDimmed: this.snapshotState.hubDimmed,
@@ -54,12 +60,28 @@ class LootCasinoHudBridge {
     this.emit();
   }
 
-  presentScreen(battleId: string, lootId: string, slots: readonly LootRevealSlot[]): void {
+  presentScreen(
+    battleId: string,
+    lootId: string,
+    slots: readonly LootRevealSlot[],
+    extras?: {
+      readonly lootReveals?: readonly (readonly LootRevealSlot[])[];
+      readonly spinCount?: number;
+    },
+  ): void {
+    const lootReveals = extras?.lootReveals && extras.lootReveals.length > 0
+      ? extras.lootReveals
+      : [slots];
+    const spinCount = extras?.spinCount && extras.spinCount >= 1
+      ? Math.min(3, extras.spinCount)
+      : lootReveals.length;
     this.snapshotState = {
       view: 'screen',
       battleId,
       lootId,
-      slots,
+      slots: lootReveals[0] ?? slots,
+      lootReveals,
+      spinCount,
       errorMessage: null,
       spinning: false,
       hubDimmed: this.snapshotState.hubDimmed,
@@ -73,6 +95,8 @@ class LootCasinoHudBridge {
       battleId,
       lootId: null,
       slots: EMPTY_SLOTS,
+      lootReveals: [],
+      spinCount: 1,
       errorMessage: message,
       spinning: false,
       hubDimmed: false,

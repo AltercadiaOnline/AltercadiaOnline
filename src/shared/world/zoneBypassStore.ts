@@ -1,9 +1,17 @@
 import {
   ZONE_BYPASS_DIFFICULTIES,
+  SUB_ZONE_TRANSITION_ORDER,
   SubZoneTransitionId,
   TerminalInitResponse,
   TerminalSubmitResponse,
+  ZoneDomainSnapshot,
 } from '../types/zoneBypass.js';
+
+interface ZoneHolderRecord {
+  readonly userId: string;
+  readonly displayName: string;
+  readonly unlockedAtMs: number;
+}
 
 interface ActiveTerminalSession {
   readonly sessionId: string;
@@ -18,6 +26,8 @@ export class ZoneBypassService {
   private activeSessions = new Map<string, ActiveTerminalSession>();
   private playerLockdowns = new Map<string, number>();
   private playerUnlocks = new Map<string, Set<string>>();
+  /** Primeiro bypass bem-sucedido da subzona — “quem está dominando”. */
+  private zoneHolders = new Map<string, ZoneHolderRecord>();
 
   public isZoneUnlocked(userId: string, targetZone: string): boolean {
     const unlocks = this.playerUnlocks.get(userId);
@@ -75,11 +85,37 @@ export class ZoneBypassService {
     };
   }
 
+  public getDomainSnapshot(userId: string, nowMs: number = Date.now()): ZoneDomainSnapshot {
+    const unlocks = this.playerUnlocks.get(userId) ?? new Set<string>();
+    const lockdownUntil = this.playerLockdowns.get(userId) ?? 0;
+    const lanes = SUB_ZONE_TRANSITION_ORDER.map((transitionId) => {
+      const config = ZONE_BYPASS_DIFFICULTIES[transitionId];
+      const holder = this.zoneHolders.get(config.toZone);
+      return {
+        transitionId,
+        fromZone: config.fromZone,
+        toZone: config.toZone,
+        digitCount: config.digitCount,
+        displayTimeMs: config.displayTimeMs,
+        unlocked: unlocks.has(config.toZone),
+        holderName: holder?.displayName ?? null,
+      };
+    });
+    const next = lanes.find((lane) => !lane.unlocked) ?? null;
+    return {
+      unlockedZones: [...unlocks],
+      lanes,
+      nextTransitionId: next?.transitionId ?? null,
+      lockdownRemainingMs: Math.max(0, lockdownUntil - nowMs),
+    };
+  }
+
   public submitTerminalAnswer(
     sessionId: string,
     userId: string,
     inputCode: string,
     currentLevelExpRequirement: number = 1000,
+    holderDisplayName?: string,
   ): TerminalSubmitResponse {
     const session = this.activeSessions.get(sessionId);
     const now = Date.now();
@@ -116,6 +152,14 @@ export class ZoneBypassService {
       this.playerUnlocks.set(userId, new Set());
     }
     this.playerUnlocks.get(userId)!.add(config.toZone);
+    if (!this.zoneHolders.has(config.toZone)) {
+      const name = holderDisplayName?.trim();
+      this.zoneHolders.set(config.toZone, {
+        userId,
+        displayName: name && name.length > 0 ? name : userId,
+        unlockedAtMs: now,
+      });
+    }
     this.activeSessions.delete(sessionId);
 
     return {

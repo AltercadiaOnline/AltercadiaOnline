@@ -150,6 +150,74 @@ export function markMarketplaceListingSold(
   return sold ? cloneListing(sold) : null;
 }
 
+/** Reabre anúncio se a compra do buyer falhou depois de marcar SOLD. */
+export function restoreMarketplaceListingListed(
+  playerId: string,
+  characterId: number,
+  listingId: string,
+): MarketplaceListingRecord | null {
+  const state = getState(playerId, characterId);
+  let restored: MarketplaceListingRecord | null = null;
+
+  state.listings = state.listings.map((entry) => {
+    if (entry.id !== listingId || entry.status !== 'SOLD') return entry;
+    const { soldAt: _soldAt, ...rest } = entry;
+    restored = { ...rest, status: 'LISTED' };
+    return restored;
+  });
+
+  return restored ? cloneListing(restored) : null;
+}
+
+/** Recoloca anúncio (cancel/collect falhou depois de tirar do book). */
+export function restoreMarketplaceListingRecord(
+  playerId: string,
+  characterId: number,
+  listing: MarketplaceListingRecord,
+): void {
+  const state = getState(playerId, characterId);
+  const cloned = cloneListing(listing);
+  const index = state.listings.findIndex((entry) => entry.id === listing.id);
+  if (index >= 0) {
+    state.listings[index] = cloned;
+    return;
+  }
+  state.listings = [cloned, ...state.listings];
+}
+
+export function restoreMarketplaceBuyOrderRecord(
+  playerId: string,
+  characterId: number,
+  order: MarketplaceBuyOrderRecord,
+): void {
+  const state = getState(playerId, characterId);
+  const cloned = cloneOrder(order);
+  const index = state.buyOrders.findIndex((entry) => entry.id === order.id);
+  if (index >= 0) {
+    state.buyOrders[index] = cloned;
+    return;
+  }
+  state.buyOrders = [cloned, ...state.buyOrders];
+}
+
+export function peekMarketplaceListing(
+  playerId: string,
+  characterId: number,
+  listingId: string,
+): MarketplaceListingRecord | null {
+  const entry = getState(playerId, characterId).listings.find((row) => row.id === listingId);
+  return entry ? cloneListing(entry) : null;
+}
+
+export function peekMarketplaceBuyOrder(
+  playerId: string,
+  characterId: number,
+  orderId: string,
+): MarketplaceBuyOrderRecord | null {
+  const entry = getState(playerId, characterId).buyOrders.find((row) => row.id === orderId);
+  return entry ? cloneOrder(entry) : null;
+}
+
 export function collectMarketplaceListing(
   playerId: string,
   characterId: number,

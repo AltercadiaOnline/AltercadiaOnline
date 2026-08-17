@@ -6,8 +6,8 @@ const PRODUCTION_HOSTS = new Set([
 ]);
 
 /**
- * Shift+D / cheats só no local de verdade (localhost → GAME_MODE=local por padrão).
- * Vercel / online = espelho oficial — sem menu de debug.
+ * Shift+D / cheats só no Mock (`GAME_MODE=local`: npm run dev:mock ou ?gameMode=local).
+ * Vercel / `npm run dev` (online) = espelho oficial — sem menu de debug.
  */
 export function isDevDebugToolsEnabled(): boolean {
   if (typeof window === 'undefined') return false;

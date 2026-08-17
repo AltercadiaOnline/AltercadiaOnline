@@ -81,6 +81,14 @@ export type WsOutboundMessage =
         readonly reason: import('./combat/pvp/pvpRankedQueueProtocol.js').PvpRankedQueueErrorCode;
       };
     }
+    | {
+      readonly type: 'casual-duel-snapshot';
+      readonly payload: import('./social/casualDuelTypes.js').CasualDuelSnapshot;
+    }
+    | {
+      readonly type: 'player-trade-snapshot';
+      readonly payload: import('./social/playerTradeTypes.js').TradeSnapshot;
+    }
 
   | { readonly type: 'combat-event'; readonly payload: CombatDispatchPayload }
 
@@ -157,6 +165,10 @@ export type WsOutboundMessage =
   | {
       readonly type: 'chat-global-rejected';
       readonly payload: { readonly reason: string };
+    }
+  | {
+      readonly type: 'chat-whisper';
+      readonly payload: import('./social/chatWhisperTypes.js').ChatWhisperPayload;
     }
   | {
       readonly type: 'log-service';

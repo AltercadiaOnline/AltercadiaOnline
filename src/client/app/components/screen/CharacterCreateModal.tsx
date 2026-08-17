@@ -179,7 +179,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
         }
       }}
     >
-      <div className="char-create-box vortex-panel auth-form ui-skin-hybrid ui-skin-hybrid--holo-boost char-create-box--react char-create-box--wizard">
+      <div className="char-create-box auth-form char-create-box--react char-create-box--wizard char-create-box--glass">
         <h2 className="auth-panel-title">CRIAR PERSONAGEM</h2>
         <p className="char-create-slot-label">{`Slot ${slotIndex + 1} de 5`}</p>
 
@@ -224,6 +224,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
                     key={classId}
                     type="button"
                     className={`char-class-option ${selected ? 'is-selected' : ''}`}
+                    data-class={classId}
                     aria-pressed={selected}
                     disabled={busy}
                     onClick={() => {
@@ -232,15 +233,15 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
                     }}
                   >
                     <strong>{definition.name}</strong>
-                    <span>{definition.trait}</span>
-                    <span className="char-class-option__blurb">{CLASS_PLAYSTYLE_LORE[classId]}</span>
                   </button>
                 );
               })}
             </div>
             {selectedClass && (
               <p className="char-create-step__hint" aria-live="polite">
-                Estilo: {CLASS_PLAYSTYLE_LORE[selectedClass]}
+                {CLASS_CATALOG[selectedClass].trait}
+                {' — '}
+                {CLASS_PLAYSTYLE_LORE[selectedClass]}
               </p>
             )}
             <div className="auth-actions char-create-actions">

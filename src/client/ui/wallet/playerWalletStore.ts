@@ -127,14 +127,6 @@ class PlayerWalletStore {
 
 
 
-  /** @deprecated Zero-start — ignore seed amounts; wallet starts empty. */
-  seedDemo(_seed?: { readonly dollarVolt?: number; readonly alterCoins?: number }): void {
-    if (this.dollarVolt === 0 && this.alterCoins === 0) return;
-    this.applyBalances({ dollarVolt: 0, alterCoins: 0 });
-  }
-
-
-
   /** Troca local (exploração offline) — bloqueada em modo online. */
   exchangeAlterForVolts(alterAmount: number): boolean {
     if (!this.canMutateLocally('exchangeAlterForVolts')) {

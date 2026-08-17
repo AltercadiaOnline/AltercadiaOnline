@@ -9,7 +9,7 @@ import {
   INTERACTION_PROMPT_BUFFER_OFFSET_Y,
   INTERACTION_PROMPT_WORLD_OFFSET_Y,
 } from '../layout/UIConstants.js';
-import { screenToTile, toScreenCoords } from '../world/screenCoords.js';
+import { screenToTile, screenToWorldPixel, toScreenCoords } from '../world/screenCoords.js';
 import {
   findApproachTile,
   findPortalEntryTile,
@@ -19,6 +19,7 @@ import { findGridPath } from '../../shared/world/gridPathfinding.js';
 import { isWithinInteractionRadius } from '../../shared/world/interactableDistance.js';
 import {
   InteractableKind,
+  buildInteractableId,
   parseInteractableId,
   portalTiles,
   type InteractableId,
@@ -42,7 +43,9 @@ import {
   isWorldPlayerWithinInteractionRadius,
   pickWorldPlayerAt,
 } from '../world/worldPlayerPickRegistry.js';
-import { buildInteractableId } from '../../shared/world/interactableRegistry.js';
+import { inspectWorldSprayAt } from '../world/spraySocialActions.js';
+import { inspectWorldPlayerAt } from '../world/playerInspectActions.js';
+import { closePlayerInspectHud } from '../world/playerInspectStore.js';
 
 type MoveTarget = {
   readonly tileX: number;
@@ -160,6 +163,15 @@ export class PointClickController implements Disposable {
     }
 
     this.navigateToGroundTile(pick.tileX, pick.tileY);
+  }
+
+  handleWorldContextMenu(screenX: number, screenY: number, clientX: number, clientY: number): void {
+    const { worldX, worldY } = screenToWorldPixel(this.camera, screenX, screenY);
+    if (inspectWorldSprayAt(this.mapManager.currentMapId, worldX, worldY, clientX, clientY)) {
+      closePlayerInspectHud();
+      return;
+    }
+    inspectWorldPlayerAt(this.camera, screenX, screenY, clientX, clientY);
   }
 
   cancelNavigation(): void {

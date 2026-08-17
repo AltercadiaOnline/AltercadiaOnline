@@ -32,6 +32,7 @@ import { validateInventoryDeleteIntent } from '../../shared/economy/inventoryPol
 import { isMarketplaceListableItem } from '../../shared/economy/itemValorEconomy.js';
 import { getMarketplaceBuyOrderStore, resetMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
 import { getPlayerMarketStore, resetPlayerMarketStore } from '../ui/market/playerMarketStore.js';
+import { publishLocalMarketplaceOrderBook } from '../ui/market/marketplaceOrderBookClient.js';
 import { getItemById } from '../../shared/items/itemCatalog.js';
 import { ensureHuntZoneLoaded } from '../../shared/world/worldMonsterInstances.js';
 import { getAuthoritativeItemById } from '../../shared/items/itemCatalogAuthoritative.js';
@@ -127,6 +128,19 @@ import { transferCurrency } from '../../shared/bank/bankCurrency.js';
 import { BANK_TRANSACTION_SUCCESS_MESSAGE } from '../../shared/bank/bankConstants.js';
 import type { BankStorageDataSnapshot } from '../../shared/playerDataSnapshots.js';
 import type { BankCurrencyTypeId } from '../../shared/bank/bankConstants.js';
+import { isOfficialSprayItemId } from '../../shared/social/spraySocialTypes.js';
+import { tacticalSprayService } from '../../shared/social/tacticalSprayStore.js';
+import { sanitizeSprayLegacyMessage } from '../../shared/social/spraySocialTypes.js';
+import { isMapId } from '../../shared/world/mapRegistry.js';
+import { worldPixelToTile } from '../../shared/world/portals.js';
+import { resolveMapTileSize } from '../../shared/world/activeMapTileSize.js';
+import { applyWorldSpraySnapshots } from '../world/worldSpraySyncBridge.js';
+import { openSprayInspectHud, patchSprayInspectLegacy, setOwnSprayLegacyMessage, markSprayInspectFriendSent } from '../world/sprayInspectStore.js';
+import { markPlayerInspectFriendSent } from '../world/playerInspectStore.js';
+import { getActiveCharacterIdentity } from '../character/activeCharacterIdentity.js';
+import { applyAuthoritativeFriendList, getFriendList, resetFriendListStore, upsertFriend } from '../world/friendListStore.js';
+import { sanitizeFriendDisplayName } from '../../shared/social/friendListTypes.js';
+import { postSystemNotification } from '../ui/logService.js';
 import type { OwnedSkins } from '../ui/character/playerSkinStore.js';
 import { getPlayerSkinStore, resetPlayerSkinStore } from '../ui/character/playerSkinStore.js';
 import { getPlayerInventoryStore, resetPlayerInventoryStore } from '../ui/inventory/playerInventoryStore.js';
@@ -136,6 +150,11 @@ import { getPlayerProfileStore } from '../ui/character/playerProfileStore.js';
 import { getPlayerItemStore, resetPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { resetInventorySyncScheduler } from '../game/PlayerItemSession.js';
 import { getPlayerMarcosStore, resetPlayerMarcosStore } from '../ui/marcos/playerMarcosStore.js';
+import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
+import {
+  abandonMercenaryQuest,
+  acceptMercenaryQuest,
+} from '../../shared/quests/mercenaryQuestProgress.js';
 import { getPlayerWalletStore, resetPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
 import { getGameStore } from '../state/GameStore.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
@@ -231,6 +250,7 @@ export class MockEconomyService implements IDevMockEconomyService {
       readonly facing: PlayerFacing;
     } | null)
     | null = null;
+  private legacyMessage = '';
   private readonly marcosListeners = new Set<(snapshot: MarcosStateSnapshot) => void>();
   private readonly movesProgressionListeners = new Set<
     (snapshot: MovesProgressionSnapshot) => void
@@ -502,6 +522,7 @@ export class MockEconomyService implements IDevMockEconomyService {
     }
 
     this.applyPersistenceRecord(record);
+    this.hydrateLocalWorldSprays();
     this.ensurePetCharacterPersistBridge();
     this.ensurePetMemorialPersistBridge();
 
@@ -666,11 +687,19 @@ export class MockEconomyService implements IDevMockEconomyService {
         xpCurrent: Math.max(0, levelState.xpCurrent),
         displayName: equipment.displayName,
         classId: equipment.classId,
+        ...(this.legacyMessage ? { legacyMessage: this.legacyMessage } : {}),
       },
       petRoster: getPlayerPetStore().getRoster(),
       petAffinity: getPlayerPetStore().getPetAffinitySnapshot(),
       petMemorial: getPetMemorialStore().getEntries(),
       ownedSkins: cloneOwnedSkins(this.state.ownedSkins),
+      mercenaryQuests: getMercenaryQuestStore().getSnapshot(),
+      friends: getFriendList().map((row) => ({
+        playerId: row.playerId,
+        characterId: row.characterId,
+        displayName: row.displayName,
+        addedAt: row.addedAt,
+      })),
     };
   }
 
@@ -776,6 +805,8 @@ export class MockEconomyService implements IDevMockEconomyService {
     const level = Math.max(1, record.characterProfile.level);
     const xpCurrent = Math.max(0, Math.floor(record.characterProfile.xpCurrent ?? 0));
     const name = record.characterProfile.displayName?.trim() || 'Operative';
+    this.legacyMessage = sanitizeSprayLegacyMessage(record.characterProfile.legacyMessage);
+    setOwnSprayLegacyMessage(this.legacyMessage);
     const savedVitals = record.world.sessionSync?.worldVitals;
 
     getPlayerEquipmentStore().setPlayerInfo(name, level, {
@@ -842,6 +873,8 @@ export class MockEconomyService implements IDevMockEconomyService {
       record.characterId,
       record.petMemorial,
     );
+    getMercenaryQuestStore().applyAuthoritative(record.mercenaryQuests);
+    applyAuthoritativeFriendList(record.friends);
     getPlayerProgressionStore().loadFromProgressionData({
       ...createDefaultPlayerProgressionData(),
       ...record.progression,
@@ -933,6 +966,8 @@ export class MockEconomyService implements IDevMockEconomyService {
       }
       case 'ACCEPT_MERCENARY_TASK':
         return this.acceptMercenaryTask(action.payload.taskId);
+      case 'ABANDON_MERCENARY_TASK':
+        return this.abandonMercenaryTask(action.payload.taskId);
       case 'GIFT_TRANSFER':
         return { ok: false, reason: 'Presentes requerem servidor online.' };
       case 'REFRACTION_BOOTH_QUOTE':
@@ -956,6 +991,9 @@ export class MockEconomyService implements IDevMockEconomyService {
           action.payload.unitPriceVolts,
           action.payload.anonymous ?? false,
         );
+      case 'QUERY_MARKET_ORDER_BOOK':
+        publishLocalMarketplaceOrderBook();
+        return { ok: true };
       case 'CREATE_MARKET_BUY_ORDER':
         return this.createMarketBuyOrder(
           action.payload.itemId,
@@ -1077,6 +1115,7 @@ export class MockEconomyService implements IDevMockEconomyService {
           { resetVitals: true },
         );
         getPlayerProfileStore().setLevel(1);
+        resetFriendListStore();
         this.persistLocalSave();
         return { ok: true };
       }
@@ -1086,13 +1125,37 @@ export class MockEconomyService implements IDevMockEconomyService {
         }
         return { ok: true };
       }
-      case 'TRADE_REQUEST': {
-        const targetId = action.payload.targetPlayerId.trim();
-        if (!targetId) {
-          return { ok: false, reason: 'Alvo de trade inválido.' };
-        }
-        return { ok: true };
-      }
+      case 'CHAT_WHISPER':
+        return { ok: false, reason: 'Mensagem privada precisa de outro jogador online.' };
+      case 'TRADE_REQUEST':
+      case 'TRADE_RESPOND':
+      case 'TRADE_OFFER_SET':
+      case 'TRADE_LOCK':
+      case 'TRADE_CANCEL':
+        return { ok: false, reason: 'Trade presencial precisa de outro jogador online.' };
+      case 'PLACE_SPRAY':
+        return this.placeSpray(action.payload.sprayAssetId);
+      case 'INSPECT_SPRAY':
+        return this.inspectSpray(
+          action.payload.sprayId,
+          action.payload.screenX ?? 0,
+          action.payload.screenY ?? 0,
+        );
+      case 'UPDATE_SPRAY_LEGACY':
+        return this.updateSprayLegacy(action.payload.message, action.payload.sprayId);
+      case 'ADD_FRIEND':
+        return this.sendFriendRequest(action.payload.targetPlayerId, action.payload.targetCharacterId);
+      case 'INSPECT_PLAYER':
+        return this.inspectPlayer(
+          action.payload.targetPlayerId,
+          action.payload.targetCharacterId,
+          action.payload.screenX ?? 0,
+          action.payload.screenY ?? 0,
+        );
+      case 'DUEL_INVITE':
+        return { ok: false, reason: 'Convite de duelo precisa de outro jogador online.' };
+      case 'DUEL_INVITE_RESPOND':
+        return { ok: false, reason: 'Convite de duelo precisa de outro jogador online.' };
       default: {
         const _exhaustive: never = action;
         return _exhaustive;
@@ -1178,13 +1241,24 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private acceptMercenaryTask(taskId: string): IntentHandleResult {
-    if (!taskId) return { ok: false, reason: 'Task inválida.' };
-    alertSystem(`Tarefa aceita: ${taskId}`);
-    // Minimal local tracking: store accepted task id in marcos.activeMarcos for visibility.
-    if (!this.state.marcos.activeMarcos.includes(taskId)) {
-      this.state.marcos.activeMarcos = [...this.state.marcos.activeMarcos, taskId];
-      this.bumpRevision('marcosState');
-    }
+    const result = acceptMercenaryQuest(
+      getMercenaryQuestStore().getSnapshot(),
+      taskId,
+      getPlayerProfileStore().getSnapshot().level,
+    );
+    if (!result.ok) return { ok: false, reason: result.message };
+    getMercenaryQuestStore().applyAuthoritative(result.progress);
+    this.persistLocalSave();
+    alertSystem(`Contrato aceito: ${taskId}`);
+    return { ok: true };
+  }
+
+  private abandonMercenaryTask(taskId?: string): IntentHandleResult {
+    const result = abandonMercenaryQuest(getMercenaryQuestStore().getSnapshot(), taskId);
+    if (!result.ok) return { ok: false, reason: result.message };
+    getMercenaryQuestStore().applyAuthoritative(result.progress);
+    this.persistLocalSave();
+    alertSystem('Contrato abandonado.');
     return { ok: true };
   }
 
@@ -1499,6 +1573,8 @@ export class MockEconomyService implements IDevMockEconomyService {
       battleId,
       lootId: staged.preview.lootId,
       lootReveal: staged.lootReveal,
+      lootReveals: staged.lootReveals,
+      spinCount: staged.spinCount,
       lootPreview: staged.preview,
     });
     return { ok: true };
@@ -1745,6 +1821,172 @@ export class MockEconomyService implements IDevMockEconomyService {
     return { ok: true };
   }
 
+  private hydrateLocalWorldSprays(): void {
+    try {
+      const raw = localStorage.getItem('altercadia.worldSprays.v1');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      tacticalSprayService.hydrateSprays(parsed as Parameters<typeof tacticalSprayService.hydrateSprays>[0]);
+      this.syncSprayMirror();
+    } catch {
+      // ignore corrupt local spray cache
+    }
+  }
+
+  private persistLocalWorldSprays(): void {
+    try {
+      localStorage.setItem('altercadia.worldSprays.v1', JSON.stringify(tacticalSprayService.exportSprays()));
+    } catch {
+      // quota / private mode
+    }
+    this.syncSprayMirror();
+  }
+
+  private syncSprayMirror(): void {
+    const seen = new Set<string>();
+    for (const spray of tacticalSprayService.exportSprays()) {
+      if (seen.has(spray.zoneId)) continue;
+      seen.add(spray.zoneId);
+      applyWorldSpraySnapshots(spray.zoneId, tacticalSprayService.toZoneSnapshots(spray.zoneId));
+    }
+  }
+
+  private resolveLocalSprayPose(): { mapId: string; tileX: number; tileY: number } | null {
+    const live = this.worldSnapshotProvider?.() ?? null;
+    const stored = getMutableDataStore().getWorldPosition();
+    const pose = live ?? (stored
+      ? { mapId: stored.mapId, x: stored.x, y: stored.y, facing: stored.facing }
+      : null);
+    if (!pose || !isMapId(pose.mapId)) return null;
+    const tileSize = resolveMapTileSize(pose.mapId);
+    const tile = worldPixelToTile(pose.x, pose.y, tileSize);
+    return { mapId: pose.mapId, tileX: tile.tileX, tileY: tile.tileY };
+  }
+
+  private placeSpray(sprayAssetId: string): IntentHandleResult {
+    if (!isOfficialSprayItemId(sprayAssetId)) {
+      return { ok: false, reason: 'Spray desconhecido.' };
+    }
+    const owned = this.countInventoryItem(sprayAssetId);
+    if (owned < 1) {
+      return { ok: false, reason: 'Você não possui essa lata de spray.' };
+    }
+    const pose = this.resolveLocalSprayPose();
+    if (!pose) {
+      return { ok: false, reason: 'Não foi possível determinar sua posição atual para spray.' };
+    }
+    const identity = getActiveCharacterIdentity();
+    const playerId = this.boundPlayerId ?? 'local_player';
+    const characterId = this.boundCharacterId ?? identity?.characterId ?? 1;
+    const nickname = getPlayerEquipmentStore().getSnapshot().displayName || identity?.displayName || 'Operative';
+    const placed = tacticalSprayService.placeSpray(
+      {
+        userId: playerId,
+        authorCharacterId: characterId,
+        zoneId: pose.mapId,
+        posX: pose.tileX,
+        posY: pose.tileY,
+        sprayAssetId,
+      },
+      nickname,
+    );
+    if (!placed.ok) {
+      return { ok: false, reason: placed.message };
+    }
+    this.removeInventoryItem(sprayAssetId, 1);
+    this.bumpRevision('inventory');
+    this.syncInventoryToPlayerItemStore();
+    getGameStore().syncPlayerFromDomain();
+    this.persistLocalWorldSprays();
+    postSystemNotification(`Pixo marcado em [${placed.spray.posX}, ${placed.spray.posY}].`);
+    return { ok: true };
+  }
+
+  private inspectSpray(sprayId: string, screenX: number, screenY: number): IntentHandleResult {
+    const spray = tacticalSprayService.getSprayById(sprayId);
+    if (!spray) {
+      return { ok: false, reason: 'Pixo não encontrado.' };
+    }
+    const identity = getActiveCharacterIdentity();
+    const playerId = this.boundPlayerId ?? 'local_player';
+    const characterId = this.boundCharacterId ?? identity?.characterId ?? 1;
+    const isAuthor = spray.userId === playerId && spray.authorCharacterId === characterId;
+    const equipment = getPlayerEquipmentStore().getSnapshot();
+    openSprayInspectHud(
+      {
+        sprayId: spray.id,
+        mapId: spray.zoneId,
+        tileX: spray.posX,
+        tileY: spray.posY,
+        sprayAssetId: spray.sprayAssetId,
+        author: {
+          playerId: spray.userId,
+          characterId: spray.authorCharacterId,
+          displayName: isAuthor ? (equipment.displayName || spray.authorNickname) : spray.authorNickname,
+          level: isAuthor ? Math.max(1, equipment.level) : 1,
+          online: true,
+          legacyMessage: isAuthor ? this.legacyMessage : '',
+        },
+        canEditLegacy: false,
+        canAddFriend: !isAuthor,
+      },
+      screenX,
+      screenY,
+    );
+    return { ok: true };
+  }
+
+  private updateSprayLegacy(message: string, sprayId?: string): IntentHandleResult {
+    const identity = getActiveCharacterIdentity();
+    const playerId = this.boundPlayerId ?? 'local_player';
+    const characterId = this.boundCharacterId ?? identity?.characterId ?? 1;
+    if (sprayId) {
+      const spray = tacticalSprayService.getSprayById(sprayId);
+      if (!spray) return { ok: false, reason: 'Pixo não encontrado.' };
+      if (spray.userId !== playerId || spray.authorCharacterId !== characterId) {
+        return { ok: false, reason: 'Só o autor pode editar o legado.' };
+      }
+    }
+    this.legacyMessage = sanitizeSprayLegacyMessage(message);
+    setOwnSprayLegacyMessage(this.legacyMessage);
+    patchSprayInspectLegacy(this.legacyMessage);
+    postSystemNotification('Mensagem de legado atualizada.');
+    return { ok: true };
+  }
+
+  private sendFriendRequest(targetPlayerId: string, targetCharacterId: number): IntentHandleResult {
+    if (!targetPlayerId || !Number.isFinite(targetCharacterId)) {
+      return { ok: false, reason: 'Alvo de amizade inválido.' };
+    }
+    const identity = getActiveCharacterIdentity();
+    if (identity && this.boundPlayerId === targetPlayerId && identity.characterId === targetCharacterId) {
+      return { ok: false, reason: 'Não é possível adicionar a si mesmo.' };
+    }
+    const displayName = sanitizeFriendDisplayName(targetPlayerId);
+    upsertFriend({
+      playerId: targetPlayerId,
+      characterId: targetCharacterId,
+      displayName,
+      addedAt: Date.now(),
+      online: false,
+    });
+    this.persistLocalSave();
+    postSystemNotification(`${displayName} foi adicionado como amigo.`);
+    markSprayInspectFriendSent();
+    markPlayerInspectFriendSent();
+    return { ok: true };
+  }
+
+  private inspectPlayer(
+    _targetPlayerId: string,
+    _targetCharacterId: number,
+    _screenX: number,
+    _screenY: number,
+  ): IntentHandleResult {
+    return { ok: false, reason: 'Ficha de outro player precisa do modo online (dois browsers).' };
+  }
+
   private deleteInventoryItem(itemId: string, quantity?: number): IntentHandleResult {
     const qty = Math.max(1, Math.floor(quantity ?? 1));
     const policy = validateInventoryDeleteIntent({
@@ -1790,6 +2032,7 @@ export class MockEconomyService implements IDevMockEconomyService {
     this.removeInventoryItem(itemId, qty);
     this.bumpRevision('inventory');
     getPlayerMarketStore().addListing(itemId, qty, unitPrice, anonymous);
+    publishLocalMarketplaceOrderBook();
     alertSystem(`Oferta de venda publicada: ${qty}× ${item?.name ?? itemId} por ${unitPrice} V.`);
     return { ok: true };
   }
@@ -1817,6 +2060,7 @@ export class MockEconomyService implements IDevMockEconomyService {
       alterCoins: this.state.wallet.alterCoins,
     });
     getMarketplaceBuyOrderStore().addOrder(itemId, qty, unitPrice, anonymous);
+    publishLocalMarketplaceOrderBook();
     alertSystem(`Ordem de compra publicada: ${qty}× ${item?.name ?? itemId} até ${unitPrice} V/un.`);
     return { ok: true };
   }
@@ -1828,6 +2072,7 @@ export class MockEconomyService implements IDevMockEconomyService {
       dollarVolt: this.state.wallet.dollarVolt + result.volts,
       alterCoins: this.state.wallet.alterCoins,
     });
+    publishLocalMarketplaceOrderBook();
     alertSystem(`Venda coletada: +${formatVolts(result.volts)}.`);
     return { ok: true };
   }
@@ -1843,6 +2088,7 @@ export class MockEconomyService implements IDevMockEconomyService {
     if (!cancelResult.ok) return { ok: false, reason: cancelResult.reason };
 
     this.addInventoryItem(cancelResult.itemId, cancelResult.quantity);
+    publishLocalMarketplaceOrderBook();
     alertSystem(`Oferta de venda cancelada: ${cancelResult.quantity}× ${cancelResult.itemName} devolvido(s).`);
     return { ok: true };
   }
@@ -1855,6 +2101,7 @@ export class MockEconomyService implements IDevMockEconomyService {
       dollarVolt: this.state.wallet.dollarVolt + cancelResult.refundVolts,
       alterCoins: this.state.wallet.alterCoins,
     });
+    publishLocalMarketplaceOrderBook();
     alertSystem(`Ordem de compra cancelada: ${formatVolts(cancelResult.refundVolts)} devolvidos.`);
     return { ok: true };
   }

@@ -89,7 +89,7 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     mapId: CITY_01_ID,
     ...CONSTRUCT_POS,
     actionType: NpcActionType.OPEN_NPC_VENDOR,
-    dialogue: 'Contratos e suprimentos táticos — Latas de Spray disponíveis.',
+    dialogue: 'Contratos por faixa de nível e sprays táticos. Assina no quadro — eu não vendo heroísmo grátis.',
     dimensions: DESIGN_NPC_DIMENSIONS,
   },
   {
@@ -204,7 +204,7 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     mapId: FARM_ZONE_01_ID,
     ...CONSTRUCT_POS,
     actionType: NpcActionType.DIALOG,
-    dialogue: 'Terminal de domínio do Beco dos Fundos — mecânicas da Zona 1 em breve.',
+    dialogue: 'Terminal de domínio do Beco dos Fundos — bypass de subzona e mapa de quem está dominando.',
     dimensions: DESIGN_NPC_DIMENSIONS,
     featured: true,
     collidable: false,

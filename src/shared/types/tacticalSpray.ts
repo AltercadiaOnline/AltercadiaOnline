@@ -40,6 +40,7 @@ export interface TacticalSpray {
   readonly posX: number;
   readonly posY: number;
   readonly userId: string;
+  readonly authorCharacterId: number;
   readonly authorNickname: string;
   readonly sprayAssetId: string;
   readonly createdAt: number; // Timestamp MS
@@ -56,11 +57,18 @@ export interface SprayInteractionRecord {
 
 export interface SprayUsePayload {
   readonly userId: string;
+  readonly authorCharacterId: number;
   readonly zoneId: string;
   readonly posX: number;
   readonly posY: number;
   readonly sprayAssetId: string;
 }
+
+export type PlaceSprayFailureCode = 'UNKNOWN_STENCIL' | 'SPRAY_TOO_CLOSE';
+
+export type PlaceSprayResult =
+  | { readonly ok: true; readonly spray: TacticalSpray; readonly replacedOwn: boolean }
+  | { readonly ok: false; readonly code: PlaceSprayFailureCode; readonly message: string };
 
 export interface SpraySocialFeedItem {
   readonly sprayId: string;

@@ -77,3 +77,20 @@ export function resolveChargedEquipmentLabel(itemId: string): string | null {
   if (getBookDefinition(itemId)) return 'Livro';
   return null;
 }
+
+/** Texto canônico do tooltip — `Cargas: 7 / 10`. */
+export function formatItemChargesLabel(current: number, max: number): string {
+  const safeMax = Math.max(0, Math.floor(max));
+  const safeCurrent = Math.max(0, Math.min(safeMax, Math.floor(current)));
+  return `Cargas: ${safeCurrent} / ${safeMax}`;
+}
+
+export function resolveStackChargesDisplay(stack: InventoryStack): {
+  readonly current: number;
+  readonly max: number;
+} | null {
+  if (!isChargedInventoryStackItemId(stack.itemId)) return null;
+  const max = resolveItemMaxCharges(stack.itemId);
+  if (max <= 0) return null;
+  return { current: resolveStackDurabilityCharges(stack), max };
+}

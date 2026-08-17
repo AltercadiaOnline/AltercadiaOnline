@@ -46,12 +46,14 @@ export function applyPvpRankedRatingDelta(
   const afterRating = Math.max(0, before.pvpRating + delta);
   const wins = before.pvpWins + (victory ? 1 : 0);
   const losses = before.pvpLosses + (victory ? 0 : 1);
+  const matches = wins + losses;
 
   patchAuthoritativeProgression(playerId, characterId, {
     characterProfile: {
       pvpRating: afterRating,
       pvpWins: wins,
       pvpLosses: losses,
+      pvpMatches: matches,
     },
   });
 

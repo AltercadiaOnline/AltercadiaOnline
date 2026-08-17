@@ -37,7 +37,7 @@ export function WorldMarketHubPanel({ zIndex, focused }: WorldMarketHubPanelProp
     >
       <div className="market-hub__body flex flex-col gap-3">
         <p className="market-hub__hint text-[11px] text-white/55">
-          Acompanhe seus itens listados e colete VOLTS quando uma venda for concluída.
+          Itens listados ficam retidos neste personagem até cancelar ou vender. A oferta pública vale mesmo offline; colete os VOLTS aqui quando alguém comprar.
         </p>
         <ul className="market-hub__list m-0 list-none space-y-2 p-0" aria-label="Seus anúncios">
           {listings.length === 0 ? (

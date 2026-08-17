@@ -19,6 +19,7 @@ import { resetPetMemorialStore } from '../ui/pet/petMemorialStore.js';
 import { resetPlayerSkinStore } from '../ui/character/playerSkinStore.js';
 import { releasePlayerMarketStore } from '../ui/market/playerMarketStore.js';
 import { releaseMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
+import { clearAuthoritativeMarketplaceOffers } from '../ui/market/marketplaceOrderBookClient.js';
 import { releasePlayerAchievementStore } from '../ui/achievements/playerAchievementStore.js';
 import { resetCarryCapacityStore } from '../ui/capacity/carryCapacityStore.js';
 import { resetBattleHonorStatsStore } from '../ui/battle/battleHonorStatsStore.js';
@@ -42,6 +43,12 @@ import { resetDeathPenaltyMirrorGuard } from '../progression/deathPenaltyClient.
 import { resetBattleProgressionClientGuard } from '../progression/battleProgressionClient.js';
 
 import { resetWorldAssetImageCache } from '../world/worldAssetImageLoader.js';
+import { resetWorldSprayMirror } from '../world/worldSpraySyncBridge.js';
+import { resetSprayInspectSession } from '../world/sprayInspectStore.js';
+import { resetPlayerInspectSession } from '../world/playerInspectStore.js';
+import { resetCasualDuelSession } from '../world/casualDuelStore.js';
+import { resetPlayerTradeSession } from '../world/playerTradeStore.js';
+import { resetWhisperChatSession } from '../world/whisperChatStore.js';
 import { resetCreatureWorldImageCache } from '../world/creatureWorldImageLoader.js';
 import { resetNpcAssetImageCache } from '../loaders/npcAssetImageLoader.js';
 import { NpcSpriteLoader } from '../loaders/NpcSpriteLoader.js';
@@ -61,6 +68,7 @@ export type PurgeClientGameSessionOptions = {
 function purgeCharacterMirror(): void {
   initializePlayerState({ requestServerSync: false });
 
+  clearAuthoritativeMarketplaceOffers();
   releasePlayerMarketStore();
   releaseMarketplaceBuyOrderStore();
   releasePlayerAchievementStore();
@@ -79,6 +87,12 @@ function purgeSessionState(): void {
   resetWorldPeersStore();
   resetMinimapState();
   resetClientZoneLoadState();
+  resetWorldSprayMirror();
+  resetSprayInspectSession();
+  resetPlayerInspectSession();
+  resetCasualDuelSession();
+  resetPlayerTradeSession();
+  resetWhisperChatSession();
 
   resetPendingIntentRegistry();
   resetPendingActionsStore();

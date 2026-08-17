@@ -8,6 +8,7 @@ import { getGameStateManager } from '../../shared/state/GameStateManager.js';
 import { getPortalModal } from './components/PortalModal.js';
 import { uiEvents, UIEventType } from './uiEvents.js';
 import { closeTopmostWorldWindow } from '../app/panels/worldWindowController.js';
+import { closeMemoryTerminalHud } from '../world/memoryTerminalHudBridge.js';
 import { releaseWorldHudInteractionIfIdle } from '../world/worldHudInteractionSession.js';
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -53,6 +54,10 @@ export function handleExplorationEscapeKey(event: KeyboardEvent): boolean {
   if (closeTopmostWorldWindow()) {
     // Segurança: closeTopmost já chama releaseWorldHudInteractionIfIdle; defer cobre race com React.
     releaseWorldHudInteractionIfIdle({ defer: true });
+    return true;
+  }
+
+  if (closeMemoryTerminalHud()) {
     return true;
   }
 

@@ -18,6 +18,11 @@ export type PublicClientConfig = {
   readonly publicSiteUrl: string | null;
   /** Só em dev local — mtime de dist/client/browser/main.js para confirmar bundle fresco no console. */
   readonly clientDevStamp?: string | null;
+  /**
+   * Autoridade do cliente: `online` = WS/servidor (default, inclusive localhost).
+   * `local` = Mock 1 jogador — só via `npm run dev:mock` ou `?gameMode=local`.
+   */
+  readonly defaultGameMode: 'local' | 'online';
 };
 
 export function createPublicClientConfig(env: {
@@ -29,6 +34,7 @@ export function createPublicClientConfig(env: {
   readonly serverName?: string;
   readonly publicSiteUrl?: string;
   readonly clientDevStamp?: string;
+  readonly defaultGameMode?: string;
 }): PublicClientConfig {
   const supabaseUrl = env.supabaseUrl?.trim() || null;
   const supabaseAnonKey = env.supabaseAnonKey?.trim() || null;
@@ -46,6 +52,7 @@ export function createPublicClientConfig(env: {
     serverId,
     serverName,
     publicSiteUrl,
+    defaultGameMode: env.defaultGameMode === 'local' ? 'local' : 'online',
     ...(clientDevStamp ? { clientDevStamp } : {}),
   };
 }

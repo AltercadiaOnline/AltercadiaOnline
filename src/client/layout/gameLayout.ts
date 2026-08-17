@@ -52,15 +52,32 @@ export function readGameViewportSize(_fallback?: ViewportSize): ViewportSize {
 }
 
 /**
- * Escala para caber a coluna do jogo (contain) — janela ou fullscreen.
- * `Math.min(largura/640, altura/360)` — 640×360 sempre visível; faixas se aspect ≠ 16:9.
+ * Contain — 640×360 inteiro visível. Usado na arena de batalha (chrome próprio).
+ * `Math.min(largura/640, altura/360)` — faixas se o frame não for 16:9.
  */
-export function computeGameStageScale(containerWidth: number, containerHeight: number): number {
+export function computeGameStageContainScale(containerWidth: number, containerHeight: number): number {
   if (containerWidth <= 0 || containerHeight <= 0) return 1;
   return Math.min(
     containerWidth / GAME_RENDER_WIDTH,
     containerHeight / GAME_RENDER_HEIGHT,
   );
+}
+
+/**
+ * Cover — preenche a coluna do mundo sem faixas pretas.
+ * Buffer continua 640×360; o overflow é clipado (crop mínimo). Sem stretch.
+ */
+export function computeGameStageCoverScale(containerWidth: number, containerHeight: number): number {
+  if (containerWidth <= 0 || containerHeight <= 0) return 1;
+  return Math.max(
+    containerWidth / GAME_RENDER_WIDTH,
+    containerHeight / GAME_RENDER_HEIGHT,
+  );
+}
+
+/** @alias computeGameStageContainScale — callers de batalha / layout legado. */
+export function computeGameStageScale(containerWidth: number, containerHeight: number): number {
+  return computeGameStageContainScale(containerWidth, containerHeight);
 }
 
 function readLayoutViewportSize(): { readonly width: number; readonly height: number } {
@@ -76,8 +93,8 @@ function readLayoutViewportSize(): { readonly width: number; readonly height: nu
 
 /**
  * Aplica `transform: scale(n)` somente no container 640×360 (#game-stage-scale).
- * Canvas permanece 640×360 nativo — nunca recebe escala CSS.
- * Em batalha, espelha a mesma escala em #battle-stage-scale (coluna sem sidebar).
+ * Mundo usa cover (preenche a coluna, clipa o excedente). Canvas permanece 640×360 nativo.
+ * Batalha usa contain no próprio frame (`updateBattleStageScale`).
  */
 export function updateScale(): number {
   const viewport = getGameViewportElement();
@@ -88,7 +105,7 @@ export function updateScale(): number {
   enforceFixedGameStagePixels();
 
   const { width, height } = readLayoutViewportSize();
-  const scale = computeGameStageScale(width, height);
+  const scale = computeGameStageCoverScale(width, height);
 
   if (scaleHost) {
     scaleHost.style.transform = `scale(${scale})`;
@@ -130,7 +147,7 @@ export function updateBattleStageScale(): number {
     return 1;
   }
 
-  const battleScale = computeGameStageScale(container.clientWidth, container.clientHeight);
+  const battleScale = computeGameStageContainScale(container.clientWidth, container.clientHeight);
   battleScaleHost.style.transform = `scale(${battleScale})`;
   battleScaleHost.style.transformOrigin = 'center center';
   return battleScale;

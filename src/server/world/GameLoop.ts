@@ -4,11 +4,12 @@ import type { AuthoritativePositionDelta } from '../../shared/world/movementInte
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { WorldCreatureSnapshot } from '../../shared/world/worldCreatureSync.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
-import { buildNearbyPlayerSnapshots } from '../../shared/world/buildNearbyPlayerSnapshots.js';
+import { buildNearbyPlayerSnapshots, type NearbyPlayerPeerInput } from '../../shared/world/buildNearbyPlayerSnapshots.js';
 import type { Player } from '../models/Player.js';
 import type { MovementIntentHandler } from './MovementIntentHandler.js';
 import { selectPeersInInterest } from './InterestManager.js';
-import type { WorldGameState } from './WorldGameState.js';
+import type { ActivePlayerState, WorldGameState } from './WorldGameState.js';
+import { resolveNearbyPeerAppearance, type NearbyPeerAppearance } from './nearbyPlayerAppearance.js';
 import { getWorldProfile } from './worldProfileStore.js';
 import type { ServerSyncAuthority } from '../sync/ServerSyncAuthority.js';
 import type { TimeManager } from '../TimeManager.js';
@@ -16,6 +17,11 @@ import {
   buildCreatureAoiSignature,
   shouldSendCreatureAoi,
 } from './creatureSyncDirty.js';
+import { tacticalSprayService } from '../../shared/social/tacticalSprayStore.js';
+import {
+  buildWorldSpraySignature,
+  shouldSendWorldSprays,
+} from './spraySyncDirty.js';
 
 export type GameLoopWorldSession = {
   readonly connectionId: string;
@@ -59,6 +65,7 @@ export class GameLoop {
       serverTimeMs: envelope.serverTimeMs,
       gameTime: timeAnchor.gameTime,
     };
+    const appearanceByPeer = new Map<string, NearbyPeerAppearance>();
 
     for (const session of deps.gameState.listAllActive()) {
       const world = deps.getWorldSession(session.connectionId);
@@ -111,18 +118,16 @@ export class GameLoop {
       const peersOnMap = deps.gameState.listExploringOnMap(profile.currentMapId);
       const nearbyPlayers = observer
         ? buildNearbyPlayerSnapshots(
-          selectPeersInInterest(observer, peersOnMap).map((peer) => ({
-            playerId: peer.playerId,
-            characterId: peer.characterId,
-            displayName: peer.displayName,
-            mapId: peer.mapId,
-            feetX: peer.x,
-            feetY: peer.y,
-            facing: peer.facing,
-          })),
+          selectPeersInInterest(observer, peersOnMap).map((peer) =>
+            toNearbyPeerInput(peer, appearanceByPeer),
+          ),
           envelope.serverTimeMs,
         )
         : [];
+
+      const zoneSprays = tacticalSprayService.toZoneSnapshots(profile.currentMapId);
+      const spraySig = buildWorldSpraySignature(zoneSprays);
+      const sendSprays = shouldSendWorldSprays(session.connectionId, spraySig);
 
       deps.sendStateSync(session.connectionId, envelope, {
         mode: 'tick',
@@ -131,8 +136,37 @@ export class GameLoop {
           position,
           ...(sendCreatures ? { creatures: aoiCreatures } : {}),
           nearbyPlayers,
+          ...(sendSprays ? { sprays: zoneSprays } : {}),
         },
       });
     }
   }
+}
+
+function peerAppearanceKey(playerId: string, characterId: number): string {
+  return `${playerId}:${characterId}`;
+}
+
+function toNearbyPeerInput(
+  peer: ActivePlayerState,
+  appearanceByPeer: Map<string, NearbyPeerAppearance>,
+): NearbyPlayerPeerInput {
+  const key = peerAppearanceKey(peer.playerId, peer.characterId);
+  let appearance = appearanceByPeer.get(key);
+  if (!appearance) {
+    appearance = resolveNearbyPeerAppearance(peer.playerId, peer.characterId);
+    appearanceByPeer.set(key, appearance);
+  }
+  return {
+    playerId: peer.playerId,
+    characterId: peer.characterId,
+    displayName: peer.displayName,
+    skinBundleId: appearance.skinBundleId,
+    level: appearance.level,
+    mapId: peer.mapId,
+    feetX: peer.x,
+    feetY: peer.y,
+    facing: peer.facing,
+    ...(appearance.companion ? { companion: appearance.companion } : {}),
+  };
 }

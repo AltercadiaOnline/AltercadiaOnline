@@ -35,6 +35,8 @@ import {
   registerBattlePaletteHandlers,
 } from '../../app/battle/battlePaletteHandlers.js';
 import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
+import { useBattleHudStore } from '../../app/battle/battleHudStore.js';
+import { resolveSelectedLivingFoeActorId } from '../../app/battle/battleHudTypes.js';
 import {
   initPostBattleHubBridge,
   resetPostBattleHubBridgeSession,
@@ -109,6 +111,11 @@ import {
   shouldFinalizeBattleAfterPlayback,
   type BattleFinishPresentationPayload,
 } from './battleFinishFlow.js';
+import {
+  dismissBattleFinishStudyGate,
+  isBattleFinishStudyPending,
+  runBattleFinishStudyGate,
+} from './battleFinishStudyGate.js';
 import { getCombatRole, resolveCombatantHp } from '../../../shared/pet/petCombatRules.js';
 import { requestReturnToExploration } from '../../game/battleReturnToWorld.js';
 import { getGameStateManager } from '../../../shared/state/GameStateManager.js';
@@ -201,7 +208,11 @@ function clearBattleReturnStuckTimer(): void {
 }
 
 function isPostBattleChoicePending(): boolean {
-  return isPostBattleHubInteractive() || isBattleResultHubVisible();
+  return (
+    isPostBattleHubInteractive()
+    || isBattleResultHubVisible()
+    || isBattleFinishStudyPending()
+  );
 }
 
 function resetStuckPostBattlePresenting(): void {
@@ -787,13 +798,14 @@ function commitFinalBattleVitals(dispatch: CombatDispatchPayload): void {
   }
 }
 
-/** Abre hub só após a fila de animações (HP zerado na tela). */
-function finalizeBattleFinishAfterPlayback(
+/** Abre hub só após a fila de animações + estudo do hit final. */
+async function finalizeBattleFinishAfterPlayback(
   dispatch: CombatDispatchPayload,
   combatFinished: CombatFinishedPayload | null,
-): void {
+): Promise<void> {
   if (battleEndHandled) return;
   if (!shouldFinalizeBattleAfterPlayback(dispatch)) return;
+  if (isBattleFinishStudyPending() || isPostBattleHubInteractive()) return;
 
   const battleId = combatFinished?.battleId ?? dispatch.state.battleId;
   if (!canOpenBattleResultHub(dispatch, battleId, pendingBattleEndedPayload, activeBattleId)) {
@@ -811,6 +823,17 @@ function finalizeBattleFinishAfterPlayback(
   commitFinalBattleVitals(dispatch);
   clearBattleFinishSafety();
   setBattlePlaybackClosing(true);
+  freezeBattleInput();
+
+  const presentation = resolveFinishPresentationForBattle(dispatch, battleId, combatFinished);
+  const study = await runBattleFinishStudyGate({
+    victory: presentation?.victory ?? combatFinished?.victory ?? false,
+    ...(presentation?.endReason !== undefined ? { endReason: presentation.endReason } : {}),
+  });
+
+  if (study === 'cancelled' || battleEndHandled) return;
+  if (activeBattleId && activeBattleId !== battleId) return;
+
   openPostBattleHubForBattle(battleId);
 
   if (!isPostBattleChoicePending()) {
@@ -821,6 +844,7 @@ function finalizeBattleFinishAfterPlayback(
 function presentBattleFleeResult(payload: BattleFinishPresentationPayload): void {
   if (combatFinishedPresenting || battleEndHandled) return;
 
+  dismissBattleFinishStudyGate();
   clearBattleFinishSafety();
   clearPendingBattleLoot();
 
@@ -1151,11 +1175,13 @@ export function getBattleController(): BattleController {
  * playback ainda true (paleta nunca unlock) antes do mount.
  */
 function rehydrateBattleUiFromLastDispatch(): void {
-  const dispatch = lastDispatch;
-  if (!dispatch || dispatch.state.phase === 'ENDED') return;
+  // Sempre libera o gate — o 1º dispatch local pode ter travado playback
+  // enquanto a cena ainda estava em TRANSITIONING (HUD/moveset nunca abriam).
   setCombatActionPlaybackActive(false);
   getCombatTurnGateway()?.setExtraBlocked(false);
   combatActionPending = false;
+  const dispatch = lastDispatch;
+  if (!dispatch || dispatch.state.phase === 'ENDED') return;
   GameClient.renderState(dispatch.state, dispatch.ui);
 }
 
@@ -1214,6 +1240,7 @@ export function prepareNextBattle(options: { readonly keepEndHandled?: boolean }
   lastEndedDispatch = null;
   clearBattleFinishSafety();
   clearBattleReturnStuckTimer();
+  dismissBattleFinishStudyGate();
   resetPostBattleHubBridgeSession();
   removePostBattleHubUi();
   resetBattleHonorStatsStore();
@@ -1476,6 +1503,7 @@ export const GameClient = {
       console.warn('[HUD] Movimento não autorizado pelo servidor:', skillId);
       return;
     }
+    const selectedFoeId = resolveSelectedLivingFoeActorId(useBattleHudStore.getState());
     const action: ActionRequest = {
       battleId: state.battleId,
       actorId: ui.playerActorId,
@@ -1483,6 +1511,7 @@ export const GameClient = {
       skillId,
       requestId: createCorrelationId(),
       ...(targetTile !== undefined ? { targetTile } : {}),
+      ...(selectedFoeId ? { targetId: selectedFoeId } : {}),
     };
     GameClient.sendAction(action);
   },

@@ -1,0 +1,16 @@
+---
+description: Spray / pixo — intents, mirror, legado por personagem
+globs: src/shared/social/**/*.ts,src/server/handlers/social/**/*.ts,src/client/world/spray*.ts,src/client/app/components/world/hud/SprayInspectHud.tsx,src/server/persistence/worldSprayPersistence.ts,src/server/social/**/*.ts
+alwaysApply: false
+---
+
+# Spray
+
+Ficha: `docs/context/spray-social.md`
+
+- Autoridade: handlers PLACE/INSPECT/UPDATE_SPRAY_LEGACY + `tacticalSprayStore` (server/Mock only).
+- Overlay e HUD leem `worldSpraySyncBridge` (mirror). Proibido importar o service no overlay.
+- Legado = `characterProfile.legacyMessage` (1 por char). Inventário direito = editor; chão direito = inspect.
+- G = `dispatchPlaceSpray`. Consumo só via economyGateway no handler.
+- Amigo: `ADD_FRIEND` unilateral (Tibia, sem aceite). Lista do Hub ainda não.
+- Overlap > 30% outro jogador → `SPRAY_TOO_CLOSE`. Próprio mesmo tile substitui.

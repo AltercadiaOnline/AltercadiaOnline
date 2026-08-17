@@ -1,10 +1,14 @@
-import { CharacterProgressionService, PROGRESSION_XP_BASE, PROGRESSION_XP_GROWTH } from '../progression/CharacterProgressionService.js';
+import { PROGRESSION_XP_BASE, PROGRESSION_XP_GROWTH } from '../progression/CharacterProgressionService.js';
+import { resolveCharacterRequiredXp } from './characterXpCurve.js';
 
-/** @deprecated Use `PROGRESSION_XP_BASE` — alias de compatibilidade. */
+/** @deprecated Curva de domínio de moves — não é a XP do personagem. */
 export const CHARACTER_XP_BASE = PROGRESSION_XP_BASE;
 
-/** @deprecated Use `PROGRESSION_XP_GROWTH` — alias de compatibilidade. */
+/** @deprecated Curva de domínio de moves — não é a XP do personagem. */
 export const CHARACTER_XP_GROWTH = PROGRESSION_XP_GROWTH;
+
+/** Trava de loop se um grant absurdo tentar upar milhares de níveis de uma vez. Não é teto de nível. */
+const MAX_LEVELS_PER_XP_GAIN = 10_000;
 
 export type CharacterLevelState = {
   readonly level: number;
@@ -16,9 +20,9 @@ export type AppliedCharacterXpResult = CharacterLevelState & {
   readonly xpGained: number;
 };
 
-/** XP para subir do nível atual ao próximo (personagem). */
+/** XP para subir do nível atual ao próximo (personagem). Sem teto de nível. */
 export function getRequiredXpForNextLevel(level: number): number {
-  return CharacterProgressionService.getRequiredXp(level);
+  return resolveCharacterRequiredXp(level);
 }
 
 /** Alias usado pelo PlayerDataStore e perfil do operativo. */
@@ -34,7 +38,7 @@ export type CharacterLevelXpBarView = {
   readonly remaining: number;
 };
 
-/** Barra de XP — usa `CharacterProgressionService.getRequiredXp` como teto. */
+/** Barra de XP — curva do personagem (`characterXpCurve`), sem teto de nível. */
 export function resolveCharacterLevelXpBar(
   level: number,
   xpCurrent: number,
@@ -74,9 +78,11 @@ export function applyCharacterXpGain(
   let xpCurrent = Math.max(0, Math.floor(state.xpCurrent)) + gained;
   let xpToNext = getRequiredXpForNextLevel(level);
 
-  while (xpCurrent >= xpToNext) {
+  let gainedLevels = 0;
+  while (xpCurrent >= xpToNext && xpToNext > 0 && gainedLevels < MAX_LEVELS_PER_XP_GAIN) {
     xpCurrent -= xpToNext;
     level += 1;
+    gainedLevels += 1;
     xpToNext = getRequiredXpForNextLevel(level);
   }
 

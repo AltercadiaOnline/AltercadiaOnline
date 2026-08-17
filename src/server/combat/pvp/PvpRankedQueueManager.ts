@@ -375,5 +375,6 @@ export function getPvpRankedQueueManager(): PvpRankedQueueManager {
 
 /** @internal testes */
 export function resetPvpRankedQueueManagerForTests(): void {
+  rankedQueueSingleton?.clearAfterBattle();
   rankedQueueSingleton = null;
 }

@@ -2,23 +2,36 @@ import { CLASS_CATALOG, type ClassType } from '../types/classes.js';
 import type { Combatant, SkillData } from '../types/combat.js';
 import { MoveScalingStat } from './moveTypes.js';
 import { resolveMoveCombatMeta } from './resolveMoveCombatMeta.js';
+import { resolveCombatantGearBuffs } from './itemBuffCombat.js';
 
 function resolveClassStatForScaling(combatant: Combatant, scalingStat: string): number {
   const classId = (combatant.classId ?? 'IMPETUS') as ClassType;
   const bonus = CLASS_CATALOG[classId]?.bonus;
   if (!bonus) return 0;
+  const gear = resolveCombatantGearBuffs(combatant);
+  let base = 0;
+  let percent = 0;
   switch (scalingStat) {
     case MoveScalingStat.STR:
-      return bonus.attack;
+      base = bonus.attack;
+      percent = gear.strengthPercent;
+      break;
     case MoveScalingStat.DEF:
-      return bonus.defense;
+      base = bonus.defense;
+      percent = gear.defensePercent;
+      break;
     case MoveScalingStat.AGI:
-      return bonus.agility;
+      base = bonus.agility;
+      percent = gear.agilityPercent;
+      break;
     case MoveScalingStat.CRIT:
-      return bonus.control;
+      base = bonus.control;
+      percent = gear.critChancePercent;
+      break;
     default:
       return 0;
   }
+  return base + Math.floor(base * percent / 100);
 }
 
 /** Cura base escalada pelo stat do move (`healScalingPercent` do catálogo). */

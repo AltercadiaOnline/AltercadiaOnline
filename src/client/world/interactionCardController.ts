@@ -11,8 +11,8 @@ import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import { postSystemNotification } from '../ui/logService.js';
 import { InputHandler } from '../inputHandler.js';
 import type { Disposable } from '../utils/Disposable.js';
-import { getActionDispatcher } from '../ActionDispatcher.js';
 import { getWorldPlayerPickById } from './worldPlayerPickRegistry.js';
+import { dispatchDuelInvite, dispatchTradeRequest } from './playerInspectActions.js';
 import { worldToScreenPixel } from './screenCoords.js';
 
 export type InteractionCardControllerOptions = {
@@ -132,24 +132,23 @@ export class InteractionCardController implements Disposable {
     const name = target.displayName;
     switch (action) {
       case 'trade': {
-        const result = getActionDispatcher().dispatch({
-          type: 'TRADE_REQUEST',
-          payload: { targetPlayerId: target.targetId },
-        });
-        if (!result.ok) {
-          postSystemNotification(result.reason, 'normal');
+        const pick = getWorldPlayerPickById(target.targetId);
+        if (!pick) {
+          postSystemNotification('Jogador não está mais na tela.');
           return;
         }
-        if (result.status === 'applied') {
-          postSystemNotification(`Pedido de trade enviado para ${name}.`);
-          return;
-        }
-        postSystemNotification(`Enviando pedido de trade para ${name}…`);
+        dispatchTradeRequest(pick.playerId, pick.characterId);
         break;
       }
-      case 'duel':
-        postSystemNotification(`PvP casual com ${name} — em breve.`);
+      case 'duel': {
+        const pick = getWorldPlayerPickById(target.targetId);
+        if (!pick) {
+          postSystemNotification('Jogador não está mais na tela.');
+          break;
+        }
+        dispatchDuelInvite(pick.playerId, pick.characterId);
         break;
+      }
       case 'follow':
         postSystemNotification(`Seguir ${name} — em breve.`);
         break;

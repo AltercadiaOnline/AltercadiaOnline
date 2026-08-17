@@ -44,6 +44,34 @@ import type {
   RefractionBoothStarted,
 } from '../../shared/cityMinigames/refractionBoothTypes.js';
 import type { MarcosStateSnapshot } from '../../shared/playerDataSnapshots.js';
+import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
+import { upsertFriend } from '../world/friendListStore.js';
+import { isFriendListViewEntry } from '../../shared/social/friendListTypes.js';
+import { isChatWhisperPayload } from '../../shared/social/chatWhisperTypes.js';
+import {
+  appendWhisperSystemLine,
+  applyIncomingWhisper,
+} from '../world/whisperChatStore.js';
+import {
+  isSprayInspectView,
+  parseWorldSpraySnapshots,
+} from '../../shared/social/spraySocialTypes.js';
+import { applyWorldSpraySnapshots } from '../world/worldSpraySyncBridge.js';
+import {
+  markSprayInspectFriendSent,
+  openSprayInspectHud,
+  patchSprayInspectLegacy,
+  setSprayInspectPending,
+} from '../world/sprayInspectStore.js';
+import { isPlayerInspectView } from '../../shared/social/playerInspectTypes.js';
+import {
+  markPlayerInspectFriendSent,
+  openPlayerInspectHud,
+  setPlayerInspectPending,
+} from '../world/playerInspectStore.js';
+import { setPlayerTradePending } from '../world/playerTradeStore.js';
+import { applyMarketplaceOrderBookSnapshot } from '../ui/market/marketplaceOrderBookClient.js';
+import { getGlobalMessageBus } from '../net/GlobalMessageBus.js';
 
 function isMarcosStateIntentData(data: unknown): data is {
   readonly marcosState: Omit<MarcosStateSnapshot, 'revision'>;
@@ -71,6 +99,22 @@ function tryApplyMarcosFromIntentData(intentId: string, data: unknown): boolean 
   return true;
 }
 
+function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown): boolean {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (
+    !pending
+    || (pending.action.type !== 'ACCEPT_MERCENARY_TASK'
+      && pending.action.type !== 'ABANDON_MERCENARY_TASK')
+  ) {
+    return false;
+  }
+  if (!data || typeof data !== 'object') return false;
+  const progress = (data as { mercenaryQuests?: unknown }).mercenaryQuests;
+  if (!progress) return false;
+  getMercenaryQuestStore().applyAuthoritative(progress);
+  return true;
+}
+
 function tryNotifyActivateBookSuccess(intentId: string, data: unknown): void {
   const pending = getPendingIntentRegistry().get(intentId);
   if (!pending || pending.action.type !== 'ACTIVATE_BOOK') return;
@@ -82,25 +126,172 @@ function tryNotifyActivateBookSuccess(intentId: string, data: unknown): void {
   notifyActivateBookIntentSuccess(bookId, expiresAt);
 }
 
+function tryNotifySpraySocialResult(intentId: string, success: boolean, data?: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending) return;
+
+  if (pending.action.type === 'PLACE_SPRAY') {
+    if (!success) {
+      const reason = typeof data === 'string' ? data : 'Não foi possível pixar.';
+      postSystemNotification(reason);
+      return;
+    }
+    if (data && typeof data === 'object') {
+      const record = data as Record<string, unknown>;
+      const sprays = parseWorldSpraySnapshots(record.spraysInZone);
+      const mapId =
+        typeof record.spray === 'object' && record.spray && typeof (record.spray as { zoneId?: unknown }).zoneId === 'string'
+          ? (record.spray as { zoneId: string }).zoneId
+          : getMutableDataStore().getWorldPosition()?.mapId;
+      if (sprays && mapId) {
+        applyWorldSpraySnapshots(mapId, sprays);
+      }
+    }
+    postSystemNotification('Pixo marcado no chão.');
+    return;
+  }
+
+  if (pending.action.type === 'INSPECT_SPRAY') {
+    if (!success) {
+      const reason = typeof data === 'string' ? data : 'Pixo não encontrado.';
+      postSystemNotification(reason);
+      return;
+    }
+    const inspect = data && typeof data === 'object'
+      ? (data as { inspect?: unknown }).inspect
+      : null;
+    if (!isSprayInspectView(inspect)) return;
+    const screenX = pending.action.payload.screenX ?? 0;
+    const screenY = pending.action.payload.screenY ?? 0;
+    openSprayInspectHud(inspect, screenX, screenY);
+    return;
+  }
+
+  if (pending.action.type === 'UPDATE_SPRAY_LEGACY') {
+    if (!success) {
+      const reason = typeof data === 'string' ? data : 'Não foi possível salvar o legado.';
+      setSprayInspectPending(false, reason);
+      postSystemNotification(reason);
+      return;
+    }
+    const message = data && typeof data === 'object' && typeof (data as { legacyMessage?: unknown }).legacyMessage === 'string'
+      ? (data as { legacyMessage: string }).legacyMessage
+      : '';
+    patchSprayInspectLegacy(message);
+    postSystemNotification('Mensagem de legado atualizada.');
+    return;
+  }
+
+  if (pending.action.type === 'ADD_FRIEND') {
+    setSprayInspectPending(false, success ? null : (typeof data === 'string' ? data : 'Não foi possível adicionar.'));
+    setPlayerInspectPending(false, success ? null : (typeof data === 'string' ? data : 'Não foi possível adicionar.'));
+    if (success) {
+      markSprayInspectFriendSent();
+      markPlayerInspectFriendSent();
+      const friend = data && typeof data === 'object'
+        ? (data as { friend?: unknown }).friend
+        : null;
+      if (isFriendListViewEntry(friend)) {
+        upsertFriend(friend);
+      }
+      const message = data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
+        ? (data as { message: string }).message
+        : 'Adicionado como amigo.';
+      postSystemNotification(message);
+      return;
+    }
+    postSystemNotification(typeof data === 'string' ? data : 'Não foi possível adicionar como amigo.');
+  }
+}
+
+function tryNotifyPlayerSocialResult(intentId: string, success: boolean, data?: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending) return;
+
+  if (pending.action.type === 'INSPECT_PLAYER') {
+    if (!success) {
+      const reason = typeof data === 'string' ? data : 'Jogador indisponível.';
+      postSystemNotification(reason);
+      return;
+    }
+    const inspect = data && typeof data === 'object'
+      ? (data as { inspect?: unknown }).inspect
+      : null;
+    if (!isPlayerInspectView(inspect)) return;
+    const screenX = pending.action.payload.screenX ?? 0;
+    const screenY = pending.action.payload.screenY ?? 0;
+    openPlayerInspectHud(inspect, screenX, screenY);
+    return;
+  }
+
+  if (pending.action.type === 'DUEL_INVITE' || pending.action.type === 'DUEL_INVITE_RESPOND') {
+    setPlayerInspectPending(false, success ? null : (typeof data === 'string' ? data : 'Falha no convite.'));
+    if (success) {
+      const message = data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
+        ? (data as { message: string }).message
+        : pending.action.type === 'DUEL_INVITE'
+          ? 'Convite enviado.'
+          : 'Resposta enviada.';
+      postSystemNotification(message);
+      return;
+    }
+    postSystemNotification(typeof data === 'string' ? data : 'Não foi possível completar o convite.');
+  }
+}
+
+function tryNotifyWhisperResult(intentId: string, success: boolean, data?: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending || pending.action.type !== 'CHAT_WHISPER') return;
+
+  const creds = getGlobalMessageBus().getCredentials();
+  const targetPlayerId = pending.action.payload.targetPlayerId;
+  const targetCharacterId = pending.action.payload.targetCharacterId;
+  const displayName = targetPlayerId;
+
+  if (!success) {
+    const reason = typeof data === 'string' ? data : 'O jogador não está online.';
+    appendWhisperSystemLine(targetPlayerId, targetCharacterId, displayName, reason);
+    return;
+  }
+
+  const whisper = data && typeof data === 'object'
+    ? (data as { whisper?: unknown }).whisper
+    : null;
+  if (!isChatWhisperPayload(whisper) || !creds) return;
+  applyIncomingWhisper(whisper, creds.playerId, creds.characterId);
+}
+
 function tryNotifyTradeRequestResult(intentId: string, success: boolean, data?: unknown): void {
   const pending = getPendingIntentRegistry().get(intentId);
-  if (!pending || pending.action.type !== 'TRADE_REQUEST') return;
+  if (!pending) return;
+  const tradeAction =
+    pending.action.type === 'TRADE_REQUEST'
+    || pending.action.type === 'TRADE_RESPOND'
+    || pending.action.type === 'TRADE_OFFER_SET'
+    || pending.action.type === 'TRADE_LOCK'
+    || pending.action.type === 'TRADE_CANCEL';
+  if (!tradeAction) return;
+
+  if (pending.action.type === 'TRADE_REQUEST') {
+    setPlayerInspectPending(false, success ? null : (typeof data === 'string' ? data : 'Falha no trade.'));
+  } else {
+    setPlayerTradePending(false, success ? null : (typeof data === 'string' ? data : 'Falha no trade.'));
+  }
 
   if (success) {
     const message =
       data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
         ? (data as { message: string }).message
-        : 'Pedido de trade enviado.';
-    postSystemNotification(message);
+        : pending.action.type === 'TRADE_REQUEST'
+          ? 'Pedido de trade enviado.'
+          : pending.action.type === 'TRADE_LOCK'
+            ? 'Oferta atualizada.'
+            : null;
+    if (message) postSystemNotification(message);
     return;
   }
 
-  const reason =
-    data && typeof data === 'object' && typeof (data as { reason?: unknown }).reason === 'string'
-      ? (data as { reason: string }).reason
-      : typeof data === 'string'
-        ? data
-        : 'Não foi possível enviar o pedido de trade.';
+  const reason = typeof data === 'string' ? data : 'Não foi possível completar o trade.';
   postSystemNotification(reason, 'normal');
 }
 
@@ -178,6 +369,7 @@ const INVENTORY_INTENT_TYPES = new Set([
   'DELETE_ITEM',
   'CRAFT_ITEM',
   'COLLECT_BATTLE_LOOT',
+  'PLACE_SPRAY',
 ]);
 
 function parseInventorySyncFromIntentData(data: unknown): {
@@ -339,6 +531,22 @@ function tryApplyPetRosterFromIntentData(intentId: string, data: unknown): boole
   return roster !== null;
 }
 
+const MARKETPLACE_INTENT_TYPES = new Set([
+  'QUERY_MARKET_ORDER_BOOK',
+  'CREATE_MARKET_LISTING',
+  'CREATE_MARKET_BUY_ORDER',
+  'CANCEL_MARKET_LISTING',
+  'CANCEL_MARKET_BUY_ORDER',
+  'COLLECT_MARKET_VOLTS',
+  'EXECUTE_MARKET_PURCHASE',
+]);
+
+function tryApplyMarketplaceFromIntentData(intentId: string, data: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending || !MARKETPLACE_INTENT_TYPES.has(pending.action.type)) return;
+  applyMarketplaceOrderBookSnapshot(data);
+}
+
 function tryApplyHealVitalsFromIntentData(intentId: string, data: unknown): void {
   const pending = getPendingIntentRegistry().get(intentId);
   if (!pending || pending.action.type !== 'HEAL_AT_NPC') return;
@@ -413,12 +621,17 @@ export function handleIntentResultPayload(raw: unknown): void {
     tryNotifyActivateBookSuccess(raw.intentId, raw.data);
     tryNotifyBattleLootCollect(raw.intentId, true, raw.data);
     tryNotifyTradeRequestResult(raw.intentId, true, raw.data);
+    tryNotifySpraySocialResult(raw.intentId, true, raw.data);
+    tryNotifyPlayerSocialResult(raw.intentId, true, raw.data);
+    tryNotifyWhisperResult(raw.intentId, true, raw.data);
     tryNotifyRefractionResult(raw.intentId, true, raw.data);
     const petRosterApplied = tryApplyPetRosterFromIntentData(raw.intentId, raw.data);
     const inventoryApplied = tryApplyInventoryFromIntentData(raw.intentId, raw.data);
     tryApplyMarcosFromIntentData(raw.intentId, raw.data);
+    tryApplyMercenaryQuestsFromIntentData(raw.intentId, raw.data);
     tryApplyMovesetMasteryFromIntentData(raw.intentId, raw.data);
     tryApplyHealVitalsFromIntentData(raw.intentId, raw.data);
+    tryApplyMarketplaceFromIntentData(raw.intentId, raw.data);
     if (!petRosterApplied || !inventoryApplied) {
       getGlobalStateSynchronizer().requestFullState();
     }
@@ -444,6 +657,9 @@ export function handleIntentResultPayload(raw: unknown): void {
 
   tryNotifyBattleLootCollect(raw.intentId, false, raw.data);
   tryNotifyTradeRequestResult(raw.intentId, false, raw.error ?? 'INTENT_REJECTED');
+  tryNotifySpraySocialResult(raw.intentId, false, raw.error ?? 'INTENT_REJECTED');
+  tryNotifyPlayerSocialResult(raw.intentId, false, raw.error ?? 'INTENT_REJECTED');
+  tryNotifyWhisperResult(raw.intentId, false, raw.error ?? 'INTENT_REJECTED');
   tryNotifyRefractionResult(raw.intentId, false, { reason: raw.error ?? 'INTENT_REJECTED' });
 
   if (pendingInRegistry) {

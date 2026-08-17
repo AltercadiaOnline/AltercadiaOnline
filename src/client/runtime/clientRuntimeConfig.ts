@@ -1,4 +1,5 @@
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
+import { applyServerDefaultGameMode } from './gameMode.js';
 
 type GlobalWithClientRuntimeConfig = typeof globalThis & {
   __ALTERCADIA_CLIENT_RUNTIME_CONFIG__?: PublicClientConfig | null;
@@ -7,6 +8,7 @@ type GlobalWithClientRuntimeConfig = typeof globalThis & {
 /** Config pública em singleton — ui-runtime.js e main.js compartilham o mesmo snapshot. */
 export function setClientRuntimeConfig(config: PublicClientConfig): void {
   (globalThis as GlobalWithClientRuntimeConfig).__ALTERCADIA_CLIENT_RUNTIME_CONFIG__ = config;
+  applyServerDefaultGameMode(config.defaultGameMode ?? 'online');
 }
 
 export function getClientRuntimeConfig(): PublicClientConfig | null {

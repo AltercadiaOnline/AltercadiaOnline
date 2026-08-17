@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import {
   computeBuildDistribution,
+  extractCombatOnlyBuildWeightsFromItemIds,
   type BuildDistribution,
 } from '../../../../../shared/character/buildDistribution.js';
 import { getPlayerStatsGateway } from '../../../../gateway/PlayerStatsGateway.js';
@@ -8,9 +9,17 @@ import { getPlayerItemStore } from '../../../../ui/items/playerItemStore.js';
 import { uiEvents, UIEventType } from '../../../../ui/uiEvents.js';
 import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 
-function readStatsFingerprint(): string {
+function readBuildDistribution(): BuildDistribution {
   const bonus = getPlayerStatsGateway().resolveSnapshot().statsBonus;
-  return `${bonus.forca}|${bonus.defesa}|${bonus.critico}|${bonus.agilidade}`;
+  const grid = getPlayerItemStore().toEquipmentGrid();
+  const combatOnly = extractCombatOnlyBuildWeightsFromItemIds(Object.values(grid));
+  return computeBuildDistribution(bonus, combatOnly);
+}
+
+function readBuildFingerprint(): string {
+  const bonus = getPlayerStatsGateway().resolveSnapshot().statsBonus;
+  const grid = getPlayerItemStore().toEquipmentGrid();
+  return `${bonus.forca}|${bonus.defesa}|${bonus.critico}|${bonus.agilidade}|${Object.values(grid).join('|')}`;
 }
 
 function useBuildDistribution(): BuildDistribution {
@@ -28,17 +37,17 @@ function useBuildDistribution(): BuildDistribution {
         unsubStats();
       };
     },
-    readStatsFingerprint,
+    readBuildFingerprint,
     () => '0|0|0|0',
   );
 
   void fingerprint;
-  return computeBuildDistribution(getPlayerStatsGateway().resolveSnapshot().statsBonus);
+  return readBuildDistribution();
 }
 
 /**
- * Distribuição visual da build (ATK/DEF/CRIT/AGIL) — display-only a partir do
- * espelho de SET (mesmo path local × online via PlayerStatsGateway).
+ * Distribuição visual da build (ATK/DEF/CRIT/AGIL) — display-only.
+ * Passivos do SET + efeitos combatOnly da runa/livro (mesmo path local × online).
  */
 export function WorldSidebarBuildDistribution() {
   const distribution = useBuildDistribution();
@@ -59,7 +68,7 @@ export function WorldSidebarBuildDistribution() {
             title={
               distribution.hasSignal
                 ? `${share.label}: ${share.percent}% (peso ${share.weight})`
-                : `${share.label}: sem bônus de SET`
+                : `${share.label}: sem bônus de SET/runa`
             }
           >
             <span className="sidebar-build__label">{share.label}</span>

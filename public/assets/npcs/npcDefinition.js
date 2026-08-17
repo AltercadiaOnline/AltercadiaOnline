@@ -2,7 +2,7 @@
  * Manifesto SSOT — definições visuais e físicas de NPCs (sprites PNG).
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
-import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, } from '../../shared/npc/npcAssetBundles.js?v=ca5b2a5';
+import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, } from '../../shared/npc/npcAssetBundles.js?v=b11f95d';
 export { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, };
 function defFromBundle(npcId, animationSpeed, isCollidable = true) {
     const size = resolveNpcCollisionSize(npcId);

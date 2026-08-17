@@ -35,6 +35,7 @@ import {
   getCreateMarketBuyOrderHandler,
   getCreateMarketListingHandler,
   getExecuteMarketPurchaseHandler,
+  getQueryMarketOrderBookHandler,
 } from './economy/MarketplaceHandlers.js';
 import { getPurchaseSkinHandler } from './economy/PurchaseSkinHandler.js';
 import {
@@ -60,8 +61,27 @@ import {
   getDevSetMovesetMasteryHandler,
 } from './dev/DevCheatHandlers.js';
 import { getChatGlobalSendHandler } from './social/ChatGlobalSendHandler.js';
+import { getChatWhisperHandler } from './social/ChatWhisperHandler.js';
 import { getTradeRequestHandler } from './social/TradeRequestHandler.js';
+import {
+  getTradeCancelHandler,
+  getTradeLockHandler,
+  getTradeOfferSetHandler,
+  getTradeRespondHandler,
+} from './social/TradeSessionHandlers.js';
+import { getPlaceSprayHandler } from './social/PlaceSprayHandler.js';
+import { getInspectSprayHandler } from './social/InspectSprayHandler.js';
+import { getUpdateSprayLegacyHandler } from './social/UpdateSprayLegacyHandler.js';
+import { getAddFriendHandler } from './social/AddFriendHandler.js';
+import { getInspectPlayerHandler } from './social/InspectPlayerHandler.js';
+import { getDuelInviteHandler } from './social/DuelInviteHandler.js';
+import { getDuelInviteRespondHandler } from './social/DuelInviteRespondHandler.js';
 import { getZoneEnsureHandler } from './world/ZoneEnsureHandler.js';
+import { getGetLeaderboardHandler } from './world/GetLeaderboardHandler.js';
+import {
+  getAbandonMercenaryQuestHandler,
+  getAcceptMercenaryQuestHandler,
+} from './world/MercenaryQuestHandlers.js';
 
 let bootstrapped = false;
 
@@ -80,6 +100,9 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getSyncLoadoutHandler());
   registerIntentHandler(getSyncMovesetHandler());
   registerIntentHandler(getZoneEnsureHandler());
+  registerIntentHandler(getGetLeaderboardHandler());
+  registerIntentHandler(getAcceptMercenaryQuestHandler());
+  registerIntentHandler(getAbandonMercenaryQuestHandler());
   registerIntentHandler(getEquipFromInventoryHandler());
   registerIntentHandler(getUnequipToInventoryHandler());
   registerIntentHandler(getPurchasePetHandler());
@@ -97,6 +120,7 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getRefractionBoothQuoteHandler());
   registerIntentHandler(getRefractionBoothStartHandler());
   registerIntentHandler(getRefractionBoothCompleteHandler());
+  registerIntentHandler(getQueryMarketOrderBookHandler());
   registerIntentHandler(getCreateMarketListingHandler());
   registerIntentHandler(getCreateMarketBuyOrderHandler());
   registerIntentHandler(getCancelMarketListingHandler());
@@ -114,7 +138,19 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getDevSetMovesetMasteryHandler());
   registerIntentHandler(getDevResetPlayerHandler());
   registerIntentHandler(getChatGlobalSendHandler());
+  registerIntentHandler(getChatWhisperHandler());
   registerIntentHandler(getTradeRequestHandler());
+  registerIntentHandler(getTradeRespondHandler());
+  registerIntentHandler(getTradeOfferSetHandler());
+  registerIntentHandler(getTradeLockHandler());
+  registerIntentHandler(getTradeCancelHandler());
+  registerIntentHandler(getPlaceSprayHandler());
+  registerIntentHandler(getInspectSprayHandler());
+  registerIntentHandler(getUpdateSprayLegacyHandler());
+  registerIntentHandler(getAddFriendHandler());
+  registerIntentHandler(getInspectPlayerHandler());
+  registerIntentHandler(getDuelInviteHandler());
+  registerIntentHandler(getDuelInviteRespondHandler());
 
   bootstrapped = true;
 }

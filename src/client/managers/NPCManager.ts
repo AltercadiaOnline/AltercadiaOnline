@@ -192,6 +192,8 @@ export class NPCManager {
         setPlayerAtMarcosResetNpc(true);
       }
       if (npc.id === WORLD_TERMINAL_IDS.ZONE_1) {
+        windowManager.close('dialogue');
+        hideInteractionCard();
         uiEvents.emit(UIEventType.SHOW_MEMORY_TERMINAL, {
           transitionId: 'Z1_TO_Z1A',
           zoneName: npc.name,

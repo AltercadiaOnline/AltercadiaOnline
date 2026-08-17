@@ -24,6 +24,20 @@ export type RemoteEntityDisplayState = {
   readonly facing: PlayerFacing;
 };
 
+/** Âncora local → servidor: sample usa o mesmo domínio de `keyframe.serverTimeMs`. */
+export type RemoteEntityClockAnchor = {
+  readonly serverTimeMs: number;
+  readonly localMs: number;
+};
+
+export function estimateRemoteServerNowMs(
+  anchor: RemoteEntityClockAnchor | null,
+  localNowMs: number,
+): number {
+  if (!anchor) return 0;
+  return anchor.serverTimeMs + (localNowMs - anchor.localMs);
+}
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -77,6 +91,10 @@ export class RemoteEntityInterpolator {
     this.pushKeyframe(remotePlayerSnapshotToKeyframe(snapshot));
   }
 
+  /**
+   * @param nowMs relógio no mesmo domínio de `keyframe.serverTimeMs`.
+   * Não passar `performance.now()` cru quando os keyframes vierem do servidor.
+   */
   sample(entityId: string, nowMs: number): RemoteEntityDisplayState | null {
     const buffer = this.buffers.get(entityId);
     if (!buffer || buffer.length === 0) return null;

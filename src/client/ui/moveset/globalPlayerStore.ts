@@ -214,10 +214,6 @@ class GlobalPlayerStore {
     return true;
   }
 
-  seedDemo(classId: ClassType = 'IMPETUS'): void {
-    this.applyClassMoveset(classId);
-  }
-
   reset(): void {
     this.applyClassMoveset(getPlayerEquipmentStore().getSnapshot().classId);
     this.explorationSnapshot = null;

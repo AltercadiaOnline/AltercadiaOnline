@@ -7,6 +7,8 @@ import type { ChatGlobalPayload } from '../../shared/world/globalChatTypes.js';
 import { tryPostGlobalChatFromPayload, postGlobalChatLine } from '../ui/globalChat.js';
 import { postGameChatMessage } from '../ui/gameChat.js';
 import { normalizeSpeechBubbleText } from '../../shared/world/speechBubbleText.js';
+import { isChatWhisperPayload } from '../../shared/social/chatWhisperTypes.js';
+import { applyIncomingWhisper } from '../world/whisperChatStore.js';
 
 const WS_OPEN = 1;
 
@@ -57,6 +59,10 @@ export class GlobalMessageBus {
     this.lastLocalEchoKey = null;
   }
 
+  getCredentials(): GlobalMessageBusCredentials | null {
+    return this.context?.getCredentials() ?? null;
+  }
+
   subscribe(listener: ChatListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -100,12 +106,21 @@ export class GlobalMessageBus {
       postGameChatMessage(reason);
     };
 
+    const onChatWhisper = (raw: unknown) => {
+      if (!isChatWhisperPayload(raw)) return;
+      const creds = this.context?.getCredentials();
+      if (!creds) return;
+      applyIncomingWhisper(raw, creds.playerId, creds.characterId);
+    };
+
     activeSocket.on('chat-global', onChatGlobal);
     activeSocket.on('chat-global-rejected', onChatRejected);
+    activeSocket.on('chat-whisper', onChatWhisper);
 
     this.detachSocket = () => {
       activeSocket.removeAllListeners('chat-global');
       activeSocket.removeAllListeners('chat-global-rejected');
+      activeSocket.removeAllListeners('chat-whisper');
     };
   }
 

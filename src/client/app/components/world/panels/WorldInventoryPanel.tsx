@@ -10,6 +10,8 @@ import {
 import { getActionDispatcher, type DispatchResult } from '../../../../ActionDispatcher.js';
 import { selectInventorySlotTooltipLabel } from '../../../../core/gameStoreSelectors.js';
 import * as InventoryService from '../../../../services/inventory/InventoryService.js';
+import { isOfficialSprayItemId } from '../../../../../shared/social/spraySocialTypes.js';
+import { openOwnLegacyEditor } from '../../../../world/spraySocialActions.js';
 import { getContextMenuService } from '../../../../ui/contextMenu/ContextMenuService.js';
 import {
   equipFromInventoryFailureMessage,
@@ -72,11 +74,12 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
     return InventoryService.canEquipItem(selectedItemId);
   }, [selectedItemId, selectedSlot?.lockedQuantity]);
 
-  const handleTooltipShow = useCallback((event: MouseEvent, itemId: string) => {
+  const handleTooltipShow = useCallback((event: MouseEvent, itemId: string, charges?: number) => {
     const heldAmountLabel = selectInventorySlotTooltipLabel(itemId);
     emitItemTooltip(itemId, event.clientX, event.clientY, {
       vendorOpen,
       ...(heldAmountLabel ? { heldAmountLabel } : {}),
+      ...(charges !== undefined ? { chargesCurrent: charges } : {}),
     });
   }, [vendorOpen]);
 
@@ -94,6 +97,11 @@ export function WorldInventoryPanel({ zIndex, focused }: WorldInventoryPanelProp
     slotIndex: number,
   ) => {
     event.preventDefault();
+    event.stopPropagation();
+    if (isOfficialSprayItemId(itemId)) {
+      openOwnLegacyEditor(event.clientX, event.clientY);
+      return;
+    }
     getContextMenuService().open({
       kind: 'inventory-slot',
       clientX: event.clientX,

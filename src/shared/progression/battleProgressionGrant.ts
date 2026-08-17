@@ -8,13 +8,14 @@
  * ## Trilhas de progressão (independentes entre si)
  * | Trilha | Store / persistência | Curva | Como ganha em batalha |
  * |--------|----------------------|-------|------------------------|
- * | Nível do personagem | `PlayerDataStore` (`characterLevel`) | `getRequiredXpForNextLevel` | PVE × `BATTLE_LEVEL_XP_RATIO` × `BATTLE_LEVEL_XP_PACE` (35% mais lento) |
+ * | Nível do personagem | `PlayerDataStore` (`characterLevel`) | `characterXpCurve` (sem teto; ritmo em lutas) | PVE × `BATTLE_LEVEL_XP_RATIO` × `BATTLE_LEVEL_XP_PACE` (35% mais lento) |
  * | Domínio de moveset | `movesetMastery` → `moveProgression.ts` | `CharacterProgressionService.getRequiredXp` (1.15^n) | PVE × `BATTLE_MOVESET_XP_RATIO` × `BATTLE_MOVESET_XP_PACE` (25% mais rápido); +10% se ≥8 usos; catch-up ×1.5 |
  * | Progresso meta (árvore) | `milestoneTotalProgress` | Degraus 10, 25, 40… | +1 por vitória PVE (farm lento) |
  * | Habilidades Marco | `nodeProgression` via `marcoProgressEngine` | Triggers por uso | **Separado** — telemetria de combate (`marcoCombatTelemetry`) |
  *
  * ## Autoridade
  * - Servidor calcula o grant (`resolveBattleProgressionGrant`) a partir de `resolveBattleXpGain`.
+ * - **XP é da zona do bicho** (âncora de entrada da zona). Nível 70 na Zona 1 = mesmo XP do nível 1. Combate/loot podem escalar; XP não.
  * - Cliente **espelha** o payload — nunca recalcula XP de batalha.
  * - **Não** passar por `economyGateway` (itens/moeda). Progressão ≠ economia.
  *
@@ -68,6 +69,8 @@ export type BattleProgressionGrantInput = {
    */
   readonly movesUsedInBattle?: readonly string[];
   readonly defeatedLevel?: number;
+  /** Inimigos PvE derrotados na tela — cada um soma o XP da zona. Default 1. */
+  readonly defeatedEnemyCount?: number;
   /** Nível do personagem antes do grant — habilita bônus de sincronia nos moves. */
   readonly characterLevel?: number;
   /** Domínio persistido — nível efetivo de cada move para sincronia. */
@@ -191,7 +194,8 @@ export function resolveBattleProgressionGrant(
   }
 
   const defeatedLevel = input.defeatedLevel ?? resolveDefeatedCreatureLevel(input.creatureId);
-  const totalBattleXp = resolveBattleXpGain(input.creatureId, defeatedLevel);
+  const defeatedEnemyCount = Math.max(1, Math.floor(input.defeatedEnemyCount ?? 1));
+  const totalBattleXp = resolveBattleXpGain(input.creatureId) * defeatedEnemyCount;
   if (totalBattleXp <= 0) {
     return {
       ...EMPTY_GRANT,

@@ -72,7 +72,8 @@ export type Skill = SkillData;
 export interface CombatantSpeedProfile {
   readonly flowSpeedBase: number;
   /**
-   * Agilidade de classe (`CLASS_CATALOG.bonus.agility`) — entra em effectiveSpeedRaw.
+   * Agilidade de classe (`CLASS_CATALOG.bonus.agility`) — entra em effectiveSpeedRaw (HUD)
+   * e no tempo de iniciativa (`agilityTempo.ts`). Não acelera animação.
    * Nome legado `classSpeedBias` no wire; valor = agilidade do catálogo.
    */
   readonly classSpeedBias?: number;
@@ -109,6 +110,10 @@ export type CombatantCombatStats = {
   readonly attackPercent?: number;
   readonly dodgePercent?: number;
   readonly damageReductionPercent?: number;
+  /** HP% do SET — espelha o teto aplicado em `computePlayerHpMax`. */
+  readonly maxHpBonusPercent?: number;
+  /** AGI% do SET — pontos de tempo (ordem/golpe extra), não playback. */
+  readonly agilityPercent?: number;
 };
 
 export type MarcoCombatFlags = {
@@ -181,11 +186,18 @@ export interface Combatant {
   readonly skills: readonly SkillData[];
   readonly speedProfile?: CombatantSpeedProfile;
   readonly classId?: CombatClassId;
+  /** Nível do personagem — escala ATK/DEF de combate. Ausente = nv 1. */
+  readonly level?: number;
   /**
    * Ataque plano (monstros PvE) — vem do MonsterZoneScalingEngine.
    * Quando definido, substitui o bônus de classe no breakdown de ataque.
    */
   readonly baseAttack?: number;
+  /**
+   * Defesa plana (monstros PvE) — vem da zona/nível do bicho, não do nível do jogador.
+   * O golpe do player permanece o mesmo; este valor + HP absorvem o hit.
+   */
+  readonly baseDefense?: number;
   readonly hpCurrent?: number;
   readonly hpMax?: number;
   readonly combatRole?: CombatRole;
@@ -222,9 +234,15 @@ export interface CombatState {
    * Única fonte autoritativa para XP / loot / volts — não recalcular pelo catálogo.
    */
   readonly pveEnemyCombatLevel?: number;
+  /** PvE: quantos inimigos esta sessão sorteou (1–3). Cliente só espelha. */
+  readonly pveEncounterPackSize?: 1 | 2 | 3;
   readonly alliancePlayerTurnsSincePet?: number;
   readonly petAssistCycleIndex?: number;
   readonly battleWinnerId?: string | null;
+  /** PvE: o próximo lote do jogador não inclui reação inimiga. */
+  readonly agilitySkipEnemyReaction?: boolean;
+  /** Turno em que o último golpe extra de AGI foi marcado. */
+  readonly agilityLastExtraTurn?: number;
 }
 
 /**

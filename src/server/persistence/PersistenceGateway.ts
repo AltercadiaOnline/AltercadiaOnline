@@ -23,6 +23,14 @@ import { exportPetAffinityPersistence, hydratePetAffinityPersistence } from '../
 import { exportPetRosterPersistence, hydratePetRosterPersistence } from '../../Economy/petRosterStore.js';
 import { exportOwnedSkinsPersistence, setOwnedSkinsRecord } from '../../Economy/skinOwnershipStore.js';
 import {
+  exportMercenaryQuestPersistence,
+  hydrateMercenaryQuestPersistence,
+} from '../quests/mercenaryQuestStore.js';
+import {
+  exportFriendListPersistence,
+  hydrateFriendListPersistence,
+} from '../social/friendListStore.js';
+import {
   exportMarketplacePersistence,
   hydrateMarketplacePersistence,
 } from '../../Economy/marketplaceStore.js';
@@ -132,6 +140,8 @@ function buildRecordFromRuntime(
     petAffinity: exportPetAffinityPersistence(playerId, characterId),
     ownedSkins: exportOwnedSkinsPersistence(playerId, characterId),
     marketplace: exportMarketplacePersistence(playerId, characterId),
+    mercenaryQuests: exportMercenaryQuestPersistence(playerId, characterId),
+    friends: exportFriendListPersistence(playerId, characterId),
   };
 }
 
@@ -199,6 +209,8 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
       }
     }
   }
+  hydrateMercenaryQuestPersistence(record.playerId, record.characterId, record.mercenaryQuests);
+  hydrateFriendListPersistence(record.playerId, record.characterId, record.friends);
 }
 
 /** Carrega loot pendente (startup) via strategy ativa. */

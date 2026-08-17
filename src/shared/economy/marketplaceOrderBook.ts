@@ -81,18 +81,39 @@ export function filterOffersForItem(
   return offers.filter((row) => row.itemId === itemId);
 }
 
+export function resolveMarketOfferItemLabel(itemId: string): string {
+  return getAuthoritativeItemById(itemId)?.name ?? itemId;
+}
+
 export function buildMarketOfferTableView(
   offers: readonly MarketOfferRow[],
   side: MarketOfferSide,
-  itemId: string,
+  itemId: string | null,
   rowCount = MARKET_OFFER_TABLE_ROWS,
 ): MarketOfferTableView {
-  const filtered = filterOffersForItem(offers, itemId);
+  const filtered = itemId ? filterOffersForItem(offers, itemId) : offers;
   const ranked = side === 'sell' ? rankSellOffers(filtered) : rankBuyOffers(filtered);
-  const rows = ranked.slice(0, rowCount);
+  const rows = itemId
+    ? pinOwnOffersWithinRowLimit(ranked, side, rowCount)
+    : ranked.slice(0, Math.max(rowCount, ranked.length));
   const paddedRows: Array<MarketOfferRow | null> = [...rows];
-  while (paddedRows.length < rowCount) paddedRows.push(null);
+  if (paddedRows.length === 0) {
+    paddedRows.push(null);
+  }
   return { rows, paddedRows };
+}
+
+/** Ofertas próprias do item nunca caem do recorte de 5 linhas. */
+function pinOwnOffersWithinRowLimit(
+  ranked: readonly MarketOfferRow[],
+  side: MarketOfferSide,
+  rowCount: number,
+): MarketOfferRow[] {
+  const own = ranked.filter((row) => row.isOwn);
+  const others = ranked.filter((row) => !row.isOwn);
+  const otherSlots = Math.max(0, rowCount - own.length);
+  const merged = [...own, ...others.slice(0, otherSlots)];
+  return side === 'sell' ? rankSellOffers(merged) : rankBuyOffers(merged);
 }
 
 export function formatMarketVolts(value: number): string {
@@ -134,4 +155,219 @@ export function buildSeedMarketOffers(): readonly MarketOfferRow[] {
     id: `seed_${seed.side}_${seed.itemId}_${index}`,
     totalPriceVolts: seed.quantity * seed.unitPriceVolts,
   }));
+}
+
+export type MarketplaceListingOfferSource = {
+  readonly id: string;
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly unitPriceVolts: number;
+  readonly totalPriceVolts: number;
+  readonly anonymous?: boolean;
+  readonly status?: 'LISTED' | 'SOLD';
+  readonly sellerPlayerId?: string;
+  readonly sellerCharacterId?: number;
+};
+
+export type MarketplaceBuyOrderOfferSource = {
+  readonly id: string;
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly unitPriceVolts: number;
+  readonly totalPriceVolts: number;
+  readonly anonymous: boolean;
+};
+
+export type MarketplaceOwnListingRow = {
+  readonly id: string;
+  readonly itemId: string;
+  readonly itemName: string;
+  readonly quantity: number;
+  readonly unitPriceVolts: number;
+  readonly totalPriceVolts: number;
+  readonly status: 'LISTED' | 'SOLD';
+  readonly anonymous?: boolean;
+  readonly createdAt: number;
+  readonly soldAt?: number;
+};
+
+export type MarketplaceOwnBuyOrderRow = {
+  readonly id: string;
+  readonly itemId: string;
+  readonly itemName: string;
+  readonly quantity: number;
+  readonly unitPriceVolts: number;
+  readonly totalPriceVolts: number;
+  readonly anonymous: boolean;
+  readonly createdAt: number;
+};
+
+export type MarketplaceOrderBookSnapshot = {
+  readonly offers: readonly MarketOfferRow[];
+  readonly ownListings: readonly MarketplaceOwnListingRow[];
+  readonly ownBuyOrders: readonly MarketplaceOwnBuyOrderRow[];
+  readonly itemId?: string | null;
+};
+
+function toSellOfferRow(
+  listing: MarketplaceListingOfferSource,
+  isOwn: boolean,
+): MarketOfferRow {
+  return {
+    id: isOwn ? `own_sell_${listing.id}` : `p2p_sell_${listing.id}`,
+    itemId: listing.itemId,
+    displayName: isOwn ? 'Você' : (listing.anonymous ? 'Anônimo' : 'Mercador'),
+    quantity: listing.quantity,
+    unitPriceVolts: listing.unitPriceVolts,
+    totalPriceVolts: listing.totalPriceVolts,
+    side: 'sell',
+    anonymous: listing.anonymous ?? false,
+    isOwn,
+  };
+}
+
+/**
+ * Livro público: global (inclui a oferta do próprio viewer, mesmo offline) + anúncios
+ * só-locais ainda não espelhados + ordens de compra próprias.
+ */
+export function composeMarketplaceOffers(input: {
+  readonly viewerPlayerId: string;
+  readonly viewerCharacterId: number;
+  readonly globalListings: readonly MarketplaceListingOfferSource[];
+  readonly ownListings: readonly MarketplaceListingOfferSource[];
+  readonly ownBuyOrders: readonly MarketplaceBuyOrderOfferSource[];
+  readonly includeSeeds?: boolean;
+}): MarketOfferRow[] {
+  const globalIds = new Set(input.globalListings.map((row) => row.id));
+  const fromGlobal = input.globalListings
+    .filter((row) => row.status !== 'SOLD')
+    .map((listing) => {
+      const isOwn = listing.sellerPlayerId === input.viewerPlayerId
+        && listing.sellerCharacterId === input.viewerCharacterId;
+      return toSellOfferRow(listing, isOwn);
+    });
+
+  const ownOnly = input.ownListings
+    .filter((row) => row.status !== 'SOLD' && !globalIds.has(row.id))
+    .map((listing) => toSellOfferRow(listing, true));
+
+  const buyOffers: MarketOfferRow[] = input.ownBuyOrders.map((order) => ({
+    id: `own_buy_${order.id}`,
+    itemId: order.itemId,
+    displayName: 'Você',
+    quantity: order.quantity,
+    unitPriceVolts: order.unitPriceVolts,
+    totalPriceVolts: order.totalPriceVolts,
+    side: 'buy',
+    anonymous: order.anonymous,
+    isOwn: true,
+  }));
+
+  const seeds = input.includeSeeds === false ? [] : [...buildSeedMarketOffers()];
+  return [...seeds, ...fromGlobal, ...ownOnly, ...buyOffers];
+}
+
+export function filterMarketplaceOffersByItem(
+  offers: readonly MarketOfferRow[],
+  itemId: string | null | undefined,
+): readonly MarketOfferRow[] {
+  if (!itemId) return offers;
+  return filterOffersForItem(offers, itemId);
+}
+
+function isMarketOfferSide(value: unknown): value is MarketOfferSide {
+  return value === 'sell' || value === 'buy';
+}
+
+function parseMarketOfferRow(value: unknown): MarketOfferRow | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.id !== 'string' || record.id.length === 0) return null;
+  if (typeof record.itemId !== 'string' || record.itemId.length === 0) return null;
+  if (typeof record.displayName !== 'string') return null;
+  if (typeof record.quantity !== 'number' || !Number.isFinite(record.quantity)) return null;
+  if (typeof record.unitPriceVolts !== 'number' || !Number.isFinite(record.unitPriceVolts)) return null;
+  if (typeof record.totalPriceVolts !== 'number' || !Number.isFinite(record.totalPriceVolts)) return null;
+  if (!isMarketOfferSide(record.side)) return null;
+  if (typeof record.anonymous !== 'boolean') return null;
+  return {
+    id: record.id,
+    itemId: record.itemId,
+    displayName: record.displayName,
+    quantity: record.quantity,
+    unitPriceVolts: record.unitPriceVolts,
+    totalPriceVolts: record.totalPriceVolts,
+    side: record.side,
+    anonymous: record.anonymous,
+    ...(record.isOwn === true ? { isOwn: true } : {}),
+  };
+}
+
+function parseOwnListingRow(value: unknown): MarketplaceOwnListingRow | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.id !== 'string' || typeof record.itemId !== 'string') return null;
+  if (typeof record.itemName !== 'string') return null;
+  if (typeof record.quantity !== 'number' || typeof record.unitPriceVolts !== 'number') return null;
+  if (typeof record.totalPriceVolts !== 'number' || typeof record.createdAt !== 'number') return null;
+  if (record.status !== 'LISTED' && record.status !== 'SOLD') return null;
+  return {
+    id: record.id,
+    itemId: record.itemId,
+    itemName: record.itemName,
+    quantity: record.quantity,
+    unitPriceVolts: record.unitPriceVolts,
+    totalPriceVolts: record.totalPriceVolts,
+    status: record.status,
+    createdAt: record.createdAt,
+    ...(typeof record.anonymous === 'boolean' ? { anonymous: record.anonymous } : {}),
+    ...(typeof record.soldAt === 'number' ? { soldAt: record.soldAt } : {}),
+  };
+}
+
+function parseOwnBuyOrderRow(value: unknown): MarketplaceOwnBuyOrderRow | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.id !== 'string' || typeof record.itemId !== 'string') return null;
+  if (typeof record.itemName !== 'string') return null;
+  if (typeof record.quantity !== 'number' || typeof record.unitPriceVolts !== 'number') return null;
+  if (typeof record.totalPriceVolts !== 'number' || typeof record.createdAt !== 'number') return null;
+  if (typeof record.anonymous !== 'boolean') return null;
+  return {
+    id: record.id,
+    itemId: record.itemId,
+    itemName: record.itemName,
+    quantity: record.quantity,
+    unitPriceVolts: record.unitPriceVolts,
+    totalPriceVolts: record.totalPriceVolts,
+    anonymous: record.anonymous,
+    createdAt: record.createdAt,
+  };
+}
+
+export function parseMarketplaceOrderBookSnapshot(data: unknown): MarketplaceOrderBookSnapshot | null {
+  if (!data || typeof data !== 'object') return null;
+  const record = data as Record<string, unknown>;
+  if (!Array.isArray(record.offers) || !Array.isArray(record.ownListings) || !Array.isArray(record.ownBuyOrders)) {
+    return null;
+  }
+
+  const offers: MarketOfferRow[] = [];
+  for (const row of record.offers) {
+    const parsed = parseMarketOfferRow(row);
+    if (!parsed) return null;
+    offers.push(parsed);
+  }
+
+  const ownListings = record.ownListings
+    .map(parseOwnListingRow)
+    .filter((row): row is MarketplaceOwnListingRow => row !== null);
+  const ownBuyOrders = record.ownBuyOrders
+    .map(parseOwnBuyOrderRow)
+    .filter((row): row is MarketplaceOwnBuyOrderRow => row !== null);
+  const itemId = typeof record.itemId === 'string' && record.itemId.length > 0
+    ? record.itemId
+    : null;
+
+  return { offers, ownListings, ownBuyOrders, itemId };
 }

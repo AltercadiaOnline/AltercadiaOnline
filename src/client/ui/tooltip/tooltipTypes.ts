@@ -16,6 +16,8 @@ export type TooltipData =
       readonly data: ItemDefinition;
       /** Saldo formatado (moedas espelhadas da carteira no inventário). */
       readonly heldAmountLabel?: string;
+      /** Runas/livros — `Cargas: X / Y` a partir do stack vivo. */
+      readonly chargesLabel?: string;
     }
   | { readonly kind: 'move'; readonly data: MoveDefinition }
   | { readonly kind: 'marco'; readonly data: MarcoTooltipPayload }

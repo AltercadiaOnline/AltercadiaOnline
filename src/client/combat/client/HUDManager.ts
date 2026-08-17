@@ -147,6 +147,7 @@ export class HUDManager {
         break;
 
       case CombatEventType.TURN_ORDER_RESOLVED:
+        this.appendNarrativeFromEvent(event);
         break;
 
       case CombatEventType.ACTION_ACCEPTED:
@@ -560,7 +561,11 @@ export class HUDManager {
 
     setCombatSnapshot(payload.combatants, payload.turn);
 
-    this.battleScreen?.syncFromState(state, ui);
+    try {
+      this.battleScreen?.syncFromState(state, ui);
+    } catch (error) {
+      console.warn('[HUD] syncFromState falhou — moveset segue no ar.', error);
+    }
 
   }
 

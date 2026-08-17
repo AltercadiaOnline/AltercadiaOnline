@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { RemoteEntityInterpolator } from './remoteEntityInterpolator.js';
+import {
+  estimateRemoteServerNowMs,
+  RemoteEntityInterpolator,
+  REMOTE_ENTITY_RENDER_DELAY_MS,
+} from './remoteEntityInterpolator.js';
 
 describe('RemoteEntityInterpolator', () => {
   it('interpola linearmente entre dois keyframes', () => {
@@ -37,5 +41,35 @@ describe('RemoteEntityInterpolator', () => {
     });
     interpolator.removeEntity('gone');
     expect(interpolator.sample('gone', 250)).toBeNull();
+  });
+
+  it('mapeia elapsed local para o relógio do servidor', () => {
+    expect(estimateRemoteServerNowMs({ serverTimeMs: 1_000_000, localMs: 100 }, 150)).toBe(1_000_050);
+    expect(estimateRemoteServerNowMs(null, 50)).toBe(0);
+  });
+
+  it('atrasa o sample em REMOTE_ENTITY_RENDER_DELAY_MS no mesmo relógio', () => {
+    const interpolator = new RemoteEntityInterpolator();
+    interpolator.pushKeyframe({
+      entityId: 'p1',
+      feetX: 0,
+      feetY: 0,
+      facing: 'south',
+      serverTimeMs: 1_000,
+    });
+    interpolator.pushKeyframe({
+      entityId: 'p1',
+      feetX: 80,
+      feetY: 0,
+      facing: 'east',
+      serverTimeMs: 1_200,
+    });
+
+    const atDelay = interpolator.sample('p1', 1_000 + REMOTE_ENTITY_RENDER_DELAY_MS);
+    expect(atDelay?.feetX).toBeCloseTo(0, 5);
+
+    const mid = interpolator.sample('p1', 1_100 + REMOTE_ENTITY_RENDER_DELAY_MS);
+    expect(mid?.feetX).toBeCloseTo(40, 5);
+    expect(mid?.facing).toBe('east');
   });
 });

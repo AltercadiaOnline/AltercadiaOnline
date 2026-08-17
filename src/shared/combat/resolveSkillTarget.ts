@@ -1,6 +1,6 @@
 import type { Combatant } from '../types/combat.js';
 import { MoveTarget, type MoveTarget as MoveTargetType } from './classMovesetCatalog.js';
-import { getCombatRole } from '../pet/petCombatRules.js';
+import { getCombatRole, resolveCombatantHp } from '../pet/petCombatRules.js';
 import { resolveAttackTargetId } from './petTurnOrder.js';
 
 export function isAlliedCombatant(
@@ -40,7 +40,20 @@ export function resolveSkillTargetId(input: {
   if (!combatants[actorId]) return null;
 
   switch (moveTarget) {
-    case MoveTarget.Enemy:
+    case MoveTarget.Enemy: {
+      const requested = input.requestedTargetId;
+      if (requested) {
+        const requestedCombatant = combatants[requested];
+        if (
+          requestedCombatant
+          && getCombatRole(requestedCombatant) === 'ENEMY'
+          && resolveCombatantHp(requestedCombatant) > 0
+        ) {
+          return requested;
+        }
+      }
+      return resolveAttackTargetId(actorId, combatants, playerActorId ?? actorId);
+    }
     case MoveTarget.AllEnemies:
       return resolveAttackTargetId(actorId, combatants, playerActorId ?? actorId);
     case MoveTarget.AllyOrSelf: {

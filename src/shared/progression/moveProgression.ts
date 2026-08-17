@@ -22,14 +22,14 @@ export const MOVE_MAX_LEVEL = 99;
 /** @deprecated Use `PROGRESSION_XP_BASE` em CharacterProgressionService. */
 export const MOVE_XP_THRESHOLD_BASE = 100;
 
-/** +1,5% de power base por nível de domínio efetivo. */
-export const MOVE_POWER_GROWTH_PER_LEVEL = 0.015;
+/** +5% de poder base por nível de domínio efetivo — o investment no move manda no golpe. */
+export const MOVE_POWER_GROWTH_PER_LEVEL = 0.05;
 
 /** +1 PP máximo a cada 10 níveis de domínio. */
 export const MOVE_PP_BONUS_INTERVAL = 10;
 
 /**
- * XP para subir do nível `level` ao próximo — mesma curva do personagem.
+ * XP para subir o domínio do move — curva `CharacterProgressionService` (não a do personagem).
  */
 export function getRequiredXpForLevel(level: number): number {
   return CharacterProgressionService.getRequiredXp(level);

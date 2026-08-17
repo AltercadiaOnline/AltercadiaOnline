@@ -1,0 +1,14 @@
+---
+description: Intents — ActionDispatcher, handlers, pending registry
+globs: src/server/handlers/**/*.ts,src/server/network/**/*.ts,src/shared/intent/**/*.ts,src/client/ActionDispatcher.ts,src/client/intent/**/*.ts,src/client/sync/pendingIntentRegistry.ts
+alwaysApply: false
+---
+
+# Intents
+
+Ficha: `docs/context/intents-gateway.md`
+
+- Nova ação: `ClientAction` + `*Handler` + register `bootstrapHandlers.ts` + case no Mock.
+- Resposta `intent-result` com o mesmo `intentId`.
+- Loading: `PendingIntentRegistry` + ActionGatewayButton.
+- MOVE_INTENT é a única fast-lane sem spinner.

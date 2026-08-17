@@ -1,5 +1,6 @@
 /**
- * Cliente HTTP — presentes via servidor Railway → Supabase RPC transfer_item.
+ * Cliente HTTP legado — mesma autoridade file do intent GIFT_TRANSFER.
+ * Destinatário precisa estar no mundo; inventário só muda via snapshot do servidor.
  */
 
 import type { GiftTransferRequest, GiftTransferResponse } from '../../../shared/gift/giftTransferProtocol.js';

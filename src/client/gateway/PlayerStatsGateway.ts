@@ -33,6 +33,15 @@ function bonusToTotalStats(bonus: PlayerStatsBonus): PlayerTotalStats {
   };
 }
 
+function statsBonusChanged(a: PlayerStatsBonus, b: PlayerStatsBonus): boolean {
+  return a.forca !== b.forca
+    || a.defesa !== b.defesa
+    || a.agilidade !== b.agilidade
+    || a.critico !== b.critico
+    || a.vida !== b.vida
+    || a.esquiva !== b.esquiva;
+}
+
 function computeSnapshotFromGrid(
   grid: EquipmentUiGridState,
   source: PlayerStatsSource,
@@ -85,9 +94,12 @@ class PlayerStatsGateway {
     return this.cache;
   }
 
-  /** Retorna snapshot atual — recalcula do item store se o cache foi invalidado. */
+  /** Retorna snapshot atual — recalcula se o SET mudou (inclui crítico). */
   resolveSnapshot(): PlayerStatsSnapshot {
-    if (this.cache) return this.cache;
+    const revision = getPlayerItemStore().getSnapshot().revision;
+    if (this.cache && this.cache.equipmentRevision === revision) {
+      return this.cache;
+    }
     return this.refreshFromLocalEquipment();
   }
 
@@ -123,9 +135,7 @@ class PlayerStatsGateway {
       && this.cache.equipmentRevision === snapshot.equipmentRevision
       && this.cache.source === snapshot.source
       && this.cache.speedBonusTotal === snapshot.speedBonusTotal
-      && this.cache.statsBonus.forca === snapshot.statsBonus.forca
-      && this.cache.statsBonus.defesa === snapshot.statsBonus.defesa
-      && this.cache.statsBonus.agilidade === snapshot.statsBonus.agilidade
+      && !statsBonusChanged(this.cache.statsBonus, snapshot.statsBonus)
     ) {
       return;
     }

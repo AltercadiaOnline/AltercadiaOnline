@@ -18,6 +18,7 @@ import { getPlayerPetStore } from '../../ui/pet/playerPetStore.js';
 import { getPlayerProgressionStore } from '../../progression/playerProgressionStore.js';
 import { getDataStore } from '../../economy/economyLayer.js';
 import { resolveClientCombatEquipmentSnapshot } from '../resolveClientCombatEquipment.js';
+import { listEquipmentUiGridItemIds } from '../../../shared/character/equipmentUiSlots.js';
 
 export function resolveLocalCombatLoadoutFromClient(): PlayerCombatLoadout | null {
   const selected = AppScreens.getSelectedCharacter();
@@ -38,6 +39,7 @@ export function resolveLocalCombatLoadoutFromClient(): PlayerCombatLoadout | nul
   const marcos = getDataStore().getMarcosState();
   const pet = getPlayerPetStore().getSnapshot();
   const equipmentSnapshot = resolveClientCombatEquipmentSnapshot();
+  const equipmentGrid = getPlayerItemStore().toEquipmentGrid();
   const inventory = getPlayerItemStore().toInventoryStacks();
   const progression = getPlayerProgressionStore().getSnapshot();
   // equipment.level já lê PlayerDataStore — hub selected.level fica stale (ex.: 1 → 112 HP).
@@ -54,6 +56,7 @@ export function resolveLocalCombatLoadoutFromClient(): PlayerCombatLoadout | nul
       byNodeId: { ...(marcos.nodeProgression?.byNodeId ?? {}) },
     },
     equipped: { ...equipmentSnapshot },
+    equippedItemIds: listEquipmentUiGridItemIds(equipmentGrid),
     inventory: inventory.map((row) => ({ ...row })),
     activeBookBuff: null,
     equippedSkillIds,

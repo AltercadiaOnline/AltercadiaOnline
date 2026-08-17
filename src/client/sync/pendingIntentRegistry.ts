@@ -174,8 +174,9 @@ function isItemMutationAction(action: ClientAction): boolean {
     action.type === 'EQUIP_ITEM'
     || action.type === 'EQUIP_FROM_INVENTORY'
     || action.type === 'UNEQUIP_TO_INVENTORY'
-    || action.type === 'SYNC_LOADOUT'
+    ||     action.type === 'SYNC_LOADOUT'
     || action.type === 'DELETE_ITEM'
+    || action.type === 'PLACE_SPRAY'
   );
 }
 

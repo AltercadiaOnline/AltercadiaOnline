@@ -9,17 +9,25 @@ import {
   buildCombatantVitalsMap,
   type CombatantVital,
 } from '../combatVitalsDisplay.js';
-import { resolveBattleOpponentActorId } from '../../../shared/combat/resolveBattleOpponent.js';
 import type { CombatState } from '../../../shared/types.js';
 import type { BattleEncounterData } from '../../../shared/game/gameState.js';
 import { publishBattleFinished } from '../../game/GameStateProvider.js';
-import { setBattlePortraitStance, triggerBattleArenaCue } from '../../ui/battle/BattleScreen.js';
+import {
+  setBattlePortraitStance,
+  triggerBattleArenaCue,
+  getBattleArenaCanvas,
+  resolveBattleArenaPetKindId,
+} from '../../ui/battle/BattleScreen.js';
 import { syncBattleHudVitalsFromState } from '../../app/battle/battleHudVitalsSync.js';
 import {
   publishBattleRenderFromCombatState,
   triggerBattleRenderCue,
 } from '../../app/bridge/battleRenderBridge.js';
 import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
+import { resolveBattleOpponentActorId } from '../../../shared/combat/resolveBattleOpponent.js';
+import { listPveEnemyActorIds } from '../../../shared/combat/pveEncounterPack.js';
+import { resolveCreatureIdFromActorId } from '../../../shared/combat/MonsterCatalog.js';
+import { resolveCombatantHp } from '../../../shared/pet/petCombatRules.js';
 
 export type BattleScreenElements = {
   readonly playerPortrait?: HTMLElement | null;
@@ -33,6 +41,7 @@ export class BattleScreen {
   private readonly els: BattleScreenElements;
   private lastPlayerActorId: string | null = null;
   private boundOpponentId: string | null = null;
+  private boundPackKey: string | null = null;
   private combatantVitals = new Map<string, CombatantVital>();
   private isSpawnFxRunning = false;
 
@@ -69,8 +78,50 @@ export class BattleScreen {
       this.els.opponentPortrait.setAttribute('aria-label', opponent.name);
     }
 
-    syncBattleHudVitalsFromState(state, ui);
-    publishBattleRenderFromCombatState(state, ui);
+    try {
+      syncBattleHudVitalsFromState(state, ui);
+    } catch (error) {
+      console.warn('[BattleScreen] Falha ao espelhar vitals na HUD:', error);
+    }
+    try {
+      publishBattleRenderFromCombatState(state, ui);
+    } catch (error) {
+      console.warn('[BattleScreen] Falha ao publicar frame da arena:', error);
+    }
+    this.bindArenaFoePack(state);
+    this.syncArenaFoeDefeat(state);
+    void getBattleArenaCanvas()?.bindPet(resolveBattleArenaPetKindId());
+  }
+
+  private syncArenaFoeDefeat(state: CombatState): void {
+    const canvas = getBattleArenaCanvas();
+    if (!canvas || typeof canvas.syncFoeDefeat !== 'function') return;
+    const enemyIds = listPveEnemyActorIds(state.combatants);
+    if (enemyIds.length === 0) return;
+    canvas.syncFoeDefeat(enemyIds.map((actorId) => ({
+      actorId,
+      defeated: resolveCombatantHp(state.combatants[actorId]!) <= 0,
+    })));
+  }
+
+  private bindArenaFoePack(state: CombatState): void {
+    const canvas = getBattleArenaCanvas();
+    if (!canvas || typeof canvas.bindCreaturePack !== 'function') return;
+    try {
+      const enemyIds = listPveEnemyActorIds(state.combatants);
+      if (enemyIds.length === 0) return;
+      const first = state.combatants[enemyIds[0]!];
+      const creatureId = resolveCreatureIdFromActorId(enemyIds[0]!)
+        ?? this.boundOpponentId?.replace(/^enemy_/, '').replace(/__\d+$/, '')
+        ?? null;
+      if (!creatureId) return;
+      const packKey = `${creatureId}:${enemyIds.join(',')}`;
+      if (this.boundPackKey === packKey) return;
+      this.boundPackKey = packKey;
+      void canvas.bindCreaturePack(creatureId, enemyIds, first?.name);
+    } catch (error) {
+      console.warn('[BattleScreen] Falha ao posicionar bando na arena:', error);
+    }
   }
 
   public updateHp(combatantId: string, hp: number, maxHp?: number): void {
@@ -80,7 +131,12 @@ export class BattleScreen {
 
     const side = this.resolveCombatantSide(combatantId);
     if (side === 'player' || side === 'opponent' || side === 'pet') {
-      getBattleHudBridge().patchFighterHp(side, hp, resolvedMax);
+      getBattleHudBridge().patchFighterHp(side, hp, resolvedMax, combatantId);
+    }
+    if (side === 'opponent') {
+      getBattleArenaCanvas()?.syncFoeDefeat?.([
+        { actorId: combatantId, defeated: hp <= 0 },
+      ]);
     }
   }
 
@@ -147,6 +203,7 @@ export class BattleScreen {
   public reset(): void {
     this.lastPlayerActorId = null;
     this.boundOpponentId = null;
+    this.boundPackKey = null;
     this.combatantVitals.clear();
     this.isSpawnFxRunning = false;
     this.clearSpawnInitializationFx();
@@ -163,12 +220,12 @@ export class BattleScreen {
   ): Promise<void> {
     const side = this.resolveCombatantSide(combatantId);
     if (side === 'player' || side === 'pet') {
-      triggerBattleRenderCue('ally', cue);
-      triggerBattleArenaCue('ally', cue);
+      triggerBattleRenderCue('ally', cue, COMBAT_HIT_ANIM_MS);
+      triggerBattleArenaCue('ally', cue, COMBAT_HIT_ANIM_MS);
     }
     if (side === 'opponent') {
-      triggerBattleRenderCue('foe', cue);
-      triggerBattleArenaCue('foe', cue);
+      triggerBattleRenderCue('foe', cue, COMBAT_HIT_ANIM_MS);
+      triggerBattleArenaCue('foe', cue, COMBAT_HIT_ANIM_MS, combatantId);
     }
 
     const portrait = this.getPortraitElement(combatantId);
@@ -189,12 +246,11 @@ export class BattleScreen {
 
   setPortraitStance(combatantId: string, stance: 'idle' | 'attack'): void {
     const side = this.resolveCombatantSide(combatantId);
-    if (side === 'opponent') setBattlePortraitStance('foe', stance);
+    if (side === 'opponent') setBattlePortraitStance('foe', stance, combatantId);
     if (side === 'player' || side === 'pet') setBattlePortraitStance('ally', stance);
 
     const portrait = this.resolvePortraitElement(combatantId);
     if (!portrait) return;
-    portrait.classList.toggle('is-combat-attack', stance === 'attack');
     portrait.dataset.combatStance = stance;
   }
 

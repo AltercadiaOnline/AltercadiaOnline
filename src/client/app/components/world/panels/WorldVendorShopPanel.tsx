@@ -11,6 +11,7 @@ import {
 import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.js';
 import { resolveNpcVendorRarityBlockReason } from '../../../../../shared/economy/npcSellRarityPolicy.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
+import { MercenaryQuestBoard } from './MercenaryQuestBoard.js';
 import { isInventoryUiSyncPending } from '../../../../sync/pendingIntentRegistry.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
 import {
@@ -434,29 +435,7 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
             {vendor.vendorId === 'mercenario' ? (
               <>
                 <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--tasks">
-                  <span className="vendor-shop__trade-tag">NODE::TASKS</span>
-                  <div className="vendor-shop__tasks">
-                    <div className="vendor-shop__task-row">
-                      <p className="vendor-shop__task">Task 1: Mate 25 ratos</p>
-                      <button
-                        type="button"
-                        className="vendor-shop__task-accept"
-                        onClick={() => getActionDispatcher().dispatch({ type: 'ACCEPT_MERCENARY_TASK', payload: { taskId: 'mate_25_ratos' } })}
-                      >
-                        Aceitar
-                      </button>
-                    </div>
-                    <div className="vendor-shop__task-row">
-                      <p className="vendor-shop__task">Task 2: Mate 50 morcegos</p>
-                      <button
-                        type="button"
-                        className="vendor-shop__task-accept"
-                        onClick={() => getActionDispatcher().dispatch({ type: 'ACCEPT_MERCENARY_TASK', payload: { taskId: 'mate_50_morcegos' } })}
-                      >
-                        Aceitar
-                      </button>
-                    </div>
-                  </div>
+                  <MercenaryQuestBoard compact />
                 </div>
 
                 {state.selectedListing ? (

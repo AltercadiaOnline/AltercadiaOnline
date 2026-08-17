@@ -47,5 +47,7 @@ export type HudViewMode = 'world' | 'battle';
 
 export function useHudViewMode(): HudViewMode {
   const phase = useGamePhase();
-  return phase === GameStateValue.Battle ? 'battle' : 'world';
+  // TRANSITIONING também é batalha: não remontar o World HUD no fade
+  // (isso desmontava vitals/moveset e deixava só o canvas da arena).
+  return phase === GameStateValue.Exploration ? 'world' : 'battle';
 }

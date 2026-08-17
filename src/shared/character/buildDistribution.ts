@@ -1,9 +1,18 @@
+import { getAuthoritativeItemById } from '../items/itemCatalogAuthoritative.js';
 import type { PlayerStatsBonus } from './playerStatsBonus.js';
 
 /** Pilares da distribuição visual de build (sidebar). */
 export const BUILD_DISTRIBUTION_PILLARS = ['ATK', 'DEF', 'CRIT', 'AGIL'] as const;
 
 export type BuildDistributionPillar = (typeof BUILD_DISTRIBUTION_PILLARS)[number];
+
+/** Efeitos `combatOnly` do SET que entram na barra de BUILD (display-only). */
+const COMBAT_ONLY_STAT_TO_PILLAR: Readonly<Record<string, BuildDistributionPillar>> = {
+  STR: 'ATK',
+  DEF: 'DEF',
+  CRIT: 'CRIT',
+  AGI: 'AGIL',
+};
 
 export type BuildDistributionWeights = Readonly<Record<BuildDistributionPillar, number>>;
 
@@ -39,6 +48,45 @@ export function extractBuildDistributionWeights(
     DEF: Math.max(0, statsBonus.defesa),
     CRIT: Math.max(0, statsBonus.critico),
     AGIL: Math.max(0, statsBonus.agilidade),
+  };
+}
+
+/**
+ * Soma efeitos `combatOnly` (runas de IMPACT/BLOCK, etc.) nos 4 pilares da BUILD.
+ * Passivos já entram via `statsBonus` — aqui só o extra de combate, sem alterar fórmula de dano.
+ */
+export function extractCombatOnlyBuildWeightsFromItemIds(
+  itemIds: readonly (string | null | undefined)[],
+): BuildDistributionWeights {
+  const weights: Record<BuildDistributionPillar, number> = {
+    ATK: 0,
+    DEF: 0,
+    CRIT: 0,
+    AGIL: 0,
+  };
+  for (const itemId of itemIds) {
+    if (!itemId) continue;
+    const item = getAuthoritativeItemById(itemId);
+    if (!item) continue;
+    for (const effect of item.effects) {
+      if (!effect.combatOnly || effect.value <= 0) continue;
+      const pillar = COMBAT_ONLY_STAT_TO_PILLAR[effect.stat];
+      if (!pillar) continue;
+      weights[pillar] += effect.value;
+    }
+  }
+  return weights;
+}
+
+export function mergeBuildDistributionWeights(
+  base: BuildDistributionWeights,
+  extra?: Partial<BuildDistributionWeights> | null,
+): BuildDistributionWeights {
+  return {
+    ATK: base.ATK + Math.max(0, extra?.ATK ?? 0),
+    DEF: base.DEF + Math.max(0, extra?.DEF ?? 0),
+    CRIT: base.CRIT + Math.max(0, extra?.CRIT ?? 0),
+    AGIL: base.AGIL + Math.max(0, extra?.AGIL ?? 0),
   };
 }
 
@@ -79,11 +127,18 @@ export function normalizeBuildDistributionPercents(
   return result;
 }
 
-/** Display-only: deriva ATK/DEF/CRIT/AGIL % a partir do espelho de stats (não é autoridade de combate). */
+/**
+ * Display-only: deriva ATK/DEF/CRIT/AGIL % a partir do espelho de stats + efeitos
+ * `combatOnly` do SET (runas). Não alimenta fórmula de combate.
+ */
 export function computeBuildDistribution(
   statsBonus: Pick<PlayerStatsBonus, 'forca' | 'defesa' | 'critico' | 'agilidade'>,
+  combatOnlyWeights?: Partial<BuildDistributionWeights> | null,
 ): BuildDistribution {
-  const weights = extractBuildDistributionWeights(statsBonus);
+  const weights = mergeBuildDistributionWeights(
+    extractBuildDistributionWeights(statsBonus),
+    combatOnlyWeights,
+  );
   const percents = normalizeBuildDistributionPercents(weights);
   const totalWeight = BUILD_DISTRIBUTION_PILLARS.reduce((sum, id) => sum + weights[id], 0);
 

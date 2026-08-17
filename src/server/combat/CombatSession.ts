@@ -31,6 +31,12 @@ import { MarcoCombatTelemetryAccumulator } from '../../shared/progression/marcoC
 import type { MarcoProgressEvent } from '../../shared/progression/marcoProgressEngine.js';
 import { isMirrorBotActorId } from '../../shared/combat/mirrorPlayerConfig.js';
 import {
+  AGILITY_EXTRA_GRANT_LOG,
+  AGILITY_EXTRA_STRIKE_LOG,
+  agilityTempoScoreFromCombatant,
+  shouldGrantAgilityExtraAction,
+} from '../../shared/combat/agilityTempo.js';
+import {
   buildMirrorInjectedState,
   buildMirrorPlayerCombatant,
 } from './buildMirrorPlayerCombatant.js';
@@ -38,6 +44,8 @@ import {
   cloneManifest,
   remainingRuneCharges,
   resolveSkillRuneTrigger,
+  isPersistentImpactCritBonus,
+  peekRuneCharge,
   tryConsumeRuneCharge,
   type MutableCombatRuleManifest,
 } from './runeCombat.js';
@@ -328,15 +336,23 @@ export class CombatSession {
       return this.resolveReactiveConsumableRound(playerAction);
     }
 
-    const preEvents: CombatEvent[] = [];
+    const extraSkip = this.consumeAgilityExtraSkip();
+    const extraEvents: CombatEvent[] = extraSkip
+      ? [this.buildAgilityLog(AGILITY_EXTRA_STRIKE_LOG)]
+      : [];
+    const preEvents: CombatEvent[] = [...extraEvents];
     const batch: ResolvedCombatAction[] = [playerAction];
 
-    for (const enemyId of this.listEnemyActorIds()) {
-      const turnState = this.gateway.getState();
-      const monsterTurn = this.battleManager.processMonsterTurn(turnState, enemyId);
-      preEvents.push(...monsterTurn.events);
-      if (monsterTurn.action) {
-        batch.push(monsterTurn.action);
+    if (!extraSkip) {
+      for (const enemyId of this.listEnemyActorIds()) {
+        const turnState = this.gateway.getState();
+        const monster = turnState.combatants[enemyId];
+        if (!monster || (monster.hpCurrent ?? monster.hp) <= 0) continue;
+        const monsterTurn = this.battleManager.processMonsterTurn(turnState, enemyId);
+        preEvents.push(...monsterTurn.events);
+        if (monsterTurn.action) {
+          batch.push(monsterTurn.action);
+        }
       }
     }
 
@@ -350,10 +366,16 @@ export class CombatSession {
       };
     }
 
-    return {
+    result = {
       ...result,
       events: [...preEvents, ...result.events],
     };
+
+    if (!extraSkip) {
+      result = this.maybeGrantAgilityExtra(result);
+    }
+
+    return result;
   }
 
   /**
@@ -364,17 +386,29 @@ export class CombatSession {
       return this.resolveReactiveConsumableRound(playerAction);
     }
 
-    const preEvents: CombatEvent[] = [];
+    const extraSkip = this.consumeAgilityExtraSkip();
+    const preEvents: CombatEvent[] = extraSkip
+      ? [this.buildAgilityLog(AGILITY_EXTRA_STRIKE_LOG)]
+      : [];
     const beforeState = this.gateway.getState();
 
-    let result = this.resolveAllyEnemyBatch([playerAction], preEvents);
+    let result: DispatchResult;
+    if (extraSkip) {
+      const extraRound = this.gateway.resolveTurnBatch([playerAction]);
+      result = {
+        ...extraRound,
+        events: [...preEvents, ...extraRound.events],
+      };
+    } else {
+      result = this.resolveAllyEnemyBatch([playerAction], preEvents);
+    }
 
     if (result.state.phase === 'ENDED') {
       return result;
     }
 
     if (shouldRunPetAlliancePhase(beforeState)) {
-      const petPhase = this.resolvePetAlliancePhase();
+      const petPhase = this.resolvePetAlliancePhase(extraSkip);
       result = {
         events: [...result.events, ...petPhase.events],
         state: petPhase.state,
@@ -399,6 +433,10 @@ export class CombatSession {
       };
     }
 
+    if (!extraSkip) {
+      result = this.maybeGrantAgilityExtra(result);
+    }
+
     return result;
   }
 
@@ -410,6 +448,8 @@ export class CombatSession {
 
     for (const enemyId of this.listEnemyActorIds()) {
       const turnState = this.gateway.getState();
+      const monster = turnState.combatants[enemyId];
+      if (!monster || (monster.hpCurrent ?? monster.hp) <= 0) continue;
       const monsterTurn = this.battleManager.processMonsterTurn(turnState, enemyId);
       preEvents.push(...monsterTurn.events);
       if (monsterTurn.action) {
@@ -424,7 +464,7 @@ export class CombatSession {
     };
   }
 
-  private resolvePetAlliancePhase(): DispatchResult {
+  private resolvePetAlliancePhase(skipEnemies = false): DispatchResult {
     const preEvents: CombatEvent[] = [];
     const batch: ResolvedCombatAction[] = [];
     const state = this.gateway.getState();
@@ -450,11 +490,79 @@ export class CombatSession {
       };
     }
 
+    if (skipEnemies) {
+      const extraPet = this.gateway.resolveTurnBatch(batch);
+      return {
+        ...extraPet,
+        events: [...preEvents, ...extraPet.events],
+      };
+    }
+
     return this.resolveAllyEnemyBatch(batch, preEvents);
   }
 
   private listEnemyActorIds(): string[] {
     return [...listEnemyActorIds(this.gateway.getState().combatants, this.playerActorId)];
+  }
+
+  private buildAgilityLog(line: string): CombatEvent {
+    return {
+      type: CombatEventType.COMBAT_LOG,
+      battleId: this.gateway.getState().battleId,
+      line,
+      ts: Date.now(),
+    };
+  }
+
+  private consumeAgilityExtraSkip(): boolean {
+    const state = this.gateway.getState();
+    if (!state.agilitySkipEnemyReaction) return false;
+    this.gateway.setAgilityTempoProgress({
+      agilitySkipEnemyReaction: false,
+      agilityLastExtraTurn: state.agilityLastExtraTurn ?? null,
+    });
+    return true;
+  }
+
+  private maybeGrantAgilityExtra(result: DispatchResult): DispatchResult {
+    if (result.state.phase === 'ENDED') return result;
+    const player = result.state.combatants[this.playerActorId];
+    if (!player) return result;
+
+    let foeMaxScore = 0;
+    let livingFoes = 0;
+    for (const enemyId of listEnemyActorIds(result.state.combatants, this.playerActorId)) {
+      const enemy = result.state.combatants[enemyId];
+      if (!enemy) continue;
+      const hp = enemy.hpCurrent ?? enemy.hp;
+      if (hp <= 0) continue;
+      livingFoes += 1;
+      foeMaxScore = Math.max(foeMaxScore, agilityTempoScoreFromCombatant(enemy));
+    }
+    if (livingFoes <= 0) return result;
+
+    const granted = shouldGrantAgilityExtraAction({
+      battleId: result.state.battleId,
+      turn: result.state.turn,
+      playerScore: agilityTempoScoreFromCombatant(player),
+      foeMaxScore,
+      lastExtraTurn: result.state.agilityLastExtraTurn ?? null,
+      alreadySkipping: Boolean(result.state.agilitySkipEnemyReaction),
+    });
+    if (!granted) return result;
+
+    this.gateway.setAgilityTempoProgress({
+      agilitySkipEnemyReaction: true,
+      agilityLastExtraTurn: result.state.turn,
+    });
+    return {
+      ...result,
+      state: this.gateway.getState(),
+      events: [
+        ...result.events,
+        this.buildAgilityLog(AGILITY_EXTRA_GRANT_LOG),
+      ],
+    };
   }
 
   private applyPendingRuneSpeedIfDue(): void {
@@ -476,6 +584,12 @@ export class CombatSession {
   private applyRuneModifiers(action: ResolvedCombatAction): { action: ResolvedCombatAction; events: CombatEvent[] } {
     const trigger = resolveSkillRuneTrigger(action.skillId);
     if (!trigger) return { action, events: [] };
+
+    const pending = peekRuneCharge(this.ruleManifest, trigger);
+    if (!pending) return { action, events: [] };
+    if (isPersistentImpactCritBonus(pending)) {
+      return { action, events: [] };
+    }
 
     const entry = tryConsumeRuneCharge(this.ruleManifest, trigger);
     if (!entry) return { action, events: [] };

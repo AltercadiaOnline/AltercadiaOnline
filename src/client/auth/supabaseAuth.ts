@@ -11,6 +11,7 @@ import {
 } from '../../shared/auth/authCallback.js';
 import { markOAuthCodeExchanged, suppressAuthSessionSideEffects } from '../services/auth/oauthPending.js';
 import { withAuthDeadline } from './authDeadline.js';
+import { isLocalMonolithDevHost } from '../../shared/net/localMonolithDev.js';
 import { mergePublicClientConfigWithGameOrigin } from '../../shared/net/mergeGameOriginConfig.js';
 import type { GameOriginHints } from '../../shared/net/mergeGameOriginConfig.js';
 import {
@@ -131,7 +132,11 @@ export async function fetchPublicClientConfig(): Promise<PublicClientConfig> {
     throw new Error(`Falha ao carregar /config/client (${response.status})`);
   }
   const raw = await response.json() as PublicClientConfig;
-  const needsOrigin = !raw.gameWsUrl?.trim() && !raw.gameHttpUrl?.trim();
+  const onLocalMonolith = typeof window !== 'undefined'
+    && isLocalMonolithDevHost(window.location.hostname);
+  const needsOrigin = !onLocalMonolith
+    && !raw.gameWsUrl?.trim()
+    && !raw.gameHttpUrl?.trim();
   const config = needsOrigin
     ? mergePublicClientConfigWithGameOrigin(raw, await fetchStaticGameOriginHints())
     : raw;

@@ -24,7 +24,8 @@ export const ITEM_BUFF_COMBAT_LABELS: Record<ItemBuffTypeId, string> = {
 };
 
 export const COMBAT_BREAKDOWN_SOURCE_LABELS = {
-  moveset: 'Moveset',
+  ataque: 'ATK',
+  moveset: 'Move',
   classe: 'Defesa',
   equip: 'Equip',
   amuleto: 'Amuleto',

@@ -1,8 +1,8 @@
 /**
  * Ordem de turno — decisão oficial:
  * 1) Prioridade do move no moveset (1/2/3) — camada dominante
- * 2) Contribuição percentual dos atributos de velocidade (effectiveSpeedRaw)
- * 3) Seed determinística
+ * 2) Tempo de agilidade (`agilityTempoKey`) — viés, nunca 100%
+ * 3) Seed determinística (legado: speedAttributeContribution se o key ausentar)
  */
 export type InitiativeFormulaConfig = {
   readonly movesetPriorityScoreBySkillPriority: Readonly<Record<'1' | '2' | '3', number>>;
@@ -51,18 +51,25 @@ export function computeInitiativeBreakdown(
 
 export type RankedInitiativeEntry = InitiativeBreakdown & {
   readonly tieBreakerSeed: number;
+  /** Sorteio enviesado por AGI — ausente em snapshots/testes legados. */
+  readonly agilityTempoKey?: number;
 };
 
-/** Comparador autoritativo — moveset primeiro, depois % velocidade, depois seed. */
+/** Comparador autoritativo — moveset primeiro, depois tempo de AGI, depois seed. */
 export function compareInitiativeEntries(a: RankedInitiativeEntry, b: RankedInitiativeEntry): number {
   if (a.skillPriority !== b.skillPriority) return b.skillPriority - a.skillPriority;
-  if (a.speedAttributeContribution !== b.speedAttributeContribution) {
-    return b.speedAttributeContribution - a.speedAttributeContribution;
+  const aKey = a.agilityTempoKey;
+  const bKey = b.agilityTempoKey;
+  if (aKey != null && bKey != null && aKey !== bKey) return bKey - aKey;
+  if (aKey == null || bKey == null) {
+    if (a.speedAttributeContribution !== b.speedAttributeContribution) {
+      return b.speedAttributeContribution - a.speedAttributeContribution;
+    }
   }
   return a.tieBreakerSeed - b.tieBreakerSeed;
 }
 
-export type TurnOrderReason = 'PRIORITY' | 'SPEED_ATTRIBUTE' | 'SEED';
+export type TurnOrderReason = 'PRIORITY' | 'AGILITY_TEMPO' | 'SPEED_ATTRIBUTE' | 'SEED';
 
 export function resolveTurnOrderReason(ranked: readonly RankedInitiativeEntry[]): TurnOrderReason {
   if (ranked.length <= 1) return 'SEED';
@@ -70,6 +77,13 @@ export function resolveTurnOrderReason(ranked: readonly RankedInitiativeEntry[])
   const second = ranked[1];
   if (!first || !second) return 'SEED';
   if (first.skillPriority !== second.skillPriority) return 'PRIORITY';
+  if (
+    first.agilityTempoKey != null
+    && second.agilityTempoKey != null
+    && first.agilityTempoKey !== second.agilityTempoKey
+  ) {
+    return 'AGILITY_TEMPO';
+  }
   if (first.speedAttributeContribution !== second.speedAttributeContribution) return 'SPEED_ATTRIBUTE';
   return 'SEED';
 }

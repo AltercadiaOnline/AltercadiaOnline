@@ -50,6 +50,7 @@ import {
   getGameStateManager,
   resetGameStateManager,
 } from '../game/GameStateProvider.js';
+import { shouldAcceptAuthoritativeStartCombat } from '../combat/client/acceptAuthoritativeStartCombat.js';
 import { MapManager } from '../managers/mapManager.js';
 import type { WorldSocket } from '../world/WorldSocket.js';
 import {
@@ -62,9 +63,13 @@ import { bindPveEncounterWsSender, sendPveEncounterRequest } from '../app/panels
 import { bindCombatJoinAbortWsSender } from '../app/panels/combatJoinAbortBridge.js';
 import { formatPvpRankedQueueError } from '../../shared/combat/pvp/pvpRankedQueueErrors.js';
 import { isPvpRankedQueueSnapshot } from '../../shared/combat/pvp/pvpRankedQueueProtocol.js';
+import { isCasualDuelSnapshot } from '../../shared/social/casualDuelTypes.js';
+import { isTradeSnapshot } from '../../shared/social/playerTradeTypes.js';
 import { resolveWorldLoreCredentials } from '../services/worldLoreCredentials.js';
 import { bindPvpRankedQueueWsSender } from '../app/panels/pvpRankedQueueBridge.js';
 import { getPvpQueueStore } from '../app/panels/pvpQueueStore.js';
+import { applyCasualDuelSnapshot } from '../world/casualDuelStore.js';
+import { applyPlayerTradeSnapshot } from '../world/playerTradeStore.js';
 import {
   resetLocalPveEncounterRuntime,
   startLocalPveEncounterRuntime,
@@ -587,19 +592,26 @@ async function connectSocket(): Promise<void> {
     const payload = raw && typeof raw === 'object' ? raw as {
       battleId?: unknown;
       monsterInstanceId?: unknown;
+      matchId?: unknown;
+      battleType?: unknown;
     } : null;
     if (payload && typeof payload.battleId === 'string') {
       registerActiveBattleId(payload.battleId);
     }
 
-    // Join já abortado (timeout) ou START_COMBAT órfão — não monta batalha; libera servidor.
     const manager = getGameStateManager();
-    if (
-      !isPendingCombatJoin()
-      && manager.isExploration()
-      && !manager.isTransitioning()
-      && !manager.isBattle()
-    ) {
+    const battleType = typeof payload?.battleType === 'string' ? payload.battleType : undefined;
+    const matchId = typeof payload?.matchId === 'string' ? payload.matchId : undefined;
+    const acceptCombat = shouldAcceptAuthoritativeStartCombat({
+      pendingPveJoin: isPendingCombatJoin(),
+      inExploration: manager.isExploration(),
+      transitioning: manager.isTransitioning(),
+      inBattle: manager.isBattle(),
+      ...(battleType ? { battleType } : {}),
+      ...(matchId ? { matchId } : {}),
+    });
+    // PVE órfão (sem aceite) — não monta batalha. PVP rankeado chega da fila, ainda em exploração.
+    if (!acceptCombat) {
       void abortPendingCombatJoinSilently('START_COMBAT_REJECTED');
       return;
     }
@@ -716,12 +728,15 @@ async function connectSocket(): Promise<void> {
   socket.on('pvp-ranked-queue-snapshot', (raw) => {
     if (!isPvpRankedQueueSnapshot(raw)) return;
     let localPlayerId: string | undefined;
+    let localCharacterId: number | undefined;
     try {
-      localPlayerId = resolveWorldLoreCredentials().playerId;
+      const creds = resolveWorldLoreCredentials();
+      localPlayerId = creds.playerId;
+      localCharacterId = creds.characterId;
     } catch {
       localPlayerId = undefined;
     }
-    getPvpQueueStore().applyAuthoritativeSnapshot(raw, localPlayerId);
+    getPvpQueueStore().applyAuthoritativeSnapshot(raw, localPlayerId, localCharacterId);
   });
 
   socket.on('pvp-ranked-queue-error', (raw) => {
@@ -730,6 +745,17 @@ async function connectSocket(): Promise<void> {
     if (typeof reason !== 'string') return;
     console.warn('[PvP ranked queue]', reason);
     alertSystem(formatPvpRankedQueueError(reason));
+  });
+
+  socket.on('casual-duel-snapshot', (raw) => {
+    if (!isCasualDuelSnapshot(raw)) return;
+    applyCasualDuelSnapshot(raw);
+  });
+
+  socket.on('player-trade-snapshot', (raw) => {
+    // Fail-closed: itemId fora do catálogo descarta o snapshot inteiro (HUD não inventa nome).
+    if (!isTradeSnapshot(raw)) return;
+    applyPlayerTradeSnapshot(raw);
   });
 
   socket.onOpen(() => {

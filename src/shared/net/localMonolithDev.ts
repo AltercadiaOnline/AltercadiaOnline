@@ -1,7 +1,10 @@
 import type { PublicClientConfig } from '../publicClientConfig.js';
 
 export function isLocalMonolithDevHost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1';
+  return hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname === '::1'
+    || hostname === '[::1]';
 }
 
 export function resolveLocalMonolithGameHttpUrl(location: Pick<Location, 'origin'>): string {

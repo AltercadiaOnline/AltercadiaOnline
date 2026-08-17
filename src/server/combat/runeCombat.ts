@@ -28,6 +28,18 @@ export function resolveSkillRuneTrigger(skillId: string | null): CombatRuleEntry
   return 'IMPACT';
 }
 
+/** IMPACT CRIT já entra em combatStats.critChanceBonus — não soma de novo no golpe. */
+export function isPersistentImpactCritBonus(entry: CombatRuleEntry): boolean {
+  return entry.effectType === 'CRIT_BONUS' && entry.trigger === 'IMPACT';
+}
+
+export function peekRuneCharge(
+  manifest: CombatRuleManifest,
+  trigger: CombatRuleEntry['trigger'],
+): CombatRuleEntry | null {
+  return manifest.find((entry) => entry.trigger === trigger && (entry.charges ?? 0) > 0) ?? null;
+}
+
 export function tryConsumeRuneCharge(
   manifest: MutableCombatRuleManifest,
   trigger: CombatRuleEntry['trigger'],

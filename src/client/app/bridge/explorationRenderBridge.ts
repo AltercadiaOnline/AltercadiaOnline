@@ -3,6 +3,7 @@ import type { PlayerFacing } from '../../../shared/world/playerFacing.js';
 import type { SpriteDirectionKey } from '../../../shared/world/playerFacing.js';
 import type { AnimationState } from '../../entities/player/types.js';
 import type { WorldActorRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
+import type { RemotePlayerRenderFrame } from '../../world/remoteEntitySyncBridge.js';
 import type { PetRenderSnapshot } from '../../entities/pet/PetFollowEntity.js';
 import type { NavigationDestination } from '../../managers/PointClickController.js';
 
@@ -34,6 +35,8 @@ export type ExplorationRenderFrame = {
   readonly timestampMs: number;
   readonly playerSprite: ExplorationPlayerSpriteFrame;
   readonly worldActors: readonly WorldActorRenderSnapshot[];
+  /** Peers visíveis no mapa — interpolados do `nearbyPlayers` do state-sync. */
+  readonly remotePlayers: readonly RemotePlayerRenderFrame[];
   readonly pet: PetRenderSnapshot | null;
   readonly navigationDestination: NavigationDestination | null;
   readonly debugOverlay: ExplorationDebugOverlaySnapshot | null;

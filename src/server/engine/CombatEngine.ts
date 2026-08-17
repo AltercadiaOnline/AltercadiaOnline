@@ -1,5 +1,12 @@
 import { calculateDamage } from '../../shared/combat/calculateDamage.js';
 import { resolveClassAgility } from '../../shared/combat/resolveClassAgility.js';
+import {
+  resolveEffectiveSpeedWithGear,
+} from '../../shared/combat/itemBuffCombat.js';
+import {
+  computeAgilityTempoKey,
+  agilityTempoScoreFromCombatant,
+} from '../../shared/combat/agilityTempo.js';
 import { BattleType } from '../../shared/combat/battleType.js';
 import { CombatEventType } from '../../shared/events.js';
 import type { CombatEvent, TurnUpdate } from '../../shared/events.js';
@@ -17,6 +24,16 @@ import { resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import { MoveEffectKind, getClassMoveById } from '../../shared/combat/classMovesetCatalog.js';
 import { MoveCategory } from '../../shared/combat/moveTypes.js';
+import {
+  advanceAttackComboChain,
+  isComboAttackSkill,
+  type AttackComboState,
+} from '../../shared/combat/attackComboChain.js';
+import {
+  advanceCritCadence,
+  isSignatureCriticalSkill,
+  type CritCadenceState,
+} from '../../shared/combat/critCadence.js';
 import {
   RuntimeModifierKind,
   RuntimeStatusId,
@@ -103,10 +120,11 @@ import {
 } from '../../shared/combat/potionSaturation.js';
 
 type BalanceConfig = CombatBalanceV12;
-type TurnOrderReason = 'INITIATIVE_SCORE' | 'PRIORITY' | 'EFFECTIVE_SPEED' | 'SPEED_ATTRIBUTE' | 'SEED' | 'PET_QUEUE';
+type TurnOrderReason = 'INITIATIVE_SCORE' | 'PRIORITY' | 'EFFECTIVE_SPEED' | 'SPEED_ATTRIBUTE' | 'AGILITY_TEMPO' | 'SEED' | 'PET_QUEUE';
 
 type DirectDamageOptions = {
   readonly ignoreBarrierPercent?: number;
+  readonly forceCritical?: boolean;
   readonly runeCritBonus?: number;
   readonly runeReflectRatio?: number;
   readonly behaviorMultiplier?: number;
@@ -126,6 +144,7 @@ type RankedAction = {
   readonly speedAttributeContribution: number;
   readonly initiativeScore: number;
   readonly tieBreakerSeed: number;
+  readonly agilityTempoKey?: number;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -187,8 +206,12 @@ function cloneCombatants(input: Readonly<Record<string, Combatant>>): Record<str
   return out;
 }
 
-function getActorOrder(combatants: Readonly<Record<string, Combatant>>): string[] {
-  return Object.keys(combatants);
+function getLivingActorOrder(combatants: Readonly<Record<string, Combatant>>): string[] {
+  return Object.keys(combatants).filter((id) => {
+    const combatant = combatants[id];
+    if (!combatant) return false;
+    return resolveCombatantHp(combatant) > 0;
+  });
 }
 
 function pickNextActorId(currentActorId: string | null, order: readonly string[]): string | null {
@@ -219,6 +242,7 @@ function compareRankedActions(a: RankedAction, b: RankedAction): number {
 
 function resolveOrderReason(ranked: readonly RankedAction[]): TurnOrderReason {
   const reason = resolveInitiativeReason(ranked);
+  if (reason === 'AGILITY_TEMPO') return 'AGILITY_TEMPO';
   if (reason === 'SPEED_ATTRIBUTE') return 'SPEED_ATTRIBUTE';
   if (reason === 'PRIORITY') return 'PRIORITY';
   return 'SEED';
@@ -239,6 +263,10 @@ export class CombatEngine {
   private readonly skillCooldownUntilTurn = new Map<string, number>();
   /** Cargas restantes de Passos Além-Tempo por ator. */
   private readonly marcoBeyondTimeCharges = new Map<string, number>();
+  /** Cadeia de golpes distintos do jogador no mesmo alvo. */
+  private readonly attackComboByActor = new Map<string, AttackComboState>();
+  /** Pity de crítico ofensivo do jogador (não é metrônomo do 4º hit). */
+  private readonly critCadenceByActor = new Map<string, CritCadenceState>();
 
   constructor(
     initial: CombatState,
@@ -466,6 +494,20 @@ export class CombatEngine {
     };
   }
 
+  public setAgilityTempoProgress(progress: {
+    readonly agilitySkipEnemyReaction: boolean;
+    readonly agilityLastExtraTurn: number | null;
+  }): void {
+    if (this.state.phase === 'ENDED') return;
+    this.state = {
+      ...this.state,
+      agilitySkipEnemyReaction: progress.agilitySkipEnemyReaction,
+      ...(progress.agilityLastExtraTurn != null
+        ? { agilityLastExtraTurn: Math.max(0, Math.floor(progress.agilityLastExtraTurn)) }
+        : {}),
+    };
+  }
+
   public resolveTurnOrder(requests: readonly ResolvedCombatAction[]): readonly ResolvedCombatAction[] {
     return this.resolveTurnOrderV12(requests);
   }
@@ -523,7 +565,10 @@ export class CombatEngine {
 
     this.state = { ...this.state, phase: 'RESOLVING' };
 
-    const usesPetQueue = battleUsesPetTurnQueue(this.state.combatants);
+    const usesPetQueue = requests.some((request) => {
+      const actor = this.state.combatants[request.actorId];
+      return Boolean(actor && isPetCombatant(actor));
+    });
     const ranked = usesPetQueue
       ? this.rankPetQueueActions(requests)
       : this.rankActionsInternal(requests);
@@ -721,7 +766,11 @@ export class CombatEngine {
     if (!profile) return 0;
     const classAgility = this.resolveActorClassAgility(actor.classId, profile);
     const speedBonusTotal = this.computeSpeedBonusTotal(actorId, actor);
-    const raw = profile.flowSpeedBase + classAgility + speedBonusTotal;
+    const raw = resolveEffectiveSpeedWithGear({
+      flowSpeedBase: profile.flowSpeedBase,
+      classAgility,
+      speedBonusTotal,
+    });
     const clampCfg = this.balance.initiative.effectiveSpeedRawClamp;
     return clamp(raw, clampCfg.min, clampCfg.max);
   }
@@ -1299,8 +1348,12 @@ export class CombatEngine {
 
     const skillMeta = this.resolveDamageEventSkillMeta(sourceId, options);
 
-    const forceCritical = actor.marcoCombatFlags?.precisionMasterReady === true;
-    const damageResult = calculateDamage(actor, target, { id: 'runtime', power }, {
+    const forceCritical = options.forceCritical === true
+      || actor.marcoCombatFlags?.precisionMasterReady === true;
+    const damageResult = calculateDamage(actor, target, {
+      id: options.skillId ?? 'runtime',
+      power,
+    }, {
       turn: this.state.turn,
       forceCritical,
       defenderActiveStatuses: getStatuses(target),
@@ -1330,6 +1383,9 @@ export class CombatEngine {
           amount: 0,
           hpAfter: resolveCombatantHp(target),
           isCritical: damageResult.isCritical,
+          ...(damageResult.critBonusPercent !== undefined
+            ? { critBonusPercent: damageResult.critBonusPercent }
+            : {}),
           attackBreakdown: damageResult.attackBreakdown,
           defenseBreakdown: damageResult.defenseBreakdown,
           ...skillMeta,
@@ -1371,6 +1427,9 @@ export class CombatEngine {
     const hitMitigationFields = {
       ...(damageResult.vulnerableApplied ? { vulnerableApplied: true } : {}),
       ...(damageResult.minDamageFloorApplied ? { minDamageFloorApplied: true } : {}),
+      ...(damageResult.critBonusPercent !== undefined
+        ? { critBonusPercent: damageResult.critBonusPercent }
+        : {}),
       damageBeforeMitigation: damageBeforeShields,
       ...(shieldAbsorbed > 0 ? { shieldAbsorbed } : {}),
       ...(incomingReduction > 0 ? { incomingReductionPercent: incomingReduction } : {}),
@@ -1393,6 +1452,9 @@ export class CombatEngine {
         amount: finalDamage,
         hpAfter: resolveCombatantHp(updatedTarget),
         isCritical: damageResult.isCritical,
+        ...(damageResult.critBonusPercent !== undefined
+          ? { critBonusPercent: damageResult.critBonusPercent }
+          : {}),
         attackBreakdown: damageResult.attackBreakdown,
         defenseBreakdown: damageResult.defenseBreakdown,
         ...skillMeta,
@@ -1524,6 +1586,64 @@ export class CombatEngine {
       this.pushStatusEvent(events, request.actorId, RuntimeStatusId.Confuse, 'skip');
     }
     return events;
+  }
+
+  private applyPlayerAttackCombo(
+    actorId: string,
+    skill: SkillData,
+    targetId: string,
+    scaledPower: number,
+    events: CombatEvent[],
+  ): number {
+    const actor = this.state.combatants[actorId];
+    if (!actor || getCombatRole(actor) !== 'PLAYER') return scaledPower;
+
+    const countsAsComboAttack = isComboAttackSkill(skill);
+    const next = advanceAttackComboChain(this.attackComboByActor.get(actorId) ?? null, {
+      moveId: skill.id,
+      targetId,
+      countsAsComboAttack,
+    });
+    if (next.state) this.attackComboByActor.set(actorId, next.state);
+    else this.attackComboByActor.delete(actorId);
+
+    if (next.multiplier === 1) return scaledPower;
+
+    const adjusted = Math.max(0, Math.floor(scaledPower * next.multiplier));
+    const deltaPct = Math.round((next.multiplier - 1) * 100);
+    if (next.multiplier > 1) {
+      events.push({
+        type: CombatEventType.COMBAT_LOG,
+        battleId: this.state.battleId,
+        line: `${actor.name} encadeia golpes distintos (+${deltaPct}%).`,
+        ts: Date.now(),
+      });
+    } else if (scaledPower > 0) {
+      events.push({
+        type: CombatEventType.COMBAT_LOG,
+        battleId: this.state.battleId,
+        line: `${actor.name} repete o mesmo golpe (${deltaPct}%).`,
+        ts: Date.now(),
+      });
+    }
+    return adjusted;
+  }
+
+  private consumeOffensiveCrit(actorId: string, skill: SkillData): boolean {
+    const actor = this.state.combatants[actorId];
+    if (!actor || getCombatRole(actor) !== 'PLAYER') return false;
+
+    const signature = isSignatureCriticalSkill(skill);
+    const prepEcho = skill.effectKind === MoveEffectKind.AttackEcho;
+    if (!signature && (prepEcho || !isComboAttackSkill(skill))) return false;
+
+    const guaranteed = signature || actor.marcoCombatFlags?.precisionMasterReady === true;
+    const next = advanceCritCadence(this.critCadenceByActor.get(actorId) ?? null, {
+      guaranteed,
+      roll: Math.random(),
+    });
+    this.critCadenceByActor.set(actorId, next.state);
+    return next.isCritical;
   }
 
   private resolveScaledMovePower(actorId: string, skill: SkillData): number {
@@ -1751,8 +1871,19 @@ export class CombatEngine {
     const actorModifier =
       resolveModifierPercent(actor, RuntimeModifierKind.Attack, turn)
       - resolveModifierPercent(actor, RuntimeModifierKind.BuffWeaken, turn);
-    const scaledPower = Math.max(0, Math.floor(power * (1 + actorModifier / 100) * powerMultiplier));
-    const dmgOpts = this.damageOptionsFromRequest(request);
+    let scaledPower = Math.max(0, Math.floor(power * (1 + actorModifier / 100) * powerMultiplier));
+    scaledPower = this.applyPlayerAttackCombo(
+      request.actorId,
+      selectedSkill,
+      targetId,
+      scaledPower,
+      events,
+    );
+    const critHit = this.consumeOffensiveCrit(request.actorId, selectedSkill);
+    const dmgOpts = this.damageOptionsFromRequest(
+      request,
+      critHit ? { forceCritical: true } : {},
+    );
 
     switch (kind) {
       case MoveEffectKind.PureDamage:
@@ -2269,6 +2400,13 @@ export class CombatEngine {
         speedAttributePercent: this.balance.initiative.speedAttributePercent,
         movesetTierScale: this.balance.initiative.movesetTierScale,
       });
+      const agilityTempoKey = computeAgilityTempoKey({
+        battleId: this.state.battleId,
+        turn: this.state.turn,
+        actorId: request.actorId,
+        agilityScore: agilityTempoScoreFromCombatant(actor),
+        isOpening: this.state.turn === 1,
+      });
       ranked.push({
         request,
         actorId: request.actorId,
@@ -2279,6 +2417,7 @@ export class CombatEngine {
         speedAttributeContribution: breakdown.speedAttributeContribution,
         initiativeScore: breakdown.initiativeScore,
         tieBreakerSeed: computeSeed(`${this.state.battleId}:${this.state.turn}:${request.actorId}`),
+        agilityTempoKey,
       });
     }
     ranked.sort(compareRankedActions);
@@ -2298,7 +2437,7 @@ export class CombatEngine {
     const usesPetAlliance = Boolean(
       this.playerActorId && battleUsesPetTurnQueue(this.state.combatants),
     );
-    const actorOrder = getActorOrder(this.state.combatants);
+    const actorOrder = getLivingActorOrder(this.state.combatants);
     const nextActorId = usesPetAlliance && this.playerActorId && !battleEnded
       ? this.playerActorId
       : pickNextActorId(lastActorId ?? this.state.activeActorId, actorOrder);

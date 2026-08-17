@@ -21,6 +21,7 @@ export type BattleHudChatLine = {
 };
 
 export type BattleHudFighterSnapshot = {
+  readonly actorId: string | null;
   readonly name: string;
   readonly classLabel: string;
   readonly hp: number;
@@ -33,6 +34,7 @@ export type BattleHudFighterSnapshot = {
 export type BattleHudPetSnapshot = {
   readonly visible: boolean;
   readonly name: string;
+  readonly kindId: string | null;
   readonly hp: number;
   readonly maxHp: number;
   readonly hpRatio: number;
@@ -71,9 +73,27 @@ export type BattleHudState = BattleHudSession & {
   readonly itemsEnabled: boolean;
   readonly player: BattleHudFighterSnapshot | null;
   readonly opponent: BattleHudFighterSnapshot | null;
+  readonly opponents: readonly BattleHudFighterSnapshot[];
+  readonly selectedFoeActorId: string | null;
   readonly pet: BattleHudPetSnapshot;
   readonly turnTimer: BattleHudTurnTimerSnapshot;
+  /** Mini HUD "Finalizar" após o hit final — arena ainda visível. */
+  readonly finishPromptVisible: boolean;
+  readonly finishPromptVictory: boolean;
 };
+
+/** Alvo de golpe PvE: oponente vivo selecionado, senão o primeiro vivo. */
+export function resolveSelectedLivingFoeActorId(state: BattleHudState): string | null {
+  const living = (state.opponents ?? []).filter((entry) => entry.actorId && entry.hp > 0);
+  if (living.length === 0) {
+    return state.opponent && state.opponent.hp > 0 ? state.opponent.actorId : null;
+  }
+  const selected = state.selectedFoeActorId;
+  if (selected && living.some((entry) => entry.actorId === selected)) {
+    return selected;
+  }
+  return living[0]?.actorId ?? null;
+}
 
 /** @deprecated Use `BattleHudState` */
 export type BattleHudBridgeSnapshot = BattleHudState;

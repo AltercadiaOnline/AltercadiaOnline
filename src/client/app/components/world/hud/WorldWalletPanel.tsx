@@ -1,6 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { CurrencyService } from '../../../../services/index.js';
 import { subscribeGameStore } from '../../../../state/GameStore.js';
+import { formatAlterCoinsHud } from '../../../../../shared/economy/premiumCurrency.js';
 import { tweenVoltsCounter } from '../../../../ui/wallet/voltsCounterTween.js';
 import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 
@@ -32,7 +33,7 @@ export function WorldWalletPanel() {
     const balance = CurrencyService.getBalanceChangedPayload();
     const alterEl = voltsEl.parentElement?.querySelector('[data-wallet-alter-coins]');
     if (alterEl instanceof HTMLElement) {
-      alterEl.textContent = balance.alterFormatted;
+      alterEl.textContent = formatAlterCoinsHud(balance.alterCoins);
     }
 
     const from = displayedVoltsRef.current;
@@ -76,8 +77,8 @@ export function WorldWalletPanel() {
       <div ref={voltsRef} className="sidebar-wallet__slot" data-wallet-volts aria-label="Saldo VOLTS">
         {payload.voltsFormatted}
       </div>
-      <div className="sidebar-wallet__slot" data-wallet-alter-coins aria-label="Saldo ALTER COINS">
-        {payload.alterFormatted}
+      <div className="sidebar-wallet__slot" data-wallet-alter-coins aria-label="Saldo ALTER">
+        {formatAlterCoinsHud(payload.alterCoins)}
       </div>
     </div>
   );

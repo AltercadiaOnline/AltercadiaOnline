@@ -5,7 +5,9 @@ import {
   ENCUMBERED_STEP_MS,
   GRID_STEP_MS,
 } from '../world/gridMovement.js';
+import { PLAYER_WORLD_MOVE_SPEED_SCALE } from '../world/movement.js';
 import { AGILIDADE_STAT_LABEL } from '../stats/statDisplayLabels.js';
+import { resolveLevelMoveSpeedMultiplier } from './levelMoveSpeed.js';
 
 /**
  * Bônus acumulados do SET equipado — valores iniciais em zero.
@@ -71,7 +73,7 @@ export function calculateStatsBonusFromEquipment(
   return bonus;
 }
 
-/** Bônus % de deslocamento no mapa a partir da Agilidade do SET (mesmo stat que alimenta iniciativa na batalha). */
+/** Bônus % de deslocamento no mapa a partir da Agilidade do SET (o combate usa AGI como tempo, não como px/s). */
 export function computeSpeedBonusTotal(
   agilidade: number,
   baseSpeed = 0,
@@ -83,22 +85,27 @@ export function computeSpeedBonusTotal(
 export function resolveGridStepDurationMs(
   speedBonusTotal: number,
   isEncumbered: boolean,
+  playerLevel = 1,
 ): number {
-  if (isEncumbered) return ENCUMBERED_STEP_MS;
+  if (isEncumbered) return Math.round(ENCUMBERED_STEP_MS / PLAYER_WORLD_MOVE_SPEED_SCALE);
 
-  if (speedBonusTotal <= 0) return GRID_STEP_MS;
+  const levelMult = resolveLevelMoveSpeedMultiplier(playerLevel) * PLAYER_WORLD_MOVE_SPEED_SCALE;
+  if (speedBonusTotal <= 0) {
+    return Math.max(80, Math.round(GRID_STEP_MS / levelMult));
+  }
 
-  const speedMultiplier = 1 + speedBonusTotal / 100;
+  const speedMultiplier = (1 + speedBonusTotal / 100) * levelMult;
   return Math.max(80, Math.round(GRID_STEP_MS / speedMultiplier));
 }
 
-/** Velocidade contínua (px/s) — bônus do SET acelera; sobrecarga reduz. */
+/** Velocidade contínua (px/s) — nível + SET aceleram; sobrecarga reduz. */
 export function resolveMoveSpeedPxPerSec(
   speedBonusTotal: number,
   isEncumbered: boolean,
   baseSpeedPxPerSec: number,
+  playerLevel = 1,
 ): number {
-  let speed = baseSpeedPxPerSec;
+  let speed = baseSpeedPxPerSec * resolveLevelMoveSpeedMultiplier(playerLevel);
   if (isEncumbered) {
     speed *= GRID_STEP_MS / ENCUMBERED_STEP_MS;
   } else if (speedBonusTotal > 0) {

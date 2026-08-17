@@ -1,5 +1,6 @@
 import type { CombatEvent } from '../events.js';
 import { CombatEventType } from '../events.js';
+import { isAgilityTempoLogLine } from './agilityTempo.js';
 import { MONSTER_ATTACK_WINDUP_MS, MONSTER_REACTION_STAGGER_MS } from './CombatConfig.js';
 import {
   COMBAT_DAMAGE_EVENT_GAP_MS,
@@ -39,11 +40,15 @@ export function estimateCombatPlaybackMs(
         total += estimateDamageDealtPlaybackMs(precededBySkillUsed);
         break;
       }
-      case CombatEventType.COMBAT_LOG:
       case CombatEventType.ACTION_ACCEPTED:
       case CombatEventType.TURN_ORDER_RESOLVED:
       case CombatEventType.TURN_RESOLVED:
-        total += COMBAT_EVENT_GAP_MS;
+        total += COMBAT_INSTANT_EVENT_GAP_MS;
+        break;
+      case CombatEventType.COMBAT_LOG:
+        total += isAgilityTempoLogLine(event.line)
+          ? COMBAT_INSTANT_EVENT_GAP_MS
+          : COMBAT_EVENT_GAP_MS;
         break;
       default:
         total += COMBAT_INSTANT_EVENT_GAP_MS;

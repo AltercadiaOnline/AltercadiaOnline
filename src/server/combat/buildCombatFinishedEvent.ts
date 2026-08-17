@@ -15,6 +15,7 @@ import {
   didPlayerWinBattle,
   resolveBattleCreatureId,
 } from '../../shared/items/combatCreatureRegistry.js';
+import { countDefeatedPveEnemies } from '../../shared/combat/pveEncounterPack.js';
 
 export type BattleProgressionContext = Pick<
   BattleProgressionGrantInput,
@@ -35,6 +36,9 @@ export function buildCombatFinishedEvent(
   const creatureId = resolveBattleCreatureId(state.combatants, playerActorId);
   const defeatedLevel = resolveSessionPveDefeatedLevel(state, creatureId);
   const battleType = state.battleType ?? BattleType.PVE;
+  const defeatedEnemyCount = victory
+    ? Math.max(countDefeatedPveEnemies(state.combatants), state.pveEncounterPackSize ?? 1)
+    : countDefeatedPveEnemies(state.combatants);
 
   const progressionGrant = resolveBattleProgressionGrant(
     creatureId
@@ -43,6 +47,7 @@ export function buildCombatFinishedEvent(
           battleType,
           creatureId,
           defeatedLevel,
+          defeatedEnemyCount,
           movesUsedInBattle,
           ...(progressionContext ?? {}),
         }
@@ -50,6 +55,7 @@ export function buildCombatFinishedEvent(
           victory,
           battleType,
           defeatedLevel,
+          defeatedEnemyCount,
           movesUsedInBattle,
           ...(progressionContext ?? {}),
         },

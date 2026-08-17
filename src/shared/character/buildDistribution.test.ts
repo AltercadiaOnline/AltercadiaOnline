@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { computeBuildDistribution } from './buildDistribution.js';
+import {
+  computeBuildDistribution,
+  extractCombatOnlyBuildWeightsFromItemIds,
+} from './buildDistribution.js';
 
 describe('computeBuildDistribution', () => {
   it('soma 100% quando há pesos', () => {
@@ -37,5 +40,28 @@ describe('computeBuildDistribution', () => {
     const sum = dist.shares.reduce((acc, row) => acc + row.percent, 0);
     expect(sum).toBe(100);
     expect(dist.shares.find((s) => s.id === 'AGIL')?.percent).toBe(0);
+  });
+
+  it('soma CRIT combatOnly da Runa de Fúria na BUILD', () => {
+    const extra = extractCombatOnlyBuildWeightsFromItemIds(['runa_furia']);
+    expect(extra.CRIT).toBe(12);
+    const dist = computeBuildDistribution(
+      { forca: 0, defesa: 0, critico: 0, agilidade: 0 },
+      extra,
+    );
+    expect(dist.hasSignal).toBe(true);
+    expect(dist.shares.find((s) => s.id === 'CRIT')?.percent).toBe(100);
+    expect(dist.shares.find((s) => s.id === 'CRIT')?.weight).toBe(12);
+  });
+
+  it('não duplica o passivo da Runa Volts Overclock (5 + 15 combatOnly)', () => {
+    const extra = extractCombatOnlyBuildWeightsFromItemIds(['runa_volts_overclock']);
+    expect(extra.CRIT).toBe(15);
+    const dist = computeBuildDistribution(
+      { forca: 0, defesa: 0, critico: 5, agilidade: 0 },
+      extra,
+    );
+    expect(dist.shares.find((s) => s.id === 'CRIT')?.weight).toBe(20);
+    expect(dist.shares.find((s) => s.id === 'CRIT')?.percent).toBe(100);
   });
 });

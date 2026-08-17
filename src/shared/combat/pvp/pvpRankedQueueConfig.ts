@@ -21,3 +21,10 @@ export const PVP_RANKED_QUEUE_SLOT_COUNT = 2;
  * Autoridade: servidor (`PVP_RANKED_ACCEPT_COUNTDOWN_MS`); cliente só espelha o restante.
  */
 export const PVP_RANKED_ACCEPT_COUNTDOWN_MS = 10_000;
+
+/**
+ * Raio servidor para join no púlpito (tiles).
+ * Um pouco mais folgado que `NPC_INTERACTION_RADIUS_TILES` (1.5) para lag de pose;
+ * ainda exige estar na arena — não entra da outra ponta da cidade.
+ */
+export const PVP_RANKED_STATION_MAX_RANGE_TILES = 3;

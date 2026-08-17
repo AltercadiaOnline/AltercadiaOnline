@@ -19,6 +19,8 @@ export type CombatUiHints = {
   readonly turnPlaybackGraceMs?: number;
   /** Orçamento de escolha exibido no HUD (ms) — tipicamente 10s. */
   readonly turnChoiceBudgetMs?: number;
+  /** PvE: o próximo golpe do jogador sai sem reação inimiga. */
+  readonly agilityExtraStrike?: boolean;
 };
 
 export function buildCombatUiHints(state: CombatState, playerActorId: string): CombatUiHints {
@@ -26,6 +28,7 @@ export function buildCombatUiHints(state: CombatState, playerActorId: string): C
     actionsEnabled: canPlayerIssueCombatChoice(state, playerActorId),
     activeActorId: state.activeActorId,
     playerActorId,
+    agilityExtraStrike: Boolean(state.agilitySkipEnemyReaction),
   };
 }
 
@@ -88,6 +91,9 @@ function isCombatUiHints(value: unknown): value is CombatUiHints {
     record.turnChoiceBudgetMs !== undefined
     && (typeof record.turnChoiceBudgetMs !== 'number' || !Number.isFinite(record.turnChoiceBudgetMs))
   ) {
+    return false;
+  }
+  if (record.agilityExtraStrike !== undefined && typeof record.agilityExtraStrike !== 'boolean') {
     return false;
   }
   return true;

@@ -2,7 +2,7 @@ import type { EquippedSlots } from '../character/equipmentState.js';
 
 import type { CombatClassId, CombatStatSources, CombatantCombatStats, MarcoCombatFlags } from '../types.js';
 
-import { ItemBuffType, type ItemBuffModifier } from '../items/itemTypes.js';
+import { ItemBuffType, RuneCombatEffectType, RuneTrigger, type ItemBuffModifier } from '../items/itemTypes.js';
 
 import { getBookDefinition, getRuneDefinition } from '../items/runesBooksCatalog.js';
 
@@ -54,6 +54,9 @@ export type CombatLoadoutResolveInput = {
   readonly nodeProgression: MarcosNodeProgressionData;
 
   readonly equipped: EquippedSlots;
+
+  /** Extra do grid visual (2º anel, calças+botas, 2º amuleto) — soma no combate. */
+  readonly equippedItemIds?: readonly string[];
 
   readonly flowSpeedBase: number;
 
@@ -121,6 +124,8 @@ type StatAccumulator = {
 
   damageReductionPercent: number;
 
+  agilityPercent: number;
+
 };
 
 
@@ -145,6 +150,8 @@ function emptyStats(): StatAccumulator {
 
     damageReductionPercent: 0,
 
+    agilityPercent: 0,
+
   };
 
 }
@@ -159,7 +166,7 @@ function applyBuffModifiers(target: StatAccumulator, buffs: readonly ItemBuffMod
 
       case ItemBuffType.Agility:
 
-        target.equipSpeedFlat += buff.percent;
+        target.agilityPercent += buff.percent;
 
         break;
 
@@ -221,6 +228,7 @@ function mergeStatAccumulators(...parts: readonly StatAccumulator[]): StatAccumu
     out.attackPercent += part.attackPercent;
     out.dodgePercent += part.dodgePercent;
     out.damageReductionPercent += part.damageReductionPercent;
+    out.agilityPercent += part.agilityPercent;
   }
   return out;
 }
@@ -245,13 +253,30 @@ function emptyCombatStatSources(): CombatStatSources {
 
 
 
-const ARMOR_PIECES = [
-  EquipmentSlot.Head,
-  EquipmentSlot.Top,
-  EquipmentSlot.Bottom,
-] as const;
+function uniqueEquippedItemIds(
+  equipped: EquippedSlots,
+  extraItemIds: readonly (string | null | undefined)[] = [],
+): readonly string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  const push = (itemId: string | null | undefined) => {
+    if (!itemId || seen.has(itemId)) return;
+    seen.add(itemId);
+    ids.push(itemId);
+  };
+  push(equipped.head);
+  push(equipped.top);
+  push(equipped.bottom);
+  push(equipped.ring);
+  push(equipped.amulet);
+  for (const itemId of extraItemIds) push(itemId);
+  return ids;
+}
 
-function collectArmorItemBonuses(equipped: EquippedSlots): {
+function collectArmorItemBonuses(
+  equipped: EquippedSlots,
+  extraItemIds: readonly string[] = [],
+): {
   readonly stats: StatAccumulator;
   readonly attackArmorPercent: number;
   readonly defenseArmorPercent: number;
@@ -275,22 +300,21 @@ function collectArmorItemBonuses(equipped: EquippedSlots): {
     }
   };
 
-  for (const slot of ARMOR_PIECES) {
-    const itemId = equipped[slot];
-    if (typeof itemId !== 'string' || !itemId) continue;
+  for (const itemId of uniqueEquippedItemIds(equipped, extraItemIds)) {
     const equipable = getEquipableItem(itemId);
     if (!equipable) continue;
+    if (equipable.slot === EquipmentSlot.Amulet) {
+      applyPiece(equipable.buffs, amuletByBuff);
+      continue;
+    }
+    if (equipable.slot === EquipmentSlot.Ring) {
+      applyPiece(equipable.buffs, ringByBuff);
+      continue;
+    }
+    if (equipable.slot === EquipmentSlot.Book || equipable.slot === EquipmentSlot.Rune) {
+      continue;
+    }
     applyPiece(equipable.buffs, equipByBuff);
-  }
-
-  if (equipped.amulet) {
-    const equipable = getEquipableItem(equipped.amulet);
-    if (equipable) applyPiece(equipable.buffs, amuletByBuff);
-  }
-
-  if (equipped.ring) {
-    const equipable = getEquipableItem(equipped.ring);
-    if (equipable) applyPiece(equipable.buffs, ringByBuff);
   }
 
   return {
@@ -318,15 +342,27 @@ function collectRuneBonuses(runeId: string | null | undefined): {
   }
 
   const rune = getRuneDefinition(runeId);
-  if (!rune?.passiveBuffs) {
+  if (!rune) {
     return { stats, attackRunePercent, defenseRunePercent, runeByBuff };
   }
 
-  applyBuffModifiers(stats, rune.passiveBuffs);
-  applyBuffsToPercentMap(runeByBuff, rune.passiveBuffs);
-  for (const buff of rune.passiveBuffs) {
-    if (buff.type === ItemBuffType.Strength) attackRunePercent += buff.percent;
-    if (buff.type === ItemBuffType.Defense) defenseRunePercent += buff.percent;
+  if (rune.passiveBuffs) {
+    applyBuffModifiers(stats, rune.passiveBuffs);
+    applyBuffsToPercentMap(runeByBuff, rune.passiveBuffs);
+    for (const buff of rune.passiveBuffs) {
+      if (buff.type === ItemBuffType.Strength) attackRunePercent += buff.percent;
+      if (buff.type === ItemBuffType.Defense) defenseRunePercent += buff.percent;
+    }
+  }
+
+  // IMPACT CRIT entra na chance do combatente (todos os golpes do moveset), não só no proc.
+  const combat = rune.combatEffect;
+  if (
+    combat.type === RuneCombatEffectType.CritBonus
+    && combat.trigger === RuneTrigger.Impact
+    && combat.value > 0
+  ) {
+    stats.critChanceBonus += combat.value;
   }
 
   return { stats, attackRunePercent, defenseRunePercent, runeByBuff };
@@ -409,7 +445,7 @@ export function resolveCombatLoadout(input: CombatLoadoutResolveInput): Resolved
 
 
 
-  const armor = collectArmorItemBonuses(input.equipped);
+  const armor = collectArmorItemBonuses(input.equipped, input.equippedItemIds ?? []);
 
   const rune = collectRuneBonuses(input.equipped.rune);
 
@@ -514,6 +550,10 @@ export function resolveCombatLoadout(input: CombatLoadoutResolveInput): Resolved
     dodgePercent: stats.dodgePercent,
 
     damageReductionPercent: stats.damageReductionPercent,
+
+    maxHpBonusPercent: stats.maxHpBonusPercent,
+
+    agilityPercent: stats.agilityPercent,
 
   };
 

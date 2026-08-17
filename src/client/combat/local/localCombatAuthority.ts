@@ -11,6 +11,7 @@ import {
   resolveBattleCreatureId,
 } from '../../../shared/items/combatCreatureRegistry.js';
 import { resolveSessionPveDefeatedLevel } from '../../../shared/combat/battleXpRewards.js';
+import { resolvePveLootSpinCount } from '../../../shared/combat/pveEncounterPack.js';
 import { createDefaultPlayerProgressionData } from '../../../shared/progression/playerProgressionData.js';
 import type { PlayerCombatLoadout } from '../../../shared/character/equipmentState.js';
 import { equippedToEquipmentUiGrid } from '../../../shared/character/equipmentUiSlots.js';
@@ -38,6 +39,7 @@ import { loadAuthoritativeProgression } from '../../../server/progression/author
 import { saveWorldProfile } from '../../../server/world/worldProfileStore.js';
 import { createDefaultWorldProfile } from '../../../shared/world/playerWorldProfile.js';
 import { persistAuthoritativeLoadout } from '../../../server/world/loadoutGateway.js';
+import { getPlayerItemStore } from '../../ui/items/playerItemStore.js';
 import { CITY_01_ID } from '../../../shared/world/maps/city01.js';
 import { getPlayerProfileStore } from '../../ui/character/playerProfileStore.js';
 import { getPlayerProgressionStore } from '../../progression/playerProgressionStore.js';
@@ -144,7 +146,10 @@ function enrichPayload(
 function seedAuthoritativeStores(loadout: PlayerCombatLoadout): void {
   const playerId = loadout.playerId;
   const characterId = loadout.characterId;
-  const equipmentUiGrid = equippedToEquipmentUiGrid(loadout.equipped);
+  const equipmentUiGrid = {
+    ...equippedToEquipmentUiGrid(loadout.equipped),
+    ...getPlayerItemStore().toEquipmentGrid(),
+  };
   const clientProgression = getPlayerProgressionStore().getSnapshot();
   const clientProfile = getPlayerProfileStore().getSnapshot();
   const clientMarcos = getDataStore().getMarcosState();
@@ -271,12 +276,18 @@ async function deliverEnded(
           winnerId: playerActorId,
           characterId,
           defeatedLevel: resolveSessionPveDefeatedLevel(enriched.state, creatureId),
+          spinCount: resolvePveLootSpinCount(
+            enriched.state.combatants,
+            enriched.state.pveEncounterPackSize,
+          ),
         });
         if (!staged) return;
         send('BATTLE_LOOT_PACKAGE', {
           battleId: enriched.state.battleId,
           lootId: staged.preview.lootId,
           lootReveal: staged.lootReveal,
+          lootReveals: staged.lootReveals,
+          spinCount: staged.spinCount,
           lootPreview: staged.preview,
         });
       } catch (error) {

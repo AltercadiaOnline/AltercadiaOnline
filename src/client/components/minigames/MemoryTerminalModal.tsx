@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { SubZoneTransitionId, ZONE_BYPASS_DIFFICULTIES } from '../../../shared/types/zoneBypass.js';
+import {
+  SubZoneTransitionId,
+  ZONE_BYPASS_DIFFICULTIES,
+  scrambleMemorizeSequence,
+} from '../../../shared/types/zoneBypass.js';
+
+const SCRAMBLE_TICK_MS = 45;
 
 interface MemoryTerminalModalProps {
   readonly transitionId: SubZoneTransitionId;
-  readonly sequencePreview: string; // Ex: "4920" ou "849201"
+  readonly sequencePreview: string;
+  readonly displayTimeMs: number;
   readonly timeLimitMs: number;
   readonly onClose: () => void;
   readonly onSubmit: (code: string) => void;
@@ -12,6 +19,7 @@ interface MemoryTerminalModalProps {
 export const MemoryTerminalModal: React.FC<MemoryTerminalModalProps> = ({
   transitionId,
   sequencePreview,
+  displayTimeMs,
   timeLimitMs,
   onClose,
   onSubmit,
@@ -20,25 +28,29 @@ export const MemoryTerminalModal: React.FC<MemoryTerminalModalProps> = ({
   const [phase, setPhase] = useState<'MEMORIZE' | 'INPUT'>('MEMORIZE');
   const [inputCode, setInputCode] = useState<string>('');
   const [timeLeft, setTimeLeft] = useState<number>(Math.ceil(timeLimitMs / 1000));
-  const [displayTimer, setDisplayTimer] = useState<number>(3);
+  const [displayTimer, setDisplayTimer] = useState<number>(Math.ceil(displayTimeMs / 1000));
+  const [scrambledPreview, setScrambledPreview] = useState<string>(() =>
+    scrambleMemorizeSequence(sequencePreview, 0, displayTimeMs),
+  );
 
-  // 1. Timer de Memorização (3 segundos)
   useEffect(() => {
     if (phase !== 'MEMORIZE') return;
 
-    const interval = setInterval(() => {
-      setDisplayTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setPhase('INPUT');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const startedAt = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - startedAt;
+      setDisplayTimer(Math.max(0, Math.ceil((displayTimeMs - elapsed) / 1000)));
+      if (elapsed >= displayTimeMs) {
+        setPhase('INPUT');
+        return;
+      }
+      setScrambledPreview(scrambleMemorizeSequence(sequencePreview, elapsed, displayTimeMs));
+    };
 
-    return () => clearInterval(interval);
-  }, [phase]);
+    tick();
+    const interval = window.setInterval(tick, SCRAMBLE_TICK_MS);
+    return () => window.clearInterval(interval);
+  }, [phase, sequencePreview, displayTimeMs]);
 
   // 2. Timer de Resolução
   useEffect(() => {
@@ -105,8 +117,14 @@ export const MemoryTerminalModal: React.FC<MemoryTerminalModalProps> = ({
         <div style={styles.displayArea}>
           {phase === 'MEMORIZE' ? (
             <div style={styles.memorizeDisplay}>
-              <span style={styles.sequenceText}>{sequencePreview}</span>
-              <p style={styles.hint}>Memorize a sequência acima!</p>
+              <div style={styles.scrambleRow} aria-live="off">
+                {Array.from({ length: config.digitCount }).map((_, idx) => (
+                  <span key={idx} style={styles.scrambleGlyph}>
+                    {scrambledPreview[idx] ?? '·'}
+                  </span>
+                ))}
+              </div>
+              <p style={styles.hint}>Código embaralhado — memorize os dígitos reais no flash.</p>
             </div>
           ) : (
             <div style={styles.inputDisplay}>
@@ -158,10 +176,11 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
+    pointerEvents: 'auto',
     fontFamily: `'Inter', 'Roboto', sans-serif`,
   },
   modal: {
-    width: '420px',
+    width: 'min(520px, 94vw)',
     backgroundColor: '#0a0d14',
     border: '2px solid #00f0ff',
     borderRadius: '12px',
@@ -210,12 +229,26 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
   },
-  sequenceText: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    letterSpacing: '6px',
-    color: '#ffea00',
-    textShadow: '0 0 10px rgba(255, 234, 0, 0.5)',
+  scrambleRow: {
+    display: 'flex',
+    gap: '8px',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  scrambleGlyph: {
+    width: '28px',
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '26px',
+    fontWeight: 700,
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    color: '#7dffb3',
+    textShadow: '0 0 8px rgba(125, 255, 179, 0.55)',
+    border: '1px solid #134e4a',
+    borderRadius: '4px',
+    backgroundColor: '#022c22',
   },
   inputDisplay: {
     display: 'flex',

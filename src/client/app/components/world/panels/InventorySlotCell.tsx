@@ -30,7 +30,7 @@ type InventorySlotCellProps = {
   onClick?: (itemId: string, slotIndex: number) => void;
   onDoubleClick?: (itemId: string) => void;
   onContextMenu?: (event: MouseEvent, itemId: string) => void;
-  onTooltipShow?: (event: MouseEvent, itemId: string) => void;
+  onTooltipShow?: (event: MouseEvent, itemId: string, charges?: number) => void;
   onTooltipHide?: () => void;
 };
 
@@ -113,7 +113,7 @@ export function InventorySlotCell({
           });
           return;
         }
-        onTooltipShow?.(event, itemId);
+        onTooltipShow?.(event, itemId, showCharges ? charges : undefined);
       }}
       onMouseLeave={() => {
         hideGameTooltip();

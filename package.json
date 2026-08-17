@@ -66,6 +66,7 @@
     "vercel:dashboard": "powershell -NoProfile -Command Start-Process 'https://vercel.com/dashboard'",
     "mvp": "npm run build && npm start",
     "dev:mvp": "npm run build && node scripts/dev.mjs",
+    "dev:mock": "npm run build && node scripts/dev.mjs --mock",
     "start:server": "npm start",
     "start:client": "node dist/client/index.js",
     "docker:up": "docker compose up --build",

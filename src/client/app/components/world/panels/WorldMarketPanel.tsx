@@ -6,6 +6,7 @@ import {
   getMarketBrowseCategoryLabels,
   resolveMarketAverageLabel,
   resolveMarketOfferDisplayName,
+  resolveMarketOfferItemLabel,
   type MarketOfferRow,
   type MarketOfferSide,
 } from '../../../../../shared/economy/marketplaceOrderBook.js';
@@ -25,19 +26,27 @@ type WorldMarketPanelProps = {
 function MarketOfferTable({
   rows,
   side,
+  showItemColumn,
+  emptyLabel,
   onCancel,
   onPurchase,
 }: {
   readonly rows: readonly (MarketOfferRow | null)[];
   readonly side: MarketOfferSide;
+  readonly showItemColumn: boolean;
+  readonly emptyLabel: string;
   readonly onCancel: (offerId: string, offerSide: MarketOfferSide) => void;
   readonly onPurchase?: (offerId: string) => void;
 }) {
+  const visibleRows = rows.filter((row): row is MarketOfferRow => row !== null);
+  const colCount = showItemColumn ? 6 : 5;
+
   return (
-    <table className="market-terminal__offer-table">
+    <table className={`market-terminal__offer-table${showItemColumn ? ' market-terminal__offer-table--all' : ''}`}>
       <thead>
         <tr>
-          <th scope="col">Nome</th>
+          {showItemColumn ? <th scope="col">Item</th> : null}
+          <th scope="col">{showItemColumn ? 'Vendedor' : 'Nome'}</th>
           <th scope="col">Quantidade</th>
           <th scope="col">Preço Unitário</th>
           <th scope="col">Preço Total</th>
@@ -45,69 +54,69 @@ function MarketOfferTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, index) => {
-          if (!row) {
+        {visibleRows.length === 0 ? (
+          <tr className="market-terminal__offer-row market-terminal__offer-row--empty">
+            <td colSpan={colCount}>{emptyLabel}</td>
+          </tr>
+        ) : (
+          visibleRows.map((row) => {
+            const name = resolveMarketOfferDisplayName(row);
+            const itemHover = bindItemHoverHandlers(row.itemId);
+
             return (
               <tr
-                key={`empty-${side}-${index}`}
-                className="market-terminal__offer-row market-terminal__offer-row--empty"
+                key={row.id}
+                className={[
+                  'market-terminal__offer-row',
+                  row.isOwn ? 'market-terminal__offer-row--own' : '',
+                ].filter(Boolean).join(' ')}
+                data-offer-side={side}
+                data-offer-id={row.id}
+                {...itemHover}
               >
-                <td colSpan={5} aria-label={`Linha vazia ${index + 1}`}>—</td>
+                {showItemColumn ? (
+                  <td className="market-terminal__offer-cell market-terminal__offer-cell--item">
+                    {resolveMarketOfferItemLabel(row.itemId)}
+                  </td>
+                ) : null}
+                <td className="market-terminal__offer-cell market-terminal__offer-cell--name">{name}</td>
+                <td className="market-terminal__offer-cell market-terminal__offer-cell--qty">×{row.quantity}</td>
+                <td className="market-terminal__offer-cell market-terminal__offer-cell--unit">
+                  {formatMarketVolts(row.unitPriceVolts)}
+                </td>
+                <td className="market-terminal__offer-cell market-terminal__offer-cell--total">
+                  {formatMarketVolts(row.totalPriceVolts)}
+                </td>
+                <td className="market-terminal__offer-cell market-terminal__offer-cell--action">
+                  {row.isOwn ? (
+                    <button
+                      type="button"
+                      className="market-terminal__offer-cancel"
+                      data-action="cancel-offer"
+                      data-offer-id={row.id}
+                      data-offer-side={side}
+                      aria-label="Cancelar oferta"
+                      onClick={() => onCancel(row.id, side)}
+                    >
+                      Cancelar
+                    </button>
+                  ) : side === 'sell' && onPurchase ? (
+                    <button
+                      type="button"
+                      className="market-terminal__offer-buy"
+                      data-action="purchase-offer"
+                      data-offer-id={row.id}
+                      aria-label="Comprar oferta"
+                      onClick={() => onPurchase(row.id)}
+                    >
+                      Comprar
+                    </button>
+                  ) : null}
+                </td>
               </tr>
             );
-          }
-
-          const name = resolveMarketOfferDisplayName(row);
-          const itemHover = bindItemHoverHandlers(row.itemId);
-
-          return (
-            <tr
-              key={row.id}
-              className={[
-                'market-terminal__offer-row',
-                row.isOwn ? 'market-terminal__offer-row--own' : '',
-              ].filter(Boolean).join(' ')}
-              data-offer-side={side}
-              data-offer-id={row.id}
-              {...itemHover}
-            >
-              <td className="market-terminal__offer-cell market-terminal__offer-cell--name">{name}</td>
-              <td className="market-terminal__offer-cell market-terminal__offer-cell--qty">×{row.quantity}</td>
-              <td className="market-terminal__offer-cell market-terminal__offer-cell--unit">
-                {formatMarketVolts(row.unitPriceVolts)}
-              </td>
-              <td className="market-terminal__offer-cell market-terminal__offer-cell--total">
-                {formatMarketVolts(row.totalPriceVolts)}
-              </td>
-              <td className="market-terminal__offer-cell market-terminal__offer-cell--action">
-                {row.isOwn ? (
-                  <button
-                    type="button"
-                    className="market-terminal__offer-cancel"
-                    data-action="cancel-offer"
-                    data-offer-id={row.id}
-                    data-offer-side={side}
-                    aria-label="Cancelar oferta"
-                    onClick={() => onCancel(row.id, side)}
-                  >
-                    Cancelar
-                  </button>
-                ) : side === 'sell' && onPurchase ? (
-                  <button
-                    type="button"
-                    className="market-terminal__offer-buy"
-                    data-action="purchase-offer"
-                    data-offer-id={row.id}
-                    aria-label="Comprar oferta"
-                    onClick={() => onPurchase(row.id)}
-                  >
-                    Comprar
-                  </button>
-                ) : null}
-              </td>
-            </tr>
-          );
-        })}
+          })
+        )}
       </tbody>
     </table>
   );
@@ -193,6 +202,9 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
           Saldo: <strong data-market-wallet>{wallet.voltsFormatted}</strong>
           <span className="market-terminal__fee">Taxa P2P: {formatMarketplaceFeePercent()}</span>
         </p>
+        <p className="market-terminal__stall-hint">
+          Itens que você listou saem da mochila e ficam retidos neste terminal até cancelar ou vender. A oferta pública continua valendo mesmo offline.
+        </p>
 
         <div className="market-terminal__workspace">
           <aside className="market-terminal__sidebar" aria-label="Categorias e itens">
@@ -216,23 +228,6 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                 Meu inventário ({sellRowCount})
               </button>
             </div>
-
-            <label className="market-terminal__search">
-              <span className="market-terminal__search-label">
-                {catalogMode ? 'Buscar no catálogo' : 'Buscar no inventário'}
-              </span>
-              <input
-                type="search"
-                className="market-terminal__search-input"
-                data-market-search
-                value={searchQuery}
-                placeholder="Nome do item…"
-                autoComplete="off"
-                onChange={(event) => {
-                  preserveSidebarScroll(() => updateSearchQuery(event.target.value));
-                }}
-              />
-            </label>
 
             {catalogMode ? (
               <nav className="market-terminal__categories" aria-label="Categorias">
@@ -260,6 +255,22 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                 Itens que você pode vender no P2P. Selecione um para publicar oferta de venda.
               </p>
             )}
+
+            <label className="market-terminal__search">
+              <span className="market-terminal__search-label">Pesquisar item</span>
+              <input
+                type="search"
+                className="market-terminal__search-input"
+                data-market-search
+                value={searchQuery}
+                placeholder="Nome do item…"
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => {
+                  preserveSidebarScroll(() => updateSearchQuery(event.target.value));
+                }}
+              />
+            </label>
 
             <p className="market-terminal__list-meta" aria-live="polite">
               {listCount} {listCount === 1 ? 'item' : 'itens'}
@@ -291,9 +302,11 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                 })
               ) : (
                 <p className="market-terminal__sidebar-empty">
-                  {catalogMode
-                    ? 'Nenhum item nesta categoria.'
-                    : 'Nenhum item vendável no inventário.'}
+                  {searchQuery.trim()
+                    ? 'Nenhum item com esse nome.'
+                    : catalogMode
+                      ? 'Nenhum item nesta categoria.'
+                      : 'Nenhum item vendável no inventário.'}
                 </p>
               )}
             </div>
@@ -306,44 +319,54 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
                 <span className="market-terminal__average">
                   {resolveMarketAverageLabel(selectedItemId)}
                 </span>
-              ) : null}
+              ) : (
+                <span className="market-terminal__average">
+                  Todas as ofertas do mercado. Selecione um item à esquerda para filtrar.
+                </span>
+              )}
             </p>
 
-            {selectedItemId && sellView && buyView ? (
-              <div className="market-terminal__offers-grid">
-                <section
-                  className="market-terminal__offers-block market-terminal__offers-block--sell"
-                  aria-label="Ofertas de venda"
-                >
-                  <h3 className="market-terminal__offers-title">Sell Offers</h3>
-                  <div className="market-terminal__offers-scroll">
-                    <MarketOfferTable
-                      rows={sellView.paddedRows}
-                      side="sell"
-                      onCancel={cancelOffer}
-                      onPurchase={purchaseOffer}
-                    />
-                  </div>
-                </section>
-                <section
-                  className="market-terminal__offers-block market-terminal__offers-block--buy"
-                  aria-label="Ofertas de compra"
-                >
-                  <h3 className="market-terminal__offers-title">Buy Offers</h3>
-                  <div className="market-terminal__offers-scroll">
-                    <MarketOfferTable
-                      rows={buyView.paddedRows}
-                      side="buy"
-                      onCancel={cancelOffer}
-                    />
-                  </div>
-                </section>
-              </div>
-            ) : (
-              <div className="market-terminal__offers-empty">
-                Selecione um item na barra lateral para ver ofertas de venda e compra.
-              </div>
-            )}
+            <div className="market-terminal__offers-grid">
+              <section
+                className="market-terminal__offers-block market-terminal__offers-block--sell"
+                aria-label="Ofertas de venda"
+              >
+                <h3 className="market-terminal__offers-title">Sell Offers</h3>
+                <div className="market-terminal__offers-scroll">
+                  <MarketOfferTable
+                    rows={sellView.paddedRows}
+                    side="sell"
+                    showItemColumn={!selectedItemId}
+                    emptyLabel={
+                      selectedItemId
+                        ? 'Nenhuma oferta de venda neste item.'
+                        : 'Nenhuma oferta de venda no mercado.'
+                    }
+                    onCancel={cancelOffer}
+                    onPurchase={purchaseOffer}
+                  />
+                </div>
+              </section>
+              <section
+                className="market-terminal__offers-block market-terminal__offers-block--buy"
+                aria-label="Ofertas de compra"
+              >
+                <h3 className="market-terminal__offers-title">Buy Offers</h3>
+                <div className="market-terminal__offers-scroll">
+                  <MarketOfferTable
+                    rows={buyView.paddedRows}
+                    side="buy"
+                    showItemColumn={!selectedItemId}
+                    emptyLabel={
+                      selectedItemId
+                        ? 'Nenhuma oferta de compra neste item.'
+                        : 'Nenhuma oferta de compra no mercado.'
+                    }
+                    onCancel={cancelOffer}
+                  />
+                </div>
+              </section>
+            </div>
           </div>
         </div>
 

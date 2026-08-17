@@ -200,12 +200,6 @@ export class PlayerEquipmentStore {
     this.publish();
   }
 
-  /** @deprecated MVP — todos os itens iniciam na mochila; use bootstrapMvpPlayerItems(). */
-  seedDemoLoadout(): void {
-    this.slots = createEmptyEquipmentUiGrid();
-    this.publish();
-  }
-
   equipItem(uiSlotId: EquipmentUiSlotId, itemId: string): boolean {
     if (!canPlaceInUiSlot(itemId, uiSlotId)) return false;
 

@@ -5,9 +5,11 @@ import {
   createMarketBuyOrderAuthoritative,
   createMarketListingAuthoritative,
   executeMarketPurchaseAuthoritative,
+  queryMarketOrderBookAuthoritative,
 } from '../../../Economy/marketplaceGateway.js';
 import { persistCharacterSession } from '../../persistence/PersistenceGateway.js';
-import { persistGlobalMarketplaceSnapshot } from '../../persistence/globalMarketplacePersistence.js';import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
+import { persistGlobalMarketplaceSnapshot } from '../../persistence/globalMarketplacePersistence.js';
+import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
 
 type MarketListingPayload = {
   readonly itemId: string;
@@ -23,6 +25,28 @@ type MarketListingIdPayload = {
 type MarketBuyOrderIdPayload = {
   readonly orderId: string;
 };
+
+type QueryMarketOrderBookPayload = {
+  readonly itemId?: string | null;
+};
+
+function resolveQueryItemId(payload: QueryMarketOrderBookPayload): string | null {
+  const itemId = typeof payload.itemId === 'string' ? payload.itemId.trim() : '';
+  return itemId.length > 0 ? itemId : null;
+}
+
+export class QueryMarketOrderBookHandler extends BaseIntentHandler<QueryMarketOrderBookPayload> {
+  readonly actionType = 'QUERY_MARKET_ORDER_BOOK';
+
+  async execute(playerId: string, payload: QueryMarketOrderBookPayload, intentId: string): Promise<void> {
+    const snapshot = queryMarketOrderBookAuthoritative(
+      playerId,
+      this.characterId,
+      resolveQueryItemId(payload),
+    );
+    this.sendResponse(playerId, intentId, true, snapshot);
+  }
+}
 
 export class CreateMarketListingHandler extends BaseIntentHandler<MarketListingPayload> {
   readonly actionType = 'CREATE_MARKET_LISTING';
@@ -40,7 +64,14 @@ export class CreateMarketListingHandler extends BaseIntentHandler<MarketListingP
     if (result.ok) {
       await persistGlobalMarketplaceSnapshot();
     }
-    this.sendResponse(playerId, intentId, result.ok, result.ok ? undefined : result.message);
+    this.sendResponse(
+      playerId,
+      intentId,
+      result.ok,
+      result.ok
+        ? queryMarketOrderBookAuthoritative(playerId, this.characterId, payload.itemId)
+        : result.message,
+    );
   }
 }
 
@@ -57,7 +88,14 @@ export class CreateMarketBuyOrderHandler extends BaseIntentHandler<MarketListing
       payload.anonymous ?? false,
       intentId,
     );
-    this.sendResponse(playerId, intentId, result.ok, result.ok ? undefined : result.message);
+    this.sendResponse(
+      playerId,
+      intentId,
+      result.ok,
+      result.ok
+        ? queryMarketOrderBookAuthoritative(playerId, this.characterId, payload.itemId)
+        : result.message,
+    );
   }
 }
 
@@ -74,7 +112,12 @@ export class CancelMarketListingHandler extends BaseIntentHandler<MarketListingI
     if (result.ok) {
       await persistGlobalMarketplaceSnapshot();
     }
-    this.sendResponse(playerId, intentId, result.ok, result.ok ? undefined : result.message);
+    this.sendResponse(
+      playerId,
+      intentId,
+      result.ok,
+      result.ok ? queryMarketOrderBookAuthoritative(playerId, this.characterId) : result.message,
+    );
   }
 }
 
@@ -88,7 +131,12 @@ export class CancelMarketBuyOrderHandler extends BaseIntentHandler<MarketBuyOrde
       payload.orderId,
       intentId,
     );
-    this.sendResponse(playerId, intentId, result.ok, result.ok ? undefined : result.message);
+    this.sendResponse(
+      playerId,
+      intentId,
+      result.ok,
+      result.ok ? queryMarketOrderBookAuthoritative(playerId, this.characterId) : result.message,
+    );
   }
 }
 
@@ -102,7 +150,12 @@ export class CollectMarketVoltsHandler extends BaseIntentHandler<MarketListingId
       payload.listingId,
       intentId,
     );
-    this.sendResponse(playerId, intentId, result.ok, result.ok ? undefined : result.message);
+    this.sendResponse(
+      playerId,
+      intentId,
+      result.ok,
+      result.ok ? queryMarketOrderBookAuthoritative(playerId, this.characterId) : result.message,
+    );
   }
 }
 
@@ -129,16 +182,27 @@ export class ExecuteMarketPurchaseHandler extends BaseIntentHandler<MarketListin
       await persistGlobalMarketplaceSnapshot();
     }
 
-    this.sendResponse(playerId, intentId, result.ok, result.ok ? undefined : result.message);
+    this.sendResponse(
+      playerId,
+      intentId,
+      result.ok,
+      result.ok ? queryMarketOrderBookAuthoritative(playerId, this.characterId) : result.message,
+    );
   }
 }
 
+let queryOrderBookHandler: QueryMarketOrderBookHandler | null = null;
 let createListingHandler: CreateMarketListingHandler | null = null;
 let createBuyOrderHandler: CreateMarketBuyOrderHandler | null = null;
 let cancelListingHandler: CancelMarketListingHandler | null = null;
 let cancelBuyOrderHandler: CancelMarketBuyOrderHandler | null = null;
 let collectVoltsHandler: CollectMarketVoltsHandler | null = null;
 let executePurchaseHandler: ExecuteMarketPurchaseHandler | null = null;
+
+export function getQueryMarketOrderBookHandler(): QueryMarketOrderBookHandler {
+  if (!queryOrderBookHandler) queryOrderBookHandler = new QueryMarketOrderBookHandler();
+  return queryOrderBookHandler;
+}
 
 export function getCreateMarketListingHandler(): CreateMarketListingHandler {
   if (!createListingHandler) createListingHandler = new CreateMarketListingHandler();

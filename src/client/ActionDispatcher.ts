@@ -41,6 +41,12 @@ import {
 } from './ui/equipment/toggleItemSlot.js';
 import type { EquipmentUiSlotId } from '../shared/character/equipmentUiSlots.js';
 import { getPlayerMarcosStore } from './ui/marcos/playerMarcosStore.js';
+import { getMercenaryQuestStore } from './ui/quests/mercenaryQuestStore.js';
+import {
+  abandonMercenaryQuest,
+  acceptMercenaryQuest,
+} from '../shared/quests/mercenaryQuestProgress.js';
+import { getPlayerProfileStore } from './ui/character/playerProfileStore.js';
 import { resolveMarcoChooseBlockedMessage } from '../shared/progression/milestoneTreeState.js';
 import { formatVolts } from '../shared/economy/premiumCurrency.js';
 import { healPlayer } from '../shared/world/npcHealService.js';
@@ -50,7 +56,6 @@ import { getGlobalPlayerStore } from './ui/moveset/globalPlayerStore.js';
 import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
 import { confirmTransaction, rejectTransaction } from './core/GameTransactionCoordinator.js';
 import { alertSystem } from './ui/alertSystem.js';
-import { getWorldPlayerPickById } from './world/worldPlayerPickRegistry.js';
 import { uiEvents, UIEventType } from './ui/uiEvents.js';
 import { getPlayerSkinStore } from './ui/character/playerSkinStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
@@ -126,6 +131,7 @@ export type ClientAction =
     readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
   }
   | { readonly type: 'ACCEPT_MERCENARY_TASK'; readonly payload: { readonly taskId: string } }
+  | { readonly type: 'ABANDON_MERCENARY_TASK'; readonly payload: { readonly taskId?: string } }
   | {
     readonly type: 'SELL_NPC_ITEM';
     readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
@@ -164,7 +170,7 @@ export type ClientAction =
       readonly itemId: string;
       readonly targetPlayerId: string;
       readonly quantity?: number;
-      readonly targetCharacterId?: number;
+      readonly targetCharacterId: number;
     };
   }
   | { readonly type: 'REFRACTION_BOOTH_QUOTE'; readonly payload: Record<string, never> }
@@ -209,6 +215,10 @@ export type ClientAction =
   | {
     readonly type: 'EXECUTE_MARKET_PURCHASE';
     readonly payload: { readonly listingId: string };
+  }
+  | {
+    readonly type: 'QUERY_MARKET_ORDER_BOOK';
+    readonly payload: { readonly itemId?: string | null };
   }
   | {
     readonly type: 'MOVE_INTENT';
@@ -259,12 +269,75 @@ export type ClientAction =
     readonly payload: { readonly text: string };
   }
   | {
+    readonly type: 'CHAT_WHISPER';
+    readonly payload: {
+      readonly targetPlayerId: string;
+      readonly targetCharacterId: number;
+      readonly text: string;
+    };
+  }
+  | {
     readonly type: 'TRADE_REQUEST';
-    readonly payload: { readonly targetPlayerId: string };
+    readonly payload: { readonly targetPlayerId: string; readonly targetCharacterId: number };
+  }
+  | {
+    readonly type: 'TRADE_RESPOND';
+    readonly payload: { readonly tradeId: string; readonly accept: boolean };
+  }
+  | {
+    readonly type: 'TRADE_OFFER_SET';
+    readonly payload: {
+      readonly tradeId: string;
+      readonly slotIndex?: number;
+      readonly itemId?: string | null;
+      readonly quantity?: number;
+      readonly volts?: number;
+    };
+  }
+  | {
+    readonly type: 'TRADE_LOCK';
+    readonly payload: { readonly tradeId: string; readonly ready: boolean };
+  }
+  | {
+    readonly type: 'TRADE_CANCEL';
+    readonly payload: { readonly tradeId: string };
   }
   | {
     readonly type: 'ZONE_ENSURE';
     readonly payload: { readonly mapId: MapId };
+  }
+  | {
+    readonly type: 'PLACE_SPRAY';
+    readonly payload: { readonly sprayAssetId: string };
+  }
+  | {
+    readonly type: 'INSPECT_SPRAY';
+    readonly payload: { readonly sprayId: string; readonly screenX?: number; readonly screenY?: number };
+  }
+  | {
+    readonly type: 'UPDATE_SPRAY_LEGACY';
+    readonly payload: { readonly message: string; readonly sprayId?: string };
+  }
+  | {
+    readonly type: 'ADD_FRIEND';
+    readonly payload: { readonly targetPlayerId: string; readonly targetCharacterId: number };
+  }
+  | {
+    readonly type: 'INSPECT_PLAYER';
+    readonly payload: {
+      readonly targetPlayerId: string;
+      readonly targetCharacterId: number;
+      readonly screenX?: number;
+      readonly screenY?: number;
+    };
+  }
+  | {
+    readonly type: 'DUEL_INVITE';
+    readonly payload: { readonly targetPlayerId: string; readonly targetCharacterId: number };
+  }
+  | {
+    readonly type: 'DUEL_INVITE_RESPOND';
+    readonly payload: { readonly inviteId: string; readonly accept: boolean };
   };
 
 export type DispatchResult =
@@ -370,17 +443,11 @@ export class ActionDispatcher {
         return { ok: false, reason: 'Não foi possível sincronizar o SET com o servidor.' };
       }
 
-      // Online: SYNC_LOADOUT — mutação otimista + snapshot para rollback.
-      return this.dispatchPending(
-        {
-          type: 'SYNC_LOADOUT',
-          payload: loadoutPayload,
-        },
-        () => {
-          this.applyItemMutationLocally(mutationAction);
-          getMutableDataStore().bumpRevision('inventory');
-        },
-      );
+      // Online: SET só muda após ACK / InventoryUpdated — sem mutação otimista.
+      return this.dispatchPending({
+        type: 'SYNC_LOADOUT',
+        payload: loadoutPayload,
+      });
     }
 
     if (this.mode === 'online' && this.isBankAction(action)) {
@@ -433,11 +500,30 @@ export class ActionDispatcher {
       });
     }
 
-    if (this.mode === 'online' && action.type === 'TRADE_REQUEST') {
+    if (this.mode === 'online' && action.type === 'CHAT_WHISPER') {
+      const preview = getGlobalMessageBus().previewGlobalChat(action.payload.text);
+      if (!preview.ok) {
+        return { ok: false, reason: preview.reason };
+      }
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && this.isTradeAction(action)) {
       return this.dispatchPending(action);
     }
 
     if (this.mode === 'online' && action.type === 'ZONE_ENSURE') {
+      return this.dispatchPending(action);
+    }
+
+    if (this.mode === 'online' && this.isSpraySocialAction(action)) {
+      return this.dispatchPending(action);
+    }
+
+    if (
+      this.mode === 'online'
+      && (action.type === 'ACCEPT_MERCENARY_TASK' || action.type === 'ABANDON_MERCENARY_TASK')
+    ) {
       return this.dispatchPending(action);
     }
 
@@ -460,7 +546,15 @@ export class ActionDispatcher {
 
     if (
       (this.mode === 'mock' || this.mode === 'local')
-      && action.type === 'TRADE_REQUEST'
+      && action.type === 'CHAT_WHISPER'
+      && canApplyLocalGameplayMutations(this.mode)
+    ) {
+      return this.dispatchLocal(action);
+    }
+
+    if (
+      (this.mode === 'mock' || this.mode === 'local')
+      && this.isTradeAction(action)
       && canApplyLocalGameplayMutations(this.mode)
     ) {
       return this.dispatchLocal(action);
@@ -475,6 +569,10 @@ export class ActionDispatcher {
     }
 
     if (this.mode === 'online' && action.type === 'GIFT_TRANSFER') {
+      const targetCharacterId = action.payload.targetCharacterId;
+      if (!Number.isInteger(targetCharacterId) || targetCharacterId < 1) {
+        return { ok: false, reason: 'Destinatário inválido.' };
+      }
       return this.dispatchPending(action);
     }
 
@@ -527,6 +625,28 @@ export class ActionDispatcher {
       action.type === 'EQUIP_ITEM'
       || action.type === 'EQUIP_FROM_INVENTORY'
       || action.type === 'UNEQUIP_TO_INVENTORY'
+    );
+  }
+
+  private isSpraySocialAction(action: ClientAction): boolean {
+    return (
+      action.type === 'PLACE_SPRAY'
+      || action.type === 'INSPECT_SPRAY'
+      || action.type === 'UPDATE_SPRAY_LEGACY'
+      || action.type === 'ADD_FRIEND'
+      || action.type === 'INSPECT_PLAYER'
+      || action.type === 'DUEL_INVITE'
+      || action.type === 'DUEL_INVITE_RESPOND'
+    );
+  }
+
+  private isTradeAction(action: ClientAction): boolean {
+    return (
+      action.type === 'TRADE_REQUEST'
+      || action.type === 'TRADE_RESPOND'
+      || action.type === 'TRADE_OFFER_SET'
+      || action.type === 'TRADE_LOCK'
+      || action.type === 'TRADE_CANCEL'
     );
   }
 
@@ -643,7 +763,7 @@ export class ActionDispatcher {
     );
   }
 
-  private isMarketplaceAction(action: ClientAction): boolean {
+  private isMarketplaceMutation(action: ClientAction): boolean {
     switch (action.type) {
       case 'CREATE_MARKET_LISTING':
       case 'CREATE_MARKET_BUY_ORDER':
@@ -657,6 +777,10 @@ export class ActionDispatcher {
     }
   }
 
+  private isMarketplaceAction(action: ClientAction): boolean {
+    return this.isMarketplaceMutation(action) || action.type === 'QUERY_MARKET_ORDER_BOOK';
+  }
+
   private shouldResyncInventoryAfterTimeout(action: ClientAction): boolean {
     return (
       this.isItemMutation(action)
@@ -664,7 +788,7 @@ export class ActionDispatcher {
       || isVendorClientAction(action)
       || action.type === 'CRAFT_ITEM'
       || action.type === 'DELETE_ITEM'
-      || this.isMarketplaceAction(action)
+      || this.isMarketplaceMutation(action)
       || action.type === 'EXCHANGE_ALTER_FOR_VOLTS'
       || this.isBattleLootAction(action)
       || action.type === 'GIFT_TRANSFER'
@@ -722,7 +846,8 @@ export class ActionDispatcher {
       || isVendorClientAction(action)
       || action.type === 'CRAFT_ITEM'
       || action.type === 'DELETE_ITEM'
-      || this.isMarketplaceAction(action)
+      || action.type === 'PLACE_SPRAY'
+      || this.isMarketplaceMutation(action)
       || action.type === 'EXCHANGE_ALTER_FOR_VOLTS'
     ) {
       return 'economy-event';
@@ -936,9 +1061,30 @@ export class ActionDispatcher {
         return { ok: false, reason: 'Progressão de Marcos requer validação do servidor.' };
 
       case 'ACCEPT_MERCENARY_TASK': {
-        const taskId = action.payload.taskId;
-        alertSystem(`Tarefa aceita: ${taskId}`);
-        getMutableDataStore().bumpRevision('marcosState');
+        const questId = action.payload.taskId;
+        const result = acceptMercenaryQuest(
+          getMercenaryQuestStore().getSnapshot(),
+          questId,
+          getPlayerProfileStore().getSnapshot().level,
+        );
+        if (!result.ok) {
+          return { ok: false, reason: result.message };
+        }
+        getMercenaryQuestStore().applyAuthoritative(result.progress);
+        alertSystem(`Contrato aceito: ${questId}`);
+        return { ok: true, status: 'applied' };
+      }
+
+      case 'ABANDON_MERCENARY_TASK': {
+        const result = abandonMercenaryQuest(
+          getMercenaryQuestStore().getSnapshot(),
+          action.payload.taskId,
+        );
+        if (!result.ok) {
+          return { ok: false, reason: result.message };
+        }
+        getMercenaryQuestStore().applyAuthoritative(result.progress);
+        alertSystem('Contrato abandonado.');
         return { ok: true, status: 'applied' };
       }
 
@@ -1055,6 +1201,8 @@ export class ActionDispatcher {
         return { ok: false, reason: 'Anúncios no Marketplace requerem servidor ou mock economy.' };
       case 'CREATE_MARKET_BUY_ORDER':
         return { ok: false, reason: 'Ordens de compra requerem servidor ou mock economy.' };
+      case 'QUERY_MARKET_ORDER_BOOK':
+        return { ok: false, reason: 'Consulta do Marketplace requer servidor ou mock economy.' };
       case 'COLLECT_MARKET_VOLTS':
         return this.dispatchCollectMarketVolts(action.payload.listingId);
       case 'CANCEL_MARKET_LISTING':
@@ -1099,22 +1247,30 @@ export class ActionDispatcher {
         return { ok: true, status: 'applied' };
       }
 
-      case 'TRADE_REQUEST': {
-        const targetId = action.payload.targetPlayerId.trim();
-        if (!targetId) {
-          return { ok: false, reason: 'Alvo de trade inválido.' };
-        }
-        if (!getWorldPlayerPickById(targetId)) {
-          return { ok: false, reason: 'Jogador não está mais na tela.' };
-        }
-        return { ok: true, status: 'applied' };
-      }
+      case 'CHAT_WHISPER':
+        return { ok: false, reason: 'Mensagem privada precisa de outro jogador online.' };
+
+      case 'TRADE_REQUEST':
+      case 'TRADE_RESPOND':
+      case 'TRADE_OFFER_SET':
+      case 'TRADE_LOCK':
+      case 'TRADE_CANCEL':
+        return { ok: false, reason: 'Trade presencial precisa de outro jogador online.' };
 
       case 'ZONE_ENSURE': {
         // Só aquecimento de zona — NÃO tocar prediction/hold de movimento.
         ensureHuntZoneLoaded(action.payload.mapId);
         return { ok: true, status: 'applied' };
       }
+
+      case 'PLACE_SPRAY':
+      case 'INSPECT_SPRAY':
+      case 'UPDATE_SPRAY_LEGACY':
+      case 'ADD_FRIEND':
+      case 'INSPECT_PLAYER':
+      case 'DUEL_INVITE':
+      case 'DUEL_INVITE_RESPOND':
+        return { ok: false, reason: 'Spray, ficha de player e duelo casual requerem servidor ou mock economy.' };
 
       default: {
         const _exhaustive: never = action;

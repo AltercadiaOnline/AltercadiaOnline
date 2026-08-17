@@ -25,7 +25,7 @@ export type PetRenderSnapshot = PetFollowState & {
  * Independente do motor de combate; apenas espelha posição/facing no mapa.
  */
 export class PetFollowEntity {
-  private state: PetFollowState = { x: 0, y: 0, facing: 'south' };
+  private state: PetFollowState = { x: 0, y: 0, facing: 'south', southIdleMs: 0 };
   private petSnapshot: PetSnapshot | null = null;
   private initialized = false;
   private animPhase = 0;
@@ -47,6 +47,7 @@ export class PetFollowEntity {
       x: anchor.x,
       y: anchor.y,
       facing: playerFacing,
+      southIdleMs: 0,
     };
     this.initialized = true;
   }
@@ -58,6 +59,8 @@ export class PetFollowEntity {
     pixelWidth: number,
     pixelHeight: number,
     deltaMs: number,
+    playerMoving = false,
+    playerSpeedPxPerSec?: number,
   ): void {
     if (!this.isVisible() || !this.petSnapshot) return;
 
@@ -76,6 +79,8 @@ export class PetFollowEntity {
       pixelWidth,
       pixelHeight,
       deltaMs,
+      playerMoving,
+      ...(playerSpeedPxPerSec !== undefined ? { playerSpeedPxPerSec } : {}),
       followSpeedMult: def.followSpeedMult,
       followOffsetMult: def.followOffsetMult,
     });

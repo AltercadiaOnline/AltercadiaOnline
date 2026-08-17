@@ -2,6 +2,10 @@
 
 **Versão 1.0 | Maio 2026 | Solo Dev Project — Eliel**
 
+> **Histórico (fatia C, 2026-08)** — visão de apostas/torneio/espectador.
+> Há painel `tournamentBet` / ranking no client; **não** confundir com PvP rankeado (`WorldPvpQueuePanel`) nem com a Cabine de Refração.
+> Telão/espectador e “duelo de apostas” completo deste doc **não** são SSOT — conferir o código antes de implementar em cima deste texto.
+
 > Atividades leves dentro da cidade — engajamento fora do loop principal de batalha e farm. Foco em interação social e economia interna simples.
 
 ---

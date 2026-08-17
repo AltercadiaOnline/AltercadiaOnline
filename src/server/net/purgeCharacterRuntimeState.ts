@@ -6,7 +6,9 @@ import { clearPetAffinityForCharacter } from '../../Economy/petAffinityStore.js'
 import { clearPetRosterForCharacter } from '../../Economy/petRosterStore.js';
 import { clearOwnedSkinsForCharacter } from '../../Economy/skinOwnershipStore.js';
 import { clearMarketplaceForCharacter } from '../../Economy/marketplaceStore.js';
+import { clearMercenaryQuestProgress } from '../quests/mercenaryQuestStore.js';
 import { clearAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
+import { removeLeaderboardRow } from '../leaderboard/leaderboardMemoryStore.js';
 import { clearWorldProfile } from '../world/worldProfileStore.js';
 
 /**
@@ -19,8 +21,10 @@ export function purgeCharacterRuntimeState(playerId: string, characterId: number
   clearPetAffinityForCharacter(playerId, characterId);
   clearOwnedSkinsForCharacter(playerId, characterId);
   clearMarketplaceForCharacter(playerId, characterId);
+  clearMercenaryQuestProgress(playerId, characterId);
   clearWorldProfile(playerId, characterId);
   clearAuthoritativeProgression(playerId, characterId);
+  removeLeaderboardRow(playerId, characterId);
 }
 
 /** Personagem recém-criado: força economia zerada (defesa contra reuso de slot). */
@@ -29,5 +33,6 @@ export function resetNewCharacterEconomy(playerId: string, characterId: number):
   clearPetRosterForCharacter(playerId, characterId);
   clearPetAffinityForCharacter(playerId, characterId);
   clearMarketplaceForCharacter(playerId, characterId);
+  clearMercenaryQuestProgress(playerId, characterId);
   clearWorldProfile(playerId, characterId);
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ITEM_CATALOG } from '../../../shared/items/itemCatalog.js';
+import { getItemById, ITEM_CATALOG } from '../../../shared/items/itemCatalog.js';
 import { ItemRegistry } from '../../../shared/items/ItemRegistry.js';
 import {
   buildMarketOfferTableView,
@@ -38,9 +38,10 @@ export function useMarketPanelState() {
   const [browseCategory, setBrowseCategory] = useState<MarketBrowseCategoryId>('all');
   const [browseSource, setBrowseSource] = useState<MarketSidebarSource>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
-  const [offerForm, setOfferForm] = useState<MarketOfferFormState>(() =>
-    buildDefaultMarketOfferFormState(dataStore.getInventory()),
-  );
+  const [offerForm, setOfferForm] = useState<MarketOfferFormState>(() => ({
+    ...buildDefaultMarketOfferFormState(dataStore.getInventory()),
+    selectedItemId: null,
+  }));
 
   useEffect(() => {
     ItemRegistry.syncFromCatalog(ITEM_CATALOG);
@@ -94,16 +95,11 @@ export function useMarketPanelState() {
 
   useEffect(() => {
     setOfferForm((prev) => {
-      if (sidebarItems.length === 0) {
-        if (prev.selectedItemId === null) return prev;
-        return { ...prev, selectedItemId: null };
-      }
-
-      const stillVisible = prev.selectedItemId
-        && sidebarItems.some((item) => item.itemId === prev.selectedItemId);
+      if (!prev.selectedItemId) return prev;
+      const stillVisible = sidebarItems.some((item) => item.itemId === prev.selectedItemId);
       if (stillVisible) return prev;
-
-      return { ...prev, selectedItemId: sidebarItems[0]!.itemId };
+      if (getItemById(prev.selectedItemId)) return prev;
+      return { ...prev, selectedItemId: null };
     });
   }, [sidebarItems]);
 
@@ -114,17 +110,20 @@ export function useMarketPanelState() {
 
   const selectedItemId = offerForm.selectedItemId;
 
+  useEffect(() => {
+    dispatcher.dispatch({
+      type: 'QUERY_MARKET_ORDER_BOOK',
+      payload: { itemId: selectedItemId },
+    });
+  }, [dispatcher, selectedItemId]);
+
   const sellView = useMemo(
-    () => (selectedItemId
-      ? buildMarketOfferTableView(orderBook, 'sell', selectedItemId)
-      : null),
+    () => buildMarketOfferTableView(orderBook, 'sell', selectedItemId),
     [orderBook, selectedItemId],
   );
 
   const buyView = useMemo(
-    () => (selectedItemId
-      ? buildMarketOfferTableView(orderBook, 'buy', selectedItemId)
-      : null),
+    () => buildMarketOfferTableView(orderBook, 'buy', selectedItemId),
     [orderBook, selectedItemId],
   );
 
@@ -162,7 +161,9 @@ export function useMarketPanelState() {
 
   const selectBrowseItem = useCallback((itemId: string) => {
     setOfferForm((prev) => (
-      prev.selectedItemId === itemId ? prev : { ...prev, selectedItemId: itemId }
+      prev.selectedItemId === itemId
+        ? { ...prev, selectedItemId: null }
+        : { ...prev, selectedItemId: itemId }
     ));
   }, []);
 
@@ -263,9 +264,10 @@ export function useMarketPanelState() {
         alertSystem(result.reason);
         return;
       }
-      if (result.status === 'applied') {
-        setOfferForm((prev) => ({ ...prev, quantity: 1 }));
-      }
+      setBrowseSource('catalog');
+      setBrowseCategory('all');
+      setSearchQuery('');
+      setOfferForm((prev) => ({ ...prev, quantity: 1 }));
       return;
     }
 
@@ -280,7 +282,11 @@ export function useMarketPanelState() {
     });
     if (!result.ok) {
       alertSystem(result.reason);
+      return;
     }
+    setBrowseSource('catalog');
+    setBrowseCategory('all');
+    setSearchQuery('');
   }, [dispatcher, inventory, offerForm]);
 
   return {

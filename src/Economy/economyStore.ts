@@ -1,6 +1,7 @@
 import {
   assertAddItemAllowed,
   assertInventoryRemovalPolicyAllowed,
+  assertTransferItemAllowed,
   validateAddItem,
 } from './InventoryService.js';
 import type { ActiveBookBuff, EquippedSlots, InventoryStack } from '../shared/character/equipmentState.js';
@@ -40,6 +41,11 @@ import {
   ALTER_COIN_ITEM_ID,
   DOLLAR_VOLT_ITEM_ID,
 } from '../shared/economy/premiumCurrency.js';
+import {
+  consumeInventoryQuantity,
+  lockInventoryQuantity,
+  unlockInventoryQuantity,
+} from '../shared/bank/inventoryLockOps.js';
 
 type InventoryRow = InventoryStack;
 
@@ -235,16 +241,39 @@ export type EconomyTransactionResult =
     }
   | { ok: false; message: string };
 
+export type EconomyPartyRef = {
+  readonly playerId: string;
+  readonly characterId: number;
+};
+
+export type TwoPartyEconomyPartyResult = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly walletBalance: number;
+  readonly alterCoins: number;
+  readonly inventorySnapshot: InventoryRow[];
+};
+
+export type TwoPartyEconomyTransactionResult =
+  | { readonly ok: true; readonly parties: readonly [TwoPartyEconomyPartyResult, TwoPartyEconomyPartyResult] }
+  | { readonly ok: false; readonly message: string };
+
 export type EconomyStoreMutator = {
   addDollarVolt(amount: number): void;
   spendDollarVolt(amount: number): void;
   debitUpToDollarVolt(amount: number): number;
   addAlterCoins(amount: number): void;
   spendAlterCoins(amount: number): void;
+  lockDollarVolt(amount: number): void;
+  unlockDollarVolt(amount: number): void;
+  spendLockedDollarVolt(amount: number): void;
   addInventoryItem(itemId: string, qty: number): void;
   /** Coleta parcial de loot — não lança erro; retorna overflow perdido. */
   addInventoryItemPartial(itemId: string, qty: number): { readonly added: number; readonly overflow: number };
   removeInventoryItem(itemId: string, qty: number): void;
+  lockInventoryItem(itemId: string, qty: number): void;
+  unlockInventoryItem(itemId: string, qty: number): void;
+  consumeInventoryItem(itemId: string, qty: number): void;
   setInventory(stacks: readonly InventoryStack[]): void;
   setActiveBookBuff(buff: ActiveBookBuff): void;
   setEquippedSlots(slots: EquippedSlots): void;
@@ -256,211 +285,386 @@ export type EconomyStoreMutator = {
   getActiveBookBuff(): ActiveBookBuff;
 };
 
+type PartyDeepSnapshot = {
+  readonly key: string;
+  readonly wallet: PlayerWallet;
+  readonly profile: CharacterEconomyProfile;
+  readonly inventory: InventoryRow[];
+  readonly bank: BankVaultState;
+};
+
+function cloneWallet(wallet: PlayerWallet): PlayerWallet {
+  return { ...wallet };
+}
+
+function cloneProfile(profile: CharacterEconomyProfile): CharacterEconomyProfile {
+  return {
+    inventory: profile.inventory.map((row) => ({ ...row })),
+    equipped: { ...profile.equipped },
+    ...(profile.equipmentUiGrid ? { equipmentUiGrid: { ...profile.equipmentUiGrid } } : {}),
+    activeBookBuff: profile.activeBookBuff ? { ...profile.activeBookBuff } : null,
+  };
+}
+
+function cloneBank(bank: BankVaultState): BankVaultState {
+  return {
+    itemStacks: bank.itemStacks.map((row) => ({ ...row })),
+    currencies: { ...bank.currencies },
+  };
+}
+
+function capturePartySnapshot(playerId: string, characterId: number): PartyDeepSnapshot {
+  const key = profileKey(playerId, characterId);
+  const wallet = getOrCreateWallet(playerId, characterId);
+  const profile = getOrCreateProfile(playerId, characterId);
+  const bank = getOrCreateBankVault(playerId, characterId);
+  return {
+    key,
+    wallet: cloneWallet(wallet),
+    profile: cloneProfile(profile),
+    inventory: (state.inventories.get(key) ?? []).map((row) => ({ ...row })),
+    bank: cloneBank(bank),
+  };
+}
+
+function restorePartySnapshot(snapshot: PartyDeepSnapshot): void {
+  state.wallets.set(snapshot.key, cloneWallet(snapshot.wallet));
+  state.profiles.set(snapshot.key, cloneProfile(snapshot.profile));
+  state.inventories.set(snapshot.key, snapshot.inventory.map((row) => ({ ...row })));
+  state.banks.set(snapshot.key, cloneBank(snapshot.bank));
+}
+
+let economyMutex: Promise<void> = Promise.resolve();
+
+async function withEconomyMutex<T>(fn: () => Promise<T>): Promise<T> {
+  let release: () => void = () => {};
+  const previous = economyMutex;
+  economyMutex = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+function createEconomyMutator(playerId: string, characterId: number): EconomyStoreMutator {
+  const key = profileKey(playerId, characterId);
+  const profile = getOrCreateProfile(playerId, characterId);
+  return {
+    addDollarVolt(amount) {
+      const wallet = getOrCreateWallet(playerId, characterId);
+      wallet.dollarVolt += amount;
+    },
+    spendDollarVolt(amount) {
+      if (!Number.isInteger(amount) || amount <= 0) {
+        throw new Error('Quantidade de VOLTS inválida.');
+      }
+      const wallet = getOrCreateWallet(playerId, characterId);
+      if (wallet.dollarVolt < amount) {
+        throw new Error('VOLTS insuficientes.');
+      }
+      wallet.dollarVolt -= amount;
+    },
+    debitUpToDollarVolt(amount) {
+      if (!Number.isInteger(amount) || amount <= 0) {
+        throw new Error('Quantidade de VOLTS inválida.');
+      }
+      const wallet = getOrCreateWallet(playerId, characterId);
+      const debited = Math.min(wallet.dollarVolt, amount);
+      wallet.dollarVolt -= debited;
+      return debited;
+    },
+    addAlterCoins(amount) {
+      if (amount <= 0) return;
+      const wallet = getOrCreateWallet(playerId, characterId);
+      wallet.alterCoins += Math.floor(amount);
+    },
+    spendAlterCoins(amount) {
+      if (!Number.isInteger(amount) || amount <= 0) {
+        throw new Error('Quantidade de Alter Coins inválida.');
+      }
+      const wallet = getOrCreateWallet(playerId, characterId);
+      if (wallet.alterCoins < amount) {
+        throw new Error('Alter Coins insuficientes.');
+      }
+      wallet.alterCoins -= amount;
+    },
+    lockDollarVolt(amount) {
+      const qty = Math.floor(amount);
+      if (qty <= 0) return;
+      const result = lockWalletCurrency(playerId, characterId, 'volts', qty);
+      if (!result.ok) throw new Error(result.message);
+    },
+    unlockDollarVolt(amount) {
+      const qty = Math.floor(amount);
+      if (qty <= 0) return;
+      unlockWalletCurrency(playerId, characterId, 'volts', qty);
+    },
+    spendLockedDollarVolt(amount) {
+      if (!Number.isInteger(amount) || amount <= 0) {
+        throw new Error('Quantidade de VOLTS inválida.');
+      }
+      const wallet = getOrCreateWallet(playerId, characterId);
+      if (wallet.lockedDollarVolt < amount || wallet.dollarVolt < amount) {
+        throw new Error('VOLTS insuficientes.');
+      }
+      wallet.dollarVolt -= amount;
+      wallet.lockedDollarVolt -= amount;
+    },
+    addInventoryItem(itemId, qty) {
+      if (qty <= 0) return;
+      if (isRetiredItemId(itemId)) return;
+
+      if (itemId === DOLLAR_VOLT_ITEM_ID) {
+        const wallet = getOrCreateWallet(playerId, characterId);
+        wallet.dollarVolt += Math.floor(qty);
+        return;
+      }
+      if (itemId === ALTER_COIN_ITEM_ID) {
+        const wallet = getOrCreateWallet(playerId, characterId);
+        wallet.alterCoins += Math.floor(qty);
+        return;
+      }
+
+      assertAddItemAllowed(itemId, profile.inventory, qty);
+
+      const equipment = equippedToEquipmentUiGrid(profile.equipped);
+      const inventorySlots = stacksToInventorySlotsWithStacking(profile.inventory);
+      const canAdd = canAddItemWeight(
+        { inventorySlots, equipment, playerLevel: 1 },
+        itemId,
+        qty,
+      );
+      if (!canAdd) {
+        throw new Error(CAPACITY_OVERLOAD_MESSAGE);
+      }
+
+      const result = addItemToInventoryStacks(profile.inventory, itemId, qty);
+      if (result.overflow > 0) {
+        throw new Error(`Inventário cheio: ${itemId}`);
+      }
+      profile.inventory = result.stacks.map((row) => (
+        row.itemId === itemId && isChargedInventoryStackItemId(itemId) && row.charges === undefined
+          ? { ...row, charges: resolveItemMaxCharges(itemId) }
+          : row
+      ));
+      syncInventoryFromProfile(key, profile);
+    },
+    addInventoryItemPartial(itemId, qty) {
+      if (qty <= 0) return { added: 0, overflow: 0 };
+      if (isRetiredItemId(itemId)) return { added: 0, overflow: qty };
+
+      if (itemId === DOLLAR_VOLT_ITEM_ID) {
+        const wallet = getOrCreateWallet(playerId, characterId);
+        const added = Math.floor(qty);
+        wallet.dollarVolt += added;
+        return { added, overflow: 0 };
+      }
+      if (itemId === ALTER_COIN_ITEM_ID) {
+        const wallet = getOrCreateWallet(playerId, characterId);
+        const added = Math.floor(qty);
+        wallet.alterCoins += added;
+        return { added, overflow: 0 };
+      }
+
+      const addCheck = validateAddItem(itemId, profile.inventory, qty);
+      if (!addCheck.ok) {
+        return { added: 0, overflow: qty };
+      }
+
+      const equipment = equippedToEquipmentUiGrid(profile.equipped);
+      const inventorySlots = stacksToInventorySlotsWithStacking(profile.inventory);
+      const carryInput = { inventorySlots, equipment, playerLevel: 1 };
+      const weightCap = resolveMaxAddableItemQuantity(carryInput, itemId, qty);
+      if (weightCap <= 0) {
+        return { added: 0, overflow: qty };
+      }
+
+      const result = addItemToInventoryStacks(profile.inventory, itemId, weightCap);
+      profile.inventory = result.stacks.map((row) => (
+        row.itemId === itemId && isChargedInventoryStackItemId(itemId) && row.charges === undefined
+          ? { ...row, charges: resolveItemMaxCharges(itemId) }
+          : row
+      ));
+      syncInventoryFromProfile(key, profile);
+
+      const added = result.added;
+      return { added, overflow: qty - added };
+    },
+    removeInventoryItem(itemId, qty) {
+      if (isWalletCurrencyItemId(itemId)) {
+        throw new Error('Moedas não podem ser removidas do inventário — use a carteira.');
+      }
+      assertInventoryRemovalPolicyAllowed(itemId);
+
+      const rows = profile.inventory;
+      const existing = rows.find((row) => row.itemId === itemId);
+      if (!existing || existing.quantity < qty) {
+        throw new Error(`Estoque insuficiente: ${itemId}`);
+      }
+      existing.quantity -= qty;
+      if (existing.quantity <= 0) {
+        profile.inventory = rows.filter((row) => row.itemId !== itemId);
+      }
+      syncInventoryFromProfile(key, profile);
+    },
+    lockInventoryItem(itemId, qty) {
+      if (isWalletCurrencyItemId(itemId)) {
+        throw new Error('Moedas não podem ser reservadas no inventário — use a carteira.');
+      }
+      assertTransferItemAllowed(itemId);
+      const locked = lockInventoryQuantity(profile.inventory, itemId, qty);
+      if (!locked.ok) throw new Error(locked.reason);
+      profile.inventory = locked.stacks;
+      syncInventoryFromProfile(key, profile);
+    },
+    unlockInventoryItem(itemId, qty) {
+      profile.inventory = unlockInventoryQuantity(profile.inventory, itemId, qty);
+      syncInventoryFromProfile(key, profile);
+    },
+    consumeInventoryItem(itemId, qty) {
+      if (isWalletCurrencyItemId(itemId)) {
+        throw new Error('Moedas não podem ser removidas do inventário — use a carteira.');
+      }
+      assertInventoryRemovalPolicyAllowed(itemId);
+      const consumed = consumeInventoryQuantity(profile.inventory, itemId, qty);
+      if (!consumed.ok) throw new Error(consumed.reason);
+      profile.inventory = consumed.stacks;
+      syncInventoryFromProfile(key, profile);
+    },
+    setInventory(stacks) {
+      profile.inventory = stripRetiredInventoryStacks(stacks).map((row) => ({ ...row }));
+      dedupeProfileInventoryFromEquipment(profile);
+      applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
+    },
+    setActiveBookBuff(buff) {
+      profile.activeBookBuff = buff;
+    },
+    setEquippedSlots(slots) {
+      profile.equipped = { ...slots };
+      profile.equipmentUiGrid = equippedToEquipmentUiGrid(profile.equipped);
+      dedupeProfileInventoryFromEquipment(profile);
+      syncInventoryFromProfile(key, profile);
+    },
+    setEquipmentUiGrid(grid) {
+      syncEquippedFromUiGrid(profile, grid);
+      dedupeProfileInventoryFromEquipment(profile);
+      syncInventoryFromProfile(key, profile);
+    },
+    consumeChargedEquipmentBattleParticipation() {
+      const result = applyChargedEquipmentBattleParticipation(profile);
+      syncInventoryFromProfile(key, profile);
+      return result;
+    },
+    getInventory() {
+      return profile.inventory.map((row) => ({ ...row }));
+    },
+    getEquipped() {
+      return { ...profile.equipped };
+    },
+    getEquipmentUiGrid() {
+      return resolveProfileUiGrid(profile);
+    },
+    getActiveBookBuff() {
+      return profile.activeBookBuff;
+    },
+  };
+}
+
+function partyResult(playerId: string, characterId: number): TwoPartyEconomyPartyResult {
+  const key = profileKey(playerId, characterId);
+  const wallet = getOrCreateWallet(playerId, characterId);
+  return {
+    playerId,
+    characterId,
+    walletBalance: wallet.dollarVolt,
+    alterCoins: wallet.alterCoins,
+    inventorySnapshot: state.inventories.get(key) ?? [],
+  };
+}
+
 export async function executeEconomyTransaction(
   playerId: string,
   characterId: number,
   mutate: (store: EconomyStoreMutator) => void | Promise<void>,
 ): Promise<EconomyTransactionResult> {
-  const walletBackup = new Map(state.wallets);
-  const inventoryBackup = new Map(state.inventories);
-  const profilesBackup = new Map(state.profiles);
+  return withEconomyMutex(async () => {
+    const snapshot = capturePartySnapshot(playerId, characterId);
+    const profile = getOrCreateProfile(playerId, characterId);
+    const key = profileKey(playerId, characterId);
+    try {
+      await mutate(createEconomyMutator(playerId, characterId));
+      applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
+      const wallet = getOrCreateWallet(playerId, characterId);
+      return {
+        ok: true,
+        playerId,
+        characterId,
+        walletBalance: wallet.dollarVolt,
+        alterCoins: wallet.alterCoins,
+        inventorySnapshot: state.inventories.get(key) ?? [],
+      };
+    } catch (error) {
+      restorePartySnapshot(snapshot);
+      const message = error instanceof Error ? error.message : 'Falha na transação econômica.';
+      return { ok: false, message };
+    }
+  });
+}
 
-  const key = profileKey(playerId, characterId);
-  const profile = getOrCreateProfile(playerId, characterId);
-
-  try {
-    await mutate({
-      addDollarVolt(amount) {
-        const wallet = getOrCreateWallet(playerId, characterId);
-        wallet.dollarVolt += amount;
-      },
-      spendDollarVolt(amount) {
-        if (!Number.isInteger(amount) || amount <= 0) {
-          throw new Error('Quantidade de VOLTS inválida.');
-        }
-        const wallet = getOrCreateWallet(playerId, characterId);
-        if (wallet.dollarVolt < amount) {
-          throw new Error('VOLTS insuficientes.');
-        }
-        wallet.dollarVolt -= amount;
-      },
-      debitUpToDollarVolt(amount) {
-        if (!Number.isInteger(amount) || amount <= 0) {
-          throw new Error('Quantidade de VOLTS inválida.');
-        }
-        const wallet = getOrCreateWallet(playerId, characterId);
-        const debited = Math.min(wallet.dollarVolt, amount);
-        wallet.dollarVolt -= debited;
-        return debited;
-      },
-      addAlterCoins(amount) {
-        if (amount <= 0) return;
-        const wallet = getOrCreateWallet(playerId, characterId);
-        wallet.alterCoins += Math.floor(amount);
-      },
-      spendAlterCoins(amount) {
-        if (!Number.isInteger(amount) || amount <= 0) {
-          throw new Error('Quantidade de Alter Coins inválida.');
-        }
-        const wallet = getOrCreateWallet(playerId, characterId);
-        if (wallet.alterCoins < amount) {
-          throw new Error('Alter Coins insuficientes.');
-        }
-        wallet.alterCoins -= amount;
-      },
-      addInventoryItem(itemId, qty) {
-        if (qty <= 0) return;
-        if (isRetiredItemId(itemId)) return;
-
-        // Moeda nunca entra como loot solto — credita a wallet e o espelho fecha o stack.
-        if (itemId === DOLLAR_VOLT_ITEM_ID) {
-          const wallet = getOrCreateWallet(playerId, characterId);
-          wallet.dollarVolt += Math.floor(qty);
-          return;
-        }
-        if (itemId === ALTER_COIN_ITEM_ID) {
-          const wallet = getOrCreateWallet(playerId, characterId);
-          wallet.alterCoins += Math.floor(qty);
-          return;
-        }
-
-        assertAddItemAllowed(itemId, profile.inventory, qty);
-
-        const equipment = equippedToEquipmentUiGrid(profile.equipped);
-        const inventorySlots = stacksToInventorySlotsWithStacking(profile.inventory);
-        const canAdd = canAddItemWeight(
-          { inventorySlots, equipment, playerLevel: 1 },
-          itemId,
-          qty,
-        );
-        if (!canAdd) {
-          throw new Error(CAPACITY_OVERLOAD_MESSAGE);
-        }
-
-        const result = addItemToInventoryStacks(profile.inventory, itemId, qty);
-        if (result.overflow > 0) {
-          throw new Error(`Inventário cheio: ${itemId}`);
-        }
-        profile.inventory = result.stacks.map((row) => (
-          row.itemId === itemId && isChargedInventoryStackItemId(itemId) && row.charges === undefined
-            ? { ...row, charges: resolveItemMaxCharges(itemId) }
-            : row
-        ));
-        syncInventoryFromProfile(key, profile);
-      },
-      addInventoryItemPartial(itemId, qty) {
-        if (qty <= 0) return { added: 0, overflow: 0 };
-        if (isRetiredItemId(itemId)) return { added: 0, overflow: qty };
-
-        if (itemId === DOLLAR_VOLT_ITEM_ID) {
-          const wallet = getOrCreateWallet(playerId, characterId);
-          const added = Math.floor(qty);
-          wallet.dollarVolt += added;
-          return { added, overflow: 0 };
-        }
-        if (itemId === ALTER_COIN_ITEM_ID) {
-          const wallet = getOrCreateWallet(playerId, characterId);
-          const added = Math.floor(qty);
-          wallet.alterCoins += added;
-          return { added, overflow: 0 };
-        }
-
-        const addCheck = validateAddItem(itemId, profile.inventory, qty);
-        if (!addCheck.ok) {
-          return { added: 0, overflow: qty };
-        }
-
-        const equipment = equippedToEquipmentUiGrid(profile.equipped);
-        const inventorySlots = stacksToInventorySlotsWithStacking(profile.inventory);
-        const carryInput = { inventorySlots, equipment, playerLevel: 1 };
-        const weightCap = resolveMaxAddableItemQuantity(carryInput, itemId, qty);
-        if (weightCap <= 0) {
-          return { added: 0, overflow: qty };
-        }
-
-        const result = addItemToInventoryStacks(profile.inventory, itemId, weightCap);
-        profile.inventory = result.stacks.map((row) => (
-          row.itemId === itemId && isChargedInventoryStackItemId(itemId) && row.charges === undefined
-            ? { ...row, charges: resolveItemMaxCharges(itemId) }
-            : row
-        ));
-        syncInventoryFromProfile(key, profile);
-
-        const added = result.added;
-        return { added, overflow: qty - added };
-      },
-      removeInventoryItem(itemId, qty) {
-        if (isWalletCurrencyItemId(itemId)) {
-          throw new Error('Moedas não podem ser removidas do inventário — use a carteira.');
-        }
-        assertInventoryRemovalPolicyAllowed(itemId);
-
-        const rows = profile.inventory;
-        const existing = rows.find((row) => row.itemId === itemId);
-        if (!existing || existing.quantity < qty) {
-          throw new Error(`Estoque insuficiente: ${itemId}`);
-        }
-        existing.quantity -= qty;
-        if (existing.quantity <= 0) {
-          profile.inventory = rows.filter((row) => row.itemId !== itemId);
-        }
-        syncInventoryFromProfile(key, profile);
-      },
-      setInventory(stacks) {
-        profile.inventory = stripRetiredInventoryStacks(stacks).map((row) => ({ ...row }));
-        dedupeProfileInventoryFromEquipment(profile);
-        applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
-      },
-      setActiveBookBuff(buff) {
-        profile.activeBookBuff = buff;
-      },
-      setEquippedSlots(slots) {
-        profile.equipped = { ...slots };
-        profile.equipmentUiGrid = equippedToEquipmentUiGrid(profile.equipped);
-        dedupeProfileInventoryFromEquipment(profile);
-        syncInventoryFromProfile(key, profile);
-      },
-      setEquipmentUiGrid(grid) {
-        syncEquippedFromUiGrid(profile, grid);
-        dedupeProfileInventoryFromEquipment(profile);
-        syncInventoryFromProfile(key, profile);
-      },
-      consumeChargedEquipmentBattleParticipation() {
-        const result = applyChargedEquipmentBattleParticipation(profile);
-        syncInventoryFromProfile(key, profile);
-        return result;
-      },
-      getInventory() {
-        return profile.inventory.map((row) => ({ ...row }));
-      },
-      getEquipped() {
-        return { ...profile.equipped };
-      },
-      getEquipmentUiGrid() {
-        return resolveProfileUiGrid(profile);
-      },
-      getActiveBookBuff() {
-        return profile.activeBookBuff;
-      },
-    });
-
-    applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
-
-    return {
-      ok: true,
-      playerId,
-      characterId,
-      walletBalance: getOrCreateWallet(playerId, characterId).dollarVolt,
-      alterCoins: getOrCreateWallet(playerId, characterId).alterCoins,
-      inventorySnapshot: state.inventories.get(key) ?? [],
-    };
-  } catch (error) {
-    state.wallets = walletBackup;
-    state.inventories = inventoryBackup;
-    state.profiles = profilesBackup;
-    const message = error instanceof Error ? error.message : 'Falha na transação econômica.';
-    return { ok: false, message };
+/**
+ * Transação atômica em dois personagens. Rollback profundo dos dois se qualquer lado falhar.
+ * Serializada com as txs de um jogador (anti-dup por corrida).
+ */
+export async function executeTwoPartyEconomyTransaction(
+  partyA: EconomyPartyRef,
+  partyB: EconomyPartyRef,
+  mutate: (
+    storeA: EconomyStoreMutator,
+    storeB: EconomyStoreMutator,
+  ) => void | Promise<void>,
+): Promise<TwoPartyEconomyTransactionResult> {
+  const keyA = profileKey(partyA.playerId, partyA.characterId);
+  const keyB = profileKey(partyB.playerId, partyB.characterId);
+  if (keyA === keyB) {
+    return { ok: false, message: 'Não é possível transacionar o mesmo personagem consigo mesmo.' };
   }
+
+  return withEconomyMutex(async () => {
+    const snapshotA = capturePartySnapshot(partyA.playerId, partyA.characterId);
+    const snapshotB = capturePartySnapshot(partyB.playerId, partyB.characterId);
+    try {
+      await mutate(
+        createEconomyMutator(partyA.playerId, partyA.characterId),
+        createEconomyMutator(partyB.playerId, partyB.characterId),
+      );
+      applyWalletCurrencyMirrorToProfile(
+        partyA.playerId,
+        partyA.characterId,
+        getOrCreateProfile(partyA.playerId, partyA.characterId),
+      );
+      applyWalletCurrencyMirrorToProfile(
+        partyB.playerId,
+        partyB.characterId,
+        getOrCreateProfile(partyB.playerId, partyB.characterId),
+      );
+      return {
+        ok: true,
+        parties: [
+          partyResult(partyA.playerId, partyA.characterId),
+          partyResult(partyB.playerId, partyB.characterId),
+        ],
+      };
+    } catch (error) {
+      restorePartySnapshot(snapshotA);
+      restorePartySnapshot(snapshotB);
+      const message = error instanceof Error ? error.message : 'Falha na transação econômica.';
+      return { ok: false, message };
+    }
+  });
 }
 
 export function getWalletBalance(playerId: string, characterId: number): number {
@@ -526,6 +730,11 @@ export function getCharacterProfile(playerId: string, characterId: number): Char
   };
 }
 
+/** True só se o personagem já foi hidratado — não cria perfil vazio. */
+export function hasCharacterEconomyLoaded(playerId: string, characterId: number): boolean {
+  return state.profiles.has(profileKey(playerId, characterId));
+}
+
 /**
  * Garante que o perfil existe em memória.
  * Não apaga inventário já carregado (login / hydrate).
@@ -576,19 +785,6 @@ export function purgeAuthoritativeCharacterEconomy(
   state.banks.delete(key);
   state.wallets.delete(key);
   clearAuthoritativePlayerLoadout(playerId, characterId);
-}
-
-/** @deprecated Use ensureAuthoritativePlayerEconomyEmpty — não injeta mais demo. */
-export function seedDemoProfileIfEmpty(playerId: string, characterId: number): void {
-  ensureAuthoritativePlayerEconomyEmpty(playerId, characterId);
-}
-
-/** @deprecated No-op — não re-injeta inventário demo legado. */
-export function syncDemoProfileInventoryIfIncomplete(
-  _playerId: string,
-  _characterId: number,
-): void {
-  /* personagem limpo: não sincronizar DEMO_STARTER */
 }
 
 export function getCharacterInventoryStacks(
@@ -710,18 +906,15 @@ export async function executeBankEconomyTransaction(
   characterId: number,
   mutate: (store: BankEconomyMutator) => void | Promise<void>,
 ): Promise<BankEconomyTransactionResult> {
-  const walletBackup = new Map(state.wallets);
-  const inventoryBackup = new Map(state.inventories);
-  const profilesBackup = new Map(state.profiles);
-  const banksBackup = new Map(state.banks);
+  return withEconomyMutex(async () => {
+    const snapshot = capturePartySnapshot(playerId, characterId);
+    const key = profileKey(playerId, characterId);
+    const profile = getOrCreateProfile(playerId, characterId);
+    const bank = getOrCreateBankVault(playerId, characterId);
+    const wallet = getOrCreateWallet(playerId, characterId);
 
-  const key = profileKey(playerId, characterId);
-  const profile = getOrCreateProfile(playerId, characterId);
-  const bank = getOrCreateBankVault(playerId, characterId);
-  const wallet = getOrCreateWallet(playerId, characterId);
-
-  try {
-    await mutate({
+    try {
+      await mutate({
       setInventory(stacks, options) {
         profile.inventory = stacks.map((row) => ({ ...row }));
         if (!options?.skipEquipmentDedupe) {
@@ -751,26 +944,24 @@ export async function executeBankEconomyTransaction(
       },
     });
 
-    applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
+      applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
 
-    return {
-      ok: true,
-      playerId,
-      characterId,
-      walletBalance: wallet.dollarVolt,
-      alterCoins: wallet.alterCoins,
-      inventorySnapshot: state.inventories.get(key) ?? [],
-      bankItemStacks: bank.itemStacks.map((row) => ({ ...row })),
-      bankCurrencies: { ...bank.currencies },
-    };
-  } catch (error) {
-    state.wallets = walletBackup;
-    state.inventories = inventoryBackup;
-    state.profiles = profilesBackup;
-    state.banks = banksBackup;
-    const message = error instanceof Error ? error.message : 'Falha na transação bancária.';
-    return { ok: false, message };
-  }
+      return {
+        ok: true,
+        playerId,
+        characterId,
+        walletBalance: wallet.dollarVolt,
+        alterCoins: wallet.alterCoins,
+        inventorySnapshot: state.inventories.get(key) ?? [],
+        bankItemStacks: bank.itemStacks.map((row) => ({ ...row })),
+        bankCurrencies: { ...bank.currencies },
+      };
+    } catch (error) {
+      restorePartySnapshot(snapshot);
+      const message = error instanceof Error ? error.message : 'Falha na transação bancária.';
+      return { ok: false, message };
+    }
+  });
 }
 
 export function getActiveLootBonusMultiplier(playerId: string, characterId: number): number {

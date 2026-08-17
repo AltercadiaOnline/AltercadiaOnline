@@ -13,19 +13,32 @@ import { canWalkAt } from './worldMap.js';
 /** Distância alvo atrás/lateral do operativo (curta e constante). */
 export const PET_FOLLOW_OFFSET_PX = TILE_SIZE * 0.78;
 
-/** Velocidade de catch-up — levemente mais lenta que o jogador. */
-export const PET_FOLLOW_SPEED_PX_PER_SEC = PLAYER_MOVE_SPEED_PX_PER_SEC * 0.9;
+/** Offset ao lado do player no idle sul — cabe player 35px + pet 48px com folga. */
+export const PET_IDLE_FLANK_OFFSET_PX = TILE_SIZE * 1.6;
+
+/** Idle frontal (sul) até o pet andar para o flanco. */
+export const PET_SOUTH_IDLE_FLANK_DELAY_MS = 2000;
+
+/** Velocidade de follow — igual à do jogador (nunca mais lenta). */
+export const PET_FOLLOW_SPEED_PX_PER_SEC = PLAYER_MOVE_SPEED_PX_PER_SEC;
+
+/** Catch-up extra só quando o pet atrasou — fecha o gap sem teleporte. */
+export const PET_FOLLOW_CATCHUP_MAX_MULT = 1.22;
 
 /** Distância em que o pet para de se deslocar e espelha o facing do jogador. */
 export const PET_FOLLOW_ARRIVAL_PX = TILE_SIZE * 0.12;
 
-/** Teleporte suave se ficar muito longe (mapa grande / canto). */
-export const PET_FOLLOW_SNAP_DISTANCE_PX = TILE_SIZE * 3.5;
+/** Começa a acelerar o catch-up depois desta folga. */
+export const PET_FOLLOW_CATCHUP_START_PX = TILE_SIZE * 0.55;
+
+/** Snap só se o pet se perder de verdade (portal / unstuck) — não no follow normal. */
+export const PET_FOLLOW_SNAP_DISTANCE_PX = TILE_SIZE * 16;
 
 export type PetFollowState = {
   readonly x: number;
   readonly y: number;
   readonly facing: PlayerFacing;
+  readonly southIdleMs: number;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -118,6 +131,63 @@ export function resolvePetFollowAnchor(
   }
 }
 
+/**
+ * Flanco idle sul: mesmo Y do player, X lateral.
+ * Empate / ambos livres → leste (direita da tela). Lado bloqueado → o outro.
+ */
+export function resolvePetSouthIdleFlankAnchor(
+  playerPosition: WorldPosition,
+  petPosition: WorldPosition,
+  mapData: number[][],
+  offsetMult = 1,
+): WorldPosition {
+  const offset = PET_IDLE_FLANK_OFFSET_PX * offsetMult;
+  const east: WorldPosition = { x: playerPosition.x + offset, y: playerPosition.y };
+  const west: WorldPosition = { x: playerPosition.x - offset, y: playerPosition.y };
+  const eastOk = canPetWalkAt(mapData, east);
+  const westOk = canPetWalkAt(mapData, west);
+
+  if (eastOk && !westOk) return east;
+  if (westOk && !eastOk) return west;
+  if (!eastOk && !westOk) {
+    return resolvePetFollowAnchor(playerPosition, 'south', offsetMult);
+  }
+
+  const distEast = Math.abs(petPosition.x - east.x);
+  const distWest = Math.abs(petPosition.x - west.x);
+  return distWest < distEast ? west : east;
+}
+
+export function nextPetSouthIdleMs(
+  playerMoving: boolean,
+  playerFacing: PlayerFacing,
+  previousMs: number,
+  deltaMs: number,
+): number {
+  if (playerMoving || playerFacing !== 'south') return 0;
+  return Math.min(previousMs + deltaMs, PET_SOUTH_IDLE_FLANK_DELAY_MS);
+}
+
+/**
+ * Espelha a velocidade do player. Espécie nunca reduz abaixo de 1×.
+ * Se atrasou, acelera até CATCHUP_MAX para fechar o gap andando.
+ */
+export function resolvePetFollowSpeedPxPerSec(
+  playerSpeedPxPerSec: number,
+  distancePx: number,
+  speciesSpeedMult = 1,
+): number {
+  const matched = Math.max(
+    PET_FOLLOW_SPEED_PX_PER_SEC,
+    Number.isFinite(playerSpeedPxPerSec) ? playerSpeedPxPerSec : PET_FOLLOW_SPEED_PX_PER_SEC,
+  );
+  const species = Math.max(1, speciesSpeedMult);
+  const lag = Math.max(0, distancePx - PET_FOLLOW_CATCHUP_START_PX);
+  const catchupT = Math.min(1, lag / (TILE_SIZE * 2.5));
+  const catchup = 1 + (PET_FOLLOW_CATCHUP_MAX_MULT - 1) * catchupT;
+  return matched * species * catchup;
+}
+
 export type TickPetFollowInput = {
   readonly pet: PetFollowState;
   readonly playerPosition: WorldPosition;
@@ -126,6 +196,8 @@ export type TickPetFollowInput = {
   readonly pixelWidth: number;
   readonly pixelHeight: number;
   readonly deltaMs: number;
+  readonly playerMoving?: boolean;
+  readonly playerSpeedPxPerSec?: number;
   readonly followSpeedMult?: number;
   readonly followOffsetMult?: number;
 };
@@ -134,7 +206,28 @@ export function tickPetFollow(input: TickPetFollowInput): PetFollowState {
   const deltaMs = clampFrameDeltaMs(input.deltaMs);
   const speedMult = input.followSpeedMult ?? 1;
   const offsetMult = input.followOffsetMult ?? 1;
-  const anchor = resolvePetFollowAnchor(input.playerPosition, input.playerFacing, offsetMult);
+  const playerMoving = input.playerMoving === true;
+  const southIdleMs = nextPetSouthIdleMs(
+    playerMoving,
+    input.playerFacing,
+    input.pet.southIdleMs,
+    deltaMs,
+  );
+
+  const useFlank =
+    !playerMoving
+    && input.playerFacing === 'south'
+    && southIdleMs >= PET_SOUTH_IDLE_FLANK_DELAY_MS;
+
+  const anchor = useFlank
+    ? resolvePetSouthIdleFlankAnchor(
+        input.playerPosition,
+        input.pet,
+        input.mapData,
+        offsetMult,
+      )
+    : resolvePetFollowAnchor(input.playerPosition, input.playerFacing, offsetMult);
+
   const dx = anchor.x - input.pet.x;
   const dy = anchor.y - input.pet.y;
   const distance = Math.hypot(dx, dy);
@@ -147,6 +240,7 @@ export function tickPetFollow(input: TickPetFollowInput): PetFollowState {
       x: snapped.x,
       y: snapped.y,
       facing: input.playerFacing,
+      southIdleMs,
     };
   }
 
@@ -155,10 +249,15 @@ export function tickPetFollow(input: TickPetFollowInput): PetFollowState {
       x: input.pet.x,
       y: input.pet.y,
       facing: input.playerFacing,
+      southIdleMs,
     };
   }
 
-  const speed = PET_FOLLOW_SPEED_PX_PER_SEC * speedMult * (deltaMs / 1000);
+  const speed = resolvePetFollowSpeedPxPerSec(
+    input.playerSpeedPxPerSec ?? PET_FOLLOW_SPEED_PX_PER_SEC,
+    distance,
+    speedMult,
+  ) * (deltaMs / 1000);
   const moveX = (dx / distance) * Math.min(speed, distance);
   const moveY = (dy / distance) * Math.min(speed, distance);
   const next = movePetByDelta(
@@ -180,5 +279,6 @@ export function tickPetFollow(input: TickPetFollowInput): PetFollowState {
     x: next.x,
     y: next.y,
     facing,
+    southIdleMs,
   };
 }

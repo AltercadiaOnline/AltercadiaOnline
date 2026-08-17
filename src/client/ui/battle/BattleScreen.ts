@@ -11,6 +11,8 @@ import { getBattleHudBridge } from '../../app/bridge/battleHudBridge.js';
 import {
   patchBattleRenderVisual,
   resetBattleRenderBridge,
+  subscribeBattleRenderFrame,
+  getBattleRenderFrame,
   type BattleFighterStance,
 } from '../../app/bridge/battleRenderBridge.js';
 import {
@@ -19,7 +21,10 @@ import {
   type BattleArenaCue,
 } from './BattleArenaCanvas.js';
 import { consumeBattleBackgroundVariant } from './battleBackgroundSession.js';
+import { isPetKindId } from '../../../shared/pet/petCatalog.js';
 import { getGlobalPlayerStore } from '../moveset/globalPlayerStore.js';
+import { getPlayerPetStore } from '../pet/playerPetStore.js';
+import { canPetEnterBattle } from '../../../shared/pet/petModel.js';
 
 export { BattleLog, type BattleLogProps, LOG_COLORS } from './BattleLog.js';
 export { BattleChat, type BattleChatProps, type BattleChatMessage } from './BattleChat.js';
@@ -45,12 +50,35 @@ export type BattleCommandHandlers = {
 let battleLogPanel: BattleLog | null = null;
 let battleChatPanel: BattleChat | null = null;
 let battleArena: BattleArenaCanvas | null = null;
+let unsubBattlePetRender: (() => void) | null = null;
 let teardownCommandBar: (() => void) | null = null;
 let mountedMonsterId: string | null = null;
 let allyBattleStance: BattleFighterStance = 'idle';
 let foeBattleStance: BattleFighterStance = 'idle';
 /** Fundo aplicado nesta batalha — evita consumir o contador em re-render do mesmo mount. */
 let arenaBackgroundApplied = false;
+
+/** Combate primeiro; se o snapshot ainda não tiver pet, usa o convocado da store. */
+export function resolveBattleArenaPetKindId(): string | null {
+  const frame = getBattleRenderFrame();
+  if (frame?.pet.visible && frame.pet.kindId && isPetKindId(frame.pet.kindId)) {
+    return frame.pet.kindId;
+  }
+  const summoned = getPlayerPetStore().getSnapshot();
+  return summoned && canPetEnterBattle(summoned) ? summoned.kindId : null;
+}
+
+function syncArenaPetFromRenderFrame(): void {
+  void battleArena?.bindPet(resolveBattleArenaPetKindId());
+}
+
+function attachArenaPetSync(): void {
+  unsubBattlePetRender?.();
+  if (!battleArena) return;
+  unsubBattlePetRender = subscribeBattleRenderFrame(() => {
+    syncArenaPetFromRenderFrame();
+  });
+}
 
 function publishCurrentBattleRenderFrame(): void {
   patchBattleRenderVisual({
@@ -90,6 +118,7 @@ export function mountBattleScreenView(
   mountedMonsterId = props.monsterId;
 
   if (battleArena) {
+    attachArenaPetSync();
     // Fonte primária: encontro ativo (tem creatureId mesmo se o bicho já saiu do mundo).
     const encounter = getGlobalPlayerStore().getActiveEncounter();
     if (
@@ -101,6 +130,7 @@ export function mountBattleScreenView(
       void battleArena.bindMonster(props.monsterId);
     }
     void battleArena.bindPlayer();
+    syncArenaPetFromRenderFrame();
     if (!arenaBackgroundApplied) {
       const variant = consumeBattleBackgroundVariant();
       void battleArena.applyBackground(variant);
@@ -135,6 +165,7 @@ export function unmountBattleScreenView(root: ParentNode = document): void {
 export function setBattlePortraitStance(
   side: 'ally' | 'foe',
   stance: 'idle' | 'attack',
+  actorId?: string,
 ): void {
   if (side === 'ally') {
     allyBattleStance = stance;
@@ -142,14 +173,16 @@ export function setBattlePortraitStance(
     foeBattleStance = stance;
   }
   publishCurrentBattleRenderFrame();
-  battleArena?.setStance(side, stance);
+  battleArena?.setStance(side, stance, actorId);
 }
 
 export function triggerBattleArenaCue(
   side: 'ally' | 'foe',
   cue: BattleArenaCue,
+  durationMs?: number,
+  actorId?: string,
 ): void {
-  battleArena?.triggerCue(side, cue);
+  battleArena?.triggerCue(side, cue, durationMs, actorId);
 }
 
 export function initBattleScreenUI(
@@ -163,6 +196,8 @@ export function initBattleScreenUI(
 
   return () => {
     unmountBattleScreenView(root);
+    unsubBattlePetRender?.();
+    unsubBattlePetRender = null;
     teardownCommandBar?.();
     teardownCommandBar = null;
     battleChatPanel?.destroy();
@@ -198,6 +233,10 @@ function ensureBattleScreenShell(root: ParentNode): void {
     const canvas = queryBattleArenaCanvas(root);
     if (canvas) {
       battleArena = new BattleArenaCanvas(canvas);
+      battleArena.setOnFoePicked((actorId) => {
+        getBattleHudBridge().selectFoe?.(actorId);
+      });
+      attachArenaPetSync();
     }
   }
 }

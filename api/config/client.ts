@@ -12,6 +12,7 @@ export default function handler(_req: VercelRequest, res: VercelResponse): void 
     ...(env.publicSiteUrl ? { publicSiteUrl: env.publicSiteUrl } : {}),
     serverId: env.serverInstance.id,
     serverName: env.serverInstance.displayName,
+    defaultGameMode: 'online',
   });
   res.setHeader('Cache-Control', 'no-store');
   res.status(200).json(config);

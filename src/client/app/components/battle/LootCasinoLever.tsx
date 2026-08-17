@@ -16,11 +16,24 @@ export type LootCasinoLeverHandle = {
 
 type LootCasinoLeverProps = {
   disabled?: boolean;
+  remainingSpins?: number;
   onPull: () => void;
 };
 
+function leverAriaLabel(remainingSpins: number | undefined): string {
+  if (remainingSpins === undefined) {
+    return 'Puxar alavanca das recompensas';
+  }
+  if (remainingSpins <= 0) {
+    return 'Puxar alavanca das recompensas, nenhum giro restante';
+  }
+  return remainingSpins === 1
+    ? 'Puxar alavanca das recompensas, 1 giro restante'
+    : `Puxar alavanca das recompensas, ${remainingSpins} giros restantes`;
+}
+
 export const LootCasinoLever = forwardRef<LootCasinoLeverHandle, LootCasinoLeverProps>(
-  function LootCasinoLever({ disabled = false, onPull }, ref) {
+  function LootCasinoLever({ disabled = false, remainingSpins, onPull }, ref) {
     const handleRef = useRef<HTMLButtonElement>(null);
     const [pulled, setPulled] = useState(false);
     const [releasing, setReleasing] = useState(false);
@@ -83,13 +96,20 @@ export const LootCasinoLever = forwardRef<LootCasinoLeverHandle, LootCasinoLever
             ref={handleRef}
             type="button"
             className="loot-casino-lever__handle"
-            aria-label="Puxar alavanca do cassino"
+            aria-label={leverAriaLabel(remainingSpins)}
             disabled={disabled}
             onClick={onPull}
           >
             <span className="loot-casino-lever__knob" aria-hidden="true" />
             <span className="loot-casino-lever__arm" aria-hidden="true" />
-            <span className="loot-casino-lever__label">Puxar alavanca</span>
+            <span className="loot-casino-lever__label">
+              Puxar alavanca
+              {remainingSpins !== undefined ? (
+                <span className="loot-casino-lever__count" aria-hidden="true">
+                  {remainingSpins}x
+                </span>
+              ) : null}
+            </span>
           </button>
         </div>
       </div>

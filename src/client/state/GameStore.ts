@@ -377,7 +377,13 @@ class GameStore {
 
     const trimmedItem = itemId.trim();
     const trimmedTarget = targetPlayerId.trim();
-    if (!trimmedItem || !trimmedTarget) {
+    if (
+      !trimmedItem
+      || !trimmedTarget
+      || targetCharacterId === undefined
+      || !Number.isInteger(targetCharacterId)
+      || targetCharacterId < 1
+    ) {
       const message = 'Item ou destinatário inválido.';
       alertSystem(message);
       return { ok: false, message };
@@ -398,7 +404,7 @@ class GameStore {
         itemId: trimmedItem,
         targetPlayerId: trimmedTarget,
         quantity,
-        ...(targetCharacterId !== undefined ? { targetCharacterId } : {}),
+        targetCharacterId,
       },
     });
 

@@ -1,10 +1,10 @@
 /**
  * FLUXO DE DADOS — GiftService
  *
- * UI → GiftService.sendGift(itemId, targetPlayerId)
+ * UI → GiftService.sendGift(itemId, targetPlayerId, targetCharacterId)
  *   → GameStore.sendGift → ActionDispatcher GIFT_TRANSFER (player-intent)
- *   → servidor GiftTransferHandler → Supabase RPC transfer_item
- *   → InventoryUpdated / intent-result (espelho no cliente)
+ *   → GiftTransferHandler → commitAuthoritativeGiftTransfer (economyStore, tx dois lados)
+ *   → InventoryUpdated / intent-result (espelho; sem mutação otimista)
  */
 
 import { getGameStore } from '../../state/GameStore.js';
@@ -14,7 +14,7 @@ export type GiftSendPayload = {
   readonly targetPlayerId: string;
   readonly quantity?: number;
   readonly characterId?: number;
-  readonly targetCharacterId?: number;
+  readonly targetCharacterId: number;
 };
 
 export async function sendGift(payload: GiftSendPayload): Promise<{ ok: boolean; message?: string }> {

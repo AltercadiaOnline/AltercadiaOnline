@@ -221,7 +221,6 @@ export function resetBattleRenderBridge(): void {
   latestFrame = null;
   latestCombat = null;
   hpOverlay = { ally: null, foe: null };
-  listeners.clear();
   visualState = {
     monsterId: null,
     allyStance: 'idle',

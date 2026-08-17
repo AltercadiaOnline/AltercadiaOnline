@@ -23,6 +23,9 @@ import type { ClassType } from '../../shared/types/classes.js';
 import { getPetAffinityRecord } from '../../Economy/petAffinityStore.js';
 import { getPetRosterSnapshot } from '../../Economy/petRosterStore.js';
 import { getOwnedSkinsRecord } from '../../Economy/skinOwnershipStore.js';
+import { exportMercenaryQuestPersistence } from '../quests/mercenaryQuestStore.js';
+import { exportFriendListPersistence } from '../social/friendListStore.js';
+import { getWorldGameState } from '../world/WorldGameState.js';
 import {
   exportCharacterEconomyPersistence,
   getPlayerWallet,
@@ -35,6 +38,7 @@ import {
   getDefaultClassActiveLoadout,
   normalizeClassActiveLoadout,
 } from '../../shared/combat/movesetLoadout.js';
+import { sanitizeSprayLegacyMessage } from '../../shared/social/spraySocialTypes.js';
 
 /** Monta payload `full-state-sync` a partir do estado autoritativo em memória. */
 export function buildAuthoritativePlayerSnapshot(
@@ -130,6 +134,7 @@ export function buildAuthoritativePlayerSnapshot(
       ...(progressionState.characterProfile.displayName
         ? { displayName: progressionState.characterProfile.displayName }
         : {}),
+      legacyMessage: sanitizeSprayLegacyMessage(progressionState.characterProfile.legacyMessage),
     },
     activeMovesets,
     petRoster: {
@@ -143,6 +148,11 @@ export function buildAuthoritativePlayerSnapshot(
     ownedSkins: getOwnedSkinsRecord(playerId, characterId),
     gameTime: getTimeManager().getGameTimeSeconds(),
     gameTimeServerMs: revision,
+    mercenaryQuests: exportMercenaryQuestPersistence(playerId, characterId),
+    friends: exportFriendListPersistence(playerId, characterId).map((entry) => ({
+      ...entry,
+      online: Boolean(getWorldGameState().getByPlayer(entry.playerId, entry.characterId)),
+    })),
   };
 }
 

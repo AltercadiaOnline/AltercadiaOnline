@@ -381,8 +381,10 @@ export function useBankPanelState() {
     };
   }, [resolvedStaged]);
 
-  const showItemTooltip = useCallback((event: React.MouseEvent, itemId: string) => {
-    emitItemTooltip(itemId, event.clientX, event.clientY);
+  const showItemTooltip = useCallback((event: React.MouseEvent, itemId: string, charges?: number) => {
+    emitItemTooltip(itemId, event.clientX, event.clientY, {
+      ...(charges !== undefined ? { chargesCurrent: charges } : {}),
+    });
   }, []);
 
   const hideTooltip = useCallback(() => {

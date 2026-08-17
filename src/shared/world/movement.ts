@@ -37,8 +37,12 @@ function isInsideMapPixelBounds(mapData: number[][], position: WorldPosition): b
   return position.x >= 0 && position.y >= 0 && position.x < maxX && position.y < maxY;
 }
 
-/** Multiplicador da velocidade base de locomoção (×0.7 — ~30% mais lento p/ gameplay). */
-export const PLAYER_BASE_MOVE_SPEED_MULTIPLIER = 1.3 * 1.35 * 1.25 * 0.7;
+/** Ajuste global de locomoção no mapa. 0.82 = 18% mais lento que o passo anterior. */
+export const PLAYER_WORLD_MOVE_SPEED_SCALE = 0.82;
+
+/** Multiplicador da velocidade base de locomoção (×0.7 histórico × scale atual). */
+export const PLAYER_BASE_MOVE_SPEED_MULTIPLIER =
+  1.3 * 1.35 * 1.25 * 0.7 * PLAYER_WORLD_MOVE_SPEED_SCALE;
 
 /** Tempo alvo para cruzar 1 tile (64px) — derivado do multiplicador acima. */
 export const PLAYER_TILE_CROSS_SECONDS = 0.5 / PLAYER_BASE_MOVE_SPEED_MULTIPLIER;

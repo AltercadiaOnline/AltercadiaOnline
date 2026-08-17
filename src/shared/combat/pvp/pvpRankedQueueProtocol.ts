@@ -42,6 +42,7 @@ export type PvpRankedQueueErrorCode =
   | 'NOT_IN_QUEUE'
   | 'EXCLUSIVE_LOCKED'
   | 'INVALID_STATION'
+  | 'NOT_NEAR_STATION'
   | 'PLAYER_BUSY'
   | 'MATCH_START_FAILED';
 

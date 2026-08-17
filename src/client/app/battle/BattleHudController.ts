@@ -85,12 +85,22 @@ export class BattleHudController {
     player: BattleHudFighterSnapshot | null,
     opponent: BattleHudFighterSnapshot | null,
     pet: BattleHudPetSnapshot,
+    opponents?: readonly BattleHudFighterSnapshot[],
   ): void {
-    useBattleHudStore.getState().setVitals(player, opponent, pet);
+    useBattleHudStore.getState().setVitals?.(player, opponent, pet, opponents);
   }
 
-  patchFighterHp(side: 'player' | 'opponent' | 'pet', hp: number, maxHp: number): void {
-    useBattleHudStore.getState().patchFighterHp(side, hp, maxHp);
+  selectFoe(actorId: string | null): void {
+    useBattleHudStore.getState().selectFoe?.(actorId);
+  }
+
+  patchFighterHp(
+    side: 'player' | 'opponent' | 'pet',
+    hp: number,
+    maxHp: number,
+    actorId?: string,
+  ): void {
+    useBattleHudStore.getState().patchFighterHp(side, hp, maxHp, actorId);
   }
 
   setTurnTimer(timer: BattleHudTurnTimerSnapshot): void {

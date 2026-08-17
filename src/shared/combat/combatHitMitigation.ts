@@ -3,6 +3,7 @@
 export type CombatHitMitigationSnapshot = {
   readonly vulnerableApplied?: boolean;
   readonly isCritical?: boolean;
+  readonly critBonusPercent?: number;
   readonly minDamageFloorApplied?: boolean;
   /** Dano após fórmula (crit/vuln/mín.), antes de escudo e redução %. */
   readonly damageBeforeMitigation?: number;
@@ -12,6 +13,7 @@ export type CombatHitMitigationSnapshot = {
 
 export type CombatHitMitigationPayloadFields = {
   readonly isCritical?: boolean;
+  readonly critBonusPercent?: number;
   readonly vulnerableApplied?: boolean;
   readonly minDamageFloorApplied?: boolean;
   readonly damageBeforeMitigation?: number;
@@ -25,6 +27,9 @@ export function pickCombatHitMitigation(
   const snapshot: CombatHitMitigationSnapshot = {
     ...(payload.vulnerableApplied ? { vulnerableApplied: true } : {}),
     ...(payload.isCritical ? { isCritical: true } : {}),
+    ...(payload.critBonusPercent !== undefined && payload.critBonusPercent > 0
+      ? { critBonusPercent: Math.round(payload.critBonusPercent) }
+      : {}),
     ...(payload.minDamageFloorApplied ? { minDamageFloorApplied: true } : {}),
     ...(payload.damageBeforeMitigation !== undefined
       ? { damageBeforeMitigation: payload.damageBeforeMitigation }
@@ -49,7 +54,10 @@ export function formatCombatHitMitigationSteps(
 
   const steps: string[] = [];
   if (mitigation.vulnerableApplied) steps.push('Vulnerável +20%');
-  if (mitigation.isCritical) steps.push('Crítico');
+  if (mitigation.isCritical) {
+    const pct = mitigation.critBonusPercent;
+    steps.push(pct !== undefined && pct > 0 ? `Crítico +${Math.round(pct)}%` : 'Crítico');
+  }
   if (mitigation.minDamageFloorApplied && baseNet <= 0) steps.push('Mín. 1');
   if (mitigation.shieldAbsorbed !== undefined && mitigation.shieldAbsorbed > 0) {
     steps.push(`Escudo −${Math.round(mitigation.shieldAbsorbed)}`);

@@ -256,6 +256,10 @@ export const LOOT_ECONOMY_REGISTRY: Record<string, LootEconomyMeta> = {
 
   livro_sorte: { valorBase: 480, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
 
+  livro_critico: { valorBase: 460, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
+  livro_forca: { valorBase: 500, lootKind: ItemLootKind.DirectValue, lootRarity: LootRarity.Rare },
+
 };
 
 

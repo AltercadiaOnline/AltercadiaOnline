@@ -1,4 +1,4 @@
-import type { BattleEndedPayload } from '../../../shared/combat/battleEnded.js';
+import type { BattleEndedPayload, BattleEndReason } from '../../../shared/combat/battleEnded.js';
 import type { CombatFinishedPayload } from '../../../shared/combat/combatFinished.js';
 import type { CombatDispatchPayload } from '../../../shared/combatWire.js';
 import { CombatEventType } from '../../../shared/events.js';
@@ -9,6 +9,7 @@ import {
   BattleType,
   type BattleRankingResult,
 } from '../../../shared/combat/battleType.js';
+import { COMBAT_POST_BATTLE_HUB_WAIT_MS } from '../../../shared/combat/combatSequenceConstants.js';
 import {
   buildEmptyLootRevealSlots,
   type LootRevealSlot,
@@ -29,14 +30,22 @@ function pickAuthoritativeLootReveal(
 
 /**
  * Pipeline de fim de batalha (ordem obrigatória):
- * 1. `combat-event` → CombatSequenceManager.pushAll (animações + consume por evento)
- * 2. Fila idle → HUD central (Vitória/Derrota) — nunca antes do passo 1
- * 3. Hub na arena (Estatísticas / Recompensas / Tela de batalha / Mundo top-down)
- * 4. Só "Voltar pro mundo top-down" → completeBattleExit
+ * 1. `combat-event` → playback (animações + consume por evento)
+ * 2. Hold do hit final na arena + mini HUD "Finalizar" (estudo)
+ * 3. Só após confirmar → HUD central (Vitória/Derrota)
+ * 4. Hub (Estatísticas / Recompensas / Saída)
+ * 5. Só "Saída" → completeBattleExit
  *
  * BATTLE_ENDED só enriquece loot/endReason; não deve abrir HUD nem limpar a fila.
  */
 export const COMBAT_PLAYBACK_FINISH_TIMEOUT_MS = 12_000;
+
+/** Pausa após o último hit para o jogador ver a pose final antes do botão Finalizar. */
+export const BATTLE_FINISH_STUDY_HOLD_MS = COMBAT_POST_BATTLE_HUB_WAIT_MS;
+
+export function shouldSkipBattleFinishStudy(endReason?: BattleEndReason): boolean {
+  return endReason === 'FORFEIT';
+}
 
 /** Fallback: só após playback — se o hub não montar (ms). */
 export const POST_BATTLE_HUB_GUARD_MS = 12_000;

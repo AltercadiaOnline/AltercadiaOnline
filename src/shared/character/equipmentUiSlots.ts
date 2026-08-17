@@ -93,6 +93,20 @@ export function equipmentUiGridToEquipped(slots: EquipmentUiGridState): Equipped
   };
 }
 
+/** Todos os itens visíveis no SET — o snapshot `equipped` descarta o 2º anel/calça/amuleto. */
+export function listEquipmentUiGridItemIds(
+  slots: EquipmentUiGridState,
+): readonly string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const itemId of Object.values(slots)) {
+    if (!itemId || seen.has(itemId)) continue;
+    seen.add(itemId);
+    ids.push(itemId);
+  }
+  return ids;
+}
+
 /** Hidrata a grade UI a partir do equipamento autoritativo. */
 export function equippedToEquipmentUiGrid(equipped: EquippedSlots): EquipmentUiGridState {
   const slots = createEmptyEquipmentUiGrid();

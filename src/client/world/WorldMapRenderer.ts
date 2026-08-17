@@ -17,6 +17,7 @@ export type WorldMapRendererOptions = {
   readonly inputSurface: HTMLElement;
   readonly camera: Camera;
   readonly onWorldClick?: (screenX: number, screenY: number, options?: WorldMapClickOptions) => void;
+  readonly onWorldContextMenu?: (screenX: number, screenY: number, clientX: number, clientY: number) => void;
 };
 
 const CLICK_DRAG_THRESHOLD_PX = 5;
@@ -36,6 +37,7 @@ export class WorldMapRenderer implements Disposable {
   private readonly inputSurface: HTMLElement;
   private readonly camera: Camera;
   private readonly onWorldClick: ((screenX: number, screenY: number, options?: WorldMapClickOptions) => void) | undefined;
+  private readonly onWorldContextMenu: ((screenX: number, screenY: number, clientX: number, clientY: number) => void) | undefined;
   private layout: MapVisualLayout;
 
   private pointerDown = false;
@@ -52,6 +54,7 @@ export class WorldMapRenderer implements Disposable {
     this.inputSurface = options.inputSurface;
     this.camera = options.camera;
     this.onWorldClick = options.onWorldClick;
+    this.onWorldContextMenu = options.onWorldContextMenu;
     this.layout = buildMapVisualLayout('city_01');
     this.bindInput();
   }
@@ -113,6 +116,7 @@ export class WorldMapRenderer implements Disposable {
     this.inputSurface.addEventListener('mouseleave', this.onPointerLeave);
     this.inputSurface.addEventListener('selectstart', this.onSelectStart);
     this.inputSurface.addEventListener('dblclick', this.onNativeDoubleClick);
+    this.inputSurface.addEventListener('contextmenu', this.onContextMenu);
   }
 
   public dispose(): void {
@@ -124,6 +128,7 @@ export class WorldMapRenderer implements Disposable {
     this.inputSurface.removeEventListener('mouseleave', this.onPointerLeave);
     this.inputSurface.removeEventListener('selectstart', this.onSelectStart);
     this.inputSurface.removeEventListener('dblclick', this.onNativeDoubleClick);
+    this.inputSurface.removeEventListener('contextmenu', this.onContextMenu);
   }
 
   private readonly onSelectStart = (event: Event): void => {
@@ -132,6 +137,13 @@ export class WorldMapRenderer implements Disposable {
 
   private readonly onNativeDoubleClick = (event: MouseEvent): void => {
     event.preventDefault();
+  };
+
+  private readonly onContextMenu = (event: MouseEvent): void => {
+    event.preventDefault();
+    const buffer = mapPointerToRenderBuffer(this.inputSurface, event.clientX, event.clientY);
+    const viewport = this.clampToViewport(buffer.x, buffer.y);
+    this.onWorldContextMenu?.(viewport.x, viewport.y, event.clientX, event.clientY);
   };
 
   private readonly onPointerDown = (event: MouseEvent): void => {

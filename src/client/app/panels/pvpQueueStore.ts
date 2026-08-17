@@ -73,6 +73,7 @@ class PvpQueueStore {
   private readonly matchListeners = new Set<(snapshot: PvpQueueSnapshot) => void>();
   private readonly cancelListeners = new Set<() => void>();
   private localPlayerId: string | null = null;
+  private localCharacterId: number | null = null;
   private lastMatchIdSeen: string | null = null;
 
   getSnapshot(): PvpQueueSnapshot {
@@ -84,14 +85,27 @@ class PvpQueueStore {
     return () => this.listeners.delete(listener);
   }
 
-  setLocalPlayerId(playerId: string): void {
+  setLocalPlayerId(playerId: string, characterId?: number): void {
     this.localPlayerId = playerId;
+    if (characterId !== undefined) this.localCharacterId = characterId;
+  }
+
+  private isLocalSlot(playerId: string, characterId?: number): boolean {
+    if (this.localPlayerId === null || playerId !== this.localPlayerId) return false;
+    if (this.localCharacterId !== null && characterId !== undefined) {
+      return characterId === this.localCharacterId;
+    }
+    return true;
   }
 
   /** Online: aplica snapshot do servidor (fonte da verdade). */
-  applyAuthoritativeSnapshot(wire: WireSnapshot, localPlayerId?: string): void {
+  applyAuthoritativeSnapshot(
+    wire: WireSnapshot,
+    localPlayerId?: string,
+    localCharacterId?: number,
+  ): void {
     if (localPlayerId) this.localPlayerId = localPlayerId;
-    const localId = this.localPlayerId;
+    if (localCharacterId !== undefined) this.localCharacterId = localCharacterId;
 
     const slots: PvpQueueSnapshot['slots'] = [
       wire.slots[0]
@@ -100,7 +114,7 @@ class PvpQueueStore {
             characterId: wire.slots[0].characterId,
             displayName: wire.slots[0].displayName,
             ready: wire.slots[0].ready,
-            isLocal: localId !== null && wire.slots[0].playerId === localId,
+            isLocal: this.isLocalSlot(wire.slots[0].playerId, wire.slots[0].characterId),
             skinBundleId: wire.slots[0].skinBundleId,
           }
         : null,
@@ -110,7 +124,7 @@ class PvpQueueStore {
             characterId: wire.slots[1].characterId,
             displayName: wire.slots[1].displayName,
             ready: wire.slots[1].ready,
-            isLocal: localId !== null && wire.slots[1].playerId === localId,
+            isLocal: this.isLocalSlot(wire.slots[1].playerId, wire.slots[1].characterId),
             skinBundleId: wire.slots[1].skinBundleId,
           }
         : null,

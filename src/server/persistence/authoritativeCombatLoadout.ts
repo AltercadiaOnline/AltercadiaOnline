@@ -1,5 +1,8 @@
 import type { PlayerCombatLoadout } from '../../shared/character/equipmentState.js';
-import { equipmentUiGridToEquipped } from '../../shared/character/equipmentUiSlots.js';
+import {
+  equipmentUiGridToEquipped,
+  listEquipmentUiGridItemIds,
+} from '../../shared/character/equipmentUiSlots.js';
 import {
   getDefaultClassActiveLoadout,
   normalizeClassActiveLoadout,
@@ -48,6 +51,7 @@ export function resolveAuthoritativeCombatLoadout(
       byNodeId: { ...authoritativeMarcos.nodeProgression.byNodeId },
     },
     equipped,
+    equippedItemIds: listEquipmentUiGridItemIds(playerLoadout.equipmentUiGrid),
     inventory: economy.profile.inventory.map((row) => ({ ...row })),
     activeBookBuff: economy.profile.activeBookBuff,
     equippedSkillIds: [...normalizedMoves],

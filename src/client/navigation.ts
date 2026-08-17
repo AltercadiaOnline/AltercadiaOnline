@@ -6,6 +6,7 @@ import {
   syncReactHudVisibility,
 } from './app/shell/clientArchitecture.js';
 import { useGameStore } from './app/store/gameStore.js';
+import { getAudioManager } from './audio/AudioManager.js';
 
 export function syncAppPath(pathname: string): void {
   if (typeof window === 'undefined') return;
@@ -34,6 +35,7 @@ export function showScreen(screenId: string): void {
   }
 
   getAppScreenBridge().setActiveScreen(screenId);
+  getAudioManager().syncToScreen(screenId);
   // Direto no singleton — não depende só do subscribe da bridge (HUD já montada no boot).
   const inGame = screenId === 'game-container';
   useGameStore.getState().setInGame(inGame);

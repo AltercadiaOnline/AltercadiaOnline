@@ -5,21 +5,36 @@ type BattleFighterHudProps = {
   side: 'ally' | 'foe';
   fighter: BattleHudFighterSnapshot | null;
   ariaLabel: string;
+  compact?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 };
 
-export function BattleFighterHud({ side, fighter, ariaLabel }: BattleFighterHudProps) {
+export function BattleFighterHud({
+  side,
+  fighter,
+  ariaLabel,
+  compact = false,
+  selected = false,
+  onSelect,
+}: BattleFighterHudProps) {
   const headerClass = side === 'ally'
     ? 'battle-sprite-hud battle-sprite-hud--ally'
     : [
       'battle-sprite-hud',
       'battle-sprite-hud--foe',
+      compact ? 'battle-sprite-hud--foe-compact' : '',
+      selected ? 'battle-sprite-hud--foe-selected' : '',
+      onSelect ? 'battle-sprite-hud--foe-selectable' : '',
+      side === 'foe' && fighter && fighter.hp <= 0 ? 'battle-sprite-hud--foe-down' : '',
       fighter?.isMirrorBot ? 'battle-sprite-hud--mirror-bot' : '',
     ].filter(Boolean).join(' ');
 
   const hpBarClass = side === 'foe' ? 'battle-hp-bar battle-hp-bar--enemy' : 'battle-hp-bar';
+  const interactive = Boolean(onSelect);
 
-  return (
-    <header className={headerClass} aria-label={ariaLabel}>
+  const body = (
+    <>
       <p className="battle-fighter-name">
         {fighter?.name ?? '—'}
         {fighter?.isMirrorBot ? (
@@ -32,7 +47,9 @@ export function BattleFighterHud({ side, fighter, ariaLabel }: BattleFighterHudP
           </span>
         ) : null}
       </p>
-      <p className="battle-fighter-class">{fighter?.classLabel ?? '—'}</p>
+      {compact ? null : (
+        <p className="battle-fighter-class">{fighter?.classLabel ?? '—'}</p>
+      )}
       <div className={hpBarClass} role="progressbar" aria-label={`HP ${ariaLabel}`}>
         <div
           className="battle-hp-bar__fill"
@@ -40,9 +57,33 @@ export function BattleFighterHud({ side, fighter, ariaLabel }: BattleFighterHudP
         />
       </div>
       <p className="battle-hp-text">
-        {fighter ? `${Math.max(0, Math.ceil(fighter.hp))} / ${fighter.maxHp}` : '— / —'}
+        {fighter
+          ? fighter.hp <= 0 && side === 'foe'
+            ? 'Derrotado'
+            : `${Math.max(0, Math.ceil(fighter.hp))} / ${fighter.maxHp}`
+          : '— / —'}
       </p>
-      <BattleStatusChips statuses={fighter?.statuses ?? []} />
+      {compact ? null : <BattleStatusChips statuses={fighter?.statuses ?? []} />}
+    </>
+  );
+
+  if (interactive) {
+    return (
+      <button
+        type="button"
+        className={headerClass}
+        aria-label={ariaLabel}
+        aria-pressed={selected}
+        onClick={onSelect}
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return (
+    <header className={headerClass} aria-label={ariaLabel}>
+      {body}
     </header>
   );
 }

@@ -14,6 +14,7 @@ import { handleGiftTransferRoute } from './giftTransferRoute.js';
 import { handlePlayerSnapshotRoute } from './playerSnapshotRoute.js';
 import { handleCharacterHubRoute } from './characterHubRoute.js';
 import { handleServerListRoute } from './serverListRoute.js';
+import { handleLeaderboardRoute } from './leaderboardRoute.js';
 import { tryGetServerInstanceContext } from '../instance/ServerInstanceContext.js';
 import { getActivePersistenceStorage } from '../persistence/storage/persistenceStorageRegistry.js';
 import { resolveSupabaseAdminCredentials } from '../supabase/supabaseAdmin.js';
@@ -34,6 +35,11 @@ const MIME: Record<string, string> = {
   '.png': 'image/png',
   '.webp': 'image/webp',
   '.gif': 'image/gif',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.webm': 'audio/webm',
 };
 
 function isCompiledBrowserAsset(relative: string): boolean {
@@ -408,6 +414,10 @@ export function createStaticRequestListener(options: StaticServerOptions): Stati
       }
 
       if (await handleServerListRoute(req, res, url, options.serverEnv)) {
+        return;
+      }
+
+      if (await handleLeaderboardRoute(req, res, url)) {
         return;
       }
 

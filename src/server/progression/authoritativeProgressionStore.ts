@@ -19,6 +19,18 @@ type AuthoritativeProgressionEntry = {
 
 const entries = new Map<string, AuthoritativeProgressionEntry>();
 
+type ProgressionSyncHook = (playerId: string, characterId: number) => void;
+let afterProgressionSync: ProgressionSyncHook | null = null;
+
+/** Node registra o índice de leaderboard — browser local não persiste o board HTTP. */
+export function setAuthoritativeProgressionSyncHook(hook: ProgressionSyncHook | null): void {
+  afterProgressionSync = hook;
+}
+
+function notifyProgressionSync(playerId: string, characterId: number): void {
+  afterProgressionSync?.(playerId, characterId);
+}
+
 function defaultEntry(): AuthoritativeProgressionEntry {
   return {
     progression: createDefaultPlayerProgressionData(),
@@ -112,6 +124,7 @@ export function loadAuthoritativeProgression(
       characterProfile: { ...data.characterProfile },
     }),
   );
+  notifyProgressionSync(playerId, characterId);
 }
 
 export function patchAuthoritativeProgression(
@@ -149,6 +162,7 @@ export function patchAuthoritativeProgression(
     }),
   );
   markCharacterPersistenceDirty(playerId, characterId, 'progression');
+  notifyProgressionSync(playerId, characterId);
 }
 
 export function resetAuthoritativeProgressionStore(): void {

@@ -33,6 +33,7 @@ export function buildPvpDuelistCombatant(entry: PvpDuelistRegistryEntry): Combat
     hpCurrent: maxHp,
     hpMax: maxHp,
     classId: entry.classId,
+    level: entry.level,
     combatRole: 'PLAYER',
     speedProfile: {
       flowSpeedBase: 32,

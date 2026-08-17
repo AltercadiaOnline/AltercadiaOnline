@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ItemBuffType } from '../items/itemTypes.js';
 import { buildAttackBreakdownLines, buildDefenseBreakdownLines } from './buildCombatBreakdownLines.js';
-import { sumAttackBreakdownTotal, sumDefenseBreakdownTotal } from './combatBreakdownBuilder.js';
-import type { CombatStatSources } from '../types.js';
+import {
+  buildDefenseBreakdown,
+  sumAttackBreakdownTotal,
+  sumDefenseBreakdownTotal,
+} from './combatBreakdownBuilder.js';
+import { calculateDamage } from './calculateDamage.js';
+import { resolveCombatLoadout } from './combatLoadoutResolver.js';
+import { emptyMarcosNodeProgression } from '../progression/marcoProgression.js';
+import type { Combatant, CombatStatSources } from '../types.js';
 
 function minimalSources(patch: Partial<CombatStatSources> = {}): CombatStatSources {
   return {
@@ -36,13 +43,17 @@ describe('buildDefenseBreakdownLines', () => {
     expect(sumDefenseBreakdownTotal(breakdown)).toBe(classDef);
   });
 
-  it('marco defense percent still adds to defense total', () => {
-    const classDef = 10;
+  it('DEF% do SET aplica sobre o golpe recebido, não só a defesa de classe', () => {
+    const classDef = 2;
+    const incomingStrike = 40;
     const breakdown = buildDefenseBreakdownLines(
-      minimalSources({ defenseMarcosPercent: 20 }),
+      minimalSources({
+        equipByBuff: { [ItemBuffType.Defense]: 15 },
+      }),
       classDef,
+      incomingStrike,
     );
-    expect(sumDefenseBreakdownTotal(breakdown)).toBe(classDef + 2);
+    expect(sumDefenseBreakdownTotal(breakdown)).toBe(classDef + Math.floor(incomingStrike * 15 / 100));
   });
 });
 
@@ -96,5 +107,65 @@ describe('buildAttackBreakdownLines', () => {
     );
     expect(breakdown.lines.some((line) => line.source === 'equip' && line.value > 0)).toBe(true);
     expect(breakdown.lines.some((line) => line.source === 'amuleto' && line.value > 0)).toBe(true);
+  });
+});
+
+describe('SET DEF no golpe recebido', () => {
+  const emptyCombatant = (patch: Partial<Combatant>): Combatant => ({
+    id: 'player',
+    name: 'Operative',
+    hp: 100,
+    maxHp: 100,
+    classId: 'COGITOR',
+    skills: [],
+    statusEffects: [],
+    activeStatuses: [],
+    activeShields: [],
+    temporaryModifiers: [],
+    lockedSkillIds: [],
+    ...patch,
+  });
+
+  it('10% DEF do SET reduz o golpe mesmo com maps vazios (só combatStats)', () => {
+    const incomingStrike = 23;
+    const defender = emptyCombatant({
+      combatStats: { defensePercent: 10 },
+    });
+    const breakdown = buildDefenseBreakdown(defender, null, incomingStrike);
+    expect(sumDefenseBreakdownTotal(breakdown)).toBe(3 + Math.floor(incomingStrike * 10 / 100));
+  });
+
+  it('Rato vs COGITOR: Armadura de Trilhos corta o dano em relação ao nu', () => {
+    const resolved = resolveCombatLoadout({
+      classId: 'COGITOR',
+      level: 1,
+      equippedSkillIds: ['COG_1', 'COG_2', 'COG_3', 'COG_4'],
+      activeMarcos: [],
+      nodeProgression: emptyMarcosNodeProgression(),
+      flowSpeedBase: 35,
+      equipped: { top: 'rail_armor' },
+    });
+    const rat: Combatant = {
+      id: 'enemy_rat',
+      name: 'Rato',
+      hp: 70,
+      maxHp: 70,
+      baseAttack: 11,
+      skills: [{ id: 'rat_bite', name: 'Mordida', damage: 12, cooldown: 1 }],
+      statusEffects: [],
+      activeStatuses: [],
+      activeShields: [],
+      temporaryModifiers: [],
+      lockedSkillIds: [],
+    };
+    const withGear = emptyCombatant({
+      combatStats: resolved.combatStats,
+      combatStatSources: resolved.combatStatSources,
+    });
+    const naked = emptyCombatant({});
+    const geared = calculateDamage(rat, withGear, { id: 'rat_bite', power: 12 });
+    const bare = calculateDamage(rat, naked, { id: 'rat_bite', power: 12 });
+    expect(geared.finalDamage).toBeLessThan(bare.finalDamage);
+    expect(geared.finalDamage).toBe(bare.finalDamage - Math.floor(23 * 10 / 100));
   });
 });

@@ -20,6 +20,8 @@ import { loadCombatBalanceConfig } from '../../engine/combatBalanceConfig.js';
 import { validateCombatActionAgainstPersistence } from '../combatActionIntentGateway.js';
 import {
   cloneManifest,
+  isPersistentImpactCritBonus,
+  peekRuneCharge,
   remainingRuneCharges,
   resolveSkillRuneTrigger,
   tryConsumeRuneCharge,
@@ -57,11 +59,16 @@ export type RankedPvpCombatSessionOptions = {
   readonly peerB: RankedPvpPeer;
   readonly ruleManifest?: CombatRuleManifest;
   readonly firstActorId: string;
+  /** false = duelo social (sem rating). Default rankeado. */
+  readonly appliesRankedRating?: boolean;
+  readonly casualInviteId?: string;
 };
 
 export class RankedPvpCombatSession {
   private readonly gateway: CombatGateway;
   private readonly matchId: string;
+  private readonly appliesRankedRatingFlag: boolean;
+  private readonly casualInviteIdValue: string | null;
   private readonly peersByConnection = new Map<string, RankedPvpPeer>();
   private readonly peersByActor = new Map<string, RankedPvpPeer>();
   private readonly ruleManifest: MutableCombatRuleManifest;
@@ -77,6 +84,8 @@ export class RankedPvpCombatSession {
 
   constructor(initial: CombatState, options: RankedPvpCombatSessionOptions) {
     this.matchId = options.matchId;
+    this.appliesRankedRatingFlag = options.appliesRankedRating !== false;
+    this.casualInviteIdValue = options.casualInviteId ?? null;
     this.peersByConnection.set(options.peerA.connectionId, options.peerA);
     this.peersByConnection.set(options.peerB.connectionId, options.peerB);
     this.peersByActor.set(options.peerA.actorId, options.peerA);
@@ -93,6 +102,14 @@ export class RankedPvpCombatSession {
 
   getMatchId(): string {
     return this.matchId;
+  }
+
+  appliesRankedRating(): boolean {
+    return this.appliesRankedRatingFlag;
+  }
+
+  getCasualInviteId(): string | null {
+    return this.casualInviteIdValue;
   }
 
   getBattleId(): string {
@@ -273,6 +290,11 @@ export class RankedPvpCombatSession {
   ): { action: ResolvedCombatAction; events: CombatEvent[] } {
     const trigger = resolveSkillRuneTrigger(action.skillId);
     if (!trigger) return { action, events: [] };
+    const pending = peekRuneCharge(this.ruleManifest, trigger);
+    if (!pending) return { action, events: [] };
+    if (isPersistentImpactCritBonus(pending)) {
+      return { action, events: [] };
+    }
     const entry = tryConsumeRuneCharge(this.ruleManifest, trigger);
     if (!entry) return { action, events: [] };
 

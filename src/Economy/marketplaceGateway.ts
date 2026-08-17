@@ -1,8 +1,13 @@
 import { globalEventBus } from './EventBus.js';
 import { EconomyEventType } from '../shared/economy/events.js';
-import { buildSeedMarketOffers, type MarketOfferRow } from '../shared/economy/marketplaceOrderBook.js';
+import {
+  composeMarketplaceOffers,
+  filterMarketplaceOffersByItem,
+  type MarketplaceOrderBookSnapshot,
+} from '../shared/economy/marketplaceOrderBook.js';
 import { formatVolts } from '../shared/economy/premiumCurrency.js';
 import { isMarketplaceListableItem } from '../shared/economy/itemValorEconomy.js';
+import { resolveAvailableStackQuantity } from '../shared/bank/inventoryLockOps.js';
 import { validateSoulboundRetention } from '../shared/economy/soulboundInventoryPolicy.js';
 import { resolveMarketplaceNetFromGross } from '../shared/economy/marketplaceEconomy.js';
 import { equippedToEquipmentUiGrid } from '../shared/character/equipmentUiSlots.js';
@@ -24,6 +29,7 @@ import {
   unregisterGlobalMarketListing,
   getGlobalMarketListing,
 } from './globalMarketplaceStore.js';
+import { listMarketplaceStallsOnline } from './marketplaceStallPresence.js';
 import {
   addMarketplaceBuyOrder,
   addMarketplaceListing,
@@ -33,6 +39,11 @@ import {
   getMarketplaceBuyOrders,
   getMarketplaceListings,
   markMarketplaceListingSold,
+  peekMarketplaceBuyOrder,
+  peekMarketplaceListing,
+  restoreMarketplaceBuyOrderRecord,
+  restoreMarketplaceListingListed,
+  restoreMarketplaceListingRecord,
   type MarketplaceBuyOrderRecord,
   type MarketplaceListingRecord,
 } from './marketplaceStore.js';
@@ -53,51 +64,29 @@ export type MarketplacePurchaseResult =
 function buildMarketOffers(
   playerId: string,
   characterId: number,
-): readonly MarketOfferRow[] {
-  const sellOffers: MarketOfferRow[] = getMarketplaceListings(playerId, characterId)
-    .filter((entry) => entry.status === 'LISTED')
-    .map((listing) => ({
-      id: `own_sell_${listing.id}`,
-      itemId: listing.itemId,
-      displayName: 'Você',
-      quantity: listing.quantity,
-      unitPriceVolts: listing.unitPriceVolts,
-      totalPriceVolts: listing.totalPriceVolts,
-      side: 'sell' as const,
-      anonymous: listing.anonymous ?? false,
-      isOwn: true,
-    }));
+  itemId?: string | null,
+): MarketplaceOrderBookSnapshot['offers'] {
+  const offers = composeMarketplaceOffers({
+    viewerPlayerId: playerId,
+    viewerCharacterId: characterId,
+    globalListings: listGlobalMarketListings(),
+    ownListings: getMarketplaceListings(playerId, characterId),
+    ownBuyOrders: getMarketplaceBuyOrders(playerId, characterId),
+  });
+  return filterMarketplaceOffersByItem(offers, itemId);
+}
 
-  const peerSellOffers: MarketOfferRow[] = listGlobalMarketListings()
-    .filter((listing) => (
-      listing.sellerPlayerId !== playerId || listing.sellerCharacterId !== characterId
-    ))
-    .map((listing) => ({
-      id: `p2p_sell_${listing.id}`,
-      itemId: listing.itemId,
-      displayName: listing.anonymous ? 'Anônimo' : 'Mercador',
-      quantity: listing.quantity,
-      unitPriceVolts: listing.unitPriceVolts,
-      totalPriceVolts: listing.totalPriceVolts,
-      side: 'sell' as const,
-      anonymous: listing.anonymous ?? false,
-      isOwn: false,
-    }));
-
-  const buyOffers: MarketOfferRow[] = getMarketplaceBuyOrders(playerId, characterId)
-    .map((order) => ({
-      id: `own_buy_${order.id}`,
-      itemId: order.itemId,
-      displayName: 'Você',
-      quantity: order.quantity,
-      unitPriceVolts: order.unitPriceVolts,
-      totalPriceVolts: order.totalPriceVolts,
-      side: 'buy' as const,
-      anonymous: order.anonymous,
-      isOwn: true,
-    }));
-
-  return [...buildSeedMarketOffers(), ...peerSellOffers, ...sellOffers, ...buyOffers];
+export function buildMarketplaceOrderBookSnapshot(
+  playerId: string,
+  characterId: number,
+  itemId?: string | null,
+): MarketplaceOrderBookSnapshot {
+  return {
+    offers: buildMarketOffers(playerId, characterId, itemId),
+    ownListings: getMarketplaceListings(playerId, characterId),
+    ownBuyOrders: getMarketplaceBuyOrders(playerId, characterId),
+    itemId: itemId ?? null,
+  };
 }
 function emitMarketplaceUpdated(
   playerId: string,
@@ -105,14 +94,15 @@ function emitMarketplaceUpdated(
   options?: { readonly intentId?: string; readonly message?: string },
 ): void {
   const revision = Date.now();
+  const snapshot = buildMarketplaceOrderBookSnapshot(playerId, characterId);
   globalEventBus.emit({
     type: EconomyEventType.MarketplaceUpdated,
     payload: {
       playerId,
       characterId,
-      offers: buildMarketOffers(playerId, characterId),
-      ownListings: getMarketplaceListings(playerId, characterId),
-      ownBuyOrders: getMarketplaceBuyOrders(playerId, characterId),
+      offers: snapshot.offers,
+      ownListings: snapshot.ownListings,
+      ownBuyOrders: snapshot.ownBuyOrders,
       revision,
       ...(options?.intentId ? { intentId: options.intentId } : {}),
       ...(options?.message ? { message: options.message } : {}),
@@ -120,10 +110,25 @@ function emitMarketplaceUpdated(
   });
 }
 
+function notifyOtherMarketplaceViewers(playerId: string, characterId: number): void {
+  for (const stall of listMarketplaceStallsOnline()) {
+    if (stall.playerId === playerId && stall.characterId === characterId) continue;
+    emitMarketplaceUpdated(stall.playerId, stall.characterId);
+  }
+}
+
+export function queryMarketOrderBookAuthoritative(
+  playerId: string,
+  characterId: number,
+  itemId?: string | null,
+): MarketplaceOrderBookSnapshot {
+  return buildMarketplaceOrderBookSnapshot(playerId, characterId, itemId);
+}
+
 function countInventoryItem(playerId: string, characterId: number, itemId: string): number {
   return getCharacterInventoryStacks(playerId, characterId)
     .filter((stack) => stack.itemId === itemId)
-    .reduce((sum, stack) => sum + stack.quantity, 0);
+    .reduce((sum, stack) => sum + resolveAvailableStackQuantity(stack), 0);
 }
 
 function buildInventoryUpdatedPayload(
@@ -187,21 +192,32 @@ export async function createMarketListingAuthoritative(
     return { ok: false, message: tx.message };
   }
 
-  syncAuthoritativeLoadoutFromEconomyProfile(playerId, characterId);
-  const listing = addMarketplaceListing(
-    playerId,
-    characterId,
-    itemId,
-    qty,
-    unitPrice,
-    anonymous,
-  );
+  let listing: MarketplaceListingRecord;
+  try {
+    listing = addMarketplaceListing(
+      playerId,
+      characterId,
+      itemId,
+      qty,
+      unitPrice,
+      anonymous,
+    );
+    registerGlobalMarketListing({
+      ...listing,
+      sellerPlayerId: playerId,
+      sellerCharacterId: characterId,
+    });
+  } catch (error) {
+    await executeEconomyTransaction(playerId, characterId, (store) => {
+      store.addInventoryItem(itemId, qty);
+    });
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Falha ao publicar anúncio.',
+    };
+  }
 
-  registerGlobalMarketListing({
-    ...listing,
-    sellerPlayerId: playerId,
-    sellerCharacterId: characterId,
-  });
+  syncAuthoritativeLoadoutFromEconomyProfile(playerId, characterId);
   const revision = Date.now();
   const item = getItemById(itemId);
   const message = `Oferta de venda publicada: ${qty}× ${item?.name ?? itemId} por ${unitPrice} V.`;
@@ -220,6 +236,7 @@ export async function createMarketListingAuthoritative(
     ...(intentId ? { intentId } : {}),
     message,
   });
+  notifyOtherMarketplaceViewers(playerId, characterId);
   return { ok: true, message };
 }
 
@@ -248,8 +265,19 @@ export async function createMarketBuyOrderAuthoritative(
     return { ok: false, message: 'VOLTS insuficientes para reservar a ordem de compra.' };
   }
 
+  try {
+    addMarketplaceBuyOrder(playerId, characterId, itemId, qty, unitPrice, anonymous);
+  } catch (error) {
+    await executeEconomyTransaction(playerId, characterId, (store) => {
+      store.addDollarVolt(totalCost);
+    });
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Falha ao publicar ordem de compra.',
+    };
+  }
+
   const item = getItemById(itemId);
-  addMarketplaceBuyOrder(playerId, characterId, itemId, qty, unitPrice, anonymous);
 
   const revision = Date.now();
   const message = `Ordem de compra publicada: ${qty}× ${item?.name ?? itemId} até ${unitPrice} V/un.`;
@@ -272,6 +300,7 @@ export async function collectMarketVoltsAuthoritative(
   listingId: string,
   intentId?: string,
 ): Promise<MarketplaceMutationResult> {
+  const listed = peekMarketplaceListing(playerId, characterId, listingId);
   const collected = collectMarketplaceListing(playerId, characterId, listingId);
   if (!collected.ok) return { ok: false, message: collected.reason };
 
@@ -281,6 +310,7 @@ export async function collectMarketVoltsAuthoritative(
   });
 
   if (!tx.ok) {
+    if (listed) restoreMarketplaceListingRecord(playerId, characterId, listed);
     return { ok: false, message: tx.message };
   }
 
@@ -305,6 +335,7 @@ export async function cancelMarketListingAuthoritative(
   listingId: string,
   intentId?: string,
 ): Promise<MarketplaceMutationResult> {
+  const listed = peekMarketplaceListing(playerId, characterId, listingId);
   const cancelled = cancelMarketplaceListing(playerId, characterId, listingId);
   if (!cancelled.ok) return { ok: false, message: cancelled.reason };
 
@@ -314,6 +345,14 @@ export async function cancelMarketListingAuthoritative(
   });
 
   if (!tx.ok) {
+    if (listed) {
+      restoreMarketplaceListingRecord(playerId, characterId, listed);
+      registerGlobalMarketListing({
+        ...listed,
+        sellerPlayerId: playerId,
+        sellerCharacterId: characterId,
+      });
+    }
     return { ok: false, message: tx.message };
   }
 
@@ -335,6 +374,7 @@ export async function cancelMarketListingAuthoritative(
     ...(intentId ? { intentId } : {}),
     message,
   });
+  notifyOtherMarketplaceViewers(playerId, characterId);
   return { ok: true, message };
 }
 
@@ -344,6 +384,7 @@ export async function cancelMarketBuyOrderAuthoritative(
   orderId: string,
   intentId?: string,
 ): Promise<MarketplaceMutationResult> {
+  const existing = peekMarketplaceBuyOrder(playerId, characterId, orderId);
   const cancelled = cancelMarketplaceBuyOrder(playerId, characterId, orderId);
   if (!cancelled.ok) return { ok: false, message: cancelled.reason };
 
@@ -352,6 +393,7 @@ export async function cancelMarketBuyOrderAuthoritative(
   });
 
   if (!tx.ok) {
+    if (existing) restoreMarketplaceBuyOrderRecord(playerId, characterId, existing);
     return { ok: false, message: tx.message };
   }
 
@@ -404,6 +446,14 @@ export async function executeMarketPurchaseAuthoritative(
   });
 
   if (!tx.ok) {
+    const restored = restoreMarketplaceListingListed(sellerPlayerId, sellerCharacterId, listingId);
+    if (restored) {
+      registerGlobalMarketListing({
+        ...restored,
+        sellerPlayerId,
+        sellerCharacterId,
+      });
+    }
     return { ok: false, message: tx.message };
   }
 
@@ -442,6 +492,7 @@ export async function executeMarketPurchaseAuthoritative(
   emitMarketplaceUpdated(sellerPlayerId, sellerCharacterId, {
     message: 'Sua oferta foi vendida — colete os VOLTS no terminal.',
   });
+  notifyOtherMarketplaceViewers(buyerPlayerId, buyerCharacterId);
 
   return {
     ok: true,

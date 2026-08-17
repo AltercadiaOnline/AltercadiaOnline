@@ -43,6 +43,11 @@ export type PlayerCombatLoadout = {
   /** Níveis por nó — mesma fonte que a Ficha (MarcosStateSnapshot.nodeProgression). */
   nodeProgression: MarcosNodeProgressionData;
   equipped: EquippedSlots;
+  /**
+   * IDs de todos os slots visuais do SET (anéis, calças+botas, amuletos).
+   * O snapshot `equipped` colapsa pares; o motor soma estes ids para o combate.
+   */
+  equippedItemIds?: readonly string[];
   inventory: InventoryStack[];
   activeBookBuff: ActiveBookBuff;
   equippedSkillIds: string[];

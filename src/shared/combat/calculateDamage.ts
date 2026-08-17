@@ -7,10 +7,9 @@ import {
   sumAttackBreakdownTotal,
   sumDefenseBreakdownTotal,
 } from './combatBreakdownBuilder.js';
-import { MoveEffectKind } from './classMovesetCatalog.js';
 import { MoveCategory } from './moveTypes.js';
 import { resolveMoveCombatMeta } from './resolveMoveCombatMeta.js';
-import { CLASS_CATALOG, type ClassType } from '../types/classes.js';
+import { resolveCombatantGearBuffs } from './itemBuffCombat.js';
 import type { Combatant, RuntimeStatus } from '../types/combat.js';
 import { RuntimeModifierKind } from '../types/combat.js';
 import {
@@ -19,6 +18,7 @@ import {
   type MonsterCatalogEntry,
 } from './MonsterCatalog.js';
 import { vulnerableDamageMultiplierFromStatuses, resolveModifierPercentFromCombatant } from './runtimeStatusCatalog.js';
+import { resolveCritHitMultiplier } from './critCadence.js';
 
 export const MIN_BATTLE_DAMAGE = 1;
 
@@ -34,8 +34,9 @@ export type DamageCalculationContext = {
   readonly defenderMonster?: MonsterCatalogEntry | null;
   readonly isPhysical?: boolean;
   readonly behaviorMultiplier?: number;
+  /** Motor decide o pico (pity / assinatura / marco). Sem dado local. */
   readonly forceCritical?: boolean;
-  /** Bônus aditivo à chance de crítico (0–1) — ex.: runa CRIT_BONUS neste golpe. */
+  /** Bônus aditivo ao pico do crítico (0–1) — runa CRIT_BONUS neste golpe. */
   readonly runeCritBonus?: number;
 };
 
@@ -49,6 +50,8 @@ export type DamageCalculationResult = {
   readonly defenseBreakdown: CombatActionBreakdown;
   readonly vulnerableApplied?: boolean;
   readonly minDamageFloorApplied?: boolean;
+  /** +N% do pico de crítico (espelho HUD). */
+  readonly critBonusPercent?: number;
 };
 
 export function isPhysicalMove(moveId: string): boolean {
@@ -67,24 +70,14 @@ export function resolveCombatantAttack(
   combatant: Combatant,
   monster?: MonsterCatalogEntry | null,
 ): number {
-  if (typeof combatant.baseAttack === 'number' && Number.isFinite(combatant.baseAttack)) {
-    return Math.max(0, Math.floor(combatant.baseAttack));
-  }
-  if (typeof monster?.attack === 'number' && Number.isFinite(monster.attack)) {
-    return Math.max(0, Math.floor(monster.attack));
-  }
-  const classId = (combatant.classId ?? monster?.classId ?? 'IMPETUS') as ClassType;
-  return CLASS_CATALOG[classId]?.bonus.attack ?? 5;
+  return resolveClassAttack(combatant, monster);
 }
 
 export function resolveCombatantDefense(
   combatant: Combatant,
   monster?: MonsterCatalogEntry | null,
 ): number {
-  const classId = (combatant.classId ?? monster?.classId ?? 'TUTATOR') as ClassType;
-  const base = CLASS_CATALOG[classId]?.bonus.defense ?? 2;
-  const defensePercent = combatant.combatStats?.defensePercent ?? 0;
-  return base + Math.floor(base * defensePercent / 100);
+  return resolveClassDefense(combatant, monster);
 }
 
 export function resolveMovePower(moveId: string, attacker: Combatant): number {
@@ -134,8 +127,14 @@ export function calculateDamage(
   const moveId = normalized.id;
   const attackerMonster = getMonsterByActorId(attacker.id) ?? null;
   const defenderMonster = ctx.defenderMonster ?? getMonsterByActorId(defender.id) ?? null;
-  const attackBreakdown = buildAttackBreakdown(attacker, normalized.power, attackerMonster);
-  const defenseBreakdown = buildDefenseBreakdown(defender, defenderMonster);
+  const attackBreakdown = buildAttackBreakdown(
+    attacker,
+    normalized.power,
+    attackerMonster,
+    resolveMoveCombatMeta(moveId)?.scalingStat,
+  );
+  const incomingStrike = sumAttackBreakdownTotal(attackBreakdown);
+  const defenseBreakdown = buildDefenseBreakdown(defender, defenderMonster, incomingStrike);
   const isPhysical = ctx.isPhysical ?? isPhysicalMove(moveId);
   const logLines: string[] = [];
 
@@ -218,7 +217,8 @@ export function calculateDamage(
     }, { minDamageFloorApplied: true });
   }
 
-  const dodgePercent = defender.combatStats?.dodgePercent ?? 0;
+  const gear = resolveCombatantGearBuffs(defender);
+  const dodgePercent = gear.dodgePercent;
   if (dodgePercent > 0 && Math.random() * 100 < dodgePercent) {
     return withBreakdown({
       rawDamage: 0,
@@ -229,32 +229,39 @@ export function calculateDamage(
     });
   }
 
-  const tempCritPercent = resolveModifierPercentFromCombatant(attacker, RuntimeModifierKind.CritChance, turn);
-  const critChance =
-    (attacker.combatStats?.critChanceBonus ?? 0)
-    + (ctx.runeCritBonus ?? 0)
-    + tempCritPercent / 100;
-  const skill = attacker.skills.find((s) => s.id === moveId);
-  const forceCritMove =
-    skill?.effectKind === MoveEffectKind.HighRiskBurst
-    || skill?.effectKind === MoveEffectKind.DebuffScalingDamage;
-
-  const isCritical =
-    ctx.forceCritical === true
-    || forceCritMove
-    || (critChance > 0 && Math.random() < critChance);
+  const isCritical = ctx.forceCritical === true;
 
   if (isCritical) {
-    const critMultiplier = 1.5 + (attacker.combatStats?.critDamageBonus ?? 0);
+    const attackerGear = resolveCombatantGearBuffs(attacker);
+    const tempCritPercent = resolveModifierPercentFromCombatant(
+      attacker,
+      RuntimeModifierKind.CritChance,
+      turn,
+    );
+    const critMultiplier = resolveCritHitMultiplier({
+      critChancePercent: attackerGear.critChancePercent,
+      critDamageBonus: attacker.combatStats?.critDamageBonus ?? 0,
+      tempCritPercent,
+      runeCritBonus: ctx.runeCritBonus ?? 0,
+    });
     raw = Math.floor(raw * critMultiplier);
-    logLines.push('Acerto crítico!');
+    const critBonusPercent = Math.round((critMultiplier - 1) * 100);
+    logLines.push(`Acerto crítico (+${critBonusPercent}%)!`);
+    return withBreakdown({
+      rawDamage: raw,
+      finalDamage: Math.max(MIN_BATTLE_DAMAGE, raw),
+      blocked: false,
+      isCritical: true,
+      logLines,
+      critBonusPercent,
+    });
   }
 
   return withBreakdown({
     rawDamage: raw,
     finalDamage: Math.max(MIN_BATTLE_DAMAGE, raw),
     blocked: false,
-    isCritical,
+    isCritical: false,
     logLines,
   });
 }

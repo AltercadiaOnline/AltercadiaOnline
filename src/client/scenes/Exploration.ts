@@ -86,9 +86,13 @@ import { PetFollowEntity } from '../entities/pet/PetFollowEntity.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getSpeechBubbleManager } from '../world/speech/SpeechBubbleManager.js';
 import {
+  collectRemotePlayersForRender,
   getAuthoritativeRemotePlayerSnapshots,
   sampleRemoteEntitiesForRender,
 } from '../world/remoteEntitySyncBridge.js';
+import { getPlayerNametagAnchor, formatRemotePlayerNametag } from '../world/nametagRenderer.js';
+import { buildRemoteCompanionRenderSnapshot } from '../world/remoteCompanionPose.js';
+import { getPetVisualBounds } from '../../shared/world/petEntity.js';
 import { syncWorldPlayerPicks, clearWorldPlayerPicks } from '../world/worldPlayerPickRegistry.js';
 import {
   bindInteractionCardController,
@@ -377,6 +381,9 @@ export class ExplorationScene implements Disposable {
       camera: this.camera,
       onWorldClick: (screenX, screenY, options) => {
         this.pointClickController.handleWorldClick(screenX, screenY, options);
+      },
+      onWorldContextMenu: (screenX, screenY, clientX, clientY) => {
+        this.pointClickController.handleWorldContextMenu(screenX, screenY, clientX, clientY);
       },
     });
 
@@ -757,6 +764,8 @@ export class ExplorationScene implements Disposable {
       this.mapManager.pixelWidth,
       this.mapManager.pixelHeight,
       frameMs,
+      this.player.isMoving,
+      this.player.getExplorationMoveSpeedPxPerSec(),
     );
     getPlayerPetStore().tickExplorationAffinity(frameMs);
 
@@ -795,6 +804,7 @@ export class ExplorationScene implements Disposable {
         const display = displayById.get(snap.playerId);
         return {
           playerId: snap.playerId,
+          characterId: snap.characterId,
           displayName: snap.displayName?.trim() || 'Jogador',
           worldX: display?.feetX ?? snap.feetX,
           worldY: display?.feetY ?? snap.feetY,
@@ -974,6 +984,7 @@ export class ExplorationScene implements Disposable {
           ...this.worldMap.collectCreatureRenderSnapshots(timestampMs),
           ...this.npcManager.collectNpcRenderSnapshots(timestampMs),
         ]),
+        remotePlayers: collectRemotePlayersForRender(this.mapManager.currentMapId as MapId, timestampMs),
         pet: this.petFollow.toRenderSnapshot(),
         navigationDestination: this.navigationDestination,
         debugOverlay: null,
@@ -1059,6 +1070,27 @@ export class ExplorationScene implements Disposable {
       textEntries: [
         ...this.npcManager.buildDomNametagEntries(playerSnapshot, petSnapshot),
         ...this.worldMapRenderer.collectDomLabelEntries(),
+        ...collectRemotePlayersForRender(this.mapManager.currentMapId as MapId, timestampMs).flatMap((remote) => {
+          const entries = [{
+            id: `remote-player-${remote.playerId}`,
+            label: formatRemotePlayerNametag(remote.displayName, remote.level),
+            anchor: getPlayerNametagAnchor({ x: remote.feetX, y: remote.feetY }),
+            className: 'player-name-tag',
+          }];
+          if (!remote.companion) return entries;
+          const pet = buildRemoteCompanionRenderSnapshot(remote, remote.companion, timestampMs);
+          const petBounds = getPetVisualBounds(pet);
+          entries.push({
+            id: `remote-pet-${remote.playerId}`,
+            label: pet.name,
+            anchor: {
+              worldX: pet.x,
+              anchorTopY: petBounds.y,
+            },
+            className: 'pet-name-tag',
+          });
+          return entries;
+        }),
       ],
       speechBubbles: getSpeechBubbleManager().getActiveBubbleEntries(timestampMs),
       camera: this.camera,

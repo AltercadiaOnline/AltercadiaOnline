@@ -3,10 +3,10 @@ import { SecurityGuard } from '../middleware/securityGuard.js';
 import type { ServerEnv } from '../config/env.js';
 import type { GiftTransferRequest } from '../../shared/gift/giftTransferProtocol.js';
 import {
-  finalizeGiftTransferSender,
+  commitAuthoritativeGiftTransfer,
   validateGiftTransferRequest,
 } from '../../Economy/economyGateway.js';
-import { executeTransferItem } from '../supabase/transferItem.js';
+import { getWorldGameState } from '../world/WorldGameState.js';
 
 async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -107,9 +107,26 @@ export async function handleGiftTransferRoute(
     return true;
   }
 
-  const result = await executeTransferItem(auth.userId, auth.serverId, {
-    ...payload,
-    characterId: auth.characterId,
+  const targetCharacterId = payload.targetCharacterId;
+  if (typeof targetCharacterId !== 'number' || !Number.isInteger(targetCharacterId) || targetCharacterId < 1) {
+    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ ok: false, error: 'targetCharacterId do destinatário é obrigatório.' }));
+    return true;
+  }
+
+  const targetWorld = getWorldGameState().getByPlayer(payload.targetPlayerId, targetCharacterId);
+  if (!targetWorld || targetWorld.status !== 'exploring') {
+    res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ ok: false, error: 'Destinatário precisa estar no mundo.' }));
+    return true;
+  }
+
+  const result = await commitAuthoritativeGiftTransfer({
+    senderPlayerId: auth.userId,
+    senderCharacterId: auth.characterId,
+    targetPlayerId: payload.targetPlayerId,
+    targetCharacterId,
+    itemId: payload.itemId,
     quantity: policy.quantity,
   });
 
@@ -118,8 +135,6 @@ export async function handleGiftTransferRoute(
     res.end(JSON.stringify({ ok: false, error: result.message }));
     return true;
   }
-
-  finalizeGiftTransferSender(auth.userId, auth.characterId, result.data);
 
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify({

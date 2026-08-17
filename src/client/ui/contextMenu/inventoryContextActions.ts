@@ -17,8 +17,10 @@ import {
   isInventoryItemMutationPending,
 } from '../items/itemMutationPendingUi.js';
 import { postSystemNotification } from '../logService.js';
-import type { ActionMenuItem } from './actionMenuTypes.js';
+import type { ActionMenuContext, ActionMenuItem } from './actionMenuTypes.js';
 import type { EquipSlotMenuTarget, InventorySlotMenuTarget } from './actionMenuProviders.js';
+import { isOfficialSprayItemId } from '../../../shared/social/spraySocialTypes.js';
+import { openOwnLegacyEditor } from '../../world/spraySocialActions.js';
 
 function isEquipCategory(category: ItemCategory): boolean {
   return category === ItemCategory.Equipable
@@ -47,12 +49,19 @@ function resolveInventorySlotState(
 /** Factory de ações — consulta catálogo + playerItemStore antes de montar o menu. */
 export function buildInventorySlotContextActions(
   target: InventorySlotMenuTarget | undefined,
+  context?: ActionMenuContext,
 ): readonly ActionMenuItem[] {
   const slotState = resolveInventorySlotState(target);
   if (!slotState) return [];
 
   const { itemId, locked } = slotState;
   const item = getItemMechanicalById(itemId)!;
+
+  if (isOfficialSprayItemId(itemId)) {
+    openOwnLegacyEditor(context?.clientX ?? 320, context?.clientY ?? 72);
+    return [];
+  }
+
   const actions: ActionMenuItem[] = [];
 
   const mutationBlocked = (): boolean =>

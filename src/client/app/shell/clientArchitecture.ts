@@ -1,3 +1,5 @@
+import { GameState as GameStateValue } from '../../../shared/game/gameState.js';
+import { getGameStateManager } from '../../../shared/state/GameStateManager.js';
 import { getBattleHudController } from '../battle/BattleHudController.js';
 import { getHudBridge } from '../bridge/hudBridge.js';
 import { getPanelsBridge } from '../bridge/panelsBridge.js';
@@ -102,8 +104,11 @@ export function syncReactHudVisibility(activeScreen: string): void {
 }
 
 export function syncReactBattleHudVisibility(activeScreen: string): void {
-  const visible = activeScreen === 'game-container' && isSceneCombatVisible();
-  if (getBattleHudController().snapshot().controllerReady) {
+  const phase = getGameStateManager().getState();
+  const visible =
+    activeScreen === 'game-container'
+    && phase !== GameStateValue.Exploration;
+  if (getBattleHudController().snapshot().controllerReady || visible) {
     document.body.dataset.reactBattleHudUi = '1';
   }
   getBattleHudController().setBattleHudActive(visible);

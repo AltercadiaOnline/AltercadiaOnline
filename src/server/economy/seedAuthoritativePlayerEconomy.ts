@@ -4,7 +4,7 @@ import {
 
 /**
  * Personagem limpo — garante carteira/inventário em memória sem itens nem moedas.
- * Não injeta DEMO_STARTER nem VOLTS de teste.
+ * Não injeta inventário nem Volts de teste.
  * Nunca importar no cliente.
  */
 export function seedAuthoritativePlayerEconomyIfEmpty(

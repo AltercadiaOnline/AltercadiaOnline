@@ -1,0 +1,62 @@
+# Cursor: fora do contexto (economia de tokens). Nao substitui o .gitignore.
+
+# Deps, build, persistencia local
+node_modules/
+dist/
+data/
+coverage/
+.cache/
+.turbo/
+.parcel-cache/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Testes e2e / relatorios
+test-results/
+playwright-report/
+blob-report/
+*.log
+
+# Espelhos gerados do build (fonte em src/)
+public/client/
+public/shared/
+public/config/
+public/game/
+public/vendor/
+public/app-ui/
+
+# Construct 3 - runtime HTML5 (imagens + c3runtime ~1.4 MB)
+# Fonte editavel permanece: construct/layouts/, objectTypes/, project.c3proj
+construct/**/Exports/
+construct/**/Backups/
+construct/altercadia-world/images/
+construct/altercadia-world/scripts/
+construct/altercadia-world/icons/
+construct/altercadia-world/media/
+construct/images/
+construct/icons/
+public/construct-world/images/
+public/construct-world/scripts/
+public/construct-world/icons/
+public/construct-world/media/
+
+# Assets de runtime / autoria (binarios nao entram no raciocinio de codigo)
+art-source/
+public/assets/
+**/*.{png,webp,jpg,jpeg,gif,avif,psd,psb,ai,fig,sketch,tiff,tif}
+**/*.{mp3,ogg,wav,woff,woff2,ttf,otf,zip,rar,7z,pdf,docx}
+
+# Lockfile e lixo de SO / editor
+package-lock.json
+**/.DS_Store
+**/Thumbs.db
+**/__MACOSX/
+**/._*
+**/* (1).*
+**/* (1)/
+
+# Segredos e dumps locais
+.env
+.env.local
+.env.*.local
+.continue/

@@ -60,6 +60,18 @@ export class PetSpriteLoader {
     return Boolean(catalog && Object.keys(catalog.rotations).length > 0);
   }
 
+  /** Imagem de uma rotação (batalha = east). Fallback south se o facing pedido faltar. */
+  static async loadFacingImage(
+    kindId: PetKindId,
+    facing: PlayerFacing,
+  ): Promise<HTMLImageElement | null> {
+    await this.loadCatalog(kindId);
+    const frame = this.getCachedRotation(kindId, facing)
+      ?? this.getCachedRotation(kindId, 'south')
+      ?? this.getCachedRotation(kindId, 'east');
+    return frame?.image ?? null;
+  }
+
   static resetCache(): void {
     this.imageCache.clear();
     this.catalogByKind.clear();

@@ -29,6 +29,7 @@ export type ActiveGridStep = {
 export type GridLocomotionTickConfig = {
   readonly speedBonusTotal: number;
   readonly isEncumbered: boolean;
+  readonly playerLevel?: number;
 };
 
 export type GridLocomotionSnapshot = {
@@ -187,7 +188,11 @@ export class PlayerGridLocomotion {
       toTile,
       step,
       elapsedMs: 0,
-      durationMs: resolveGridStepDurationMs(config.speedBonusTotal, config.isEncumbered),
+      durationMs: resolveGridStepDurationMs(
+        config.speedBonusTotal,
+        config.isEncumbered,
+        config.playerLevel ?? 1,
+      ),
     };
     this.facing = moveVectorToFacing(step.stepX, step.stepY);
     onStepCommitted(step);

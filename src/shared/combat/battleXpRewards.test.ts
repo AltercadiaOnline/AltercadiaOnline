@@ -5,10 +5,11 @@ import {
   resolveBattleXpGain,
   resolveDefeatedCreatureLevel,
   resolveSessionPveDefeatedLevel,
+  resolveZoneBattleXpPool,
 } from './battleXpRewards.js';
 
-describe('battleXpRewards — nível via zone scaling', () => {
-  it('fallback de criatura usa nível típico da zona (não maxHp/35)', () => {
+describe('battleXpRewards — XP é da zona, não do jogador', () => {
+  it('fallback de criatura usa nível típico da zona (combate/loot)', () => {
     expect(resolveDefeatedCreatureLevel('rat')).toBe(
       resolveMonsterZoneDefaultLevel(ZoneId.Zone1),
     );
@@ -17,7 +18,7 @@ describe('battleXpRewards — nível via zone scaling', () => {
     );
   });
 
-  it('sessão PvE prefere pveEnemyCombatLevel (mesmo clamp de resolveMonsterStats)', () => {
+  it('sessão PvE prefere pveEnemyCombatLevel para combate (não para XP)', () => {
     const stats = resolveMonsterStats(ZoneId.Zone1, 7, false);
     expect(resolveSessionPveDefeatedLevel({ pveEnemyCombatLevel: stats.level }, 'rat')).toBe(
       stats.level,
@@ -25,8 +26,18 @@ describe('battleXpRewards — nível via zone scaling', () => {
     expect(resolveSessionPveDefeatedLevel({ pveEnemyCombatLevel: 3 }, 'rat')).toBe(3);
   });
 
-  it('XP escala com o nível da sessão', () => {
-    expect(resolveBattleXpGain('rat', 1)).toBe(25);
-    expect(resolveBattleXpGain('rat', 10)).toBe(115);
+  it('rato da Zona 1 dá o mesmo XP no nível 1 e no 70', () => {
+    const zone1 = resolveZoneBattleXpPool(ZoneId.Zone1);
+    expect(zone1).toBe(25);
+    expect(resolveBattleXpGain('rat')).toBe(zone1);
+    expect(resolveBattleXpGain('rat', 1)).toBe(zone1);
+    expect(resolveBattleXpGain('rat', 10)).toBe(zone1);
+    expect(resolveBattleXpGain('rat', 70)).toBe(zone1);
+  });
+
+  it('zona 2 não herda o XP da zona 1', () => {
+    expect(resolveBattleXpGain('centipede')).toBe(resolveZoneBattleXpPool(ZoneId.Zone2));
+    expect(resolveBattleXpGain('centipede', 70)).toBe(resolveBattleXpGain('centipede', 1));
+    expect(resolveBattleXpGain('centipede')).toBeGreaterThan(resolveBattleXpGain('rat'));
   });
 });

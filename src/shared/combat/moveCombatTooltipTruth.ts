@@ -32,11 +32,11 @@ export function formatMoveBuildImpactLine(move: MoveDefinition): string {
     case MoveScalingStat.STR:
       return 'No combate: (Ataque da classe + poder base do move + Força do equipamento) − Defesa do alvo; buffs de ataque % no turno multiplicam o poder base antes do golpe.';
     case MoveScalingStat.CRIT:
-      return 'No combate: mesma fórmula de golpe; bônus de Crítico (runa/livro) aumenta chance de crítico (×1,5+ dano), não soma no termo “Golpe”. Poder base ≠ dano final.';
+      return 'No combate: (Ataque da classe + poder do move) − Defesa; Crítico % do SET soma neste golpe (Execução/Cogitor) e também no pico se o hit virar crítico.';
     case MoveScalingStat.DEF:
       return 'No combate: poder base entra no golpe; bônus de Defesa no equipamento protege você, não soma dano neste ataque.';
     case MoveScalingStat.AGI:
-      return 'No combate: poder base entra no golpe; Agilidade do build define iniciativa, não altera o número do hit.';
+      return 'No combate: poder base entra no golpe; Agilidade do build viesa a ordem e pode conceder golpe extra, sem alterar o número do hit nem a animação.';
     default:
       return 'No combate: (Ataque da classe + poder base do move + Força do equipamento) − Defesa do alvo.';
   }

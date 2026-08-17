@@ -45,6 +45,11 @@ import {
   type MovementNetSnapshot,
 } from '../../../../world/movementNetTelemetry.js';
 import { ItemSlotIcon } from '../panels/ItemSlotIcon.js';
+import {
+  isChargedEquipmentItemId,
+  resolveItemMaxCharges,
+  resolveStackDurabilityCharges,
+} from '../../../../../shared/items/chargedEquipment.js';
 import { buildProgressionTooltipDataAttributes } from './progressionTooltipProps.js';
 
 function EquipSlotButton({
@@ -61,6 +66,22 @@ function EquipSlotButton({
   const displayName = itemId ? displayStore.getItemDisplayName(itemId) : label;
   const pendingClass = pending ? ' equip-slot--pending' : '';
   const contextTarget = JSON.stringify({ slotId });
+  const chargedRow = itemId && isChargedEquipmentItemId(itemId)
+    ? getPlayerItemStore().getItemInSlot(slotId)
+    : null;
+  const chargesCurrent = chargedRow
+    ? resolveStackDurabilityCharges({
+        itemId: chargedRow.itemId,
+        quantity: chargedRow.quantity,
+        ...(chargedRow.charges !== undefined ? { charges: chargedRow.charges } : {}),
+      })
+    : null;
+  const chargesMax = itemId && isChargedEquipmentItemId(itemId)
+    ? resolveItemMaxCharges(itemId)
+    : 0;
+  const ariaLabel = chargesCurrent !== null && chargesMax > 0
+    ? `${displayName}, Cargas: ${chargesCurrent} / ${chargesMax}`
+    : displayName;
 
   const handleDoubleClick = useCallback(() => {
     if (InventoryService.isInventoryMutationPending() || !itemId) return;
@@ -71,8 +92,10 @@ function EquipSlotButton({
 
   const showTooltip = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
     if (!itemId) return;
-    emitItemTooltip(itemId, event.clientX, event.clientY);
-  }, [itemId]);
+    emitItemTooltip(itemId, event.clientX, event.clientY, {
+      ...(chargesCurrent !== null ? { chargesCurrent, chargesMax } : {}),
+    });
+  }, [itemId, chargesCurrent, chargesMax]);
 
   const hideTooltip = useCallback(() => {
     uiEvents.emit(UIEventType.HIDE_TOOLTIP, {});
@@ -90,7 +113,7 @@ function EquipSlotButton({
             'data-context-menu-target': contextTarget,
           }
         : {})}
-      aria-label={displayName}
+      aria-label={ariaLabel}
       title={itemId ? undefined : label}
       aria-busy={pending || undefined}
       disabled={pending || undefined}
@@ -100,11 +123,14 @@ function EquipSlotButton({
     >
       {itemId ? (
         <span className="equip-slot__sprite-wrap" aria-hidden="true">
-          <ItemSlotIcon itemId={itemId} className="equip-slot__sprite" />
+          <ItemSlotIcon itemId={itemId} className="equip-slot__sprite" centerOpaqueContent />
         </span>
       ) : (
         <span className="equip-slot__placeholder">{label}</span>
       )}
+      {chargesCurrent !== null && chargesMax > 0 ? (
+        <span className="slot-item__meta slot-item__meta--charges">{chargesCurrent}</span>
+      ) : null}
       {pending ? <span className="equip-slot__pending" aria-hidden="true">⟳</span> : null}
     </button>
   );

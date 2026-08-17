@@ -28,6 +28,7 @@ export type MovementMode = 'MANUAL' | 'AUTO';
 export type HybridLocomotionTickConfig = {
   readonly speedBonusTotal: number;
   readonly isEncumbered: boolean;
+  readonly playerLevel: number;
 };
 
 export type HybridLocomotionSnapshot = {
@@ -229,6 +230,7 @@ export class PlayerHybridLocomotion {
       config.speedBonusTotal,
       config.isEncumbered,
       resolvePlayerMoveSpeedPxPerSec(getActiveMapTileSize()),
+      config.playerLevel,
     );
 
     if (input) {

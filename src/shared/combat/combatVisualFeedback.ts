@@ -2,6 +2,7 @@ import type { CombatActionBreakdown } from './combatActionBreakdown.js';
 import type { CombatEvent } from '../events.js';
 import { CombatEventType } from '../events.js';
 import type { DamageDealtEvent } from '../events.js';
+import { isAgilityTempoLogLine } from './agilityTempo.js';
 import {
   MONSTER_ATTACK_WINDUP_MS,
   MONSTER_REACTION_STAGGER_MS,
@@ -14,6 +15,7 @@ import {
   COMBAT_HIT_ANIM_MS,
   COMBAT_HIT_IMPACT_HOLD_MS,
   COMBAT_HP_ANIM_MS,
+  COMBAT_STRIKE_RECOVER_MS,
   COMBAT_INSTANT_EVENT_GAP_MS,
   COMBAT_STATUS_PORTRAIT_FAST_MS,
   COMBAT_STATUS_PORTRAIT_MS,
@@ -121,9 +123,12 @@ function buildDamageDealtSteps(
     steps.push({ kind: 'wait', ms: Math.min(COMBAT_HIT_ANIM_MS, COMBAT_HIT_ANIM_BLOCK_MS) });
   }
 
-  steps.push({ kind: 'wait', ms: COMBAT_HIT_IMPACT_HOLD_MS });
-  steps.push({ kind: 'hp_animate', combatantId: targetId, hpAfter });
-  steps.push({ kind: 'portrait_stance', combatantId: sourceId, stance: 'idle' });
+    steps.push({ kind: 'wait', ms: COMBAT_HIT_IMPACT_HOLD_MS });
+    steps.push({ kind: 'hp_animate', combatantId: targetId, hpAfter });
+    if (hpAfter > 0) {
+      steps.push({ kind: 'portrait_stance', combatantId: sourceId, stance: 'idle' });
+      steps.push({ kind: 'wait', ms: COMBAT_STRIKE_RECOVER_MS });
+    }
 
   return steps;
 }
@@ -266,7 +271,12 @@ function buildSegmentForEvent(
     case CombatEventType.COMBAT_LOG:
       return {
         eventIndex,
-        steps: [{ kind: 'wait', ms: Math.min(COMBAT_HIT_ANIM_MS, COMBAT_HIT_ANIM_LOG_CAP_MS) }],
+        steps: [{
+          kind: 'wait',
+          ms: isAgilityTempoLogLine(event.line)
+            ? COMBAT_INSTANT_EVENT_GAP_MS
+            : Math.min(COMBAT_HIT_ANIM_MS, COMBAT_HIT_ANIM_LOG_CAP_MS),
+        }],
       };
 
     default:

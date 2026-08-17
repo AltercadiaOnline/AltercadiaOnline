@@ -19,7 +19,7 @@ type BankSlotCellProps = {
   readonly selected: boolean;
   readonly disabled: boolean;
   readonly onSelect: (source: 'inventory' | 'bank', index: number) => void;
-  readonly onTooltipShow?: (event: MouseEvent, itemId: string) => void;
+  readonly onTooltipShow?: (event: MouseEvent, itemId: string, charges?: number) => void;
   readonly onTooltipHide?: () => void;
 };
 
@@ -89,7 +89,7 @@ export function BankSlotCell({
           });
           return;
         }
-        onTooltipShow?.(event, itemId);
+        onTooltipShow?.(event, itemId, showCharges ? charges : undefined);
       }}
       onMouseLeave={() => {
         hideGameTooltip();

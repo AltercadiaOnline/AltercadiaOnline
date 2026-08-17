@@ -6,7 +6,12 @@ import {
   shutdownPersistenceStorage,
 } from './PersistenceGateway.js';
 import { loadGlobalMarketplacePersistence } from './globalMarketplacePersistence.js';
-import { createPersistenceStorage } from './storage/createPersistenceStorage.js';import {
+import { loadWorldSprayPersistence } from './worldSprayPersistence.js';
+import { initializeLeaderboardPersistence } from '../leaderboard/leaderboardFilePersistence.js';
+import { setAuthoritativeProgressionSyncHook } from '../progression/authoritativeProgressionStore.js';
+import { upsertLeaderboardFromProgression } from '../leaderboard/upsertLeaderboardFromProgression.js';
+import { createPersistenceStorage } from './storage/createPersistenceStorage.js';
+import {
   getActivePersistenceStorage,
   setActivePersistenceStorage,
 } from './storage/persistenceStorageRegistry.js';
@@ -64,7 +69,13 @@ export async function initializePersistence(
   if (storage.isDurable()) {
     await loadPendingLootPersistence();
     await loadGlobalMarketplacePersistence();
+    await loadWorldSprayPersistence();
+    await initializeLeaderboardPersistence(dataDir);
   }
+
+  setAuthoritativeProgressionSyncHook((playerId, characterId) => {
+    upsertLeaderboardFromProgression(playerId, characterId);
+  });
 
   switch (mode) {
     case PersistenceMode.File:

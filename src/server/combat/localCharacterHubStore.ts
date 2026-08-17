@@ -17,6 +17,9 @@ export function getOrCreateDemoLoadout(
   ensureAuthoritativePlayerEconomyEmpty(playerId, characterId);
   const profile = getCharacterProfile(playerId, characterId);
   const effectiveEquipped = resolveEffectiveEquippedForCombat(profile.equipped, profile.inventory);
+  const equippedItemIds = profile.equipmentUiGrid
+    ? Object.values(profile.equipmentUiGrid).filter((id): id is string => Boolean(id))
+    : undefined;
 
   return {
     playerId,
@@ -27,6 +30,7 @@ export function getOrCreateDemoLoadout(
     activeMarcos: ['quickStep'],
     nodeProgression: emptyMarcosNodeProgression(),
     equipped: effectiveEquipped,
+    ...(equippedItemIds ? { equippedItemIds } : {}),
     inventory: [...profile.inventory],
     activeBookBuff: profile.activeBookBuff,
     equippedSkillIds: getDefaultClassActiveLoadout(classId),

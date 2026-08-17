@@ -136,6 +136,18 @@ export const NPC_VENDOR_CATALOG: readonly NpcVendorCatalogEntry[] = [
         npcSellPriceVolts: 210,
         marketValueVolts: 320,
       },
+      {
+        itemId: 'livro_critico',
+        npcBuyPriceVolts: 380,
+        npcSellPriceVolts: 190,
+        marketValueVolts: 290,
+      },
+      {
+        itemId: 'livro_forca',
+        npcBuyPriceVolts: 400,
+        npcSellPriceVolts: 200,
+        marketValueVolts: 305,
+      },
     ],
   },
 ] as const;

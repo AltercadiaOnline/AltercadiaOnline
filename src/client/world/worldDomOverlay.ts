@@ -46,6 +46,7 @@ export const WORLD_DOM_TEXT_AUDIT = {
   migrated: [
     'npc-nametags',
     'player-nametag',
+    'remote-player-nametag',
     'pet-nametag',
     'interact-prompt',
     'structure-labels',

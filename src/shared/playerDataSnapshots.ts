@@ -113,6 +113,8 @@ export type AuthoritativePlayerSnapshot = {
     readonly level: number;
     readonly xpCurrent: number;
     readonly displayName?: string;
+    /** Mensagem de legado exibida nos pixos do autor. */
+    readonly legacyMessage?: string;
   };
   /** Loadout de combate confirmado (sessionSync.activeMovesets). */
   readonly activeMovesets?: readonly string[];
@@ -126,4 +128,11 @@ export type AuthoritativePlayerSnapshot = {
   readonly gameTime?: number;
   /** Timestamp do servidor ao capturar gameTime (interpolação no cliente). */
   readonly gameTimeServerMs?: number;
+  /** Quadro de Agente — espelho do progresso de contratos. */
+  readonly mercenaryQuests?: {
+    readonly activeQuestId: string | null;
+    readonly completedQuestIds: readonly string[];
+  };
+  /** Amigos do personagem. `online` é da sessão atual. */
+  readonly friends?: readonly import('./social/friendListTypes.js').FriendListViewEntry[];
 };

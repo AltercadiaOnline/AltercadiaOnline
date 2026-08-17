@@ -1,0 +1,19 @@
+---
+description: Combate autoritativo — motor, PVE (XP/loot), PVP (fila)
+globs: src/server/combat/**/*.ts,src/server/engine/**/*.ts,src/shared/combat/**/*.ts,src/client/combat/**/*.ts,src/client/app/components/battle/**/*.tsx,src/client/app/battle/**/*.ts,src/client/app/panels/pvpQueueStore.ts,src/client/app/panels/pvpRankedQueueBridge.ts,src/client/app/components/world/panels/WorldPvpQueuePanel.tsx
+alwaysApply: false
+---
+
+# Combate
+
+Uma ficha por chat — não abrir as três juntas.
+
+| Tarefa | Ficha |
+|--------|--------|
+| Motor, payload, Battle HUD, tooltip de move | `docs/context/combate.md` |
+| XP / loot cassino vs criatura | `docs/context/combate-pve.md` |
+| Fila púlpito / match ranqueado | `docs/context/combate-pvp.md` |
+
+- Servidor calcula; cliente reproduz payload (`events`, `state`, `ui`).
+- Sem import WorldMap ↔ BattleScreen. Estado central único.
+- Tooltip de move: Poder/Cura base, nunca “+N Dano”.

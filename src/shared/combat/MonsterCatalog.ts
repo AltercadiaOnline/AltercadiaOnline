@@ -192,7 +192,7 @@ export function resolveCreatureIdFromActorId(actorId: string): string | null {
   const prefix = 'enemy_';
   if (!actorId.startsWith(prefix)) return null;
 
-  const creatureId = actorId.slice(prefix.length);
+  const creatureId = actorId.slice(prefix.length).replace(/__\d+$/, '');
   if (getCreatureDropEntry(creatureId) || MONSTER_CATALOG[creatureId]) {
     return creatureId;
   }

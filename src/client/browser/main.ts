@@ -139,18 +139,31 @@ function enterWorld(): void {
     }, HUD_RUNTIME_BOOT_TIMEOUT_MS);
   });
 
-  void Promise.race([hudReady, hudTimeout]).then(async () => {
+    void Promise.race([hudReady, hudTimeout]).then(async () => {
     try {
-      const [gameSession, combat] = await Promise.all([
-        loadGameSession(),
-        loadCombatClient(),
-      ]);
+      let gameSession;
+      try {
+        gameSession = await loadGameSession();
+      } catch (error) {
+        console.error('[Altercadia] Falha ao importar gameSession:', error);
+        throw error;
+      }
+      let combat;
+      try {
+        combat = await loadCombatClient();
+      } catch (error) {
+        console.error('[Altercadia] Falha ao importar combat:', error);
+        throw error;
+      }
 
       gameSession.enterWorldAfterHudReady();
       combat.initBattleHud(document);
       ensurePauseControlsBound();
     } catch (error) {
-      console.error('[Altercadia] Falha ao carregar domínio de jogo:', error);
+      const detail = error instanceof Error
+        ? `${error.name}: ${error.message}\n${error.stack ?? ''}`
+        : String(error);
+      console.error('[Altercadia] Falha ao carregar domínio de jogo:', detail);
       hidePlayerInitLoading();
       AppScreens.abortGameWorldBootShell();
       const { deactivateGameDomain } = await import('../domains/executionDomain.js');

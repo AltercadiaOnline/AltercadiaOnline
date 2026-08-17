@@ -72,6 +72,7 @@ export interface DamageDealtEvent {
     readonly amount: number;
     readonly hpAfter: number;
     readonly isCritical?: boolean;
+    readonly critBonusPercent?: number;
     readonly attackBreakdown?: CombatActionBreakdown;
     readonly defenseBreakdown?: CombatActionBreakdown;
     /** Move que originou o golpe — exibido no impacto visual da arena. */
@@ -117,7 +118,7 @@ export interface TurnOrderResolvedEvent {
     readonly battleId: string;
     readonly turn: number;
     readonly order: readonly string[];
-    readonly reason: 'INITIATIVE_SCORE' | 'PRIORITY' | 'EFFECTIVE_SPEED' | 'SPEED_ATTRIBUTE' | 'SEED' | 'PET_QUEUE';
+    readonly reason: 'INITIATIVE_SCORE' | 'PRIORITY' | 'EFFECTIVE_SPEED' | 'SPEED_ATTRIBUTE' | 'AGILITY_TEMPO' | 'SEED' | 'PET_QUEUE';
     readonly debug: readonly {
       readonly actorId: string;
       readonly priority: number;
@@ -127,7 +128,7 @@ export interface TurnOrderResolvedEvent {
       readonly initiativeScore: number;
       readonly effectiveSpeed: number;
       readonly tieBreakerSeed: number;
-      /** Decomposição de velocidade de turno (agilidade = velocidade). */
+      /** Decomposição de fluxo/classe (HUD). SET AGI não acelera animação. */
       readonly speedSumEquation?: string;
       readonly speedBuildRoster?: string;
       readonly initiativeLine?: string;

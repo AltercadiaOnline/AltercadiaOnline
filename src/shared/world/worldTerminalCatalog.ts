@@ -10,7 +10,7 @@ export const WORLD_TERMINAL_IDS = {
   ARENA: 'computador_arena',
   /** Púlpito de fila PvP ranqueada (2 slots → batalha). Marker Construct: `combate_pvp`. */
   COMBATE_PVP: 'combate_pvp',
-  /** Domínio / HUD da zona 1 (mecânicas de zona — futuro). */
+  /** Domínio / HUD da zona 1 (bypass + painel de quem está dominando). */
   ZONE_1: 'computador_zona1',
   /** Domínio / HUD da zona 2 (futuro). */
   ZONE_2: 'computador_zona2',
@@ -58,8 +58,8 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     label: 'Computador Zona 1',
     role: 'zone_domain',
     constructMarker: WORLD_TERMINAL_IDS.ZONE_1,
-    status: 'planned',
-    notes: 'HUD e mecânicas de domínio da zona 1.',
+    status: 'active',
+    notes: 'Minigame de memória (código 2s embaralhado). Após o bypass, E abre a HUD de domínio.',
   },
   {
     id: WORLD_TERMINAL_IDS.ZONE_2,

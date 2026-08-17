@@ -1,6 +1,10 @@
 import { DESIGN_CONFIG } from '../../../config/designConstants.js';
 import type { ExplorationRenderFrame } from '../../app/bridge/explorationRenderBridge.js';
+import type { RemotePlayerRenderFrame } from '../../world/remoteEntitySyncBridge.js';
 import { renderPlayer } from '../../renderPlayer.js';
+import { PlayerSprite } from '../../entities/player/PlayerSprite.js';
+import { DEFAULT_PLAYER_SKIN_ID } from '../../entities/player/playerConstants.js';
+import type { PlayerSkinBundleId } from '../../../shared/character/playerSkinBundle.js';
 import { drawCreatureIdleSpriteAtFeet } from '../../world/creatureWorldImageLoader.js';
 import { renderCreatureOnWorldMap } from '../../world/creatureWorldRenderer.js';
 import type { WorldNpcRenderSnapshot } from '../../world/worldActorsRenderSnapshot.js';
@@ -10,20 +14,23 @@ import { snapToPixel } from '../../render/pixelSnap.js';
 import { renderWorldNpcSnapshot } from '../../world/npcRenderer.js';
 import { renderPetSprite } from '../../entities/pet/petRenderer.js';
 import { PetSpriteLoader } from '../../entities/pet/PetSpriteLoader.js';
-import { tacticalSprayService } from '../../../shared/social/tacticalSprayStore.js';
+import { buildRemoteCompanionRenderSnapshot } from '../../world/remoteCompanionPose.js';
+import { getWorldSpraysForMap } from '../../world/worldSpraySyncBridge.js';
 import { OFFICIAL_SPRAY_STENCILS } from '../../../shared/types/tacticalSpray.js';
 
 const VIEWPORT_W = DESIGN_CONFIG.VIEWPORT.WIDTH;
 const VIEWPORT_H = DESIGN_CONFIG.VIEWPORT.HEIGHT;
 
 /**
- * Canvas DOM sobre o iframe Construct — desenha jogador, NPCs e criaturas
+ * Canvas DOM sobre o iframe Construct — desenha jogador local, peers, NPCs e criaturas
  * espelhando o snapshot autoritativo (servidor / Exploration).
  */
 export class ConstructEntityOverlay {
   private canvas: HTMLCanvasElement | null = null;
 
   private ctx: CanvasRenderingContext2D | null = null;
+
+  private readonly remotePlayerSprites = new Map<PlayerSkinBundleId, PlayerSprite>();
 
   private readonly npcSpriteById = new Map(
     getResolvedNpcRegistry().map((entry) => [entry.id, entry.sprite] as const),
@@ -66,6 +73,7 @@ export class ConstructEntityOverlay {
     this.canvas?.remove();
     this.canvas = null;
     this.ctx = null;
+    this.remotePlayerSprites.clear();
   }
 
   render(frame: ExplorationRenderFrame): void {
@@ -91,12 +99,12 @@ export class ConstructEntityOverlay {
     try {
       const tileSize = DESIGN_CONFIG.TILE.SIZE;
       const zoneId = String(frame.mapId);
-      const sprays = tacticalSprayService.getSpraysInZone(zoneId);
+      const sprays = getWorldSpraysForMap(zoneId);
       const imageCache: Map<string, HTMLImageElement | 'error'> = (ConstructEntityOverlay as any)._sprayImageCache || new Map();
       (ConstructEntityOverlay as any)._sprayImageCache = imageCache;
       for (const sp of sprays) {
-        const feetX = sp.posX * tileSize + tileSize / 2;
-        const feetY = sp.posY * tileSize + tileSize;
+        const feetX = sp.tileX * tileSize + tileSize / 2;
+        const feetY = sp.tileY * tileSize + tileSize;
         ctx.save();
         disableCanvasImageSmoothing(ctx);
         ctx.globalAlpha = 0.95;
@@ -130,31 +138,97 @@ export class ConstructEntityOverlay {
       // no-op: render loop must not throw
     }
 
+    const depthLayer: Array<{ readonly depthY: number; readonly draw: () => void }> = [];
+    const remotes = frame.remotePlayers;
+    if (remotes.length > 0) {
+      const updatedSkins = new Set<PlayerSkinBundleId>();
+      for (const remote of remotes) {
+        const skinBundleId = this.resolveRemoteSkinBundleId(remote);
+        if (!updatedSkins.has(skinBundleId)) {
+          this.getRemotePlayerSprite(skinBundleId).update(frame.timestampMs);
+          updatedSkins.add(skinBundleId);
+        }
+        depthLayer.push({
+          depthY: remote.feetY,
+          draw: () => this.renderRemotePlayer(ctx, remote, frame.timestampMs),
+        });
+        if (!remote.companion) continue;
+        const companion = buildRemoteCompanionRenderSnapshot(
+          remote,
+          remote.companion,
+          frame.timestampMs,
+        );
+        depthLayer.push({
+          depthY: companion.y,
+          draw: () => {
+            renderPetSprite(ctx, companion, frame.timestampMs);
+          },
+        });
+      }
+    }
+
     const pet = frame.pet;
-    const drawPetBeforePlayer = Boolean(
-      pet?.visible && pet.y <= frame.playerY,
-    );
-    if (drawPetBeforePlayer && pet) {
-      renderPetSprite(ctx, pet, frame.timestampMs);
+    if (pet?.visible) {
+      depthLayer.push({
+        depthY: pet.y,
+        draw: () => {
+          renderPetSprite(ctx, pet, frame.timestampMs);
+        },
+      });
     }
 
     if (Number.isFinite(frame.playerX) && Number.isFinite(frame.playerY)) {
-      renderPlayer(
-        ctx,
-        {
-          x: frame.playerX,
-          y: frame.playerY,
-          facing: frame.facing,
+      depthLayer.push({
+        depthY: frame.playerY,
+        draw: () => {
+          renderPlayer(
+            ctx,
+            {
+              x: frame.playerX,
+              y: frame.playerY,
+              facing: frame.facing,
+            },
+            frame.timestampMs,
+          );
         },
-        frame.timestampMs,
-      );
+      });
     }
 
-    if (pet?.visible && !drawPetBeforePlayer) {
-      renderPetSprite(ctx, pet, frame.timestampMs);
+    depthLayer.sort((left, right) => left.depthY - right.depthY);
+    for (const item of depthLayer) {
+      item.draw();
     }
 
     ctx.restore();
+  }
+
+  private resolveRemoteSkinBundleId(remote: RemotePlayerRenderFrame): PlayerSkinBundleId {
+    return remote.skinBundleId ?? DEFAULT_PLAYER_SKIN_ID;
+  }
+
+  private getRemotePlayerSprite(skinBundleId: PlayerSkinBundleId): PlayerSprite {
+    let sprite = this.remotePlayerSprites.get(skinBundleId);
+    if (!sprite) {
+      sprite = new PlayerSprite(skinBundleId);
+      this.remotePlayerSprites.set(skinBundleId, sprite);
+    }
+    return sprite;
+  }
+
+  private renderRemotePlayer(
+    ctx: CanvasRenderingContext2D,
+    remote: RemotePlayerRenderFrame,
+    timestampMs: number,
+  ): void {
+    this.getRemotePlayerSprite(this.resolveRemoteSkinBundleId(remote)).draw(
+      ctx,
+      {
+        x: snapToPixel(remote.feetX),
+        y: snapToPixel(remote.feetY),
+        facing: remote.facing,
+      },
+      timestampMs,
+    );
   }
 
   private renderNpc(

@@ -1,4 +1,4 @@
-/** Progressão harmonizada — mesma curva exponencial para personagem e domínio de moves. */
+/** Curva de XP de **domínio de moves** (`100 × 1.15^(nível − 1)`). Personagem usa `characterXpCurve`. */
 
 export const PROGRESSION_XP_BASE = 100;
 
@@ -11,12 +11,12 @@ export const DOMAIN_SYNC_RATIO_THRESHOLD = 0.8;
 export const DOMAIN_CATCH_UP_MULTIPLIER = 1.5;
 
 /**
- * Serviço de progressão harmonizada.
- * Fórmula exponencial atenuada compartilhada por nível do personagem e domínio de moves.
+ * Serviço de domínio de moves (e catch-up de sincronia).
+ * Nível do personagem: `src/shared/character/characterXpCurve.ts`.
  */
 export const CharacterProgressionService = {
   /**
-   * XP necessário para subir do `level` atual para `level + 1`.
+   * XP de domínio para subir do `level` atual para `level + 1`.
    * Fórmula: floor(base × growth^(level − 1))
    */
   getRequiredXp(level: number, base: number = PROGRESSION_XP_BASE, growth: number = PROGRESSION_XP_GROWTH): number {

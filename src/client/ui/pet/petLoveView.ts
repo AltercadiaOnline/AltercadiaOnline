@@ -1,6 +1,6 @@
 import type { PetSnapshot } from '../../../shared/pet/petModel.js';
 import { getPetDefinition } from '../../../shared/pet/petCatalog.js';
-import { getPetColorPalette } from '../../../shared/pet/petColorPalette.js';
+import { getDefaultPetColorId, getPetColorPalette } from '../../../shared/pet/petColorPalette.js';
 import { getPetGenderLabel, getPetGenderSymbol } from '../../../shared/pet/petGender.js';
 import { resolvePetBond } from '../../../shared/pet/petBond.js';
 import { resolvePetAffinityProgress, formatPetAffinityGainPercent } from '../../../shared/pet/petAffinity.js';
@@ -81,10 +81,6 @@ function renderStats(
       <div class="pet-love__stat">
         <dt>HP</dt>
         <dd>${pet.hpCurrent}/${pet.hpMax}</dd>
-      </div>
-      <div class="pet-love__stat">
-        <dt>Paleta</dt>
-        <dd>${palette.label}</dd>
       </div>
       <div class="pet-love__stat">
         <dt>Dano base</dt>
@@ -176,7 +172,7 @@ export function renderPetLoveHud(
   if (!pet) return renderEmpty(variant);
 
   const def = getPetDefinition(pet.kindId);
-  const palette = getPetColorPalette(pet.colorId);
+  const palette = getPetColorPalette(getDefaultPetColorId(pet.kindId));
   const bond = resolvePetBond(pet);
   const affinity = resolvePetAffinityProgress(pet);
   const barPercent = Math.min(100, affinity.ratio * 100);

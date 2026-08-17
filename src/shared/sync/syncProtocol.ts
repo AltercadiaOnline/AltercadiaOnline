@@ -3,6 +3,7 @@ import type { EconomyEvent } from '../economy/events.js';
 import type { AuthoritativePositionDelta } from '../world/movementIntent.js';
 import type { WorldCreatureSnapshot } from '../world/worldCreatureSync.js';
 import type { RemotePlayerSnapshot } from '../world/remotePlayerSync.js';
+import type { WorldSpraySnapshot } from '../social/spraySocialTypes.js';
 
 export { WORLD_TICK_MS, WORLD_TICK_HZ } from '../world/worldGameLoopConfig.js';
 
@@ -27,6 +28,8 @@ export type WorldTickDelta = {
   readonly creatures?: readonly WorldCreatureSnapshot[];
   /** Jogadores próximos — futuro broadcast; cliente interpola sem predição local. */
   readonly nearbyPlayers?: readonly RemotePlayerSnapshot[];
+  /** Pichações da zona atual do observador. */
+  readonly sprays?: readonly WorldSpraySnapshot[];
 };
 
 export type StateSyncBody =

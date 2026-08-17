@@ -234,11 +234,6 @@ export function applyInventoryUpdatedPayload(
   }
 }
 
-/** Personagem novo começa sem inventário demo — use DebugMenu / DEV_* para testes. */
-export function bootstrapMvpPlayerItems(): void {
-  bootstrapEmptyPlayerItems();
-}
-
 export function bootstrapEmptyPlayerItems(): void {
   getPlayerItemStore().hydrateFromServerBundle([], undefined, { immediate: true });
 }

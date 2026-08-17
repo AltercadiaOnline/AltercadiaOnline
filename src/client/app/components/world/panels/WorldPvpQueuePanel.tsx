@@ -36,14 +36,13 @@ function resolveStation(context: WorldPanelContext): { objectId: string; label: 
   return { objectId: PVP_RANKED_STATION_ID, label: PVP_RANKED_STATION_LABEL };
 }
 
-/** Nunca lança no render — evita derrubar o WorldSceneShell inteiro. */
-function resolveLocalPvpPlayerId(): string {
+function resolveLocalPvpIdentity(): { playerId: string; characterId: number | null } {
   try {
-    return resolveWorldLoreCredentials().playerId;
+    return resolveWorldLoreCredentials();
   } catch {
     const characterId = getGameStore().getActiveCharacterId();
-    if (characterId !== null) return `player:${characterId}`;
-    return 'local-player';
+    if (characterId !== null) return { playerId: `player:${characterId}`, characterId };
+    return { playerId: 'local-player', characterId: null };
   }
 }
 
@@ -104,10 +103,17 @@ export function WorldPvpQueuePanel({
 }: WorldPvpQueuePanelProps) {
   const station = resolveStation(context);
   const snapshot = usePvpQueueSnapshot();
-  const localPlayerId = useMemo(() => resolveLocalPvpPlayerId(), []);
+  const identity = useMemo(() => resolveLocalPvpIdentity(), []);
+  const localPlayerId = identity.playerId;
   const profile = getPlayerProfileStore().getSnapshot();
   const store = getPvpQueueStore();
-  const localSlot = snapshot.slots.find((slot) => slot?.playerId === localPlayerId) ?? null;
+  const localSlot = snapshot.slots.find((slot) => {
+    if (!slot || slot.playerId !== localPlayerId) return false;
+    if (identity.characterId !== null && slot.characterId !== undefined) {
+      return slot.characterId === identity.characterId;
+    }
+    return true;
+  }) ?? null;
   const inQueue = Boolean(localSlot);
   const countdownActive =
     snapshot.phase === 'countdown'
@@ -119,7 +125,7 @@ export function WorldPvpQueuePanel({
       : String(Math.round(PVP_RANKED_ACCEPT_COUNTDOWN_MS / 1000));
 
   useEffect(() => {
-    store.setLocalPlayerId(localPlayerId);
+    store.setLocalPlayerId(localPlayerId, identity.characterId ?? undefined);
     store.openStation(station.objectId, station.label);
     // Autoridade decide slots — front só pede join.
     sendPvpRankedJoin(station.objectId, profile.displayName || 'Você');
@@ -129,7 +135,7 @@ export function WorldPvpQueuePanel({
         sendPvpRankedLeave(station.objectId);
       });
     };
-  }, [station.objectId, station.label, localPlayerId, profile.displayName, store]);
+  }, [station.objectId, station.label, localPlayerId, identity.characterId, profile.displayName, store]);
 
   useEffect(() => {
     return store.onSessionCancelled(() => {

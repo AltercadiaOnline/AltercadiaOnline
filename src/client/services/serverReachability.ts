@@ -1,15 +1,12 @@
 import type { PublicClientConfig } from '../../shared/publicClientConfig.js';
 import type { GameHttpUrlConfig } from '../../shared/net/resolveGameHttpUrl.js';
+import { isLocalMonolithDevHost } from '../../shared/net/localMonolithDev.js';
 import {
   resolveAuthoritativeGameHttpUrl,
   resolveGameHttpUrl,
 } from '../../shared/net/resolveGameHttpUrl.js';
 
 const HEALTH_TIMEOUT_MS = 12_000;
-
-function isLocalDevHost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1';
-}
 
 function hasConfiguredGameEndpoint(
   config?: Pick<PublicClientConfig, 'gameHttpUrl' | 'gameWsUrl'> | null,
@@ -65,10 +62,10 @@ export async function isGameServerReachable(
   try {
     const frontBase = resolveGameHttpUrl(window.location, config ?? null);
     const frontOk = await fetchHealthOk(frontBase);
+    if (isLocalMonolithDevHost(window.location.hostname)) {
+      return frontOk;
+    }
     if (!frontOk) {
-      if (isLocalDevHost(window.location.hostname)) {
-        return true;
-      }
       return hasConfiguredGameEndpoint(config);
     }
 

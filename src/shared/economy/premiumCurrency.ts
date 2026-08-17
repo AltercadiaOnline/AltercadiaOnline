@@ -1,7 +1,10 @@
 /** Identificador da moeda premium (estilo Tibia Coins). */export const ALTER_COIN_ITEM_ID = 'alter_coin';
 
-/** Nomenclatura fixa da moeda premium — nunca abreviar. */
+/** Nomenclatura fixa da moeda premium — nunca abreviar fora da HUD. */
 export const ALTER_COINS_LABEL = 'ALTER COINS';
+
+/** Rótulo compacto só na HUD de exploração (vitals / carteira). */
+export const ALTER_COINS_HUD_LABEL = 'ALTER';
 
 /** Moeda in-game — obtida por loot, comércio e troca de Alter Coins. */
 export const DOLLAR_VOLT_ITEM_ID = 'dollar_volt';
@@ -11,6 +14,11 @@ export const ALTER_TO_VOLTS_EXCHANGE_RATE = 250;
 
 export function formatAlterCoins(amount: number): string {
   return `${Math.floor(amount)} ${ALTER_COINS_LABEL}`;
+}
+
+/** Display da HUD: `12 ALTER` — banco/economia continuam com ALTER COINS. */
+export function formatAlterCoinsHud(amount: number): string {
+  return `${Math.floor(amount)} ${ALTER_COINS_HUD_LABEL}`;
 }
 
 /** Compacta milhares/milhões sem arredondar (1180 → 1.180k, 1_180_000 → 1.18M). */

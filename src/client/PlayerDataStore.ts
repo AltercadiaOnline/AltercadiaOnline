@@ -51,8 +51,12 @@ import {
 } from './game/PlayerItemSession.js';
 import { getPlayerItemStore } from './ui/items/playerItemStore.js';
 import { getPlayerMarcosStore } from './ui/marcos/playerMarcosStore.js';
+import { getMercenaryQuestStore } from './ui/quests/mercenaryQuestStore.js';
+import { applyAuthoritativeFriendList } from './world/friendListStore.js';
 import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
+import { setOwnSprayLegacyMessage } from './world/sprayInspectStore.js';
+import { sanitizeSprayLegacyMessage } from '../shared/social/spraySocialTypes.js';
 
 type SliceRevisions = Record<DataStoreSlice, number>;
 
@@ -472,6 +476,17 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
           getPlayerEquipmentStore().setPlayerInfo(displayName, equipment.level);
         }
       }
+      if (typeof state.characterProfile.legacyMessage === 'string') {
+        setOwnSprayLegacyMessage(sanitizeSprayLegacyMessage(state.characterProfile.legacyMessage));
+      }
+    }
+
+    if (state.mercenaryQuests) {
+      getMercenaryQuestStore().applyAuthoritative(state.mercenaryQuests);
+    }
+
+    if (state.friends) {
+      applyAuthoritativeFriendList(state.friends);
     }
 
     this.globalRevision = state.revision;

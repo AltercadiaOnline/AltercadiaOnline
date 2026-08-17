@@ -3,26 +3,26 @@ import { useBattleHudStore } from '../../battle/battleHudStore.js';
 import { requestBattleItem, requestBattleMove } from '../../battle/battlePaletteHandlers.js';
 import { useAlignHudFrameToGameStage } from '../../hooks/useAlignHudFrameToGameStage.js';
 import { useBattleLayoutChrome } from '../../hooks/useBattleLayoutChrome.js';
-import { useGameStore, usePlayerLevel } from '../../store/gameStore.js';
+import { useHudViewMode } from '../../hooks/useAppUiSurface.js';
+import { usePlayerLevel } from '../../store/gameStore.js';
 import { UI_LAYER_Z_INDEX } from '../../shell/uiLayers.js';
 import { BattleBottomStrip } from './BattleBottomStrip.js';
+import { BattleFinishPrompt } from './BattleFinishPrompt.js';
 import { BattleVitalsRow } from './BattleVitalsRow.js';
+import { HudErrorBoundary } from '../HudErrorBoundary.js';
 
 /**
  * Shell de combate — playfield segmentado: HUD fixa em cima/baixo, arena no centro.
  */
 export function BattleHUD() {
-  const viewMode = useGameStore((state) => state.viewMode);
-  const active = useBattleHudStore(
-    (state) => state.controllerReady && state.battleHudActive,
-  );
+  const viewMode = useHudViewMode();
   const status = useBattleHudStore((state) => state.status);
   const playerLevel = usePlayerLevel();
   const frameRef = useRef<HTMLDivElement>(null);
   useAlignHudFrameToGameStage(frameRef);
   useBattleLayoutChrome(frameRef);
 
-  if (viewMode !== 'battle' || !active) {
+  if (viewMode !== 'battle') {
     return null;
   }
 
@@ -42,7 +42,7 @@ export function BattleHUD() {
         className="battle-hud-frame pointer-events-none"
         data-ui-surface="battle-hud-frame"
       >
-        <div className="battle-hud-shell__chrome flex min-h-0 h-full flex-col">
+        <div className="battle-hud-shell__chrome flex min-h-0 h-full flex-col relative">
           <div className="battle-hud-top-chrome pointer-events-auto flex-shrink-0">
             <BattleVitalsRow />
           </div>
@@ -53,6 +53,10 @@ export function BattleHUD() {
             requestMove={requestBattleMove}
             requestItem={requestBattleItem}
           />
+
+          <HudErrorBoundary fallback={null}>
+            <BattleFinishPrompt />
+          </HudErrorBoundary>
         </div>
       </div>
     </div>

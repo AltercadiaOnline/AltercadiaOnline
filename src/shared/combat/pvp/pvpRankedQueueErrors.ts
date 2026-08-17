@@ -11,6 +11,7 @@ const LABELS: Readonly<Record<PvpRankedQueueErrorCode, string>> = {
   NOT_IN_QUEUE: 'Você não está na fila — abra o púlpito de novo.',
   EXCLUSIVE_LOCKED: 'Sessão travada (countdown ou duelo). Aguarde.',
   INVALID_STATION: 'Estação PvP inválida.',
+  NOT_NEAR_STATION: 'Aproxime-se do púlpito da arena para entrar na fila.',
   PLAYER_BUSY: 'Personagem ocupado (já em combate ou fila).',
   MATCH_START_FAILED: 'Falha ao iniciar o duelo rankeado. Tente de novo.',
 };

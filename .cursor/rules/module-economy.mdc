@@ -1,0 +1,14 @@
+---
+description: Economia — só economyGateway, preço no servidor
+globs: src/Economy/**/*.ts,src/server/handlers/economy/**/*.ts,src/server/handlers/crafting/**/*.ts,src/shared/economy/**/*.ts,src/shared/items/**/*.ts,src/shared/bank/**/*.ts
+alwaysApply: false
+---
+
+# Economia
+
+Ficha: `docs/context/economia.md`
+
+- Mutação de item/moeda: `src/Economy/economyGateway.ts` + transação atômica.
+- UI só mostra cotação/snapshot. Sem total local na confirmação.
+- Personagem novo vazio. Mock e online = mesmo `ClientAction`.
+- Ícone: `public/assets/items/{itemId}.png`.

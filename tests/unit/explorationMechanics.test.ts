@@ -56,20 +56,35 @@ describe('Mecânica 2: Spray Tático (Sinalização Assíncrona & Hub Social)', 
   });
 
   it('deve permitir colocar um spray no chão e sobrescrever se for nas mesmas coordenadas', () => {
-    sprayService.placeSpray(
-      { userId: 'player_1', zoneId: 'Z1', posX: 10, posY: 20, sprayAssetId: 'spray_alerta_binario' },
-      'CyberKnight'
+    const first = sprayService.placeSpray(
+      {
+        userId: 'player_1',
+        authorCharacterId: 1,
+        zoneId: 'Z1',
+        posX: 10,
+        posY: 20,
+        sprayAssetId: 'spray_alerta_binario',
+      },
+      'CyberKnight',
     );
+    expect(first.ok).toBe(true);
 
     let sprays = sprayService.getSpraysInZone('Z1');
     expect(sprays).toHaveLength(1);
     expect(sprays[0].sprayAssetId).toBe('spray_alerta_binario');
 
-    // Sobrescrever nas mesmas coordenadas pelo mesmo jogador
-    sprayService.placeSpray(
-      { userId: 'player_1', zoneId: 'Z1', posX: 10, posY: 20, sprayAssetId: 'spray_terminal_hackeado' },
-      'CyberKnight'
+    const replaced = sprayService.placeSpray(
+      {
+        userId: 'player_1',
+        authorCharacterId: 1,
+        zoneId: 'Z1',
+        posX: 10,
+        posY: 20,
+        sprayAssetId: 'spray_terminal_hackeado',
+      },
+      'CyberKnight',
     );
+    expect(replaced.ok).toBe(true);
 
     sprays = sprayService.getSpraysInZone('Z1');
     expect(sprays).toHaveLength(1);
@@ -77,10 +92,20 @@ describe('Mecânica 2: Spray Tático (Sinalização Assíncrona & Hub Social)', 
   });
 
   it('deve contabilizar upvotes, recompensar com Volts/Reputação e gerar feed social', () => {
-    const spray = sprayService.placeSpray(
-      { userId: 'author_1', zoneId: 'Z1', posX: 15, posY: 25, sprayAssetId: 'spray_vigilante' },
-      'ZoneLeader'
+    const placed = sprayService.placeSpray(
+      {
+        userId: 'author_1',
+        authorCharacterId: 1,
+        zoneId: 'Z1',
+        posX: 15,
+        posY: 25,
+        sprayAssetId: 'spray_vigilante',
+      },
+      'ZoneLeader',
     );
+    expect(placed.ok).toBe(true);
+    if (!placed.ok) throw new Error('placeSpray falhou');
+    const spray = placed.spray;
 
     const upvoteResult = sprayService.upvoteSpray(spray.id, 'interator_1', 'ScoutPlayer');
     expect(upvoteResult.success).toBe(true);
@@ -95,8 +120,15 @@ describe('Mecânica 2: Spray Tático (Sinalização Assíncrona & Hub Social)', 
 
   it('deve executar o reset semanal de todas as marcas', () => {
     sprayService.placeSpray(
-      { userId: 'author_1', zoneId: 'Z1', posX: 5, posY: 5, sprayAssetId: 'spray_alerta_binario' },
-      'ZoneLeader'
+      {
+        userId: 'author_1',
+        authorCharacterId: 1,
+        zoneId: 'Z1',
+        posX: 5,
+        posY: 5,
+        sprayAssetId: 'spray_alerta_binario',
+      },
+      'ZoneLeader',
     );
     expect(sprayService.getSpraysInZone('Z1')).toHaveLength(1);
 

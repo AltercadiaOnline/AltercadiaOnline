@@ -1,110 +1,63 @@
-# Frontend Foundation — Cliente Online React/Híbrido
+# Frontend — cliente atual (React + Construct)
 
-Arquitetura oficial do front Altercadia para **online-first**: render no DOM, UI em React, estado autoritativo no legado/servidor.
+Substitui o texto antigo (Phaser / painéis stub). Detalhe operacional: `docs/context/ui-cliente.md`.
 
 ## Princípio
 
 ```text
-Render (canvas/Phaser)  →  #game-render-host   — gameplay visual, 640×360
-HUD in-game (React)     →  #game-react-hud-root — world + battle
-Overlay (React)         →  #game-react-overlay-root — loading, pós-batalha, loot
-Screen (React)          →  #screen-react-root  — login, char select (flags off = legado HTML)
+Construct + overlay canvas  →  #game-render-host     visual 640×360
+HUD in-game (React)         →  #game-react-hud-root  world + battle
+Screen (React)              →  #screen-react-root    login / char select
 ```
 
-**Regra de ouro:** React espelha stores/bridges — nunca calcula dano, XP, economia ou movimento.
+Cliente **espelha**. Dano, XP, preço, spray e movimento final = servidor (ou Mock no modo local).
 
-## Bootstrap (ordem)
+## Bootstrap
 
-1. `ui-runtime.js` → `mountReactUiRuntime()` (único React):
-   - registra `__ALTERCADIA_HUD_RUNTIME__`
-   - `initClientApp()` — bridges + Zustand sync
-   - `mountScreenRuntime` / `mountOverlayRuntime` (HUD in-game sob demanda)
-2. `main.ts` → `initReactHudHost()` — roots + bridges
-3. `enterWorld()` → `ensureGameHudRuntime()` → mesmo React (`__ALTERCADIA_HUD_RUNTIME__`)
-4. `initBattleHud()` → `initReactBattleHud()` — `data-react-battle-hud-ui=1`
+1. `src/client/browser/main.ts` — HUD runtime + mundo
+2. `initReactGameHud` / `ensureGameHudRuntime` — um reconciler React
+3. `App.tsx` — world vs battle via `GameStateManager`
 
-**Proibido:** segundo bundle React (`mountHudRuntime.js` standalone). Um só reconciler.
+API: `src/client/app/index.ts`. Arquitetura `online-react-v1`.
 
-API pública: `src/client/app/index.ts`
+## Z-index (`uiLayers.ts`)
 
-## Camadas e z-index
+| Camada | z |
+|--------|---|
+| Render | 0 |
+| World scene shell | 920 |
+| Battle HUD | 921 |
+| Sidebar persistente | 930 |
+| Painéis mundo | 940 |
+| Overlay (loot / spray inspect) | 10000 |
 
-| Camada | z-index | Superfície |
-|--------|---------|------------|
-| Render | 0 | `#game-render-host` |
-| World shell | 920 | vitals, hub |
-| Battle HUD | 921 | combate |
-| World panels | 925 | painéis móveis |
-| Screen | 960+ | auth (quando ativo) |
-| Overlay | 10000 | loading, loot casino |
-
-Constantes: `shell/uiLayers.ts` → `UI_LAYER_Z_INDEX`
-
-## Estrutura de pastas
+## Pastas React
 
 ```text
 src/client/app/
-  bootstrap/          initClientApp, teardown
-  bridge/               legado ↔ React (singletons)
   components/
-    screen/             ScreenApp, Auth/CharSelect shells
-    world/              WorldSceneShell, WorldPanelsLayer, panels/*
-    battle/             BattleHUD, loot, pós-batalha
-    GameShell.tsx       envelope HUD in-game
-    App.tsx             router world | battle
-    OverlayMount.tsx
-  hooks/                useAppScreen
-  hud/                  initReact* flags
-  panels/               worldPanelRenderers, initWorldPanelsBridge, hooks
-  phaser/               initPhaserReadyLayer (stub pronto)
-  runtime/              mount*Runtime + uiRuntime entry
-  shell/                clientArchitecture, uiLayers, screenSurface
-  store/                Zustand (espelho) + worldPanelsStore
-  types/                uiSurfaces
-  index.ts              API pública
+    screen/     Auth, CharSelect, CyberVoidBackground
+    world/      WorldSceneShell, WorldPanelsLayer, hud/, panels/
+    battle/     BattleHUD, loot casino, nameplates
+    App.tsx     router in-game
+  panels/       worldPanelRegistry + hooks de cada janela
+  shell/        uiLayers, clientArchitecture
+  bridge/       legado ↔ React
 ```
+
+Mundo visual: `src/client/worldRender/construct/` — **não** `src/client/phaser`.
+
+## Painéis
+
+Todos os IDs em `REACT_WORLD_PANEL_IDS` têm implementação (inventory, bank, market, marcos, quest, social, pets, PVP, etc.). Não tratar como stub.
 
 ## Estado
 
-| Camada | SSOT | Espelho React |
-|--------|------|----------------|
-| Jogo | `GameStore`, `GameStateManager` | `useGameStore` (Zustand) |
-| Painéis | `worldPanelsStore` + `PanelsBridge` | `useWorldPanelsStore` |
-| Battle UI | `battleHudBridge` | componentes battle |
-| Tela ativa | `appScreenBridge` | `useAppScreen` |
-
-## Painéis World
-
-- **Implementados:** hub, inventory, craft, dialogue, vendorShop, laboratoryShop, petTrainerShop, tournamentBet, rankingMonitor, refractionBooth
-- **Stub (WorldPanelShell):** characters, moveset, marcos, quest, social, shop, market, bank, petLove, diary, …
-- Registry: `panels/worldPanelRegistry.ts` + mapa `panels/worldPanelRenderers.tsx`
-
-## Feature flags (`document.body.dataset`)
-
-| Flag | Efeito |
-|------|--------|
-| `reactGameHudUi=1` | World React + oculta legado `#ui-layer` |
-| `reactBattleHudUi=1` | Battle React |
-| `reactAuthUi=1` | Screen login React (placeholder) |
-| `reactCharSelectUi=1` | Screen char select React |
-| `phaserReady=1` | Phaser wired; default `canvas-legacy` |
-
-Ativar Phaser dev: `enablePhaserHybridMode()` de `app/index.ts`
-
-## Próximos passos seguros
-
-1. Migrar auth/char select para `ScreenApp` (ativar flags + ocultar HTML legado)
-2. Widgets world: chat, minimapa, wallet sidebar → `WorldHUD`
-3. Painéis stub restantes (moveset, marcos, market, …)
-4. Phaser: conectar `ExplorationPhaserScene` ao loop de exploração
-5. Remover dual-render legado quando cada superfície tiver paridade React
+SSOT servidor / Mock. React usa stores (`PlayerDataStore`, equipment, items, Zustand bridges). `ActionDispatcher` para qualquer mutação.
 
 ## Build
 
 ```bash
-npm run build:ui    # Tailwind + esbuild → public/app-ui/
-npm run dev         # legado + ui-runtime
-npm run deploy:check
+npm run dev            # build + servidor local
+npm run deploy:check   # typecheck + build (+ audit Construct)
 ```
-
-Versão de arquitetura: `online-react-v1` (`body[data-ui-architecture]`)

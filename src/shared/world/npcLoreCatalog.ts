@@ -62,7 +62,7 @@ const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
     role: 'Distribui contratos de expedição e missões de risco.',
     district: 'Casa do Mercenário — zona residencial oeste',
     greeting:
-      'Tenho contratos com cheiro de pólvora e pagamento em VOLTS. Se tivers estômago, lemos os termos.',
+      'Tenho contratos com cheiro de pólvora e pagamento em VOLTS. O quadro filtra pela tua faixa — se tiveres estômago, assinamos.',
     biography: [
       'Ex-operativo de limpeza dimensional que recusou a última ordem da NexGrid. Agora vende trabalho sujo para quem prefere assinar um contrato a invadir zonas sem autorização.',
       'Sua casa é pequena, mas o arquivo de missões é grande: cada papel é uma intenção que o servidor ainda não implementou — ou que implementará quando você estiver pronto.',

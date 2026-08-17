@@ -1,5 +1,6 @@
 import {
   buildSeedMarketOffers,
+  parseMarketplaceOrderBookSnapshot,
   type MarketOfferRow,
 } from '../../../shared/economy/marketplaceOrderBook.js';
 import { getPlayerMarketStore, type PlayerMarketListing } from './playerMarketStore.js';
@@ -40,24 +41,11 @@ function getSeedOffers(): readonly MarketOfferRow[] {
   return cachedSeed;
 }
 
-let authoritativeOffers: readonly MarketOfferRow[] | null = null;
-const authoritativeListeners = new Set<() => void>();
-
-/** Sync order book autoritativo (servidor online). */
-export function applyAuthoritativeMarketplaceOffers(offers: readonly MarketOfferRow[]): void {
-  authoritativeOffers = offers.map((row) => ({ ...row }));
-  for (const listener of authoritativeListeners) listener();
+function cloneOffer(row: MarketOfferRow): MarketOfferRow {
+  return { ...row };
 }
 
-export function clearAuthoritativeMarketplaceOffers(): void {
-  authoritativeOffers = null;
-}
-
-/** Snapshot local do livro de ofertas (seed + anúncios do jogador). */
-export function getMarketplaceOrderBookSnapshot(): readonly MarketOfferRow[] {
-  if (authoritativeOffers) {
-    return authoritativeOffers.map((row) => ({ ...row }));
-  }
+function listLocalOwnOffers(): MarketOfferRow[] {
   const sellListings = getPlayerMarketStore()
     .getListings()
     .filter((entry) => entry.status === 'LISTED')
@@ -67,7 +55,63 @@ export function getMarketplaceOrderBookSnapshot(): readonly MarketOfferRow[] {
     .getOrders()
     .map(buyOrderToOffer);
 
-  return [...getSeedOffers(), ...sellListings, ...buyOrders];
+  return [...sellListings, ...buyOrders];
+}
+
+let authoritativeOffers: readonly MarketOfferRow[] | null = null;
+const authoritativeListeners = new Set<() => void>();
+
+function notifyOrderBookListeners(): void {
+  for (const listener of authoritativeListeners) listener();
+}
+
+/** Sync order book autoritativo (servidor online). `itemId` mescla só aquele item. */
+export function applyAuthoritativeMarketplaceOffers(
+  offers: readonly MarketOfferRow[],
+  itemId?: string | null,
+): void {
+  const next = offers.map(cloneOffer);
+  if (itemId) {
+    const previous = authoritativeOffers ?? getSeedOffers();
+    authoritativeOffers = [
+      ...previous.filter((row) => row.itemId !== itemId).map(cloneOffer),
+      ...next,
+    ];
+  } else {
+    authoritativeOffers = next;
+  }
+  notifyOrderBookListeners();
+}
+
+export function applyMarketplaceOrderBookSnapshot(data: unknown): boolean {
+  const parsed = parseMarketplaceOrderBookSnapshot(data);
+  if (!parsed) return false;
+  applyAuthoritativeMarketplaceOffers(parsed.offers, parsed.itemId);
+  getPlayerMarketStore().replaceFromServer(parsed.ownListings);
+  getMarketplaceBuyOrderStore().replaceFromServer(parsed.ownBuyOrders);
+  return true;
+}
+
+export function publishLocalMarketplaceOrderBook(): void {
+  applyAuthoritativeMarketplaceOffers([...getSeedOffers(), ...listLocalOwnOffers()]);
+}
+
+export function clearAuthoritativeMarketplaceOffers(): void {
+  authoritativeOffers = null;
+}
+
+/** Snapshot local do livro de ofertas (autoritativo + anúncios próprios ainda não mesclados). */
+export function getMarketplaceOrderBookSnapshot(): readonly MarketOfferRow[] {
+  const localOwn = listLocalOwnOffers();
+  if (!authoritativeOffers) {
+    return [...getSeedOffers(), ...localOwn].map(cloneOffer);
+  }
+
+  const byId = new Map(authoritativeOffers.map((row) => [row.id, cloneOffer(row)]));
+  for (const row of localOwn) {
+    if (!byId.has(row.id)) byId.set(row.id, row);
+  }
+  return [...byId.values()];
 }
 
 export function subscribeMarketplaceOrderBook(listener: () => void): () => void {

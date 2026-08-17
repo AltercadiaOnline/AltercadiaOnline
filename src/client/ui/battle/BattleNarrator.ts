@@ -8,6 +8,9 @@ import {
 import { formatCombatHitLogFormula } from '../../../shared/combat/combatHitLogFormula.js';
 import { formatCombatActionRejection } from '../../../shared/combat/actionRejectionMessages.js';
 import { resolveMoveDefinitionForUi } from '../../../shared/combat/movesetLoadout.js';
+import {
+  formatTurnOrderNarrative,
+} from '../../../shared/combat/agilityTempo.js';
 import type { BattleLogEmitter } from './battleLogColors.js';
 import {
   formatBattleStarted,
@@ -46,7 +49,7 @@ const HIDDEN_LINE_PATTERNS: readonly RegExp[] = [
   /\bbase=/i,
   /\bfinal=/i,
   /^ordem:/i,
-  /→.*\(INITIATIVE|PRIORITY|SPEED|SEED\)/i,
+  /→.*\(INITIATIVE|PRIORITY|SPEED|SEED|AGILITY_TEMPO\)/i,
   /^.+\s+causou\s+\d+\s+de\s+dano!?$/i,
   /^.+\s+usou\s+.+[^!]\s*$/,
 ];
@@ -110,9 +113,6 @@ export function narrateCombatEventLines(
       return line ? [line] : [];
     }
 
-    case CombatEventType.ACTION_ACCEPTED:
-      return [];
-
     case CombatEventType.ACTION_REJECTED: {
       if (
         ctx.playerActorId
@@ -135,8 +135,19 @@ export function narrateCombatEventLines(
       }];
 
     case CombatEventType.SKILL_CATALOG:
-    case CombatEventType.TURN_ORDER_RESOLVED:
+    case CombatEventType.ACTION_ACCEPTED:
       return [];
+
+    case CombatEventType.TURN_ORDER_RESOLVED: {
+      const line = formatTurnOrderNarrative(
+        event.payload.order,
+        ctx.combatants,
+        ctx.playerActorId,
+      );
+      return line
+        ? [{ text: line, emitter: 'SYSTEM' as const, tone: 'neutral' as const }]
+        : [];
+    }
 
     default:
       return [];

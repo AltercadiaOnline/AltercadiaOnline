@@ -12,6 +12,7 @@ import {
   didPlayerWinBattle,
   resolveBattleCreatureId,
 } from '../../shared/items/combatCreatureRegistry.js';
+import { isBossCreatureId } from '../../shared/combat/MonsterCatalog.js';
 import { ensureMovesetMasteryForClass } from '../../shared/progression/movesetMasterySeed.js';
 import type { MarcosStateSnapshot } from '../../shared/playerDataSnapshots.js';
 import { progressMarcoAuthoritative } from '../../Economy/progressionGateway.js';
@@ -19,6 +20,7 @@ import { getAuthoritativeProgression } from '../progression/authoritativeProgres
 import { persistWorldVitalsAfterCombat } from '../world/persistWorldVitalsAfterCombat.js';
 import { buildCitySafeSpawnPayload } from '../../shared/world/zoneTransition.js';
 import { applyAuthoritativeDeathPenalty } from './applyAuthoritativeDeathPenalty.js';
+import { applyAuthoritativePveKillCredit } from './applyAuthoritativePveKillCredit.js';
 import {
   applyAuthoritativeBattleProgression,
   resolveAuthoritativeBattleProgressionGrant,
@@ -90,6 +92,16 @@ export function finalizeAuthoritativeBattleEnd(
 
     const battleType = payload.state.battleType ?? BattleType.PVE;
     if (battleType === BattleType.PVE) {
+      const creatureId = resolveBattleCreatureId(payload.state.combatants, playerActorId)
+        ?? finishedEvent.payload.progressionGrant?.creatureId
+        ?? null;
+      const packSize = Math.max(1, payload.state.pveEncounterPackSize ?? 1);
+      const isBoss = creatureId ? isBossCreatureId(creatureId) : false;
+      applyAuthoritativePveKillCredit(playerActorId, characterId, {
+        kills: isBoss ? 0 : packSize,
+        bossKills: isBoss ? 1 : 0,
+      });
+
       const marcoEvents = session.getMarcoProgressEvents(true);
       if (marcoEvents.length > 0) {
         const marcoResult = progressMarcoAuthoritative(

@@ -1,22 +1,25 @@
 /**
  * Toggle único Local × Online — Arquitetura de Dados Unificada.
  *
- * Local: ActionDispatcher aplica a intenção no espelho (simula ACK) + save local.
- * Online: ActionDispatcher emite player-intent; Zustand só após confirmação/snapshot.
+ * `online` = servidor autoritativo (WS). Caminho normal em localhost (`npm run dev`)
+ * e em produção. Mesmo protocolo — dois browsers = dois jogadores.
  *
- * Resolução (primeira que bater):
- * 1. `?gameMode=local|online` na URL (escape hatch raro)
- * 2. `localStorage.altercadia.gameMode`
- * 3. `window.__ALTERCADIA_GAME_MODE__`
- * 4. default: **localhost → local** | **produção → online**
+ * `local` = Mock 1 jogador (sem multiplayer). Escape hatch:
+ * `npm run dev:mock` ou `?gameMode=local` (só localhost).
  *
- * Segurança: `local` só em localhost/127.0.0.1. Em produção (Vercel) sempre `online`,
- * mesmo se a URL ou o localStorage pedirem local — evita Mock na CDN.
+ * Resolução:
+ * 1. Host de produção → sempre `online`
+ * 2. `?gameMode=local|online` na URL (localhost)
+ * 3. `GET /config/client`.defaultGameMode (servidor)
+ * 4. default `online`
+ *
+ * Não usa `localStorage` como fonte — preferência presa quebrava o caminho normal.
+ * Produção nunca ativa Mock, mesmo com query.
  */
 
 export type GameMode = 'local' | 'online';
 
-const STORAGE_KEY = 'altercadia.gameMode';
+const STALE_STORAGE_KEY = 'altercadia.gameMode';
 
 declare global {
   interface Window {
@@ -41,26 +44,19 @@ function readQueryMode(): GameMode | null {
   return null;
 }
 
-function readStorageMode(): GameMode | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw === 'local' || raw === 'online') return raw;
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
 function readWindowMode(): GameMode | null {
   if (typeof window === 'undefined') return null;
   const raw = window.__ALTERCADIA_GAME_MODE__;
   return raw === 'local' || raw === 'online' ? raw : null;
 }
 
-/** Um local no PC; internet = Vercel/Railway. */
-function defaultModeForHost(): GameMode {
-  return isLocalDevHost() ? 'local' : 'online';
+function clearStaleModeStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(STALE_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Força online fora de localhost — Mock nunca ativa na Vercel. */
@@ -76,28 +72,44 @@ let cachedMode: GameMode | null = null;
 /** Modo ativo (cache por sessão de página). */
 export function getGameMode(): GameMode {
   if (cachedMode) return cachedMode;
-  const resolved =
-    readQueryMode()
-    ?? readStorageMode()
+  const fromQuery = readQueryMode();
+  const resolved = clampModeForHost(
+    fromQuery
     ?? readWindowMode()
-    ?? defaultModeForHost();
-  cachedMode = clampModeForHost(resolved);
+    ?? 'online',
+  );
+  cachedMode = resolved;
+  if (typeof window !== 'undefined') {
+    window.__ALTERCADIA_GAME_MODE__ = resolved;
+  }
+  if (!fromQuery) {
+    clearStaleModeStorage();
+  }
   return cachedMode;
 }
 
-/** Define modo e persiste preferência (exceto quando veio só da query). */
-export function setGameMode(mode: GameMode, options?: { readonly persist?: boolean }): void {
+/**
+ * Aplica o default do servidor depois de GET /config/client.
+ * Query na URL continua ganhando; produção continua travada em online.
+ */
+export function applyServerDefaultGameMode(mode: GameMode): void {
+  if (readQueryMode()) return;
   const next = clampModeForHost(mode);
   cachedMode = next;
   if (typeof window !== 'undefined') {
     window.__ALTERCADIA_GAME_MODE__ = next;
-    if (options?.persist !== false) {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, next);
-      } catch {
-        /* ignore */
-      }
-    }
+  }
+  if (next === 'online') {
+    clearStaleModeStorage();
+  }
+}
+
+/** Define modo. `persist` legado — não grava mais localStorage (não é o caminho normal). */
+export function setGameMode(mode: GameMode, _options?: { readonly persist?: boolean }): void {
+  const next = clampModeForHost(mode);
+  cachedMode = next;
+  if (typeof window !== 'undefined') {
+    window.__ALTERCADIA_GAME_MODE__ = next;
   }
 }
 

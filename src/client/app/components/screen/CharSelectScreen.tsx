@@ -14,6 +14,7 @@ import {
 } from '../../bridge/charSelectBridge.js';
 import { CharacterCreateModal } from './CharacterCreateModal.js';
 import { CharacterDeleteModal } from './CharacterDeleteModal.js';
+import { CyberVoidBackground } from './CyberVoidBackground.js';
 
 /** Buffer do canvas de preview — proporção ~85×132 do slot, com resolução 2× para nitidez. */
 const SLOT_AVATAR_BUFFER_WIDTH = 170;
@@ -71,161 +72,175 @@ export function CharSelectScreen() {
 
   return (
     <div
-      className="pointer-events-auto fixed inset-0 z-[960] flex flex-col items-center overflow-y-auto bg-[rgba(5,10,13,0.96)] px-4 py-8"
+      className="char-select-hud pointer-events-auto fixed inset-0 z-[960]"
       data-ui-surface="char-select-screen"
       role="main"
       aria-label="Seleção de personagem"
     >
-      <h1>ESCOLHA SEU PERSONAGEM</h1>
+      <CyberVoidBackground />
 
-      {state.accountEmail && (
-        <p className="char-select-account">{state.accountEmail}</p>
-      )}
+      <header className="char-select-hud__top">
+        <div className="auth-hud-test__brand-block">
+          <h1 className="auth-hud-test__brand">ALTERCADIA</h1>
+          <p className="auth-hud-test__tagline">RPG BATTLE ONLINE</p>
+        </div>
+        <nav className="char-select-hud__nav" aria-label="Conta">
+          <button type="button" className="char-select-hud__nav-link" onClick={() => bridge.returnToLogin()}>
+            VOLTAR AO LOGIN
+          </button>
+        </nav>
+      </header>
 
-      {state.server && (
-        <section className="char-select-server-panel ui-skin-hybrid ui-skin-hybrid--holo-boost" aria-label="Servidor de jogo">
-          <p className="char-select-server-panel__title">Servidor</p>
-          <label className="auth-field char-select-server-field">
-            <span className="sr-only">Escolha o shard</span>
-            <select
-              aria-label="Servidor"
-              value={state.server.activeId}
-              disabled={state.server.selectorDisabled}
-              onChange={(event) => {
-                void bridge.changeServer(event.target.value);
-              }}
-            >
-              {state.server.options.map((option) => (
-                <option key={option.id} value={option.id} disabled={option.disabled}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p
-            className={`char-select-server-hint ${state.server.hintWarning ? 'is-warning' : ''}`}
-            aria-live="polite"
-          >
-            {state.server.hint}
-          </p>
-        </section>
-      )}
+      <div className="char-select-hud__body">
+        <h2 className="char-select-hud__title">ESCOLHA SEU PERSONAGEM</h2>
 
-      {state.statusMessage && (
-        <p className={`auth-status ${state.statusIsError ? 'is-error' : ''}`} aria-live="polite">
-          {state.statusMessage}
-        </p>
-      )}
+        {state.accountEmail && (
+          <p className="char-select-account">{state.accountEmail}</p>
+        )}
 
-      {state.statusIsError && (
-        <button
-          type="button"
-          className="char-select-retry"
-          disabled={state.hubLoading}
-          aria-busy={state.hubLoading}
-          onClick={() => {
-            void bridge.retryHubLoad();
-          }}
-        >
-          {state.hubLoading ? 'RECONECTANDO…' : 'TENTAR NOVAMENTE'}
-        </button>
-      )}
-
-      <div className="char-container">
-        {state.hubLoading && state.slots.length === 0
-          ? Array.from({ length: CHARACTER_SLOT_COUNT }, (_, slotIndex) => (
-              <div
-                key={`loading-${slotIndex}`}
-                className="char-slot vortex-panel ui-skin-hybrid ui-skin-hybrid--holo-boost empty char-slot--loading"
-                aria-hidden="true"
+        {state.server && (
+          <section className="char-select-server-panel" aria-label="Servidor de jogo">
+            <p className="char-select-server-panel__title">Servidor</p>
+            <label className="auth-field char-select-server-field">
+              <span className="sr-only">Escolha o shard</span>
+              <select
+                aria-label="Servidor"
+                value={state.server.activeId}
+                disabled={state.server.selectorDisabled}
+                onChange={(event) => {
+                  void bridge.changeServer(event.target.value);
+                }}
               >
-                <div className="char-slot-body">
-                  <span className="char-empty-label">{`Slot ${slotIndex + 1}`}</span>
-                  <span className="char-empty-action">Carregando…</span>
+                {state.server.options.map((option) => (
+                  <option key={option.id} value={option.id} disabled={option.disabled}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p
+              className={`char-select-server-hint ${state.server.hintWarning ? 'is-warning' : ''}`}
+              aria-live="polite"
+            >
+              {state.server.hint}
+            </p>
+          </section>
+        )}
+
+        {state.statusMessage && (
+          <p className={`char-select-hud__status ${state.statusIsError ? 'is-error' : ''}`} aria-live="polite">
+            {state.statusMessage}
+          </p>
+        )}
+
+        {state.statusIsError && (
+          <button
+            type="button"
+            className="char-select-retry"
+            disabled={state.hubLoading}
+            aria-busy={state.hubLoading}
+            onClick={() => {
+              void bridge.retryHubLoad();
+            }}
+          >
+            {state.hubLoading ? 'RECONECTANDO…' : 'TENTAR NOVAMENTE'}
+          </button>
+        )}
+
+        <div className="char-container">
+          {state.hubLoading && state.slots.length === 0
+            ? Array.from({ length: CHARACTER_SLOT_COUNT }, (_, slotIndex) => (
+                <div
+                  key={`loading-${slotIndex}`}
+                  className="char-slot empty char-slot--loading"
+                  aria-hidden="true"
+                >
+                  <div className="char-slot-body">
+                    <span className="char-empty-label">{`Slot ${slotIndex + 1}`}</span>
+                    <span className="char-empty-action">Carregando…</span>
+                  </div>
                 </div>
-              </div>
-            ))
-          : state.slots.map(({ slotIndex, character }) => {
-          if (character) {
-            const selected = character.id === state.selectedCharacterId;
-            const skinBundleId = resolvePlayerSkinBundleId(character);
-            const characterSkin = resolveCharacterSkin(character);
+              ))
+            : state.slots.map(({ slotIndex, character }) => {
+            if (character) {
+              const selected = character.id === state.selectedCharacterId;
+              const skinBundleId = resolvePlayerSkinBundleId(character);
+              const characterSkin = resolveCharacterSkin(character);
+              return (
+                <div
+                  key={`slot-${slotIndex}`}
+                  className={`char-slot ${selected ? 'is-selected' : ''}`}
+                  data-char-id={String(character.id)}
+                  data-slot-index={String(slotIndex)}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => bridge.selectCharacter(character.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      bridge.selectCharacter(character.id);
+                    }
+                  }}
+                >
+                  <div className="char-slot-preview" aria-hidden="true">
+                    <CharSlotAvatar bundleId={skinBundleId} skin={characterSkin} />
+                  </div>
+                  <div className="char-slot-body">
+                    <strong className="char-name">{character.name}</strong>
+                    <span className="char-class">
+                      {CLASS_CATALOG[character.class].name}
+                      {' · '}
+                      {CLASS_CATALOG[character.class].trait}
+                    </span>
+                    <span className="char-level">{`LVL ${character.level}`}</span>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
-                key={`slot-${slotIndex}`}
-                className={`char-slot vortex-panel ui-skin-hybrid ui-skin-hybrid--holo-boost ${selected ? 'is-selected' : ''}`}
-                data-char-id={String(character.id)}
+                key={`empty-${slotIndex}`}
+                className="char-slot empty"
                 data-slot-index={String(slotIndex)}
                 role="button"
                 tabIndex={0}
-                onClick={() => bridge.selectCharacter(character.id)}
+                onClick={() => bridge.openCreate(slotIndex)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    bridge.selectCharacter(character.id);
+                    bridge.openCreate(slotIndex);
                   }
                 }}
               >
-                <div className="char-slot-preview" aria-hidden="true">
-                  <CharSlotAvatar bundleId={skinBundleId} skin={characterSkin} />
-                </div>
                 <div className="char-slot-body">
-                  <strong className="char-name">{character.name}</strong>
-                  <span className="char-class">
-                    {CLASS_CATALOG[character.class].name}
-                    {' · '}
-                    {CLASS_CATALOG[character.class].trait}
-                  </span>
-                  <span className="char-level">{`LVL ${character.level}`}</span>
+                  <span className="char-empty-label">{`Slot ${slotIndex + 1}`}</span>
+                  <span className="char-empty-action">Criar Novo</span>
                 </div>
               </div>
             );
-          }
+          })}
+        </div>
 
-          return (
-            <div
-              key={`empty-${slotIndex}`}
-              className="char-slot vortex-panel ui-skin-hybrid ui-skin-hybrid--holo-boost empty"
-              data-slot-index={String(slotIndex)}
-              role="button"
-              tabIndex={0}
-              onClick={() => bridge.openCreate(slotIndex)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  bridge.openCreate(slotIndex);
-                }
-              }}
-            >
-              <div className="char-slot-body">
-                <span className="char-empty-label">{`Slot ${slotIndex + 1}`}</span>
-                <span className="char-empty-action">Criar Novo</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="char-select-actions">
-        <button type="button" onClick={() => bridge.returnToLogin()}>
-          VOLTAR AO LOGIN
-        </button>
-        <button
-          type="button"
-          className="char-select-delete"
-          disabled={state.deleteDisabled}
-          onClick={() => bridge.openDelete()}
-        >
-          EXCLUIR PERSONAGEM
-        </button>
-        <button
-          type="button"
-          disabled={state.enterWorldDisabled}
-          aria-busy={state.enterWorldBusy}
-          onClick={() => bridge.enterWorld()}
-        >
-          ENTRAR NO MUNDO
-        </button>
+        <div className="char-select-actions">
+          <button
+            type="button"
+            className="char-select-delete"
+            disabled={state.deleteDisabled}
+            onClick={() => bridge.openDelete()}
+          >
+            EXCLUIR PERSONAGEM
+          </button>
+          <button
+            type="button"
+            className="char-select-enter"
+            disabled={state.enterWorldDisabled}
+            aria-busy={state.enterWorldBusy}
+            onClick={() => bridge.enterWorld()}
+          >
+            ENTRAR NO MUNDO
+          </button>
+        </div>
       </div>
 
       <CharacterCreateModal

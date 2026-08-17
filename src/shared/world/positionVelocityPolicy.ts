@@ -1,3 +1,4 @@
+import { LEVEL_MOVE_SPEED_MAX_BONUS } from '../character/levelMoveSpeed.js';
 import { PLAYER_MOVE_SPEED_PX_PER_SEC } from './movement.js';
 
 /** Intervalo padrão entre pacotes de sync (500ms). */
@@ -6,10 +7,11 @@ export const POSITION_SYNC_DELTA_TIME_SEC = 0.5;
 export const POSITION_SYNC_MAX_WINDOW_MS = POSITION_SYNC_DELTA_TIME_SEC * 1000;
 
 /**
- * Velocidade máxima em px/s — ajuste via multiplicador sobre a locomoção do boneco.
- * Equivalente ao MAX_VELOCITY do snippet de anti-teleporte.
+ * Teto anti-teleporte — nível 60 (+55%) × margem de Agilidade do SET.
+ * O cap antigo (1.5× base) platôava a locomoção a partir do mid-game.
  */
-export const PLAYER_MAX_VELOCITY_PX_PER_SEC = PLAYER_MOVE_SPEED_PX_PER_SEC * 1.5;
+export const PLAYER_MAX_VELOCITY_PX_PER_SEC =
+  PLAYER_MOVE_SPEED_PX_PER_SEC * (1 + LEVEL_MOVE_SPEED_MAX_BONUS) * 1.4;
 
 /** Alias legível — mesma unidade (px/s). */
 export const MAX_VELOCITY = PLAYER_MAX_VELOCITY_PX_PER_SEC;

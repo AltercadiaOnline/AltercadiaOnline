@@ -16,8 +16,7 @@ import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getPlayerSkinStore } from '../ui/character/playerSkinStore.js';
-import { getPlayerMarketStore } from '../ui/market/playerMarketStore.js';
-import { getMarketplaceBuyOrderStore } from '../ui/market/marketplaceBuyOrderStore.js';
+import { applyMarketplaceOrderBookSnapshot } from '../ui/market/marketplaceOrderBookClient.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 export function formatDollarVolt(amount: number): string {
   return formatVolts(amount);
@@ -224,11 +223,7 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
   }
 
   if (event.type === EconomyEventType.MarketplaceUpdated) {
-    void import('../ui/market/marketplaceOrderBookClient.js').then(({ applyAuthoritativeMarketplaceOffers }) => {
-      applyAuthoritativeMarketplaceOffers(event.payload.offers);
-    });
-    getPlayerMarketStore().replaceFromServer(event.payload.ownListings);
-    getMarketplaceBuyOrderStore().replaceFromServer(event.payload.ownBuyOrders);
+    applyMarketplaceOrderBookSnapshot(event.payload);
     if (event.payload.intentId) {
       dispatcher.confirmIntent(event.payload.intentId);
     }

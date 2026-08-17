@@ -12,7 +12,7 @@ export const HUB_PANEL_ACTIONS: readonly HubPanelAction[] = [
   { windowId: 'petLove', label: 'Pet Love' },
   { windowId: 'moveset', label: 'Moveset' },
   { windowId: 'marcos', label: 'Marcos' },
-  { windowId: 'quest', label: 'Missões' },
+  { windowId: 'quest', label: 'Contratos' },
   { windowId: 'social', label: 'Social', accent: true },
   { windowId: 'shop', label: 'Loja' },
   { windowId: 'marketHub', label: 'Mercado' },

@@ -38,6 +38,7 @@ export function buildMirrorPlayerCombatant(seed?: number): Combatant {
     hpCurrent: maxHp,
     hpMax: maxHp,
     classId,
+    level: 12,
     combatRole: 'PLAYER',
     speedProfile: {
       flowSpeedBase: 32,

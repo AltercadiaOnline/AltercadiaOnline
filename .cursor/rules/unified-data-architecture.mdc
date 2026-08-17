@@ -26,8 +26,8 @@ Fonte: `src/client/runtime/gameMode.ts` (`local` | `online`).
 
 | Modo | O que o ActionDispatcher faz |
 |------|------------------------------|
-| `local` | Executa a mesma intenção e aplica o resultado no espelho (Zustand) **como se** fosse ACK do servidor; persiste save local |
-| `online` | Emite `player-intent` (WS/API); só atualiza Zustand após confirmação / snapshot autoritativo |
+| `online` (default: `npm run dev` e produção) | Emite `player-intent` (WS/API); só atualiza Zustand após confirmação / snapshot autoritativo |
+| `local` (Mock: `npm run dev:mock` ou `?gameMode=local`) | Executa a mesma intenção e aplica o resultado no espelho (Zustand) **como se** fosse ACK do servidor; persiste save local |
 
 ### 3. Estado limpo
 

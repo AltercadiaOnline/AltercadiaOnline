@@ -76,7 +76,7 @@ export function CharacterDeleteModal({
         }
       }}
     >
-      <div className="char-create-box vortex-panel auth-form ui-skin-hybrid ui-skin-hybrid--holo-boost char-delete-box">
+      <div className="char-create-box auth-form char-create-box--glass char-delete-box">
         <h2 id="char-delete-title" className="auth-panel-title">
           EXCLUIR PERSONAGEM
         </h2>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { formatAlterCoinsHud } from '../../../../shared/economy/premiumCurrency.js';
 import { useGameStore } from '../../store/gameStore.js';
 import { useAuthoritativeWorldVitalsStrip } from '../../hooks/usePlayerHudStores.js';
 import { useHudViewMode, useIsInGame } from '../../hooks/useAppUiSurface.js';
@@ -24,7 +25,7 @@ function PlayerVitalsStrip() {
           <div className="player-vitals-strip__level">Nível {level}</div>
         </div>
         <div className="player-vitals-strip__wallet">
-          {gold.voltsFormatted} · {gold.alterFormatted}
+          {gold.voltsFormatted} · {formatAlterCoinsHud(gold.alterCoins)}
         </div>
       </div>
       <div

@@ -3,15 +3,13 @@ import {
   formatCombatActionBreakdown,
   formatCombatBreakdownSumEquation,
   formatCombatHitSummary,
-  formatCombatSceneMathLines,
   type CombatHitSummaryInput,
 } from '../../shared/combat/combatActionBreakdown.js';
 import {
-  formatCombatHitMitigationSteps,
   type CombatHitMitigationSnapshot,
 } from '../../shared/combat/combatHitMitigation.js';
 import { formatCompactHitMoveLabel, resolveHitMoveDisplayName } from '../../shared/combat/moveDisplayLabels.js';
-import { sumAttackBreakdownTotal } from '../../shared/combat/combatBreakdownBuilder.js';
+import { buildCombatHitLessonTable } from '../../shared/combat/combatHitLessonTable.js';
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import {
   mountBattleHitHudInZone,
@@ -190,25 +188,35 @@ function appendCompactSceneDamage(
     overlay.appendChild(moveRow);
   }
 
-  if (lessonMath && payload.attackBreakdown) {
-    const mathLines = formatCombatSceneMathLines(payload.attackBreakdown);
-    if (mathLines.length > 0) {
-      const mathBlock = doc.createElement('div');
-      mathBlock.className = 'technical-impact__math-block';
-      for (const line of mathLines) {
-        const row = doc.createElement('div');
-        row.className = 'technical-impact__math-line';
-        row.textContent = line;
-        mathBlock.appendChild(row);
+  if (lessonMath) {
+    const rows = buildCombatHitLessonTable({
+      damageReceived: damage,
+      ...(payload.attackBreakdown ? { attackBreakdown: payload.attackBreakdown } : {}),
+      ...(defenseTotal > 0 || payload.defenseTotal !== undefined
+        ? { defenseTotal }
+        : {}),
+      ...(payload.mitigation ? { mitigation: payload.mitigation } : {}),
+    });
+    if (rows.length > 0) {
+      const table = doc.createElement('div');
+      table.className = 'technical-impact__lesson-table';
+      table.setAttribute('role', 'table');
+      for (const row of rows) {
+        const line = doc.createElement('div');
+        line.className = `technical-impact__lesson-row technical-impact__lesson-row--${row.kind}`;
+        line.setAttribute('role', 'row');
+        const label = doc.createElement('span');
+        label.className = 'technical-impact__lesson-label';
+        label.textContent = row.label;
+        const value = doc.createElement('span');
+        value.className = 'technical-impact__lesson-value';
+        value.textContent = row.display;
+        line.append(label, value);
+        table.appendChild(line);
       }
-      const attackTotal = payload.attackTotal
-        ?? sumAttackBreakdownTotal(payload.attackBreakdown);
-      const sumRow = doc.createElement('div');
-      sumRow.className = 'technical-impact__math-sum';
-      sumRow.textContent = `= ${Math.round(attackTotal)}`;
-      mathBlock.appendChild(sumRow);
-      overlay.appendChild(mathBlock);
+      overlay.appendChild(table);
     }
+    return true;
   }
 
   if (damage > 0 && !suppressFinalDamage) {
@@ -218,34 +226,11 @@ function appendCompactSceneDamage(
     overlay.appendChild(finalRow);
   }
 
-  if (defenseTotal > 0 && (lessonMath || (damage > 0 && movesetPower !== undefined && movesetPower > damage))) {
+  if (defenseTotal > 0 && damage > 0 && movesetPower !== undefined && movesetPower > damage) {
     const defenseHint = doc.createElement('div');
     defenseHint.className = 'technical-impact__defense-hint';
-    defenseHint.textContent = lessonMath
-      ? `− Defesa ${defenseTotal}`
-      : `Defesa ${defenseTotal}`;
+    defenseHint.textContent = `Defesa ${defenseTotal}`;
     overlay.appendChild(defenseHint);
-  }
-
-  if (lessonMath && damage > 0) {
-    const resultRow = doc.createElement('div');
-    resultRow.className = 'technical-impact__math-result';
-    resultRow.textContent = `→ −${damage}`;
-    overlay.appendChild(resultRow);
-  }
-
-  const attackTotal = payload.attackTotal
-    ?? (payload.attackBreakdown ? sumAttackBreakdownTotal(payload.attackBreakdown) : undefined);
-  const defenseTotalResolved = payload.defenseTotal ?? payload.protectionTotal;
-  if (payload.mitigation && attackTotal !== undefined && defenseTotalResolved !== undefined) {
-    const baseNet = Math.max(0, Math.round(attackTotal) - Math.round(defenseTotalResolved));
-    const steps = formatCombatHitMitigationSteps(baseNet, payload.mitigation);
-    if (steps.length > 0) {
-      const trail = doc.createElement('div');
-      trail.className = 'technical-impact__mitigation-trail';
-      trail.textContent = steps.join(' → ');
-      overlay.appendChild(trail);
-    }
   }
 
   return true;
