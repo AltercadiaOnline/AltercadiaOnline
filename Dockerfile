@@ -20,6 +20,7 @@ COPY vercel.json ./vercel.json
 COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
+COPY scripts ./scripts
 
 # Commit SHA no manifesto (Docker sem .git). Railway injeta RAILWAY_GIT_* no build.
 ARG RAILWAY_GIT_COMMIT_SHA
