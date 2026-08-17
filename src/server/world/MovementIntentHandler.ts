@@ -10,13 +10,13 @@ type ConnectionMoveState = {
   lastProcessedRotateSeq: number;
 };
 
-const MAX_MOVE_QUEUE_DEPTH = 8;
+const MAX_MOVE_QUEUE_DEPTH = 12;
 
 /**
- * 1 passo por tick — catch-up em rajada virava “dash residual” após soltar a tecla.
- * Fila cobre RTT; o sprite local já andou esses tiles e espera o servidor alcançar.
+ * Até 3 passos por tick quando a fila atrasou (RTT). 1 era pouco e o sprite
+ * puxava para trás; rajada enorme virava dash residual após Key Up.
  */
-export const MOVE_CATCHUP_MAX_PER_TICK = 1;
+export const MOVE_CATCHUP_MAX_PER_TICK = 3;
 
 /**
  * Acumula intenções MOVE e processa no WorldTick (1 SQM por tick).
@@ -32,7 +32,7 @@ export class MovementIntentHandler {
       lastProcessedRotateSeq: 0,
     };
     if (state.queue.length >= MAX_MOVE_QUEUE_DEPTH) {
-      state.queue.shift();
+      return;
     }
     state.queue.push(payload);
     this.byConnection.set(connectionId, state);
@@ -95,7 +95,7 @@ export class MovementIntentHandler {
   }
 
   /**
-   * Processa 1 passo por tick. Rajada extra virava movimento residual após Key Up.
+   * Processa até N passos por tick. Seq furada não descarta o resto da fila.
    */
   processCatchUp(
     connectionId: string,

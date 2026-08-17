@@ -2,10 +2,12 @@ import type { PlayerFacing } from './playerFacing.js';
 
 export type MoveDirection = 'up' | 'down' | 'left' | 'right';
 
-/** Um passo discreto na grade (1 SQM por intenção). */
+/** Um passo de exploração (grade para o cursor + pose contínua opcional). */
 export type MoveIntent = {
   readonly stepX: -1 | 0 | 1;
   readonly stepY: -1 | 0 | 1;
+  readonly worldX?: number;
+  readonly worldY?: number;
 };
 
 /** Pivot Tibia — gira o sprite sem deslocar x/y. */

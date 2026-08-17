@@ -113,7 +113,17 @@ export function createAuthoritativeWorldSocket(
       // Avanço otimista — cada tile cruzado envia o próximo alvo adjacente.
       predictedTileX = targetX;
       predictedTileY = targetY;
-      transport.onMove({ targetX, targetY, seq });
+      const worldX = payload.worldX;
+      const worldY = payload.worldY;
+      transport.onMove({
+        targetX,
+        targetY,
+        seq,
+        ...(typeof worldX === 'number' && Number.isFinite(worldX)
+          && typeof worldY === 'number' && Number.isFinite(worldY)
+          ? { worldX, worldY }
+          : {}),
+      });
       getMovementNetTelemetry().noteMoveIntentSent(seq);
       return;
     }

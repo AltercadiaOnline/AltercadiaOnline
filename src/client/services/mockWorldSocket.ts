@@ -1,6 +1,10 @@
-import { snapWorldToTileCenter, tryGridStep } from '../../shared/world/gridMovement.js';
+import { snapWorldToTileCenter } from '../../shared/world/gridMovement.js';
 import { moveDirectionToFacing, moveVectorToFacing } from '../../shared/world/playerFacing.js';
 import { tileCenterToWorldPixel, worldPixelToTile } from '../../shared/world/portals.js';
+import {
+  applyAuthoritativeMoveToward,
+  AUTHORITATIVE_MOVE_MAX_TILES,
+} from '../../shared/world/movement.js';
 import type {
   MapTransitionPayload,
   MoveIntent,
@@ -186,9 +190,23 @@ export function createMockWorldSocket(initialMapId: MapId = DEFAULT_MAP_ID): Moc
         stepX: movePayload.stepX,
         stepY: movePayload.stepY,
       };
-      const origin = tileCenterToWorldPixel(serverTileX, serverTileY);
-      const next = tryGridStep(origin, step, mapData);
-      if (!next) return;
+      const hasPixelTarget =
+        typeof movePayload.worldX === 'number'
+        && Number.isFinite(movePayload.worldX)
+        && typeof movePayload.worldY === 'number'
+        && Number.isFinite(movePayload.worldY);
+      const target = hasPixelTarget
+        ? { x: movePayload.worldX!, y: movePayload.worldY! }
+        : tileCenterToWorldPixel(serverTileX + step.stepX, serverTileY + step.stepY);
+      const next = applyAuthoritativeMoveToward(
+        { x: player.x, y: player.y },
+        target,
+        mapData,
+        mapDef.pixelWidth(),
+        mapDef.pixelHeight(),
+        mapDef.tileSize * AUTHORITATIVE_MOVE_MAX_TILES,
+      );
+      if (Math.hypot(next.x - player.x, next.y - player.y) <= 0.05) return;
 
       const nextTile = worldPixelToTile(next.x, next.y);
       serverTileX = nextTile.tileX;

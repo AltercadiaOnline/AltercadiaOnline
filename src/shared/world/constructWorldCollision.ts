@@ -12,6 +12,7 @@ import { getResolvedNpcRegistry } from './npcRegistry.js';
 import { isNpcDefinitionCollidable } from '../../assets/npcs/npcDefinition.js';
 import {
   clearWorldCollisionObstacles,
+  getWorldCollisionObstacles,
   setActiveWorldCollisionMapId,
   setWorldCollisionObstacles,
 } from './worldCollisionRegistry.js';
@@ -45,6 +46,15 @@ export function syncConstructWorldCollision(mapId: MapId): void {
     ...buildConstructPropObstacles(mapId),
   ];
   setWorldCollisionObstacles(mapId, obstacles);
+  setActiveWorldCollisionMapId(mapId);
+}
+
+/** Garante polígonos do mapa ativo (cidade + beco) antes de validar o passo. */
+export function ensureWorldCollisionForMap(mapId: MapId): void {
+  if (getWorldCollisionObstacles(mapId).length === 0) {
+    syncConstructWorldCollision(mapId);
+    return;
+  }
   setActiveWorldCollisionMapId(mapId);
 }
 

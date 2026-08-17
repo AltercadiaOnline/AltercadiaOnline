@@ -12,8 +12,8 @@ export const NARROW_CORRIDOR_MOVING_RECONCILE_RATIO = 1.5;
 /** Drift acima disso → correção por exceção (lerp). Abaixo = silêncio / predição local. */
 export const ONLINE_CORRECTION_TILES = 1.5;
 
-/** Drift absurdo (teleporte / speedhack) → snap seco. */
-export const ONLINE_HARD_SNAP_TILES = 4;
+/** Drift absurdo (teleporte / speedhack) → snap seco. Dash+RTT não deve chegar aqui. */
+export const ONLINE_HARD_SNAP_TILES = 8;
 
 export function isNarrowCorridorMap(mapId: string | undefined): boolean {
   return mapId === FARM_ZONE_01_ID;
@@ -125,6 +125,10 @@ export function reconcileAuthoritativePosition(
 
   const dist = Math.hypot(remote.x - input.local.x, remote.y - input.local.y);
   const treatingAsMoving = input.isMoving || Boolean(input.isPredicting);
+
+  if (input.isPredicting && dist < hardSnapPx) {
+    return { apply: false, force: false, soft: false, position: remote };
+  }
 
   if (dist <= (treatingAsMoving ? movingReconcilePx : idleSnapPx)) {
     return { apply: false, force: false, soft: false, position: remote };

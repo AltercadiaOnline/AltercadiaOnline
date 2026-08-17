@@ -1,11 +1,14 @@
 import type { MoveDirection } from './protocol.js';
 import type { PlayerFacing } from './playerFacing.js';
 
-/** Intenção de movimento — cliente envia tile alvo adjacente (1 SQM). */
+/** Intenção de movimento — tile alvo + pose contínua opcional (pés previstos). */
 export type MovePlayerIntentPayload = {
   readonly targetX: number;
   readonly targetY: number;
   readonly seq: number;
+  /** Pose em px no momento do passo — servidor usa moveByDelta até aqui. */
+  readonly worldX?: number;
+  readonly worldY?: number;
 };
 
 /** Pivot no próprio eixo — altera facing sem deslocar posição. */

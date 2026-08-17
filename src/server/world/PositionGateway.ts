@@ -6,12 +6,15 @@ import {
 } from '../../shared/world/playerWorldProfile.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import { moveDirectionToFacing, moveVectorToFacing } from '../../shared/world/playerFacing.js';
-import { tryGridStep, type GridStep } from '../../shared/world/gridMovement.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
 import { getMapDefinition } from '../../shared/world/mapRegistry.js';
 import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
-import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
-import { tileCenterToWorldPixel, worldPixelToTile } from '../../shared/world/portals.js';
+import { ensureWorldCollisionForMap } from '../../shared/world/constructWorldCollision.js';
+import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
+import {
+  applyAuthoritativeMoveToward,
+  AUTHORITATIVE_MOVE_MAX_TILES,
+} from '../../shared/world/movement.js';
 import type { MovePlayerIntentPayload, RotatePlayerIntentPayload } from '../../shared/world/movementIntent.js';
 import {
   calculateEuclideanDistance,
@@ -190,7 +193,10 @@ export class PositionGateway {
     return { ok: true };
   }
 
-  /** Valida passo de grade adjacente e persiste posição oficial. */
+  /**
+   * Aplica o mesmo moveByDelta do sprite: avança até o alvo (px ou centro do tile),
+   * para na última pose válida. Não exige adjacência — furo na fila não trava o andar.
+   */
   processMoveIntent(
     playerId: string,
     characterId: number,
@@ -202,39 +208,47 @@ export class PositionGateway {
     }
 
     const profile = getWorldProfile(playerId, characterId);
-    const mapDef = getMapDefinition(profile.currentMapId as MapId);
+    const mapId = profile.currentMapId as MapId;
+    const mapDef = getMapDefinition(mapId);
     if (!mapDef) {
       return { ok: false, reason: 'INVALID_MAP', seq: intent.seq };
     }
 
     const mapData = mapDef.generateData();
-    setActiveMapTileSize(profile.currentMapId);
-    setActiveWorldCollisionMapId(profile.currentMapId as MapId);
-    const currentTile = worldPixelToTile(profile.lastPosition.x, profile.lastPosition.y);
-    const targetTileX = Math.floor(intent.targetX);
-    const targetTileY = Math.floor(intent.targetY);
+    setActiveMapTileSize(mapId);
+    ensureWorldCollisionForMap(mapId);
 
-    if (targetTileX === currentTile.tileX && targetTileY === currentTile.tileY) {
+    const tileSize = mapDef.tileSize;
+    const hasPixelTarget =
+      typeof intent.worldX === 'number'
+      && Number.isFinite(intent.worldX)
+      && typeof intent.worldY === 'number'
+      && Number.isFinite(intent.worldY);
+    const target = hasPixelTarget
+      ? { x: intent.worldX!, y: intent.worldY! }
+      : tileCenterToWorldPixel(Math.floor(intent.targetX), Math.floor(intent.targetY), tileSize);
+
+    const current = profile.lastPosition;
+    const next = applyAuthoritativeMoveToward(
+      current,
+      target,
+      mapData,
+      mapDef.pixelWidth(),
+      mapDef.pixelHeight(),
+      tileSize * AUTHORITATIVE_MOVE_MAX_TILES,
+    );
+
+    const movedDx = next.x - current.x;
+    const movedDy = next.y - current.y;
+    const moved = Math.hypot(movedDx, movedDy) > 0.05;
+    if (!moved) {
       return { ok: true, profile, changed: false, seq: intent.seq };
     }
 
-    const step = resolveStepToward(currentTile.tileX, currentTile.tileY, targetTileX, targetTileY);
-    if (!step) {
-      return { ok: false, reason: 'INVALID_TARGET', seq: intent.seq };
-    }
-
-    const origin = tileCenterToWorldPixel(currentTile.tileX, currentTile.tileY);
-    const next = tryGridStep(origin, step, mapData);
-    if (!next) {
-      return { ok: false, reason: 'BLOCKED', seq: intent.seq };
-    }
-
-    const landed = worldPixelToTile(next.x, next.y);
-    if (landed.tileX !== targetTileX || landed.tileY !== targetTileY) {
-      return { ok: false, reason: 'TARGET_MISMATCH', seq: intent.seq };
-    }
-
-    const facing = moveVectorToFacing(step.stepX, step.stepY);
+    const facing = moveVectorToFacing(
+      Math.sign(movedDx) as -1 | 0 | 1,
+      Math.sign(movedDy) as -1 | 0 | 1,
+    );
     const updated = saveWorldProfile(playerId, characterId, {
       currentMapId: profile.currentMapId,
       lastPosition: next,
@@ -273,21 +287,6 @@ export class PositionGateway {
 
     return { ok: true, profile: updated, changed: true, seq: intent.seq };
   }
-}
-
-function resolveStepToward(
-  fromX: number,
-  fromY: number,
-  toX: number,
-  toY: number,
-): GridStep | null {
-  const stepX = Math.sign(toX - fromX) as -1 | 0 | 1;
-  const stepY = Math.sign(toY - fromY) as -1 | 0 | 1;
-  if (stepX === 0 && stepY === 0) return null;
-  if (Math.abs(toX - fromX) > 1 || Math.abs(toY - fromY) > 1) return null;
-  // Só N/S/L/O — rejeita diagonal.
-  if (stepX !== 0 && stepY !== 0) return null;
-  return { stepX, stepY };
 }
 
 function toLoginResult(profile: PlayerProfile): WorldLoginResult {

@@ -50,4 +50,19 @@ describe('WorldMovementAuthority freeze', () => {
     expect(resolved?.shouldApplyRenderTarget).toBe(false);
     expect(authority.isVisualFrozen(1_080)).toBe(false);
   });
+
+  it('depois do freeze, servidor atrasado não aplica o sprite', () => {
+    const authority = getWorldMovementAuthority();
+    authority.setOnlineMode(true);
+    authority.freezeVisualAt(400, 400, 'south', 1_000);
+
+    const tile = getActiveMapTileSize();
+    const resolved = authority.resolveIncomingPosition(
+      laggedUpdate(400 - tile * 3, 400, 3),
+      1_000 + 400,
+    );
+
+    expect(resolved?.shouldApplyRenderTarget).toBe(false);
+    expect(resolved?.shouldPublishPlayerUpdate).toBe(false);
+  });
 });

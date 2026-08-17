@@ -281,7 +281,6 @@ class WorldMovementAuthority {
     }
 
     const tileSize = getActiveMapTileSize();
-    const hardSnapPx = tileSize * ONLINE_HARD_SNAP_TILES;
     const softConfirmPx = tileSize * 0.55;
     const freezeActive = this.isFreezeWindowActive(nowMs);
 
@@ -289,7 +288,6 @@ class WorldMovementAuthority {
     const predictedY = this.predictionLock.predictedY;
     const hasPredicted = predictedX !== null && predictedY !== null;
     const isNewSeq = update.moveSeq !== undefined;
-    const protectingVisual = this.continuousHoldActive || freezeActive || hasPredicted;
 
     if (hasPredicted) {
       const dist = Math.hypot(update.x - predictedX!, update.y - predictedY!);
@@ -310,36 +308,16 @@ class WorldMovementAuthority {
         return silence(update);
       }
 
-      if (this.continuousHoldActive || freezeActive) {
-        if (isNewSeq) {
-          return {
-            shouldApplyToStore: true,
-            shouldPublishPlayerUpdate: false,
-            shouldApplyRenderTarget: false,
-            position: update,
-          };
-        }
-        return silence(update);
+      // Servidor atrasado ou parede: atualiza o store, NUNCA o sprite.
+      if (isNewSeq) {
+        return {
+          shouldApplyToStore: true,
+          shouldPublishPlayerUpdate: false,
+          shouldApplyRenderTarget: false,
+          position: update,
+        };
       }
-
-      if (dist >= hardSnapPx) {
-        this.clearVisualFreeze();
-        this.clearPredictionLock();
-        getMovementNetTelemetry().noteHardSnap();
-        return fullApply(update);
-      }
-
-      if (protectingVisual) {
-        if (isNewSeq) {
-          return {
-            shouldApplyToStore: true,
-            shouldPublishPlayerUpdate: false,
-            shouldApplyRenderTarget: false,
-            position: update,
-          };
-        }
-        return silence(update);
-      }
+      return silence(update);
     }
 
     if (!isNewSeq) {

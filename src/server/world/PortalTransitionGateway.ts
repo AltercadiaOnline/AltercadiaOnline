@@ -12,6 +12,7 @@ import { saveWorldProfile } from './worldProfileStore.js';
 import { notifyWorldPositionPersist } from './notifyWorldPositionPersist.js';
 import { rejectMapTransitionIfNotAllowed } from '../instance/serverWorldScope.js';
 import { getZoneLoadGateway } from './ZoneLoadGateway.js';
+import { ensureWorldCollisionForMap } from '../../shared/world/constructWorldCollision.js';
 
 export type PortalTransitionGatewayResult =
   | { readonly ok: true; readonly ready: PortalTransitionReadyPayload; readonly profile: PlayerProfile }
@@ -59,6 +60,8 @@ export class PortalTransitionGateway {
         },
       };
     }
+
+    ensureWorldCollisionForMap(targetMapId);
 
     const profile = saveWorldProfile(playerId, request.characterId, {
       currentMapId: resolved.ready.mapId,

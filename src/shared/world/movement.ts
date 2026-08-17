@@ -6,7 +6,6 @@ import { getMapDefinition } from './mapRegistry.js';
 import { isNpcOccupiedTile } from './npcTileOccupancy.js';
 import {
   isPlayerBlockedByObstacles,
-  depenetratePlayerMovementCircle,
   resolvePlayerWalkabilitySamplePoints,
 } from './playerCollision.js';
 import { tileToWorldPixel, worldPixelToTile } from './portals.js';
@@ -57,6 +56,9 @@ export const PLAYER_MOVE_SPEED_PX_PER_SEC = resolvePlayerMoveSpeedPxPerSec(TILE_
 
 /** Sub-passos máximos por frame — colisão amostrada antes de entrar no tile. */
 export const PLAYER_MOVE_COLLISION_SUBSTEP_PX = 8;
+
+/** Teto anti-teleporte por intent — 1 tile + folga de pose contínua (não exige centro). */
+export const AUTHORITATIVE_MOVE_MAX_TILES = 1.25;
 
 /** Evita saltos enormes após tab-out ou hitch de frame. */
 export const MAX_FRAME_DELTA_MS = 48;
@@ -165,15 +167,10 @@ export function moveByDelta(
   pixelHeight: number,
   maxSubStepPx = PLAYER_MOVE_COLLISION_SUBSTEP_PX,
 ): WorldPosition {
-  // Já encravado (spawn / desync) — libera antes de tentar andar.
-  let start = position;
-  if (isPlayerBlockedByObstacles(start)) {
-    start = depenetratePlayerMovementCircle(start);
-  }
-
-  let { x, y } = start;
+  // Colisão = parar. Sem MTV/depenetrate no hot path (empurrar = rubber-band).
+  let { x, y } = position;
   const totalDist = Math.hypot(deltaX, deltaY);
-  if (totalDist <= 0) return start;
+  if (totalDist <= 0) return position;
 
   const steps = Math.max(1, Math.ceil(totalDist / maxSubStepPx));
   const stepX = deltaX / steps;
@@ -210,12 +207,32 @@ export function moveByDelta(
   }
 
   const result = { x, y };
-  // Colisão = parar no último ponto válido. Sem MTV/skin push no hot path
-  // (empurrar pra trás = sensação de esbarrar e voltar). Depenetrate só no start se spawn stuck.
   if (!moved && result.x === position.x && result.y === position.y) {
     return position;
   }
   return result;
+}
+
+/**
+ * Autoridade de exploração — avança em direção ao alvo com a mesma física do sprite.
+ * Parede / bound = para no último ponto válido. Distância limitada (anti-teleporte).
+ */
+export function applyAuthoritativeMoveToward(
+  from: WorldPosition,
+  target: WorldPosition,
+  mapData: number[][],
+  pixelWidth: number,
+  pixelHeight: number,
+  maxDistancePx: number,
+): WorldPosition {
+  const dx = target.x - from.x;
+  const dy = target.y - from.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist <= 0.05) return from;
+  const cap = Math.max(0, maxDistancePx);
+  if (cap <= 0) return from;
+  const scale = dist > cap ? cap / dist : 1;
+  return moveByDelta(from, dx * scale, dy * scale, mapData, pixelWidth, pixelHeight);
 }
 
 export function moveByVectorDelta(

@@ -50,7 +50,6 @@ import {
   isAuthoritativeMovementOnline,
 } from '../world/worldMovementAuthority.js';
 import { isAuthoritativeWorldSocket } from '../world/authoritativeWorldSocket.js';
-import { getMovementNetTelemetry } from '../world/movementNetTelemetry.js';
 
 export type { MovementMode };
 
@@ -271,7 +270,12 @@ export class Player {
         playerLevel: this.level,
       },
       (step) => {
-        this.worldSocket.emit('move', { stepX: step.stepX, stepY: step.stepY });
+        this.worldSocket.emit('move', {
+          stepX: step.stepX,
+          stepY: step.stepY,
+          worldX: this.x,
+          worldY: this.y,
+        });
         if (isAuthoritativeMovementOnline()) {
           getWorldMovementAuthority().recordPredictedStep(
             this.x,
@@ -281,11 +285,8 @@ export class Player {
         }
       },
       () => {
-        // Parede: realinha cursor de tile ao pé atual — evita fila de MOVE inválidos.
+        // Parede: para nos pés. Não resetar o cursor de tile (abre furo na seq).
         if (!isAuthoritativeMovementOnline()) return;
-        if (isAuthoritativeWorldSocket(this.worldSocket)) {
-          this.worldSocket.seedPredictedPosition({ x: this.x, y: this.y });
-        }
         getWorldMovementAuthority().recordPredictedStep(this.x, this.y, this.facing);
       },
     );
@@ -320,7 +321,11 @@ export class Player {
       this.facing = update.facing;
     }
 
-    const holdOrFreeze = authority.isContinuousHoldActive() || authority.isVisualFrozen();
+    // Incoerência = parar. Nunca interpolar/teleportar o sprite para pose atrasada.
+    if (authority.isVisuallyPredicting() || authority.isContinuousHoldActive() || authority.isVisualFrozen()) {
+      return;
+    }
+
     const reconcile = reconcileAuthoritativePosition({
       local: { x: this.x, y: this.y },
       remote: { x: update.x, y: update.y },
@@ -330,11 +335,7 @@ export class Player {
       isPredicting: authority.isVisuallyPredicting(),
     });
 
-    if (holdOrFreeze) {
-      return;
-    }
-
-    if (!reconcile.apply) {
+    if (!reconcile.force) {
       return;
     }
 
@@ -342,10 +343,10 @@ export class Player {
       reconcile.position.x,
       reconcile.position.y,
       update.facing,
-      { force: reconcile.force, soft: reconcile.soft },
+      { force: true },
     );
 
-    if (reconcile.force && isAuthoritativeWorldSocket(this.worldSocket)) {
+    if (isAuthoritativeWorldSocket(this.worldSocket)) {
       this.worldSocket.seedPredictedPosition({
         x: reconcile.position.x,
         y: reconcile.position.y,
@@ -401,6 +402,7 @@ export class Player {
     if (update.mapId) {
       this.mapId = update.mapId;
     }
+    getWorldMovementAuthority().clearPredictionLock();
     this.locomotion.setWorldPosition(update.x, update.y, update.facing ?? this.facing);
   }
 

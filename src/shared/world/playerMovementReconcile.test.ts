@@ -24,9 +24,20 @@ describe('reconcileAuthoritativePosition', () => {
 
     const hard = reconcileAuthoritativePosition({
       local: { x: 100, y: 100 },
-      remote: { x: 100 + tile * 5, y: 100 },
+      remote: { x: 100 + tile * 9, y: 100 },
       isMoving: false,
     });
     expect(hard).toMatchObject({ apply: true, force: true, soft: false });
+  });
+
+  it('em predição, drift de dash não puxa o sprite', () => {
+    const tile = getActiveMapTileSize();
+    const result = reconcileAuthoritativePosition({
+      local: { x: 400, y: 400 },
+      remote: { x: 400 - tile * 3, y: 400 },
+      isMoving: true,
+      isPredicting: true,
+    });
+    expect(result.apply).toBe(false);
   });
 });
