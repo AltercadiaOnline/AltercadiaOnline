@@ -98,22 +98,50 @@ function TradeSlots(props: {
   );
 }
 
+function useInventoryRevision(): string {
+  return useSyncExternalStore(
+    (onChange) =>
+      subscribeExternalStore(
+        (listener) => getPlayerInventoryStore().subscribe(() => listener()),
+        onChange,
+      ),
+    () => {
+      const snap = getPlayerInventoryStore().getSnapshot();
+      return snap.slots
+        .map((slot) => `${slot.itemId ?? ''}:${slot.quantity}:${slot.lockedQuantity ?? 0}`)
+        .join('|');
+    },
+    () => '',
+  );
+}
+
+function useWalletVoltRevision(): string {
+  return useSyncExternalStore(
+    (onChange) =>
+      subscribeExternalStore(
+        (listener) => getPlayerWalletStore().subscribe(() => listener()),
+        onChange,
+      ),
+    () => {
+      const snap = getPlayerWalletStore().getSnapshot();
+      return `${snap.dollarVolt}|${snap.alterCoins}`;
+    },
+    () => '',
+  );
+}
+
 export function PlayerTradeHud() {
   const state = useSyncExternalStore(
     (onChange) => subscribeExternalStore((listener) => subscribePlayerTradeHud(listener), onChange),
     getPlayerTradeHudState,
     getPlayerTradeHudState,
   );
-  const inventory = useSyncExternalStore(
-    (onChange) => getPlayerInventoryStore().subscribe(() => onChange()),
-    () => getPlayerInventoryStore().getSnapshot(),
-    () => getPlayerInventoryStore().getSnapshot(),
-  );
-  const wallet = useSyncExternalStore(
-    (onChange) => getPlayerWalletStore().subscribe(() => { onChange(); }),
-    () => getPlayerWalletStore().getSnapshot(),
-    () => getPlayerWalletStore().getSnapshot(),
-  );
+  const inventoryRevision = useInventoryRevision();
+  const walletRevision = useWalletVoltRevision();
+  const inventory = getPlayerInventoryStore().getSnapshot();
+  const wallet = getPlayerWalletStore().getSnapshot();
+  void inventoryRevision;
+  void walletRevision;
   const localPlayerId = useMemo(() => resolveLocalPlayerId(), []);
   const [voltsInput, setVoltsInput] = useState('0');
   const snapshot = state.snapshot;

@@ -51,13 +51,29 @@ export function App() {
         </HudErrorBoundary>
       ) : null}
 
-      {/* Irmã do shell/sidebar: z-index 940 passa a competir de verdade com a sidebar (930). */}
-      {viewMode === 'world' ? <WorldPanelsLayer /> : null}
-      {viewMode === 'world' ? <MemoryTerminalReactBridge /> : null}
-      {viewMode === 'world' ? <SprayInspectHud /> : null}
-      {viewMode === 'world' ? <PlayerInspectHud /> : null}
-      {viewMode === 'world' ? <CasualDuelInviteHud /> : null}
-      {viewMode === 'world' ? <PlayerTradeHud /> : null}
+      {/* Overlays irmãos da sidebar — cada um isolado para um #185 não apagar Hub/chat. */}
+      {viewMode === 'world' ? (
+        <HudErrorBoundary fallback={null}>
+          <WorldPanelsLayer />
+        </HudErrorBoundary>
+      ) : null}
+      {viewMode === 'world' ? (
+        <HudErrorBoundary fallback={null}>
+          <MemoryTerminalReactBridge />
+        </HudErrorBoundary>
+      ) : null}
+      {viewMode === 'world' ? (
+        <HudErrorBoundary fallback={null}>
+          <SprayInspectHud />
+          <PlayerInspectHud />
+          <CasualDuelInviteHud />
+        </HudErrorBoundary>
+      ) : null}
+      {viewMode === 'world' ? (
+        <HudErrorBoundary fallback={null}>
+          <PlayerTradeHud />
+        </HudErrorBoundary>
+      ) : null}
 
       {viewMode === 'battle' ? (
         <HudErrorBoundary
