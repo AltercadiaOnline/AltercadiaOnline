@@ -6,7 +6,6 @@ import type { CreatureLootProfilePatch } from './creatureLootProfiles.js';
 
 /** Materiais compartilhados entre zonas — peso menor no pool da criatura. */
 const SHARED_FILLER_ITEM_IDS = new Set([
-  'soul_fragment',
   'common_scale',
 ]);
 
@@ -99,7 +98,7 @@ function buildDefaultProfileForCreature(
   return profile;
 }
 
-/** Perfis base gerados a partir de CREATURE_DROP_TABLE (25 criaturas). */
+/** Perfis base gerados a partir de CREATURE_DROP_TABLE. */
 export function buildDefaultCreatureLootProfiles(): Readonly<
   Record<string, CreatureLootProfilePatch>
 > {

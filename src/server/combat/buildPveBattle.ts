@@ -26,7 +26,7 @@ import type { BattleBootstrap } from './createDemoBattle.js';
 import { BattleType } from '../../shared/combat/battleType.js';
 import {
   buildPveEnemyActorId,
-  rollPveEncounterPackSize,
+  rollPveEncounterPackSizeForPlayer,
   type PveEncounterPackSize,
 } from '../../shared/combat/pveEncounterPack.js';
 
@@ -106,7 +106,7 @@ export function createPveBattleBootstrap(
   const player = buildCombatantFromLoadout(loadout, battleSkills, loadout.displayName ?? 'Operative');
   const packSize: PveEncounterPackSize = isBossCreatureId(creatureId)
     ? 1
-    : rollPveEncounterPackSize();
+    : rollPveEncounterPackSizeForPlayer(loadout.level);
   const enemies = Array.from({ length: packSize }, (_, packIndex) => (
     buildEnemyFromCreature(
       creatureId,

@@ -227,7 +227,7 @@ export class InteractionCard {
   private buildPlayerButtons(): InteractionCardButton[] {
     return [
       { action: 'trade', label: 'Trade' },
-      { action: 'duel', label: 'PvP' },
+      { action: 'duel', label: 'Desafiar' },
       { action: 'follow', label: 'Seguir' },
     ];
   }

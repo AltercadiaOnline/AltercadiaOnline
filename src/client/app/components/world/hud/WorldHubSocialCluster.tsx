@@ -4,6 +4,11 @@ import { windowManager } from '../../../panels/worldWindowController.js';
 import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 import { WorldGameClockWidget } from './WorldGameClockWidget.js';
 import { WorldNetLagWidget } from './WorldNetLagWidget.js';
+import {
+  getMirroredStaticNetwork,
+  subscribeStaticNetworkMirror,
+} from '../../../../world/staticNetworkSyncBridge.js';
+import { hasStaticHeatAlert } from '../hub/staticNetworkView.js';
 
 /**
  * Canto superior-direito do mapa — relógio + HUB (screen-space, sem scale do stage).
@@ -16,6 +21,12 @@ export function WorldHubSocialCluster() {
         onChange,
       ),
     () => useWorldPanelsStore.getState().hubOpen,
+    () => false,
+  );
+
+  const staticHot = useSyncExternalStore(
+    subscribeStaticNetworkMirror,
+    () => hasStaticHeatAlert(getMirroredStaticNetwork()),
     () => false,
   );
 
@@ -42,7 +53,7 @@ export function WorldHubSocialCluster() {
       <button
         type="button"
         id="ui-hub-launcher"
-        className="ui-hub-launcher ui-skin-hybrid"
+        className={`ui-hub-launcher ui-skin-hybrid${staticHot ? ' ui-hub-launcher--static-hot' : ''}`}
         style={{ pointerEvents: 'auto' }}
         aria-expanded={hubOpen}
         aria-controls="world-hub-panel"
@@ -50,6 +61,7 @@ export function WorldHubSocialCluster() {
         onClick={() => windowManager.toggle('hub')}
       >
         HUB
+        {staticHot ? <span className="ui-hub-launcher__static-dot" aria-hidden="true" /> : null}
       </button>
     </div>
   );

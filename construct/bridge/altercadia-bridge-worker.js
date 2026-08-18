@@ -198,8 +198,15 @@ self.runOnStartup((runtime) => {
       return;
     }
 
-    if (msg.type === 'altercadia:set-mode' && msg.mode === 'battle') {
-      bus.postMessage({ type: 'construct:battle-ready' });
+    if (msg.type === 'altercadia:set-mode') {
+      try {
+        runtime.timeScale = msg.mode === 'battle' ? 0 : 1;
+      } catch {
+        /* C3 antigo sem timeScale — segue o layout visível */
+      }
+      if (msg.mode === 'battle') {
+        bus.postMessage({ type: 'construct:battle-ready' });
+      }
     }
   };
 });

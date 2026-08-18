@@ -129,6 +129,7 @@ function resolveDefaultBehavior(creatureId: string): MonsterBehaviorTypeId {
   if (archetype === CreatureArchetypeId.MetroAnomaly) return MonsterBehaviorType.Trap;
   if (archetype === CreatureArchetypeId.ParkingPredator) return MonsterBehaviorType.Aggressive;
   if (archetype === CreatureArchetypeId.RooftopHunter) return MonsterBehaviorType.Patrol;
+  if (archetype === CreatureArchetypeId.VortexPatrol) return MonsterBehaviorType.Aggressive;
   return MonsterBehaviorType.Aggressive;
 }
 
@@ -168,7 +169,7 @@ const MONSTER_CATALOG = hydrateMonsterCatalog();
 
 /**
  * Mapeia actorId de combate → creatureId.
- * Preferência: `enemy_{creatureId}` dinâmico (25 criaturas); entradas legadas abaixo.
+ * Preferência: `enemy_{creatureId}` dinâmico; entradas legadas abaixo.
  */
 export const COMBAT_ACTOR_TO_CREATURE: Readonly<Record<string, string>> = Object.fromEntries(
   Object.keys(MONSTER_CATALOG).map((creatureId) => [`enemy_${creatureId}`, creatureId]),

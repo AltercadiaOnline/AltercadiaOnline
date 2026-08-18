@@ -2,7 +2,7 @@
  * Socket de combate in-memory — mesmo contrato BrowserCombatSocket, sem WebSocket.
  * Roteia o mesmo protocolo online:
  * - pve-encounter-accept / flee / request
- * - pvp-ranked-join / leave / ready / unready
+ * - pvp-ranked-join / leave / ready / unready / set-stake
  * - combat-join / combat-action / combat-forfeit
  * - portal-transition-request
  * para LocalCombatAuthority + LocalPvpRankedAuthority + runtime PVE local.
@@ -45,6 +45,7 @@ import {
   localPvpRankedJoin,
   localPvpRankedLeave,
   localPvpRankedReady,
+  localPvpRankedSetStake,
   localPvpRankedUnready,
   resetLocalPvpRankedAuthority,
 } from './localPvpRankedAuthority.js';
@@ -150,6 +151,7 @@ export function createLocalCombatSocket(
         || type === 'pvp-ranked-leave'
         || type === 'pvp-ranked-ready'
         || type === 'pvp-ranked-unready'
+        || type === 'pvp-ranked-set-stake'
       ) {
         const stationPayload =
           typeof payload === 'object' && payload !== null
@@ -157,6 +159,7 @@ export function createLocalCombatSocket(
               readonly stationId: string;
               readonly displayName?: string;
               readonly skinBundleId?: string;
+              readonly stakeVolts?: number;
             }
             : { stationId: 'combate_pvp' };
         if (type === 'pvp-ranked-join') {
@@ -164,14 +167,18 @@ export function createLocalCombatSocket(
           return;
         }
         if (type === 'pvp-ranked-leave') {
-          localPvpRankedLeave(stationPayload);
+          void localPvpRankedLeave(stationPayload);
           return;
         }
         if (type === 'pvp-ranked-ready') {
-          localPvpRankedReady(stationPayload);
+          void localPvpRankedReady(stationPayload);
           return;
         }
-        localPvpRankedUnready(stationPayload);
+        if (type === 'pvp-ranked-set-stake') {
+          void localPvpRankedSetStake(stationPayload);
+          return;
+        }
+        void localPvpRankedUnready(stationPayload);
         return;
       }
 

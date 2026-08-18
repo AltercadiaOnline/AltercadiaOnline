@@ -39,6 +39,7 @@ import { getAuthoritativeItemById } from '../../shared/items/itemCatalogAuthorit
 import {
   canChooseMarco,
   canSelectBranchStarter,
+  resolveMarcoChooseBlockedMessage,
   sanitizeActiveMarcosForTrail,
   type MarcoTreePlayerContext,
 } from '../../shared/progression/milestoneTreeState.js';
@@ -1153,9 +1154,17 @@ export class MockEconomyService implements IDevMockEconomyService {
           action.payload.screenY ?? 0,
         );
       case 'DUEL_INVITE':
-        return { ok: false, reason: 'Convite de duelo precisa de outro jogador online.' };
+        return { ok: false, reason: 'Desafio de duelo precisa de outro jogador online.' };
       case 'DUEL_INVITE_RESPOND':
-        return { ok: false, reason: 'Convite de duelo precisa de outro jogador online.' };
+        return { ok: false, reason: 'Desafio de duelo precisa de outro jogador online.' };
+      case 'STATIC_SABOTAGE_CONTRIBUTE':
+      case 'STATIC_WAR_ROOM_OPEN':
+      case 'STATIC_WAR_ROOM_JOIN':
+      case 'STATIC_WAR_ROOM_LEAVE':
+      case 'STATIC_WAR_ROOM_LOCK':
+      case 'STATIC_FLEX_REACT':
+      case 'STATIC_FLEX_SET_HEADLINE':
+        return { ok: false, reason: 'STATIC_NOT_LIVE' };
       default: {
         const _exhaustive: never = action;
         return _exhaustive;
@@ -1213,7 +1222,12 @@ export class MockEconomyService implements IDevMockEconomyService {
     }
 
     if (!canChooseMarco(nodeId, this.buildMarcoContext())) {
-      return { ok: false, reason: 'Marco indisponível ou requisitos pendentes.' };
+      return {
+        ok: false,
+        reason:
+          resolveMarcoChooseBlockedMessage(nodeId, this.buildMarcoContext())
+          ?? 'Marco indisponível ou requisitos pendentes.',
+      };
     }
     const next = sanitizeActiveMarcosForTrail(
       this.state.marcos.activeMarcos.includes(nodeId)
@@ -2183,13 +2197,8 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private buildMarcoContext(): MarcoTreePlayerContext {
-    const fromEquip = getPlayerEquipmentStore().getSnapshot().level;
     const fromData = getMutableDataStore().getCharacterLevel().level;
-    const level = Math.max(
-      Number.isFinite(fromEquip) ? fromEquip : 0,
-      Number.isFinite(fromData) ? fromData : 0,
-      1,
-    );
+    const level = Number.isFinite(fromData) && fromData > 0 ? fromData : 1;
     return {
       ...this.state.marcos,
       activeMarcos: sanitizeActiveMarcosForTrail(

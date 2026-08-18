@@ -7,6 +7,7 @@ export const CreatureArchetypeId = {
   ParkingPredator: 'PARKING_PREDATOR',
   RooftopHunter: 'ROOFTOP_HUNTER',
   DimensionalElite: 'DIMENSIONAL_ELITE',
+  VortexPatrol: 'VORTEX_PATROL',
 } as const;
 
 export type CreatureArchetypeId =
@@ -27,7 +28,7 @@ export const ARCHETYPE_LOOT_TABLES: readonly ArchetypeLootTable[] = [
     archetypeId: CreatureArchetypeId.UrbanScavenger,
     label: 'Catador Urbano',
     zoneId: ZoneId.Zone1,
-    sharedGenericDropIds: ['bones', 'soul_fragment'],
+    sharedGenericDropIds: ['bones'],
     genericDropChance: 0.35,
     equipDropChance: 0.03,
   },
@@ -35,7 +36,7 @@ export const ARCHETYPE_LOOT_TABLES: readonly ArchetypeLootTable[] = [
     archetypeId: CreatureArchetypeId.MetroAnomaly,
     label: 'Anomalia do Metrô',
     zoneId: ZoneId.Zone2,
-    sharedGenericDropIds: ['soul_fragment', 'translucent_essence'],
+    sharedGenericDropIds: ['translucent_essence'],
     genericDropChance: 0.35,
     equipDropChance: 0.03,
   },
@@ -43,7 +44,7 @@ export const ARCHETYPE_LOOT_TABLES: readonly ArchetypeLootTable[] = [
     archetypeId: CreatureArchetypeId.ParkingPredator,
     label: 'Predador do Estacionamento',
     zoneId: ZoneId.Zone3,
-    sharedGenericDropIds: ['soul_fragment', 'common_scale'],
+    sharedGenericDropIds: ['common_scale'],
     genericDropChance: 0.38,
     equipDropChance: 0.035,
   },
@@ -51,7 +52,7 @@ export const ARCHETYPE_LOOT_TABLES: readonly ArchetypeLootTable[] = [
     archetypeId: CreatureArchetypeId.RooftopHunter,
     label: 'Caçador de Telhados',
     zoneId: ZoneId.Zone4,
-    sharedGenericDropIds: ['soul_fragment', 'common_scale', 'sharp_claw'],
+    sharedGenericDropIds: ['common_scale', 'sharp_claw'],
     genericDropChance: 0.4,
     equipDropChance: 0.04,
   },
@@ -59,15 +60,23 @@ export const ARCHETYPE_LOOT_TABLES: readonly ArchetypeLootTable[] = [
     archetypeId: CreatureArchetypeId.DimensionalElite,
     label: 'Elite Dimensional',
     zoneId: ZoneId.Zone5,
-    sharedGenericDropIds: ['soul_fragment', 'dimensional_rock', 'wraith_echo'],
+    sharedGenericDropIds: ['dimensional_rock', 'wraith_echo'],
     genericDropChance: 0.42,
     equipDropChance: 0.045,
+  },
+  {
+    archetypeId: CreatureArchetypeId.VortexPatrol,
+    label: 'Patrulha Vórtex',
+    zoneId: ZoneId.Zone1,
+    sharedGenericDropIds: ['soul_fragment'],
+    genericDropChance: 0.35,
+    equipDropChance: 0.03,
   },
 ];
 
 const archetypeById = new Map(ARCHETYPE_LOOT_TABLES.map((table) => [table.archetypeId, table]));
 
-/** Vínculo criatura → arquétipo (25 criaturas oficiais). */
+/** Vínculo criatura → arquétipo (catálogo oficial + Agente Vórtex). */
 export const CREATURE_ARCHETYPE_MAP: Record<string, CreatureArchetypeId> = {
   rat: CreatureArchetypeId.UrbanScavenger,
   crow: CreatureArchetypeId.UrbanScavenger,
@@ -94,6 +103,7 @@ export const CREATURE_ARCHETYPE_MAP: Record<string, CreatureArchetypeId> = {
   hydra: CreatureArchetypeId.DimensionalElite,
   cyclops: CreatureArchetypeId.DimensionalElite,
   wraith: CreatureArchetypeId.DimensionalElite,
+  vortex_agent: CreatureArchetypeId.VortexPatrol,
 };
 
 export function getArchetypeLootTable(archetypeId: CreatureArchetypeId): ArchetypeLootTable | undefined {

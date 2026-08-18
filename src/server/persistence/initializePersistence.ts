@@ -7,6 +7,8 @@ import {
 } from './PersistenceGateway.js';
 import { loadGlobalMarketplacePersistence } from './globalMarketplacePersistence.js';
 import { loadWorldSprayPersistence } from './worldSprayPersistence.js';
+import { startWorldSprayWeeklyResetScheduler } from '../world/worldSprayWeeklyResetScheduler.js';
+import { loadStaticNetworkPersistence } from './staticNetworkPersistence.js';
 import { initializeLeaderboardPersistence } from '../leaderboard/leaderboardFilePersistence.js';
 import { setAuthoritativeProgressionSyncHook } from '../progression/authoritativeProgressionStore.js';
 import { upsertLeaderboardFromProgression } from '../leaderboard/upsertLeaderboardFromProgression.js';
@@ -70,12 +72,15 @@ export async function initializePersistence(
     await loadPendingLootPersistence();
     await loadGlobalMarketplacePersistence();
     await loadWorldSprayPersistence();
+    await loadStaticNetworkPersistence();
     await initializeLeaderboardPersistence(dataDir);
   }
 
   setAuthoritativeProgressionSyncHook((playerId, characterId) => {
     upsertLeaderboardFromProgression(playerId, characterId);
   });
+
+  startWorldSprayWeeklyResetScheduler();
 
   switch (mode) {
     case PersistenceMode.File:

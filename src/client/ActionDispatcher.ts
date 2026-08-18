@@ -338,6 +338,34 @@ export type ClientAction =
   | {
     readonly type: 'DUEL_INVITE_RESPOND';
     readonly payload: { readonly inviteId: string; readonly accept: boolean };
+  }
+  | {
+    readonly type: 'STATIC_SABOTAGE_CONTRIBUTE';
+    readonly payload: { readonly districtId: string };
+  }
+  | {
+    readonly type: 'STATIC_WAR_ROOM_OPEN';
+    readonly payload: { readonly districtId: string };
+  }
+  | {
+    readonly type: 'STATIC_WAR_ROOM_JOIN';
+    readonly payload: { readonly callId: string };
+  }
+  | {
+    readonly type: 'STATIC_WAR_ROOM_LEAVE';
+    readonly payload: { readonly callId: string };
+  }
+  | {
+    readonly type: 'STATIC_WAR_ROOM_LOCK';
+    readonly payload: { readonly callId: string };
+  }
+  | {
+    readonly type: 'STATIC_FLEX_REACT';
+    readonly payload: { readonly targetCharacterId: number; readonly kind: string };
+  }
+  | {
+    readonly type: 'STATIC_FLEX_SET_HEADLINE';
+    readonly payload: { readonly headline: string };
   };
 
 export type DispatchResult =
@@ -520,6 +548,10 @@ export class ActionDispatcher {
       return this.dispatchPending(action);
     }
 
+    if (this.mode === 'online' && this.isStaticNetworkAction(action)) {
+      return this.dispatchPending(action);
+    }
+
     if (
       this.mode === 'online'
       && (action.type === 'ACCEPT_MERCENARY_TASK' || action.type === 'ABANDON_MERCENARY_TASK')
@@ -637,6 +669,18 @@ export class ActionDispatcher {
       || action.type === 'INSPECT_PLAYER'
       || action.type === 'DUEL_INVITE'
       || action.type === 'DUEL_INVITE_RESPOND'
+    );
+  }
+
+  private isStaticNetworkAction(action: ClientAction): boolean {
+    return (
+      action.type === 'STATIC_SABOTAGE_CONTRIBUTE'
+      || action.type === 'STATIC_WAR_ROOM_OPEN'
+      || action.type === 'STATIC_WAR_ROOM_JOIN'
+      || action.type === 'STATIC_WAR_ROOM_LEAVE'
+      || action.type === 'STATIC_WAR_ROOM_LOCK'
+      || action.type === 'STATIC_FLEX_REACT'
+      || action.type === 'STATIC_FLEX_SET_HEADLINE'
     );
   }
 
@@ -1271,6 +1315,15 @@ export class ActionDispatcher {
       case 'DUEL_INVITE':
       case 'DUEL_INVITE_RESPOND':
         return { ok: false, reason: 'Spray, ficha de player e duelo casual requerem servidor ou mock economy.' };
+
+      case 'STATIC_SABOTAGE_CONTRIBUTE':
+      case 'STATIC_WAR_ROOM_OPEN':
+      case 'STATIC_WAR_ROOM_JOIN':
+      case 'STATIC_WAR_ROOM_LEAVE':
+      case 'STATIC_WAR_ROOM_LOCK':
+      case 'STATIC_FLEX_REACT':
+      case 'STATIC_FLEX_SET_HEADLINE':
+        return { ok: false, reason: 'STATIC_NOT_LIVE' };
 
       default: {
         const _exhaustive: never = action;

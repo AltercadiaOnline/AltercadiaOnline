@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPveEnemyActorId,
+  capPveEncounterPackSizeForPlayerLevel,
   clampPveEncounterPackSize,
   countDefeatedPveEnemies,
+  formatPvePackStaggerLog,
+  pvePackMemberReadyOnCycle,
+  resolvePveEnemyPackIndex,
   resolvePveLootSpinCount,
   rollPveEncounterPackSize,
   stripPveEnemyPackSuffix,
@@ -26,6 +30,32 @@ describe('rollPveEncounterPackSize', () => {
     expect(buildPveEnemyActorId('rat', 2)).toBe('enemy_rat__2');
     expect(stripPveEnemyPackSuffix('rat__2')).toBe('rat');
     expect(clampPveEncounterPackSize(99)).toBe(3);
+    expect(resolvePveEnemyPackIndex('enemy_rat')).toBe(0);
+    expect(resolvePveEnemyPackIndex('enemy_rat__2')).toBe(2);
+  });
+});
+
+describe('capPveEncounterPackSizeForPlayerLevel', () => {
+  it('nv 1–3 só solo, 4–6 sem trio, 7+ curva cheia', () => {
+    expect(capPveEncounterPackSizeForPlayerLevel(3, 1)).toBe(1);
+    expect(capPveEncounterPackSizeForPlayerLevel(3, 3)).toBe(1);
+    expect(capPveEncounterPackSizeForPlayerLevel(3, 4)).toBe(2);
+    expect(capPveEncounterPackSizeForPlayerLevel(2, 5)).toBe(2);
+    expect(capPveEncounterPackSizeForPlayerLevel(3, 7)).toBe(3);
+  });
+});
+
+describe('pvePackMemberReadyOnCycle', () => {
+  it('1º age já; 2º no ciclo 1; 3º no ciclo 2', () => {
+    expect(pvePackMemberReadyOnCycle(0, 0)).toBe(true);
+    expect(pvePackMemberReadyOnCycle(1, 0)).toBe(false);
+    expect(pvePackMemberReadyOnCycle(2, 0)).toBe(false);
+    expect(pvePackMemberReadyOnCycle(1, 1)).toBe(true);
+    expect(pvePackMemberReadyOnCycle(2, 1)).toBe(false);
+    expect(pvePackMemberReadyOnCycle(2, 2)).toBe(true);
+    expect(formatPvePackStaggerLog('Rato Dimensional')).toBe(
+      'Rato Dimensional ainda se posiciona no bando.',
+    );
   });
 });
 

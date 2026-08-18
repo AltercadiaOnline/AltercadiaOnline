@@ -23,19 +23,21 @@ function resolveLocalPlayerId(): string | null {
 function cancelCopy(reason: string | null): string {
   switch (reason) {
     case 'refused':
-      return 'Convite recusado.';
+      return 'Desafio recusado.';
+    case 'self':
+      return 'Desafio cancelado.';
     case 'range':
-      return 'O convite falhou — alguém se afastou.';
+      return 'O desafio falhou — alguém se afastou.';
     case 'timeout':
-      return 'O convite expirou.';
+      return 'O desafio expirou.';
     case 'busy':
-      return 'Alguém ficou ocupado. Convite cancelado.';
+      return 'Alguém ficou ocupado. Desafio cancelado.';
     case 'offline':
-      return 'Jogador indisponível. Convite cancelado.';
+      return 'Jogador indisponível. Desafio cancelado.';
     case 'map':
-      return 'Mapa diferente. Convite cancelado.';
+      return 'Mapa diferente. Desafio cancelado.';
     default:
-      return 'Convite cancelado.';
+      return 'Desafio cancelado.';
   }
 }
 
@@ -75,15 +77,26 @@ export function CasualDuelInviteHud() {
       style={{ zIndex: UI_LAYER_Z_INDEX.overlay }}
     >
       {showWaiting ? (
-        <p className="casual-duel-hud__title">
-          Aguardando {snapshot.toDisplayName} aceitar…
-        </p>
+        <>
+          <p className="casual-duel-hud__title">
+            Aguardando {snapshot.toDisplayName} aceitar…
+          </p>
+          <div className="casual-duel-hud__actions">
+            <button
+              type="button"
+              className="casual-duel-hud__refuse"
+              onClick={() => dispatchDuelInviteRespond(snapshot.inviteId, false)}
+            >
+              Cancelar
+            </button>
+          </div>
+        </>
       ) : null}
 
       {showPrompt ? (
         <>
           <p className="casual-duel-hud__title">
-            {snapshot.fromDisplayName} te convidou para uma batalha
+            {snapshot.fromDisplayName} te desafiou para uma batalha
           </p>
           <p className="casual-duel-hud__hint">Recusar não tem penalidade.</p>
           <div className="casual-duel-hud__actions">

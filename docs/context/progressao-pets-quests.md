@@ -8,6 +8,8 @@
 - Painel: `WorldMarcosPanel.tsx`
 - `milestoneTotalProgress` +1 por vitória PVE (lento). Habilidades de marco ≠ loot. Grant de batalha: [combate-pve.md](combate-pve.md).
 
+**Como obter degrau:** trilha confirmada + nó anterior ◆ + personagem no Nv. mínimo daquele degrau (10 / 30 / 50 / 70 / 100). Clique no ○ — não no ◆ já ativo. Nvl. da habilidade (barra de XP) sobe em combate; o % da HUD é o valor *agora*, não o teto do Nvl.5.
+
 ## Pets
 
 - Handlers: `src/server/handlers/pets/`

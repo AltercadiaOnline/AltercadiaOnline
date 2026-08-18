@@ -63,15 +63,28 @@ export function inferClassIdFromMovesetMastery(
 }
 
 /**
+ * Classe da identidade (hub) → save → domínio.
+ * Não inventa IMPETUS: retorna null quando nada disso existe.
+ */
+export function resolveIdentityBackedClassId(
+  hubClassId: unknown,
+  storedClassId: unknown,
+  mastery: Readonly<Record<string, number>>,
+): ClassType | null {
+  if (isClassType(hubClassId)) return hubClassId;
+  if (isClassType(storedClassId)) return storedClassId;
+  return inferClassIdFromMovesetMastery(mastery);
+}
+
+/**
  * Classe autoritativa do personagem.
- * Ordem: perfil persistido → inferência do domínio → IMPETUS (legado vazio).
+ * Ordem: perfil persistido → inferência do domínio → IMPETUS (só combate legado vazio).
  */
 export function resolveAuthoritativeClassId(
   storedClassId: ClassType | string | null | undefined,
   mastery: Readonly<Record<string, number>>,
 ): ClassType {
-  if (isClassType(storedClassId)) return storedClassId;
-  return inferClassIdFromMovesetMastery(mastery) ?? 'IMPETUS';
+  return resolveIdentityBackedClassId(undefined, storedClassId, mastery) ?? 'IMPETUS';
 }
 
 export type ReconciledClassProgression = {
@@ -81,24 +94,35 @@ export type ReconciledClassProgression = {
   readonly classIdWasMissing: boolean;
   /** True quando o domínio recebeu seeds novos do pool da classe. */
   readonly masteryWasPatched: boolean;
+  /** True quando a classe saiu só do fallback IMPETUS — não gravar no save. */
+  readonly inventedFallback: boolean;
 };
 
 /**
  * Garante o elo player → classe → moveset:
  * resolve a classe, preenche domínio vazio do pool e reporta se precisa persistir.
+ * `hubClassId` (slot) manda sobre o save — identidade não se re-infere.
  */
 export function reconcileClassAndMovesetMastery(
   storedClassId: ClassType | string | null | undefined,
   mastery: Readonly<Record<string, number>>,
+  hubClassId?: unknown,
 ): ReconciledClassProgression {
   const classIdWasMissing = !isClassType(storedClassId);
-  const classId = resolveAuthoritativeClassId(storedClassId, mastery);
-  const movesetMastery = ensureMovesetMasteryForClass(mastery, classId);
+  const identityClass = resolveIdentityBackedClassId(hubClassId, storedClassId, mastery);
+  const inventedFallback = identityClass === null;
+  const classId = identityClass ?? 'IMPETUS';
+  const movesetMastery = inventedFallback
+    ? { ...mastery }
+    : ensureMovesetMasteryForClass(mastery, classId);
   const masteryWasPatched =
-    Object.keys(movesetMastery).length !== Object.keys(mastery).length
-    || Object.keys(movesetMastery).some((id) => mastery[id] === undefined);
+    !inventedFallback
+    && (
+      Object.keys(movesetMastery).length !== Object.keys(mastery).length
+      || Object.keys(movesetMastery).some((id) => mastery[id] === undefined)
+    );
 
-  return { classId, movesetMastery, classIdWasMissing, masteryWasPatched };
+  return { classId, movesetMastery, classIdWasMissing, masteryWasPatched, inventedFallback };
 }
 
 /** Pool de moves para snapshot/HUD — classe persistida/inferida ou chaves já gravadas. */

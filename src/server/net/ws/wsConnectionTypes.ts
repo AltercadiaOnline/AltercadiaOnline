@@ -37,6 +37,7 @@ export const WORLD_AUTH_REQUIRED_MESSAGES = new Set<string>([
   'pvp-ranked-leave',
   'pvp-ranked-ready',
   'pvp-ranked-unready',
+  'pvp-ranked-set-stake',
 ]);
 
 /** Subconjunto de {@link WORLD_AUTH_REQUIRED_MESSAGES} — JWT revalidado a cada mensagem (C.2). */

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getPauseMenuBridge } from '../../bridge/pauseMenuBridge.js';
+import { PerformancePresetToggle } from '../screen/PerformancePresetToggle.js';
 
 export function PauseMenuPanel() {
   const [open, setOpen] = useState(() => getPauseMenuBridge().isOpen());
@@ -25,6 +26,7 @@ export function PauseMenuPanel() {
         </h2>
         <p className="pause-menu__hint">Sessão suspensa · mundo em espera</p>
         <div className="pause-menu__actions">
+          <PerformancePresetToggle className="perf-preset--pause" hint />
           <button
             id="btn-pause-settings"
             type="button"

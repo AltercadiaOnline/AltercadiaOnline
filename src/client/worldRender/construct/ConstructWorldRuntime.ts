@@ -179,6 +179,7 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
   }
 
   applyFrame(frame: ExplorationRenderFrame): void {
+    if (this.mode !== 'exploration') return;
     this.entityOverlay?.render(frame);
     if (!this.layoutMapId || this.mode !== 'exploration') return;
 
@@ -201,6 +202,7 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
     this.mode = mode;
     this.postToConstruct({ type: 'altercadia:set-mode', mode });
     if (this.host) this.host.dataset.worldMode = mode;
+    if (mode !== 'exploration') this.entityOverlay?.clear();
   }
 
   getInputSurface(): HTMLElement | null {

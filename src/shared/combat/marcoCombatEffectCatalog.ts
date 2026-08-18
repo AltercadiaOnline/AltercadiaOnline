@@ -134,3 +134,63 @@ export function scaleMarcoModifierValue(atMaxLevel: number, effectiveLevel: numb
   const clamped = Math.min(effectiveLevel, MARCO_NODE_MAX_LEVEL);
   return (atMaxLevel * clamped) / MARCO_NODE_MAX_LEVEL;
 }
+
+function formatScaledModifierAmount(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function formatMarcoModifierKindLabel(
+  kind: MarcoCombatModifierKindId,
+  value: number,
+): string {
+  const amount = formatScaledModifierAmount(value);
+  switch (kind) {
+    case MarcoCombatModifierKind.SpeedFlat:
+      return `+${amount} velocidade`;
+    case MarcoCombatModifierKind.CritChance:
+      return `+${amount}% crítico`;
+    case MarcoCombatModifierKind.CritDamage:
+      return `+${amount}% dano crítico`;
+    case MarcoCombatModifierKind.DefensePercent:
+      return `+${amount}% DEF`;
+    case MarcoCombatModifierKind.DodgePercent:
+      return `+${amount}% esquiva`;
+    case MarcoCombatModifierKind.AttackPercent:
+      return `+${amount}% ATQ`;
+    case MarcoCombatModifierKind.DamageReduction:
+      return `+${amount}% red. dano`;
+    case MarcoCombatModifierKind.ExhaustionReduction:
+      return `−${amount}% exaustão`;
+    default:
+      return `+${amount}`;
+  }
+}
+
+/** Efeito no nível efetivo atual (não o teto do Nvl.5). */
+export function formatMarcoNodeCombatBonus(
+  nodeId: string,
+  effectiveLevel: number,
+): string | null {
+  const effect = getMarcoCombatNodeEffect(nodeId);
+  if (!effect || effectiveLevel <= 0) return null;
+  const parts = effect.modifiers.map((mod) =>
+    formatMarcoModifierKindLabel(mod.kind, scaleMarcoModifierValue(mod.atMaxLevel, effectiveLevel)),
+  );
+  if (effectiveLevel >= MARCO_NODE_MAX_LEVEL && effect.procsAtMaxLevel?.length) {
+    parts.push('proc de ápice');
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/** Linha curta para HUD: valor agora + teto no Nvl.5. */
+export function formatMarcoNodeBonusHudLine(
+  nodeId: string,
+  effectiveLevel: number,
+): string | null {
+  const now = formatMarcoNodeCombatBonus(nodeId, Math.max(1, effectiveLevel));
+  const atMax = formatMarcoNodeCombatBonus(nodeId, MARCO_NODE_MAX_LEVEL);
+  if (!now) return atMax;
+  if (!atMax || now === atMax) return now;
+  return `${now} agora · teto ${atMax} no Nvl.5`;
+}

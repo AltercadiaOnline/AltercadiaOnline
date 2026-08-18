@@ -41,4 +41,12 @@ Mock 1 jogador: `npm run dev:mock` ou `/?gameMode=local` (só localhost). Produ�
 - Enter-world sem `CharacterIdentity` (não fallback `IMPETUS`)
 - Tratar `localStorage` de sessão como bypass de Supabase em produção
 
+## PC fraco
+
+Botão **Desempenho: Leve / Normal** no login e no char select (`PerformancePresetToggle`).  
+Persistência: `localStorage` `altercadia.performancePreset`. Query `?perf=lite`.  
+Código: `src/client/runtime/performancePreset.ts`. Não muda 640×360 nem o servidor.
+
+Leve também: sem fontes Google no boot, teto ~30 fps no mundo/arena, sem sombras/blur.
+
 Identidade depois do select: [identidade.md](identidade.md). HUD in-game: [ui-cliente.md](ui-cliente.md).

@@ -4,15 +4,13 @@ import { setWorldRenderMode } from './bootOnlineWorldRender.js';
 
 /**
  * Construct = só exploração.
- * Em BATTLE a arena é canvas DOM — o mundo fica pausado/escondido em modo exploration
- * para o Sair restaurar exatamente de onde o jogador parou.
+ * Em BATTLE a arena é canvas DOM — o runtime Construct fica com timeScale 0
+ * para o Sair restaurar o mapa de onde o jogador parou.
  */
 export function syncWorldRenderForGameState(state: GameState): void {
-  if (
-    state === GameStateValue.Exploration
-    || state === GameStateValue.Battle
-    || state === GameStateValue.Transitioning
-  ) {
-    setWorldRenderMode('exploration');
+  if (state === GameStateValue.Battle) {
+    setWorldRenderMode('battle');
+    return;
   }
+  setWorldRenderMode('exploration');
 }

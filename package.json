@@ -55,6 +55,7 @@
     "db:migrate:014": "node ./scripts/apply-supabase-migration.mjs 014",
     "db:migrate:015": "node ./scripts/apply-supabase-migration.mjs 015",
     "db:migrate:016": "node ./scripts/apply-supabase-migration.mjs 016",
+    "db:migrate:018": "node ./scripts/apply-supabase-migration.mjs 018",
     "db:migrate": "node ./scripts/apply-supabase-migration.mjs",
     "vercel:server-id": "node ./scripts/set-vercel-server-id.mjs",
     "deploy:check": "npm run ci:check && npm run audit:public-assets && npm run audit:construct && npm run audit:login-deploy",

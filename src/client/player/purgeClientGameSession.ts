@@ -44,6 +44,7 @@ import { resetBattleProgressionClientGuard } from '../progression/battleProgress
 
 import { resetWorldAssetImageCache } from '../world/worldAssetImageLoader.js';
 import { resetWorldSprayMirror } from '../world/worldSpraySyncBridge.js';
+import { resetStaticNetworkMirror } from '../world/staticNetworkSyncBridge.js';
 import { resetSprayInspectSession } from '../world/sprayInspectStore.js';
 import { resetPlayerInspectSession } from '../world/playerInspectStore.js';
 import { resetCasualDuelSession } from '../world/casualDuelStore.js';
@@ -88,6 +89,7 @@ function purgeSessionState(): void {
   resetMinimapState();
   resetClientZoneLoadState();
   resetWorldSprayMirror();
+  resetStaticNetworkMirror();
   resetSprayInspectSession();
   resetPlayerInspectSession();
   resetCasualDuelSession();

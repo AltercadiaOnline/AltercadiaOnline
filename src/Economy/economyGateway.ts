@@ -2583,6 +2583,99 @@ function publishTwoPartyTradeResult(
   });
 }
 
+export type PvpRankedStakeParty = {
+  readonly playerId: string;
+  readonly characterId: number;
+};
+
+function isPlayablePvpStakeParty(party: PvpRankedStakeParty): boolean {
+  return party.characterId >= 1 && party.playerId.trim().length > 0;
+}
+
+/** Trava VOLTS disponíveis para a aposta 1x1 (até settle ou refund). */
+export async function lockPvpRankedDuelStake(
+  party: PvpRankedStakeParty,
+  stakeVolts: number,
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+  const qty = Math.floor(stakeVolts);
+  if (qty <= 0) return { ok: true };
+  if (!isPlayablePvpStakeParty(party)) return { ok: true };
+
+  const tx = await executeEconomyTransaction(party.playerId, party.characterId, (store) => {
+    store.lockDollarVolt(qty);
+  });
+  if (!tx.ok) return { ok: false, message: tx.message };
+  publishWalletUpdated(party.playerId, party.characterId, tx);
+  return { ok: true };
+}
+
+/** Devolve a trava se a fila cancelar / o jogador sair antes da luta. */
+export async function unlockPvpRankedDuelStake(
+  party: PvpRankedStakeParty,
+  stakeVolts: number,
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+  const qty = Math.floor(stakeVolts);
+  if (qty <= 0) return { ok: true };
+  if (!isPlayablePvpStakeParty(party)) return { ok: true };
+
+  const tx = await executeEconomyTransaction(party.playerId, party.characterId, (store) => {
+    store.unlockDollarVolt(qty);
+  });
+  if (!tx.ok) return { ok: false, message: tx.message };
+  publishWalletUpdated(party.playerId, party.characterId, tx);
+  return { ok: true };
+}
+
+/**
+ * Vencedor recebe a aposta do perdedor; a própria trava é liberada.
+ * Empate / aborto usam unlock, não esta função.
+ */
+export async function settlePvpRankedDuelStake(input: {
+  readonly winner: PvpRankedStakeParty;
+  readonly loser: PvpRankedStakeParty;
+  readonly stakeVolts: number;
+}): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+  const qty = Math.floor(input.stakeVolts);
+  if (qty <= 0) return { ok: true };
+
+  const winnerPlayable = isPlayablePvpStakeParty(input.winner);
+  const loserPlayable = isPlayablePvpStakeParty(input.loser);
+
+  if (winnerPlayable && loserPlayable) {
+    const tx = await executeTwoPartyEconomyTransaction(input.winner, input.loser, (winStore, loseStore) => {
+      loseStore.spendLockedDollarVolt(qty);
+      winStore.unlockDollarVolt(qty);
+      winStore.addDollarVolt(qty);
+    });
+    if (!tx.ok) return { ok: false, message: tx.message };
+    const revision = Date.now();
+    publishWalletUpdated(tx.parties[0].playerId, tx.parties[0].characterId, tx.parties[0], { revision });
+    publishWalletUpdated(tx.parties[1].playerId, tx.parties[1].characterId, tx.parties[1], { revision });
+    return { ok: true };
+  }
+
+  if (winnerPlayable && !loserPlayable) {
+    const tx = await executeEconomyTransaction(input.winner.playerId, input.winner.characterId, (store) => {
+      store.unlockDollarVolt(qty);
+      store.addDollarVolt(qty);
+    });
+    if (!tx.ok) return { ok: false, message: tx.message };
+    publishWalletUpdated(input.winner.playerId, input.winner.characterId, tx);
+    return { ok: true };
+  }
+
+  if (!winnerPlayable && loserPlayable) {
+    const tx = await executeEconomyTransaction(input.loser.playerId, input.loser.characterId, (store) => {
+      store.spendLockedDollarVolt(qty);
+    });
+    if (!tx.ok) return { ok: false, message: tx.message };
+    publishWalletUpdated(input.loser.playerId, input.loser.characterId, tx);
+    return { ok: true };
+  }
+
+  return { ok: true };
+}
+
 /** Commit atômico da mesa — os dois personagens ou nenhum. */
 export async function commitAuthoritativePlayerTrade(
   input: CommitPlayerTradeInput,

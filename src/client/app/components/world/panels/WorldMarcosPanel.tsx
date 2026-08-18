@@ -120,11 +120,11 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
             dangerouslySetInnerHTML={{ __html: gridHtml }}
           />
           <p className="marcos-panel__legend" data-hud-fit-secondary>
-            <span className="marcos-legend marcos-legend--active">◆ Ativo</span>
-            <span className="marcos-legend marcos-legend--available">○ Disponível</span>
+            <span className="marcos-legend marcos-legend--active">◆ Ativo (Nvl. sobe com XP)</span>
+            <span className="marcos-legend marcos-legend--available">○ Clique para obter o degrau</span>
             <span className="marcos-legend marcos-legend--locked">Bloqueado</span>
             <span className="marcos-legend marcos-legend--gates">
-              Nv. habilidade 1–5: personagem {legendLevels}
+              Degraus 1–5: personagem {legendLevels}
             </span>
           </p>
         </div>

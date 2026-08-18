@@ -8,6 +8,7 @@ import type { CombatVfxEffectType } from '../../shared/combat/combatVfxEffectTyp
 import { exactOptionalProps } from '../../shared/util/exactOptionalProps.js';
 import type { ClassType } from '../../shared/types/classes.js';
 import { resolveUseCombatAssets } from '../config/combatAssetConfig.js';
+import { isLitePerformance } from '../runtime/performancePreset.js';
 import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import { showFloatingTextAtElement } from './FloatingText.js';
 import { resolveBattleEffectsHost } from './battleEffectsLayer.js';
@@ -132,7 +133,7 @@ function projectileClassFor(effectType: CombatVfxEffectType): string {
 /** Aplica palette swap CSS no projétil — lido da classe ativa no momento do spawn. */
 export function applyClassPaletteSwap(element: HTMLElement, classId: ClassType): ClassVfxPaletteConfig {
   const config = CLASS_VFX_CONFIG[classId] ?? CLASS_VFX_CONFIG.IMPETUS;
-  element.style.filter = config.filter;
+  element.style.filter = isLitePerformance() ? 'none' : config.filter;
   element.dataset.vfxVibe = config.vibe;
   element.dataset.playerClass = classId;
   return config;

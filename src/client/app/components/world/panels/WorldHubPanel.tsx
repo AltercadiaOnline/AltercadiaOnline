@@ -2,6 +2,7 @@ import { HUB_PANEL_ACTIONS } from '../../../../ui/hub/hubPanelConfig.js';
 import { HUD_WINDOW_SHORTCUT_LABEL } from '../../../../ui/keyboardShortcuts.js';
 import { windowManager } from '../../../panels/worldWindowController.js';
 import { tryCloseReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
+import { StaticNetworkHubBody } from '../hub/StaticNetworkHubBody.js';
 
 type WorldHubPanelProps = {
   zIndex: number;
@@ -13,7 +14,7 @@ export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) 
   return (
     <section
       id="world-hub-panel"
-      className={`ui-panel ui-panel--hub ui-panel--hub-bar ui-panel--open ui-skin-hybrid ui-skin-hybrid--holo-boost pointer-events-auto${
+      className={`ui-panel ui-panel--hub ui-panel--hub-bar ui-panel--hub-expanded ui-panel--open ui-skin-hybrid ui-skin-hybrid--holo-boost pointer-events-auto${
         focused ? ' ui-skin-hybrid--focused' : ''
       }`}
       style={{ zIndex }}
@@ -23,7 +24,7 @@ export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) 
       data-world-panel="hub"
       onMouseDown={onFocus}
     >
-      <div className="ui-panel__body hub-shell hub-shell--bar-only">
+      <div className="ui-panel__body hub-shell">
         <footer className="ui-hub-bar" data-hub-main-view aria-label="Hub Central">
           <div className="ui-hub-bar__toolbar">
             <div className="ui-hub-bar__heading">
@@ -66,6 +67,7 @@ export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) 
             })}
           </nav>
         </footer>
+        <StaticNetworkHubBody />
       </div>
     </section>
   );

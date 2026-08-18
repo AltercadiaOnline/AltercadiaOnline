@@ -3,6 +3,10 @@ import {
   formatGameTimeDigital,
   resolveGameDayPhase,
 } from '../../../../../shared/world/gameTime.js';
+import {
+  isLitePerformance,
+  subscribePerformanceMode,
+} from '../../../../runtime/performancePreset.js';
 import { getGameTimeStore } from '../../../../world/gameTimeStore.js';
 
 const PHASE_LABEL = {
@@ -11,6 +15,10 @@ const PHASE_LABEL = {
   day: 'DIA',
   dusk: 'ENTARDECER',
 } as const;
+
+function clockIntervalMs(): number {
+  return isLitePerformance() ? 250 : 100;
+}
 
 /** Relógio do mundo — espelha gameTimeStore (autoridade do servidor). */
 export function WorldGameClockWidget() {
@@ -33,15 +41,19 @@ export function WorldGameClockWidget() {
 
     apply(store.getInterpolatedGameTime());
     const unsubscribe = store.subscribe(apply);
-    let rafId = 0;
-    const tick = (): void => {
-      apply(store.getInterpolatedGameTime());
-      rafId = requestAnimationFrame(tick);
+    let intervalId = 0;
+    const startClock = (): void => {
+      if (intervalId) window.clearInterval(intervalId);
+      intervalId = window.setInterval(() => {
+        apply(store.getInterpolatedGameTime());
+      }, clockIntervalMs());
     };
-    rafId = requestAnimationFrame(tick);
+    startClock();
+    const unsubscribePerf = subscribePerformanceMode(startClock);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      unsubscribePerf();
+      if (intervalId) window.clearInterval(intervalId);
       unsubscribe();
     };
   }, []);

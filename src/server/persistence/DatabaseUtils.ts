@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
 
@@ -167,6 +167,17 @@ export async function writeJsonFileAtomic<T>(filePath: string, value: T): Promis
     await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
     await rename(tempPath, filePath);
   });
+}
+
+/** Remove JSON; ENOENT é sucesso (já não existia). */
+export async function deleteJsonFile(filePath: string): Promise<void> {
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') return;
+    throw error;
+  }
 }
 
 export type { PgPool, PgPoolClient };

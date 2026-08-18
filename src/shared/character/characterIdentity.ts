@@ -82,3 +82,8 @@ export function resolveIdentityClassId(
 ): ClassType | null {
   return identity && isClassType(identity.classId) ? identity.classId : null;
 }
+
+/** Classe gravada no hub/perfil — null se a coluna ainda não existir ou estiver vazia. */
+export function parseHubClassId(value: unknown): ClassType | null {
+  return isClassType(value) ? value : null;
+}

@@ -21,9 +21,11 @@ export class DuelInviteRespondHandler extends BaseIntentHandler<DuelInviteRespon
 
     const message = accept
       ? (result.snapshot.phase === 'countdown'
-        ? 'Convite aceito. A batalha começa em 5 segundos.'
-        : 'Não foi possível aceitar o convite.')
-      : 'Convite recusado.';
+        ? 'Desafio aceito. A batalha começa em 5 segundos.'
+        : 'Não foi possível aceitar o desafio.')
+      : (result.snapshot.cancelReason === 'self'
+        ? 'Desafio cancelado.'
+        : 'Desafio recusado.');
 
     this.sendResponse(playerId, intentId, true, {
       inviteId: result.snapshot.inviteId,

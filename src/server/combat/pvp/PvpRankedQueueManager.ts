@@ -28,6 +28,8 @@ export type PvpRankedQueueMember = {
   readonly displayName: string;
   readonly skinBundleId: PlayerSkinBundleId;
   ready: boolean;
+  stakeVolts: number;
+  stakeLocked: boolean;
 };
 
 export type PvpRankedMatchPair = {
@@ -36,7 +38,11 @@ export type PvpRankedMatchPair = {
   readonly peers: readonly [PvpRankedQueueMember, PvpRankedQueueMember];
 };
 
-type JoinOk = { readonly ok: true; readonly snapshot: PvpRankedQueueSnapshot };
+type JoinOk = {
+  readonly ok: true;
+  readonly snapshot: PvpRankedQueueSnapshot;
+  readonly unlockMembers: readonly PvpRankedQueueMember[];
+};
 type JoinErr = { readonly ok: false; readonly reason: PvpRankedQueueErrorCode };
 type JoinResult = JoinOk | JoinErr;
 
@@ -83,6 +89,11 @@ export class PvpRankedQueueManager {
     return this.buildSnapshot();
   }
 
+  /** Ocupa slot (waiting → luta). Bloqueia duelo de rua enquanto estiver no púlpito. */
+  hasOccupant(playerId: string, characterId: number): boolean {
+    return this.findSlotIndexByPlayer(playerId, characterId) >= 0;
+  }
+
   /** Conexões que devem receber o snapshot (slots + viewers). */
   listBroadcastConnectionIds(): readonly string[] {
     const ids = new Set<string>(this.viewers);
@@ -101,7 +112,9 @@ export class PvpRankedQueueManager {
   }
 
   join(
-    member: Omit<PvpRankedQueueMember, 'ready'>,
+    member: Omit<PvpRankedQueueMember, 'ready' | 'stakeLocked' | 'stakeVolts'> & {
+      readonly stakeVolts?: number;
+    },
     stationId: string = PVP_RANKED_STATION_ID,
   ): JoinResult {
     if (stationId !== this.stationId) {
@@ -111,8 +124,14 @@ export class PvpRankedQueueManager {
     if (this.phase === 'countdown' || this.phase === 'starting' || this.phase === 'in_battle') {
       const existing = this.findSlotIndexByPlayer(member.playerId, member.characterId);
       if (existing >= 0) {
-        this.patchSlot(existing, { ...this.slots[existing]!, ...member, ready: this.slots[existing]!.ready });
-        return { ok: true, snapshot: this.buildSnapshot() };
+        this.patchSlot(existing, {
+          ...this.slots[existing]!,
+          ...member,
+          ready: this.slots[existing]!.ready,
+          stakeVolts: this.slots[existing]!.stakeVolts,
+          stakeLocked: this.slots[existing]!.stakeLocked,
+        });
+        return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
       }
       return { ok: false, reason: 'EXCLUSIVE_LOCKED' };
     }
@@ -127,7 +146,7 @@ export class PvpRankedQueueManager {
         skinBundleId: member.skinBundleId,
       });
       this.viewers.add(member.connectionId);
-      return { ok: true, snapshot: this.buildSnapshot() };
+      return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
     }
 
     const otherConn = this.findSlotIndexByConnection(member.connectionId);
@@ -140,47 +159,108 @@ export class PvpRankedQueueManager {
       return { ok: false, reason: 'STATION_FULL' };
     }
 
-    this.patchSlot(free, { ...member, ready: false });
+    this.patchSlot(free, {
+      ...member,
+      ready: false,
+      stakeVolts: Math.max(0, Math.floor(member.stakeVolts ?? 0)),
+      stakeLocked: false,
+    });
     this.viewers.add(member.connectionId);
     this.phase = 'waiting';
     this.countdownEndsAtMs = null;
     this.matchId = null;
     this.emit();
-    return { ok: true, snapshot: this.buildSnapshot() };
+    return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
   }
 
   leave(connectionId: string): JoinResult {
     this.viewers.delete(connectionId);
     const index = this.findSlotIndexByConnection(connectionId);
     if (index < 0) {
-      return { ok: true, snapshot: this.buildSnapshot() };
+      return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
     }
 
     if (this.phase === 'in_battle' || this.phase === 'starting') {
       // Countdown já consumido / bootstrap em andamento — leave do painel não cancela o duelo.
-      return { ok: true, snapshot: this.buildSnapshot() };
+      return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
     }
 
+    const unlockMembers = this.collectLockedMembers();
     this.clearCountdown();
     this.slots = [null, null];
     this.phase = 'idle';
     this.countdownEndsAtMs = null;
     this.matchId = null;
     this.emit();
-    return { ok: true, snapshot: this.buildSnapshot() };
+    return { ok: true, snapshot: this.buildSnapshot(), unlockMembers };
   }
 
   /** Remove conexão (disconnect) — cancela fila se ainda não em batalha. */
-  onDisconnect(connectionId: string): void {
+  onDisconnect(connectionId: string): readonly PvpRankedQueueMember[] {
     this.viewers.delete(connectionId);
     const index = this.findSlotIndexByConnection(connectionId);
-    if (index < 0) return;
-    if (this.phase === 'in_battle' || this.phase === 'starting') return;
+    if (index < 0) return [];
+    if (this.phase === 'in_battle' || this.phase === 'starting') return [];
+    const unlockMembers = this.collectLockedMembers();
     this.clearCountdown();
     this.slots = [null, null];
     this.phase = 'idle';
     this.countdownEndsAtMs = null;
     this.matchId = null;
+    this.emit();
+    return unlockMembers;
+  }
+
+  getMember(connectionId: string): PvpRankedQueueMember | null {
+    const index = this.findSlotIndexByConnection(connectionId);
+    if (index < 0) return null;
+    return this.slots[index] ?? null;
+  }
+
+  setStakeLocked(connectionId: string, locked: boolean): JoinResult {
+    const index = this.findSlotIndexByConnection(connectionId);
+    if (index < 0) return { ok: false, reason: 'NOT_IN_QUEUE' };
+    const slot = this.slots[index]!;
+    this.patchSlot(index, { ...slot, stakeLocked: locked });
+    this.emit();
+    return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
+  }
+
+  setStake(connectionId: string, stakeVolts: number): JoinResult {
+    const index = this.findSlotIndexByConnection(connectionId);
+    if (index < 0) return { ok: false, reason: 'NOT_IN_QUEUE' };
+    if (this.phase === 'countdown' || this.phase === 'starting' || this.phase === 'in_battle') {
+      return { ok: false, reason: 'EXCLUSIVE_LOCKED' };
+    }
+
+    const qty = Math.max(0, Math.floor(stakeVolts));
+    const slot = this.slots[index]!;
+    if (slot.stakeVolts === qty && !slot.ready && !slot.stakeLocked) {
+      return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
+    }
+
+    const unlockMembers = this.collectLockedMembers();
+    this.clearCountdown();
+    this.countdownEndsAtMs = null;
+    this.phase = 'waiting';
+    this.patchSlot(index, { ...slot, stakeVolts: qty, ready: false, stakeLocked: false });
+    for (let i = 0; i < this.slots.length; i += 1) {
+      const peer = this.slots[i];
+      if (!peer || i === index) continue;
+      this.patchSlot(i, { ...peer, ready: false, stakeLocked: false });
+    }
+    this.emit();
+    return { ok: true, snapshot: this.buildSnapshot(), unlockMembers };
+  }
+
+  /** Copia a aposta para o outro slot sem cancelar aceites (bot de prática). */
+  alignStake(connectionId: string, stakeVolts: number): void {
+    const index = this.findSlotIndexByConnection(connectionId);
+    if (index < 0) return;
+    const qty = Math.max(0, Math.floor(stakeVolts));
+    const slot = this.slots[index]!;
+    if (slot.stakeVolts === qty) return;
+    this.patchSlot(index, { ...slot, stakeVolts: qty });
     this.emit();
   }
 
@@ -191,19 +271,24 @@ export class PvpRankedQueueManager {
       return { ok: false, reason: 'EXCLUSIVE_LOCKED' };
     }
 
+    if (ready && this.bothSeated() && !this.stakesAgree()) {
+      return { ok: false, reason: 'STAKE_MISMATCH' };
+    }
+
     const slot = this.slots[index]!;
-    this.patchSlot(index, { ...slot, ready });
+    const unlockMembers = !ready && slot.stakeLocked ? [{ ...slot }] : [];
+    this.patchSlot(index, { ...slot, ready, stakeLocked: ready ? slot.stakeLocked : false });
 
     if (!this.bothReady()) {
       this.clearCountdown();
       this.phase = 'waiting';
       this.countdownEndsAtMs = null;
       this.emit();
-      return { ok: true, snapshot: this.buildSnapshot() };
+      return { ok: true, snapshot: this.buildSnapshot(), unlockMembers };
     }
 
     this.beginCountdown();
-    return { ok: true, snapshot: this.buildSnapshot() };
+    return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
   }
 
   /** Após START_COMBAT enviado — marca estação ocupada até limpar. */
@@ -278,11 +363,33 @@ export class PvpRankedQueueManager {
     }
   }
 
+  private bothSeated(): boolean {
+    return this.slots[0] !== null && this.slots[1] !== null;
+  }
+
+  private stakesAgree(): boolean {
+    const a = this.slots[0];
+    const b = this.slots[1];
+    if (!a || !b) return false;
+    return a.stakeVolts === b.stakeVolts;
+  }
+
+  private collectLockedMembers(): PvpRankedQueueMember[] {
+    const locked: PvpRankedQueueMember[] = [];
+    for (const slot of this.slots) {
+      if (slot && slot.stakeLocked && slot.stakeVolts > 0) {
+        locked.push({ ...slot });
+      }
+    }
+    return locked;
+  }
+
   private bothReady(): boolean {
     const filled = this.slots.filter(Boolean) as PvpRankedQueueMember[];
     return (
       filled.length === PVP_RANKED_QUEUE_SLOT_COUNT
       && filled.every((s) => s.ready)
+      && this.stakesAgree()
     );
   }
 
@@ -320,6 +427,8 @@ export class PvpRankedQueueManager {
       displayName: member.displayName,
       ready: member.ready,
       skinBundleId: member.skinBundleId || DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+      stakeVolts: member.stakeVolts,
+      stakeLocked: member.stakeLocked,
     };
   }
 
@@ -337,11 +446,18 @@ export class PvpRankedQueueManager {
       statusMessage = 'Aguardando oponente no púlpito…';
     } else if (filled === 1) {
       statusMessage = 'Aguardando oponente… Ninguém mais entra enquanto a sessão estiver ativa.';
+    } else if (this.bothSeated() && !this.stakesAgree()) {
+      statusMessage = 'As apostas precisam ser iguais antes de entrar na batalha.';
     } else if (this.bothReady()) {
       statusMessage = 'Ambos aceitaram — entrando na batalha rankeada…';
     } else {
       statusMessage = 'Os dois estão aqui — ambos devem clicar em Entrar na batalha rankeada.';
     }
+
+    const tableStakeVolts = this.stakesAgree()
+      ? this.slots[0]!.stakeVolts
+      : (this.slots[0]?.stakeVolts ?? this.slots[1]?.stakeVolts ?? 0);
+    const potVolts = this.stakesAgree() ? tableStakeVolts * 2 : 0;
 
     return {
       stationId: this.stationId,
@@ -352,6 +468,8 @@ export class PvpRankedQueueManager {
       countdownEndsAtMs: this.countdownEndsAtMs,
       exclusive: remainingExclusive(this.phase, filled),
       matchId: this.matchId,
+      tableStakeVolts,
+      potVolts,
     };
   }
 

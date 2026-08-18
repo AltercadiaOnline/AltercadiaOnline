@@ -76,6 +76,15 @@ import { getAddFriendHandler } from './social/AddFriendHandler.js';
 import { getInspectPlayerHandler } from './social/InspectPlayerHandler.js';
 import { getDuelInviteHandler } from './social/DuelInviteHandler.js';
 import { getDuelInviteRespondHandler } from './social/DuelInviteRespondHandler.js';
+import {
+  getStaticFlexReactHandler,
+  getStaticFlexSetHeadlineHandler,
+  getStaticSabotageContributeHandler,
+  getStaticWarRoomJoinHandler,
+  getStaticWarRoomLeaveHandler,
+  getStaticWarRoomLockHandler,
+  getStaticWarRoomOpenHandler,
+} from './static/staticContractHandlers.js';
 import { getZoneEnsureHandler } from './world/ZoneEnsureHandler.js';
 import { getGetLeaderboardHandler } from './world/GetLeaderboardHandler.js';
 import {
@@ -151,6 +160,13 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getInspectPlayerHandler());
   registerIntentHandler(getDuelInviteHandler());
   registerIntentHandler(getDuelInviteRespondHandler());
+  registerIntentHandler(getStaticSabotageContributeHandler());
+  registerIntentHandler(getStaticWarRoomOpenHandler());
+  registerIntentHandler(getStaticWarRoomJoinHandler());
+  registerIntentHandler(getStaticWarRoomLeaveHandler());
+  registerIntentHandler(getStaticWarRoomLockHandler());
+  registerIntentHandler(getStaticFlexReactHandler());
+  registerIntentHandler(getStaticFlexSetHeadlineHandler());
 
   bootstrapped = true;
 }

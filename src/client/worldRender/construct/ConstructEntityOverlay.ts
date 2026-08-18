@@ -76,6 +76,14 @@ export class ConstructEntityOverlay {
     this.remotePlayerSprites.clear();
   }
 
+  /** Batalha / pause — apaga o canvas sem o loop de exploração. */
+  clear(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, VIEWPORT_W, VIEWPORT_H);
+  }
+
   render(frame: ExplorationRenderFrame): void {
     const ctx = this.ctx;
     if (!ctx) return;

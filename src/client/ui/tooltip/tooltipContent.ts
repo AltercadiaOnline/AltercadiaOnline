@@ -121,6 +121,9 @@ function buildMarcoModel(data: TooltipData & { kind: 'marco' }): TooltipRenderMo
   if (data.data.requirement) {
     lines.push(`Requisito: ${data.data.requirement}`);
   }
+  if (data.data.hint) {
+    lines.push(data.data.hint);
+  }
 
   return {
     borderColor: MARCO_TOOLTIP_BORDER_COLOR,

@@ -10,6 +10,8 @@ import type {
 export class MemoryStorage implements PersistenceStorage {
   readonly mode = PersistenceMode.Memory;
 
+  private readonly characterIdSeq = new Map<string, number>();
+
   async initialize(_config: PersistenceStorageConfig): Promise<void> {
     // noop
   }
@@ -39,5 +41,21 @@ export class MemoryStorage implements PersistenceStorage {
 
   async saveCharacter(_record: CharacterPersistenceRecord): Promise<void> {
     // noop
+  }
+
+  async deleteCharacter(_playerId: string, _characterId: number): Promise<void> {
+    // noop
+  }
+
+  async listCharacterIds(_playerId: string): Promise<readonly number[]> {
+    return [];
+  }
+
+  async loadCharacterIdSeq(playerId: string): Promise<number> {
+    return this.characterIdSeq.get(playerId) ?? 0;
+  }
+
+  async saveCharacterIdSeq(playerId: string, lastAllocatedId: number): Promise<void> {
+    this.characterIdSeq.set(playerId, lastAllocatedId);
   }
 }

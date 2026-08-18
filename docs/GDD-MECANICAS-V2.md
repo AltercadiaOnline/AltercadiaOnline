@@ -596,7 +596,6 @@ Enum em `classMovesetCatalog.ts`. Cada move de classe define **um** `effectKind`
 | Move | Design (tooltip/catálogo) | Motor |
 |------|---------------------------|-------|
 | DIS_6 | 30% proc +40% cura extra | Proc ainda não wired no case `Heal` |
-| DIS_2 | `swapDebuffCount` no catálogo | Só debuff −30% dano implementado |
 | IMP_2 | Eco não gasta carga em cura/setup | Comportamento especial no eco |
 
 ### Impacto na Lógica (Engine)
@@ -648,7 +647,7 @@ As entradas abaixo **não** estão consolidadas o suficiente para constar como m
 | **P9** | Áudio (master volume) | Ajuste em sessão anterior | Expurgado na migração |
 | **P10** | Tipos de skill (heal/buff/debuff) | Histórico legado `damage` flat | **Resolvido** — `MoveEffectKind` + 24 moves + tooltips §18 |
 | **P11** | Pipeline de iniciativa V1.2 no runtime | Baseline §16 | **Implementado** no `CombatEngine` |
-| **P12** | Procs parciais (DIS_6, DIS_2 swap) | Tooltips vs motor | Parcial — ver tabela §19 |
+| **P12** | Procs parciais (DIS_6) | Tooltips vs motor | Parcial — ver tabela §19 |
 
 ---
 

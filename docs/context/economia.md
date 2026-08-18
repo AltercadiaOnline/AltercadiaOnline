@@ -24,6 +24,7 @@
 - Trade presencial: snapshot só tem `itemId` + qty + VOLTS. Ícone/nome = catálogo. Reserva (`lockedQuantity`) no offer; commit atômico nos dois lados.
 - Market: anunciar/comprar/cancelar compensam se a tx de inventário/carteira falhar (anúncio volta ao book). Só quantidade **livre** (não locked de trade) entra no anúncio.
 - Gift P2P: `commitAuthoritativeGiftTransfer` (tx dois personagens no `economyStore`). Destinatário precisa estar hidratado no mundo. Sem RPC SQL paralelo.
+- PVP púlpito 1x1: aposta só via `lockPvpRankedDuelStake` / `settlePvpRankedDuelStake` no gateway. HUD da fila não calcula o pote.
 - SET / `SYNC_LOADOUT` online: cliente manda proposta; inventário/equip só mudam após `InventoryUpdated`. Sem mutação otimista. Snapshot de combate ignora SET do cliente.
 - Divergência de preço → bloquear + erro de integridade, não enviar intent.
 - Personagem novo: inventário vazio (`initializePlayerState`). Sem seed demo.

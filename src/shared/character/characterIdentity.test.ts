@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultPlayerSkin } from '../character/playerSkin.js';
 import {
   characterIdentityFromHubSlot,
+  parseHubClassId,
   resolveIdentityClassId,
 } from './characterIdentity.js';
 import type { AccountCharacter } from '../types/account.js';
@@ -33,5 +34,11 @@ describe('characterIdentity', () => {
 
   it('rejeita slot sem nome', () => {
     expect(characterIdentityFromHubSlot(slot({ name: '   ' }))).toBeNull();
+  });
+
+  it('parseHubClassId ignora valor inválido e aceita classe do slot', () => {
+    expect(parseHubClassId(undefined)).toBeNull();
+    expect(parseHubClassId('IMPETUS')).toBe('IMPETUS');
+    expect(parseHubClassId('COGITOR')).toBe('COGITOR');
   });
 });

@@ -19,7 +19,8 @@ Visual = **Construct 3**. Lógica = servidor + `src/shared/world`. Overlay canva
 | Colisão shared | `src/shared/world/movement.ts` (`moveByDelta` / STOP, não MTV) |
 | GameLoop | `src/server/world/GameLoop.ts` |
 | NPCs | `src/shared/world/npcRegistry.ts` + placements `*.generated.ts` |
-| Tempo | servidor `TimeManager`; cliente só interpola `gameTime` |
+| Tempo | servidor `TimeManager`; cliente só interpola `gameTime`. Modo Leve: overlay de atmosfera desligado |
+| Batalha | Construct `timeScale=0` + overlay limpo; arena é canvas DOM |
 | Sync | `src/shared/sync/syncProtocol.ts` (tick: position, creatures, nearbyPlayers, sprays). Remotos: interpolador no relógio do servidor (`remoteEntitySyncBridge`). |
 
 ## Peers (`nearbyPlayers`)

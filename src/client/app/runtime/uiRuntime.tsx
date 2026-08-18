@@ -6,6 +6,7 @@ import { initGameStoreBridge } from '../store/gameStoreBridge.js';
 import { ensureClientArchitectureRoots } from '../shell/clientArchitecture.js';
 import { CLIENT_ROOT_IDS } from '../shell/uiLayers.js';
 import { initTooltip } from '../../ui/components/Tooltip.js';
+import { installPerformancePreset } from '../../runtime/performancePreset.js';
 import { mountOverlayRuntime } from './mountOverlayRuntime.js';
 import { mountScreenRuntime } from './mountScreenRuntime.js';
 import { mountHudRuntime, unmountHudRuntime } from './mountHudRuntime.js';
@@ -16,6 +17,7 @@ import { registerHudRuntimeApi } from './uiRuntimeApi.js';
  * Ponte Zustand cedo: inGame acompanha showScreen sem esperar enterWorld.
  */
 export function mountReactUiRuntime(root: ParentNode = document): void {
+  installPerformancePreset();
   // Tooltip no body antes de qualquer hover na HUD React (ui-runtime carrega antes do main.js).
   initTooltip(document.body);
 

@@ -35,7 +35,11 @@ Stores/bridges espelham servidor. Painel não calcula preço nem HP final de com
 
 ## Teclado
 
-`src/client/ui/KeyboardManager.ts` — G = `dispatchPlaceSpray`. Escape fecha HUD de spray, a ficha pinada do player e a mesa de trade (cancela no servidor); convite de duelo tem Aceitar/Recusar.
+`src/client/ui/KeyboardManager.ts` — G = `dispatchPlaceSpray`. Escape fecha HUD de spray, a ficha pinada do player e a mesa de trade (cancela no servidor); desafio de duelo tem Aceitar/Recusar (alvo) e Cancelar (quem desafiou).
+
+## PC fraco
+
+ESC → Pausa também troca **Desempenho Leve/Normal** (mesmo preset do login). Leve: ~30 fps, sem blur/sombra, relógio sem rAF, overlay de dia/noite desligado.
 
 ## Docs velhos
 

@@ -9,7 +9,7 @@ import {
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL } from '../../../shared/progression/marcoProgression.js';
-import { hasConfirmedMarcoTrail } from '../../../shared/progression/milestoneTreeState.js';
+import { buildMarcoTrailStatusLine, hasConfirmedMarcoTrail } from '../../../shared/progression/milestoneTreeState.js';
 import {
   activateMarcosTrail,
   buildMarcosRenderModel,
@@ -73,13 +73,8 @@ export function useMarcosPanelState() {
   /** Rodapé pós-ativação — só descrição (sem botão). */
   const trailStatusLine = useMemo(() => {
     if (!confirmedShortLabel) return null;
-    const trailName = `TRILHA ${confirmedShortLabel.toUpperCase()}`;
-    const activeCount = ctx.activeMarcos.length;
-    if (activeCount > 0) {
-      return `Trilha ativa · ${trailName} · ${activeCount}º nível selecionado`;
-    }
-    return `Trilha ativa · ${trailName}`;
-  }, [confirmedShortLabel, ctx.activeMarcos.length]);
+    return buildMarcoTrailStatusLine(ctx, confirmedShortLabel);
+  }, [confirmedShortLabel, ctx.activeMarcos.length, ctx.playerLevel, ctx.ramificacaoSelecionada, ctx.trilhaTravada]);
 
   const trailOptions = useMemo(
     () => listMarcosTrailOptions(ctx.playerLevel),
@@ -88,7 +83,7 @@ export function useMarcosPanelState() {
 
   // Após trilha ativa: clique em nó ○ obtém direto (sem botão no rodapé).
   const handleTreeClick = useCallback((event: React.MouseEvent<HTMLElement>): void => {
-    if (activating || !trailConfirmed) return;
+    if (!trailConfirmed) return;
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
 
@@ -96,6 +91,10 @@ export function useMarcosPanelState() {
     if (pick.kind === 'none') return;
     if (pick.kind === 'blocked') {
       alertSystem(pick.message);
+      return;
+    }
+    if (activating) {
+      alertSystem('Aguarde a confirmação do degrau anterior.');
       return;
     }
 
@@ -106,11 +105,12 @@ export function useMarcosPanelState() {
         const ok = await getActionDispatcher().waitForIntentResult(result.pendingIntentId);
         setActivating(false);
         if (ok) {
-          alertSystem('Habilidade Marcos obtida.');
+          alertSystem(`${pick.label} obtida.`);
           setProgressTick((tick) => tick + 1);
           getGlobalStateSynchronizer().requestFullState();
         } else {
-          alertSystem('Não foi possível obter a habilidade Marcos. Confira o nível do personagem e tente de novo.');
+          alertSystem('Não foi possível obter este degrau. Confira o ○ anterior e o nível do personagem.');
+          getGlobalStateSynchronizer().requestFullState();
         }
         return;
       }

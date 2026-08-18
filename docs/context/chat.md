@@ -13,7 +13,7 @@ Texto no mundo depois do enter-world. Servidor valida e faz fanout; cliente só 
 | Contrato | `src/shared/world/globalChatTypes.ts` / `src/shared/social/chatWhisperTypes.ts` |
 | Shared filtro | `src/shared/chat/globalChatModerator.ts`, `gameBannedWords.ts` |
 | Widget | `src/client/app/components/world/hud/WorldGlobalChatWidget.tsx` — abas Global + amigo |
-| Lista amigos | `friendListStore.ts` (save) + clique duplo abre aba |
+| Lista amigos | `friendListStore.ts` (save) + clique duplo no chat / clique no Hub Social abre aba |
 | Controller | `src/client/world/globalChatController.ts` / `whisperChatActions.ts` |
 
 ## Regras

@@ -62,7 +62,7 @@ function duelDropTableEntry(defeatedLevel: number): DropTableEntry {
     sourceKind: 'duel',
     levelMin: level,
     levelMax: level,
-    genericDropIds: ['soul_fragment'],
+    genericDropIds: [],
     equipableItemId: null,
     genericDropChance: 0.2,
     equipDropChance: 0,

@@ -1,4 +1,5 @@
 import { clampFrameDeltaMs } from '../../shared/world/movement.js';
+import { shouldSkipRenderFrame } from '../runtime/performancePreset.js';
 
 export type GameRenderLoopHandlers = {
   readonly shouldRun: () => boolean;
@@ -46,6 +47,11 @@ export class GameRenderLoop {
       if (!handlers.shouldRun()) {
         this.lastTimestampMs = timestampMs;
         scheduleIdlePoll();
+        return;
+      }
+
+      if (shouldSkipRenderFrame(this.lastTimestampMs, timestampMs)) {
+        scheduleFrame();
         return;
       }
 

@@ -14,6 +14,8 @@ import {
   upsertPlayerInventory,
   upsertPlayerPets,
 } from './playerGameDataRepository.js';
+import { isClassType } from '../../shared/progression/movesetMasterySeed.js';
+import { isMissingClassIdColumnError } from './characterHubRepository.js';
 
 /**
  * Persiste snapshot autoritativo no Supabase no momento do login,
@@ -65,16 +67,36 @@ export async function persistAuthoritativeLoginSnapshot(
   }
 
   const displayName = progression.characterProfile.displayName?.trim();
-  if (displayName) {
+  const classId = isClassType(progression.characterProfile.classId)
+    ? progression.characterProfile.classId
+    : null;
+  if (displayName || classId) {
     const { error } = await client
       .from('profiles')
-      .update({ display_name: displayName })
+      .update({
+        ...(displayName ? { display_name: displayName } : {}),
+        ...(classId ? { class_id: classId } : {}),
+      })
       .eq('user_id', scope.userId)
       .eq('character_id', scope.characterId)
       .eq('server_id', serverId);
 
     if (error) {
-      throw new Error(error.message);
+      if (classId && isMissingClassIdColumnError(error.message, error.code)) {
+        if (displayName) {
+          const retry = await client
+            .from('profiles')
+            .update({ display_name: displayName })
+            .eq('user_id', scope.userId)
+            .eq('character_id', scope.characterId)
+            .eq('server_id', serverId);
+          if (retry.error) {
+            throw new Error(retry.error.message);
+          }
+        }
+      } else {
+        throw new Error(error.message);
+      }
     }
   }
 }

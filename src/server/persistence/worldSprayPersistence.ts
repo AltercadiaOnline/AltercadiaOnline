@@ -1,13 +1,17 @@
 import path from 'node:path';
 import type { TacticalSpray } from '../../shared/types/tacticalSpray.js';
 import { tacticalSprayService } from '../../shared/social/tacticalSprayStore.js';
+import { shouldApplyWorldSprayWeeklyReset, resolveLatestElapsedWorldSprayResetAtMs } from '../../shared/social/worldSprayWeeklyReset.js';
 import { readJsonFile, writeJsonFileAtomic } from './DatabaseUtils.js';
 import { getPersistenceRuntimeConfig, isDurablePersistence } from './PersistenceGateway.js';
 
 type WorldSpraySnapshotFile = {
   readonly sprays: readonly TacticalSpray[];
   readonly updatedAt: number;
+  readonly lastWeeklyResetAtMs?: number;
 };
+
+let lastWeeklyResetAtMs: number | null = null;
 
 function worldSprayFilePath(dataDir: string): string {
   return path.join(dataDir, 'world-sprays.json');
@@ -28,6 +32,14 @@ function isTacticalSprayRecord(value: unknown): value is TacticalSpray {
     && typeof record.upvoteCount === 'number';
 }
 
+export function getWorldSprayLastWeeklyResetAtMs(): number | null {
+  return lastWeeklyResetAtMs;
+}
+
+export function stampWorldSprayWeeklyReset(atMs: number): void {
+  lastWeeklyResetAtMs = atMs;
+}
+
 export async function loadWorldSprayPersistence(): Promise<void> {
   if (!isDurablePersistence()) return;
 
@@ -35,6 +47,25 @@ export async function loadWorldSprayPersistence(): Promise<void> {
   const snapshot = await readJsonFile<WorldSpraySnapshotFile>(worldSprayFilePath(dataDir));
   const sprays = snapshot?.sprays?.filter(isTacticalSprayRecord) ?? [];
   tacticalSprayService.hydrateSprays(sprays);
+
+  const storedReset = snapshot?.lastWeeklyResetAtMs;
+  lastWeeklyResetAtMs = typeof storedReset === 'number' && Number.isFinite(storedReset)
+    ? storedReset
+    : null;
+
+  const now = Date.now();
+  if (lastWeeklyResetAtMs === null) {
+    lastWeeklyResetAtMs = resolveLatestElapsedWorldSprayResetAtMs(now);
+    await persistWorldSpraySnapshot();
+    return;
+  }
+
+  if (shouldApplyWorldSprayWeeklyReset(now, lastWeeklyResetAtMs)) {
+    tacticalSprayService.resetAllWorldSprays();
+    lastWeeklyResetAtMs = resolveLatestElapsedWorldSprayResetAtMs(now);
+    await persistWorldSpraySnapshot();
+    console.log('[world-spray] catch-up: pixos do chão limpos (segunda 07h BRT).');
+  }
 }
 
 export async function persistWorldSpraySnapshot(): Promise<void> {
@@ -44,5 +75,6 @@ export async function persistWorldSpraySnapshot(): Promise<void> {
   await writeJsonFileAtomic(worldSprayFilePath(dataDir), {
     sprays: tacticalSprayService.exportSprays(),
     updatedAt: Date.now(),
+    ...(lastWeeklyResetAtMs !== null ? { lastWeeklyResetAtMs } : {}),
   });
 }

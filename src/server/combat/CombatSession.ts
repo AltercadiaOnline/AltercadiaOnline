@@ -27,6 +27,12 @@ import {
 import { CombatGateway, type DispatchResult } from './CombatGateway.js';
 import { BattleManager } from '../../shared/combat/BattleEngine.js';
 import { isClassMoveId } from '../../shared/combat/classMovesetCatalog.js';
+import { createBattleLogEvent } from '../../shared/combat/battleCombatLog.js';
+import {
+  formatPvePackStaggerLog,
+  pvePackMemberReadyOnCycle,
+  resolvePveEnemyPackIndex,
+} from '../../shared/combat/pveEncounterPack.js';
 import { MarcoCombatTelemetryAccumulator } from '../../shared/progression/marcoCombatTelemetryCore.js';
 import type { MarcoProgressEvent } from '../../shared/progression/marcoProgressEngine.js';
 import { isMirrorBotActorId } from '../../shared/combat/mirrorPlayerConfig.js';
@@ -89,6 +95,8 @@ export class CombatSession {
   private mirrorActorId: string | null = null;
   private pendingRuneSpeed: { readonly amount: number; readonly appliesOnTurn: number } | null = null;
   private runeSpeedAppliedTurn: number | null = null;
+  /** Quantas reações de bando já passaram (0 = só o 1º rato age). */
+  private pvePackReactionCycle = 0;
 
   constructor(playerActorId: string, initial: CombatState, options: CombatSessionOptions = {}) {
     this.playerActorId = playerActorId;
@@ -344,16 +352,7 @@ export class CombatSession {
     const batch: ResolvedCombatAction[] = [playerAction];
 
     if (!extraSkip) {
-      for (const enemyId of this.listEnemyActorIds()) {
-        const turnState = this.gateway.getState();
-        const monster = turnState.combatants[enemyId];
-        if (!monster || (monster.hpCurrent ?? monster.hp) <= 0) continue;
-        const monsterTurn = this.battleManager.processMonsterTurn(turnState, enemyId);
-        preEvents.push(...monsterTurn.events);
-        if (monsterTurn.action) {
-          batch.push(monsterTurn.action);
-        }
-      }
+      batch.push(...this.collectPvePackEnemyActions(preEvents));
     }
 
     let result = this.gateway.resolveTurnBatch(batch);
@@ -372,6 +371,7 @@ export class CombatSession {
     };
 
     if (!extraSkip) {
+      this.advancePvePackReactionCycle();
       result = this.maybeGrantAgilityExtra(result);
     }
 
@@ -434,6 +434,7 @@ export class CombatSession {
     }
 
     if (!extraSkip) {
+      this.advancePvePackReactionCycle();
       result = this.maybeGrantAgilityExtra(result);
     }
 
@@ -443,25 +444,53 @@ export class CombatSession {
   private resolveAllyEnemyBatch(
     allyActions: readonly ResolvedCombatAction[],
     preEvents: CombatEvent[],
+    logPackStagger = true,
   ): DispatchResult {
-    const batch: ResolvedCombatAction[] = [...allyActions];
-
-    for (const enemyId of this.listEnemyActorIds()) {
-      const turnState = this.gateway.getState();
-      const monster = turnState.combatants[enemyId];
-      if (!monster || (monster.hpCurrent ?? monster.hp) <= 0) continue;
-      const monsterTurn = this.battleManager.processMonsterTurn(turnState, enemyId);
-      preEvents.push(...monsterTurn.events);
-      if (monsterTurn.action) {
-        batch.push(monsterTurn.action);
-      }
-    }
+    const batch: ResolvedCombatAction[] = [
+      ...allyActions,
+      ...this.collectPvePackEnemyActions(preEvents, logPackStagger),
+    ];
 
     const result = this.gateway.resolveTurnBatch(batch);
     return {
       ...result,
       events: [...preEvents, ...result.events],
     };
+  }
+
+  /** Inimigos prontos no ciclo atual; o resto só posiciona (log, sem golpe). */
+  private collectPvePackEnemyActions(
+    preEvents: CombatEvent[],
+    logPackStagger = true,
+  ): ResolvedCombatAction[] {
+    const actions: ResolvedCombatAction[] = [];
+    const battleId = this.gateway.getState().battleId;
+
+    for (const enemyId of this.listEnemyActorIds()) {
+      const turnState = this.gateway.getState();
+      const monster = turnState.combatants[enemyId];
+      if (!monster || (monster.hpCurrent ?? monster.hp) <= 0) continue;
+
+      const packIndex = resolvePveEnemyPackIndex(enemyId);
+      if (!pvePackMemberReadyOnCycle(packIndex, this.pvePackReactionCycle)) {
+        if (logPackStagger) {
+          preEvents.push(createBattleLogEvent(battleId, formatPvePackStaggerLog(monster.name)));
+        }
+        continue;
+      }
+
+      const monsterTurn = this.battleManager.processMonsterTurn(turnState, enemyId);
+      preEvents.push(...monsterTurn.events);
+      if (monsterTurn.action) {
+        actions.push(monsterTurn.action);
+      }
+    }
+
+    return actions;
+  }
+
+  private advancePvePackReactionCycle(): void {
+    this.pvePackReactionCycle += 1;
   }
 
   private resolvePetAlliancePhase(skipEnemies = false): DispatchResult {
@@ -498,7 +527,7 @@ export class CombatSession {
       };
     }
 
-    return this.resolveAllyEnemyBatch(batch, preEvents);
+    return this.resolveAllyEnemyBatch(batch, preEvents, false);
   }
 
   private listEnemyActorIds(): string[] {

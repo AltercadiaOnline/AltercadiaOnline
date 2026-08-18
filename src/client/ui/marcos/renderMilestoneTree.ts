@@ -13,7 +13,9 @@ import { buildMarcoNodeProgressionTooltip } from '../../../shared/progression/pr
 import { renderProgressionTooltipAttrs } from '../tooltip/progressionTooltipAttrs.js';
 import {
   formatMarcoActiveXpLabel,
+  formatMarcoTrailStepOrdinal,
   MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL,
+  requiredPlayerLevelForMarcoAbilityLevel,
   resolveMarcoProgressPercent,
 } from '../../../shared/progression/marcoProgression.js';
 import {
@@ -21,6 +23,7 @@ import {
   resolveHighlightedEdges,
   resolvePrerequisitePath,
 } from '../../../shared/progression/milestoneTreeState.js';
+import { formatMarcoNodeCombatBonus } from '../../../shared/combat/marcoCombatEffectCatalog.js';
 
 export type MarcoTreeRenderModel = {
   readonly nodes: readonly MarcoNodeView[];
@@ -156,7 +159,6 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
         nodeView;
       const isBranchStarter = isMarcoBranchStarter(def.id);
       const tierLevel = def.layout.row + 1;
-      const displayLevel = status === 'active' ? effectiveProgressionLevel || progressionLevel : tierLevel;
       const isPicked = model.selectedNodeId === def.id;
       const isFreeChoiceStarter =
         isBranchStarter
@@ -187,11 +189,17 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
           : status === 'active'
             ? '◆'
             : '○';
+      const bonusLevel = status === 'active'
+        ? Math.max(1, effectiveProgressionLevel || progressionLevel)
+        : 1;
+      const scaledBonus = formatMarcoNodeCombatBonus(def.id, bonusLevel);
       const bonus =
         status === 'locked' || isDimmedBranch || isSoftDimmed
           ? ''
-          : (def.shortBonus ?? (def.speedFlat !== undefined ? `+${def.speedFlat}` : ''));
+          : (scaledBonus ?? def.shortBonus ?? (def.speedFlat !== undefined ? `+${def.speedFlat}` : ''));
 
+      const reqLevel = requiredPlayerLevelForMarcoAbilityLevel(tierLevel);
+      const stepOrdinal = formatMarcoTrailStepOrdinal(tierLevel);
       const levelLine =
         status === 'active'
           ? `<span class="marcos-node__xp">${formatMarcoActiveXpLabel(
@@ -202,13 +210,24 @@ export function renderMarcoGridNodes(model: MarcoTreeRenderModel): string {
                 effectiveLevel: nodeView.effectiveProgressionLevel,
               },
             )}</span>`
-          : `<span class="marcos-node__level">Nv.${displayLevel}</span>`;
+          : status === 'available'
+            ? `<span class="marcos-node__level">${stepOrdinal} · clique</span>`
+            : !isDimmedBranch && model.playerLevel < reqLevel
+              ? `<span class="marcos-node__level">${stepOrdinal} · Nv.${reqLevel}</span>`
+              : `<span class="marcos-node__level">${stepOrdinal}</span>`;
+
+      const ariaLabel = status === 'available'
+        ? `Obter ${def.name}, ${stepOrdinal}`
+        : status === 'active'
+          ? `${def.name} ativo, ${stepOrdinal}`
+          : `${def.name} travado, ${stepOrdinal}`;
 
       return `
         <button
           type="button"
           class="marcos-node marcos-node--grid ${statusClass} marcos-node--${def.branch}${isBranchStarter ? ' marcos-node--branch-starter' : ''}${isDimmedBranch ? ' marcos-node--dimmed-branch' : ''}${isSoftDimmed ? ' marcos-node--soft-dim' : ''}${isActiveBranch || isConfirmedTrail ? ' marcos-node--active-branch' : ''}${isBranchStarter && isConfirmedTrail ? ' marcos-node--branch-root' : ''}${isPicked ? ' marcos-node--branch-pick' : ''}"
           data-marco-node="${def.id}"
+          aria-label="${ariaLabel}"
           aria-pressed="${isPicked ? 'true' : 'false'}"
           style="grid-column:${def.layout.col + 1};grid-row:${def.layout.row + 1}"
         >

@@ -76,6 +76,12 @@ import {
   getPvpRankedQueueManager,
   type PvpRankedMatchPair,
 } from '../combat/pvp/PvpRankedQueueManager.js';
+import {
+  lockQueuedPvpRankedStake,
+  refundPvpRankedStakeMembers,
+  settleQueuedPvpRankedPot,
+} from '../combat/pvp/pvpRankedDuelStakeService.js';
+import { parsePvpRankedStakeVolts } from '../../shared/combat/pvp/pvpRankedDuelStake.js';
 import { getCasualDuelInviteStore, type CasualDuelMatchPair } from '../social/casualDuelInviteStore.js';
 import { getPlayerTradeStore } from '../social/playerTradeStore.js';
 import { createPvpRankedBattleBootstrap } from '../combat/pvp/buildPvpRankedBattle.js';
@@ -107,6 +113,10 @@ import {
   broadcastChatGlobalPayload,
   unbindChatGlobalBroadcast,
 } from '../chat/chatGlobalBroadcast.js';
+import {
+  bindStaticNetworkBroadcaster,
+  unbindStaticNetworkBroadcast,
+} from '../static/staticNetworkBroadcast.js';
 import {
   bindChatWhisperDeliverer,
   unbindChatWhisperDeliverer,
@@ -289,6 +299,9 @@ export class CombatWsHub implements CombatWsRouteHost {
     bindChatGlobalBroadcaster((payload) => {
       this.broadcastChatGlobal(payload);
     });
+    bindStaticNetworkBroadcaster((pulse) => {
+      this.broadcastStaticPulse(pulse);
+    });
     bindChatWhisperDeliverer((connectionIds, payload) => {
       this.deliverChatWhisper(connectionIds, payload);
     });
@@ -327,6 +340,7 @@ export class CombatWsHub implements CombatWsRouteHost {
 
   public close(): Promise<void> {
     unbindChatGlobalBroadcast();
+    unbindStaticNetworkBroadcast();
     unbindChatWhisperDeliverer();
     bindPlayerSocketLookup(null);
     this.worldTickScheduler.stop();
@@ -356,7 +370,8 @@ export class CombatWsHub implements CombatWsRouteHost {
       this.combatTurnController.clearTurnTimer(connectionId);
       this.socketsByConnectionId.delete(connectionId);
       void this.handleRankedDisconnect(connectionId);
-      getPvpRankedQueueManager().onDisconnect(connectionId);
+      const refundMembers = getPvpRankedQueueManager().onDisconnect(connectionId);
+      void refundPvpRankedStakeMembers(refundMembers);
       getCasualDuelInviteStore().onDisconnect(connectionId);
       getPlayerTradeStore().onDisconnect(connectionId);
       const session = this.sessions.get(connectionId);
@@ -942,6 +957,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       readonly stationId: string;
       readonly displayName?: string;
       readonly skinBundleId?: string;
+      readonly stakeVolts?: number;
     },
   ): void {
     const world = this.requireVerifiedWorldSession(ws, connectionId);
@@ -977,6 +993,7 @@ export class CombatWsHub implements CombatWsRouteHost {
 
     const queue = getPvpRankedQueueManager();
     queue.addViewer(connectionId);
+    const stakeVolts = parsePvpRankedStakeVolts(payload.stakeVolts) ?? 0;
     const result = queue.join(
       {
         connectionId,
@@ -984,6 +1001,7 @@ export class CombatWsHub implements CombatWsRouteHost {
         characterId: world.characterId,
         displayName,
         skinBundleId,
+        stakeVolts,
       },
       payload.stationId || PVP_RANKED_STATION_ID,
     );
@@ -995,11 +1013,11 @@ export class CombatWsHub implements CombatWsRouteHost {
     this.broadcastPvpRankedQueueSnapshot(result.snapshot);
   }
 
-  handlePvpRankedLeave(
+  async handlePvpRankedLeave(
     ws: LiveSocket,
     connectionId: string,
     _payload: { readonly stationId: string },
-  ): void {
+  ): Promise<void> {
     const world = this.requireVerifiedWorldSession(ws, connectionId);
     if (!world) return;
     const queue = getPvpRankedQueueManager();
@@ -1008,29 +1026,72 @@ export class CombatWsHub implements CombatWsRouteHost {
       this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
       return;
     }
+    await refundPvpRankedStakeMembers(result.unlockMembers);
     this.broadcastPvpRankedQueueSnapshot(result.snapshot);
   }
 
-  handlePvpRankedReady(
+  async handlePvpRankedSetStake(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly stationId: string; readonly stakeVolts?: number },
+  ): Promise<void> {
+    const world = this.requireVerifiedWorldSession(ws, connectionId);
+    if (!world) return;
+    const stakeVolts = parsePvpRankedStakeVolts(payload.stakeVolts);
+    if (stakeVolts === null) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: 'INVALID_STAKE' } });
+      return;
+    }
+    const queue = getPvpRankedQueueManager();
+    const result = queue.setStake(connectionId, stakeVolts);
+    if (!result.ok) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
+      return;
+    }
+    await refundPvpRankedStakeMembers(result.unlockMembers);
+    this.broadcastPvpRankedQueueSnapshot(result.snapshot);
+  }
+
+  async handlePvpRankedReady(
     ws: LiveSocket,
     connectionId: string,
     _payload: { readonly stationId: string },
-  ): void {
+  ): Promise<void> {
     const world = this.requireVerifiedWorldSession(ws, connectionId);
     if (!world) return;
-    const result = getPvpRankedQueueManager().setReady(connectionId, true);
+    const queue = getPvpRankedQueueManager();
+    const member = queue.getMember(connectionId);
+    if (!member) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: 'NOT_IN_QUEUE' } });
+      return;
+    }
+
+    const lockResult = await lockQueuedPvpRankedStake(member);
+    if (!lockResult.ok) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: lockResult.reason } });
+      this.send(ws, { type: 'pvp-ranked-queue-snapshot', payload: queue.getSnapshot() });
+      return;
+    }
+    if (member.stakeVolts > 0) {
+      queue.setStakeLocked(connectionId, true);
+    }
+
+    const result = queue.setReady(connectionId, true);
     if (!result.ok) {
+      await refundPvpRankedStakeMembers([{ ...member, stakeLocked: true }]);
+      queue.setStakeLocked(connectionId, false);
       this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
+      this.send(ws, { type: 'pvp-ranked-queue-snapshot', payload: queue.getSnapshot() });
       return;
     }
     this.broadcastPvpRankedQueueSnapshot(result.snapshot);
   }
 
-  handlePvpRankedUnready(
+  async handlePvpRankedUnready(
     ws: LiveSocket,
     connectionId: string,
     _payload: { readonly stationId: string },
-  ): void {
+  ): Promise<void> {
     const world = this.requireVerifiedWorldSession(ws, connectionId);
     if (!world) return;
     const result = getPvpRankedQueueManager().setReady(connectionId, false);
@@ -1038,6 +1099,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: result.reason } });
       return;
     }
+    await refundPvpRankedStakeMembers(result.unlockMembers);
     this.broadcastPvpRankedQueueSnapshot(result.snapshot);
   }
 
@@ -1094,6 +1156,7 @@ export class CombatWsHub implements CombatWsRouteHost {
           actorId: bootstrap.actorBId,
           loadout: loadoutB,
         },
+        stakeVolts: memberA.stakeVolts ?? 0,
       });
 
       const battleId = session.getBattleId();
@@ -1148,6 +1211,7 @@ export class CombatWsHub implements CombatWsRouteHost {
   ): void {
     const queue = getPvpRankedQueueManager();
     queue.clearAfterBattle();
+    void refundPvpRankedStakeMembers(match.peers);
     for (const member of match.peers) {
       const peerWs = this.socketsByConnectionId.get(member.connectionId);
       if (!peerWs) continue;
@@ -1315,6 +1379,13 @@ export class CombatWsHub implements CombatWsRouteHost {
     }
     const result = await session.forfeit(connectionId);
     if (!result.ok) {
+      await refundPvpRankedStakeMembers(
+        session.listPeers().map((peer) => ({
+          playerId: peer.playerId,
+          characterId: peer.characterId,
+          stakeVolts: session.getStakeVolts(),
+        })),
+      );
       this.cleanupRankedBattle(session);
       return;
     }
@@ -1341,6 +1412,7 @@ export class CombatWsHub implements CombatWsRouteHost {
     }
 
     const finalized = finalizeAuthoritativeRankedPvpEnd(session, payloads, endOptions);
+    await this.settleRankedPvpStake(session, finalized);
     for (const peerResult of finalized.peers) {
       const peerWs = this.socketsByConnectionId.get(peerResult.peer.connectionId);
       if (peerWs) {
@@ -1350,6 +1422,31 @@ export class CombatWsHub implements CombatWsRouteHost {
       this.scheduleCharacterPersist(peerResult.peer.playerId, peerResult.peer.characterId);
     }
     this.cleanupRankedBattle(session);
+  }
+
+  private async settleRankedPvpStake(
+    session: RankedPvpCombatSession,
+    finalized: { readonly peers: readonly { readonly peer: { readonly playerId: string; readonly characterId: number }; readonly victory: boolean }[] },
+  ): Promise<void> {
+    const stakeVolts = session.getStakeVolts();
+    if (stakeVolts <= 0) return;
+    const winners = finalized.peers.filter((entry) => entry.victory);
+    const losers = finalized.peers.filter((entry) => !entry.victory);
+    if (winners.length === 1 && losers.length === 1) {
+      await settleQueuedPvpRankedPot({
+        winner: winners[0]!.peer,
+        loser: losers[0]!.peer,
+        stakeVolts,
+      });
+      return;
+    }
+    await refundPvpRankedStakeMembers(
+      session.listPeers().map((peer) => ({
+        playerId: peer.playerId,
+        characterId: peer.characterId,
+        stakeVolts,
+      })),
+    );
   }
 
   private cleanupRankedBattle(session: RankedPvpCombatSession): void {
@@ -1958,7 +2055,11 @@ export class CombatWsHub implements CombatWsRouteHost {
       }
 
       const hadPersistedSave = await hydrateCharacterSession(authUserId, payload.characterId);
-      reconcileAuthoritativeCharacterClassLink(authUserId, payload.characterId);
+      reconcileAuthoritativeCharacterClassLink(
+        authUserId,
+        payload.characterId,
+        bootstrap.classId ?? null,
+      );
       // Save legado: trilha travada sem starter — repara antes do full-state-sync.
       repairTrailStarterIfNeeded(authUserId, payload.characterId);
 
@@ -2164,6 +2265,19 @@ export class CombatWsHub implements CombatWsRouteHost {
     };
 
     broadcastChatGlobalPayload(chatPayload);
+  }
+
+  /** Rede Static — pulsos raros (Apagão / War Room) para sessões de mundo. */
+  private broadcastStaticPulse(
+    pulse:
+      | { readonly type: 'static-apagao'; readonly payload: import('../../shared/static/staticNetworkTypes.js').StaticApagaoPayload }
+      | { readonly type: 'static-war-room-call'; readonly payload: import('../../shared/static/staticNetworkTypes.js').StaticWarRoomCallPayload }
+      | { readonly type: 'static-war-room-update'; readonly payload: import('../../shared/static/staticNetworkTypes.js').StaticWarRoomUpdatePayload },
+  ): void {
+    for (const [connectionId, socket] of this.socketsByConnectionId) {
+      if (!this.worldConnections.has(connectionId)) continue;
+      this.send(socket, pulse);
+    }
   }
 
   /** Chat global — todas as sessões de mundo (zonas diferentes incluídas). */

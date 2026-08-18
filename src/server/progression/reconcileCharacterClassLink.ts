@@ -12,23 +12,34 @@ import { getWorldProfile, saveWorldProfile } from '../world/worldProfileStore.js
 
 /**
  * Fecha o elo player → classe → moveset após hidratar o save.
- * Grava `classId` se faltava, seeda domínio vazio e limpa loadout de outra classe.
+ * Hub (slot) é SSOT da classe — save leftover / IMPETUS inferido não sobrescreve.
+ * Não grava IMPETUS quando a classe ainda é desconhecida.
  */
 export function reconcileAuthoritativeCharacterClassLink(
   playerId: string,
   characterId: number,
+  hubClassId?: ClassType | null,
 ): ClassType {
   const state = getAuthoritativeProgression(playerId, characterId);
   const reconciled = reconcileClassAndMovesetMastery(
     state.characterProfile.classId,
     state.progression.movesetMastery,
+    hubClassId,
   );
 
-  if (reconciled.classIdWasMissing || reconciled.masteryWasPatched) {
+  const classMismatch = state.characterProfile.classId !== reconciled.classId;
+  if (
+    !reconciled.inventedFallback
+    && (reconciled.classIdWasMissing || reconciled.masteryWasPatched || classMismatch)
+  ) {
     patchAuthoritativeProgression(playerId, characterId, {
       progression: { movesetMastery: reconciled.movesetMastery },
       characterProfile: { classId: reconciled.classId },
     });
+  }
+
+  if (reconciled.inventedFallback) {
+    return reconciled.classId;
   }
 
   const profile = getWorldProfile(playerId, characterId);

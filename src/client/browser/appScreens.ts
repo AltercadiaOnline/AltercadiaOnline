@@ -31,6 +31,7 @@ import {
 import { bindActiveCharacterIdentityFromHubSlot } from '../character/activeCharacterIdentity.js';
 import { clearLocalCharacterSave } from '../persistence/localCharacterSave.js';
 import { clearPetMemorialStorage } from '../ui/pet/petMemorialStore.js';
+import { purgeClientSpraysForDeletedCharacter } from '../world/spraySocialActions.js';
 import {
   clearLocalSession,
   getLocalSession,
@@ -592,6 +593,7 @@ export const AppScreens = {
     // Memorial / save local do slot — morrem com o personagem (não com a conta).
     clearPetMemorialStorage(this.currentSession.id, characterId);
     clearLocalCharacterSave(this.currentSession.id, characterId);
+    purgeClientSpraysForDeletedCharacter(this.currentSession.id, characterId);
 
     this.renderCharacterSlots();
     this.syncCharacterSelectionUi();

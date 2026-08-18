@@ -15,6 +15,7 @@ import {
 import { CharacterCreateModal } from './CharacterCreateModal.js';
 import { CharacterDeleteModal } from './CharacterDeleteModal.js';
 import { CyberVoidBackground } from './CyberVoidBackground.js';
+import { PerformancePresetToggle } from './PerformancePresetToggle.js';
 
 /** Buffer do canvas de preview — proporção ~85×132 do slot, com resolução 2× para nitidez. */
 const SLOT_AVATAR_BUFFER_WIDTH = 170;
@@ -85,6 +86,7 @@ export function CharSelectScreen() {
           <p className="auth-hud-test__tagline">RPG BATTLE ONLINE</p>
         </div>
         <nav className="char-select-hud__nav" aria-label="Conta">
+          <PerformancePresetToggle className="perf-preset--nav" />
           <button type="button" className="char-select-hud__nav-link" onClick={() => bridge.returnToLogin()}>
             VOLTAR AO LOGIN
           </button>

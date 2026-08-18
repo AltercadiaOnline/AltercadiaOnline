@@ -45,6 +45,15 @@ export function discardPendingLoot(lootId: string): void {
   stagedLoot.delete(lootId);
 }
 
+/** Apaga loot cassino pendente do personagem morto — não cola em ficha nova. */
+export function discardPendingLootForCharacter(characterId: number): void {
+  for (const [lootId, entry] of stagedLoot) {
+    if (entry.characterId === characterId) {
+      stagedLoot.delete(lootId);
+    }
+  }
+}
+
 export function clearPendingLootStore(): void {
   stagedLoot.clear();
 }

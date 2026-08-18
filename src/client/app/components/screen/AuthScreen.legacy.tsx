@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useAuthScreen, useAuthScreenActions } from '../../hooks/useAuthScreen.js';
+import { PerformancePresetToggle } from './PerformancePresetToggle.js';
 
 function AuthStatus({ message, isError }: { readonly message: string; readonly isError: boolean }) {
   if (!message) return null;
@@ -313,6 +314,8 @@ export function AuthScreenLegacy() {
             Iniciando cliente… aguarde ou clique em LOGIN.
           </p>
         ) : null}
+
+        <PerformancePresetToggle className="perf-preset--legacy" hint />
 
         {state.bootstrapFatalVisible ? (
           <div className="bootstrap-fatal-overlay mt-4 flex flex-col gap-3">

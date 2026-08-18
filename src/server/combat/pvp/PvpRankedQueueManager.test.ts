@@ -81,4 +81,15 @@ describe('PvpRankedQueueManager 1x1', () => {
     expect(snap.slots[0]).toBeNull();
     expect(snap.slots[1]).toBeNull();
   });
+
+  it('ready exige a mesma aposta nos dois slots', () => {
+    const queue = getPvpRankedQueueManager();
+    queue.join({ ...member('c-a', 'user-a', 1, 'Alpha'), stakeVolts: 100 });
+    queue.join({ ...member('c-b', 'user-b', 2, 'Bravo'), stakeVolts: 50 });
+    expect(queue.setReady('c-a', true).ok).toBe(false);
+    queue.setStake('c-b', 100);
+    expect(queue.setReady('c-a', true).ok).toBe(true);
+    expect(queue.setReady('c-b', true).ok).toBe(true);
+    expect(queue.getSnapshot().potVolts).toBe(200);
+  });
 });

@@ -5,7 +5,7 @@ import {
   MAX_PETS_PER_CHARACTER,
   type PlayerPetRosterSnapshot,
 } from '../pet/petRoster.js';
-import type { PersistedPetAffinitySlice } from './characterPersistenceRecord.js';
+import { emptyPersistedPetAffinity, type PersistedPetAffinitySlice } from './characterPersistenceRecord.js';
 
 /** Parse JSONB / save de roster — descarta pets inválidos, limita ao máximo. */
 export function parsePersistedPetRoster(raw: unknown): PlayerPetRosterSnapshot {
@@ -41,11 +41,7 @@ export function parsePersistedPetRoster(raw: unknown): PlayerPetRosterSnapshot {
 /** Parse JSONB / save de afinidade (rações + cooldowns). */
 export function parsePersistedPetAffinity(raw: unknown): PersistedPetAffinitySlice {
   if (!raw || typeof raw !== 'object') {
-    return {
-      rationCharges: 0,
-      lastPetRationFeedAtMs: null,
-      lastPetAffectionAtMs: null,
-    };
+    return emptyPersistedPetAffinity();
   }
   const record = raw as Record<string, unknown>;
   return {

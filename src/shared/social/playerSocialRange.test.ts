@@ -23,7 +23,9 @@ describe('playerSocialRange', () => {
     expect(isWithinPlayerInspectRange(0, 0, TILE * (PLAYER_INSPECT_MAX_RANGE_TILES + 1), 0)).toBe(false);
   });
 
-  it('duelo e trade presencial exigem proximidade curta', () => {
+  it('duelo casual aceita 6 tiles; trade permanece 3', () => {
+    expect(CASUAL_DUEL_MAX_RANGE_TILES).toBe(6);
+    expect(PLAYER_TRADE_MAX_RANGE_TILES).toBe(3);
     expect(isWithinCasualDuelRange(0, 0, TILE * CASUAL_DUEL_MAX_RANGE_TILES, 0)).toBe(true);
     expect(isWithinCasualDuelRange(0, 0, TILE * (CASUAL_DUEL_MAX_RANGE_TILES + 1), 0)).toBe(false);
     expect(isWithinPlayerTradeRange(0, 0, TILE * PLAYER_TRADE_MAX_RANGE_TILES, 0)).toBe(true);

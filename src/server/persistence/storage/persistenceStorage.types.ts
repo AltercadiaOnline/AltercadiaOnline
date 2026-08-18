@@ -42,4 +42,15 @@ export interface PersistenceStorage {
   ): Promise<CharacterPersistenceRecord | null>;
 
   saveCharacter(record: CharacterPersistenceRecord): Promise<void>;
+
+  /** Apaga o save do personagem (delete de slot — não reciclar o arquivo). */
+  deleteCharacter(playerId: string, characterId: number): Promise<void>;
+
+  /** IDs com arquivo no disco (inclui leftover de delete antigo). */
+  listCharacterIds(playerId: string): Promise<readonly number[]>;
+
+  /** Teto alocado na conta — sobrevive ao delete. 0 se ainda não alocou. */
+  loadCharacterIdSeq(playerId: string): Promise<number>;
+
+  saveCharacterIdSeq(playerId: string, lastAllocatedId: number): Promise<void>;
 }

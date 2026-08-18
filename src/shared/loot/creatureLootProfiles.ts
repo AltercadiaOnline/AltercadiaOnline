@@ -67,7 +67,6 @@ const CREATURE_LOOT_MANUAL_OVERRIDES: Readonly<
     itemWeights: {
       dimensional_rock: 2,
       fist_chunk: 3,
-      soul_fragment: 1,
     },
   },
   hydra: {
@@ -75,14 +74,12 @@ const CREATURE_LOOT_MANUAL_OVERRIDES: Readonly<
     itemWeights: {
       hydra_tooth: 3,
       common_scale: 2,
-      soul_fragment: 1,
     },
   },
   wraith: {
     itemWeights: {
       wraith_echo: 3,
       black_mist: 2,
-      soul_fragment: 1,
     },
   },
   crocodile: {
@@ -90,7 +87,6 @@ const CREATURE_LOOT_MANUAL_OVERRIDES: Readonly<
     itemWeights: {
       colossal_tooth: 3,
       crocodile_scale: 2,
-      soul_fragment: 1,
     },
   },
   chimera: {
@@ -103,7 +99,6 @@ const CREATURE_LOOT_MANUAL_OVERRIDES: Readonly<
   minotaur: {
     itemWeights: {
       minotaur_horn: 3,
-      soul_fragment: 1,
     },
   },
 };

@@ -19,7 +19,7 @@ export class DuelInviteHandler extends BaseIntentHandler<DuelInvitePayload> {
     const fromWorld = getWorldGameState().getByPlayer(playerId, this.characterId);
     const toWorld = getWorldGameState().getByPlayer(targetPlayerId, targetCharacterId);
     if (!fromWorld) {
-      this.sendResponse(playerId, intentId, false, 'Você precisa estar no mundo para convidar.');
+      this.sendResponse(playerId, intentId, false, 'Você precisa estar no mundo para desafiar.');
       return;
     }
     if (!toWorld) {
@@ -37,6 +37,8 @@ export class DuelInviteHandler extends BaseIntentHandler<DuelInvitePayload> {
         displayName: fromWorld.displayName.trim() || 'Operative',
         skinBundleId: fromAppearance.skinBundleId || DEFAULT_PLAYER_SKIN_BUNDLE_ID,
         ready: false,
+        stakeVolts: 0,
+        stakeLocked: false,
       },
       {
         connectionId: toWorld.connectionId,
@@ -45,6 +47,8 @@ export class DuelInviteHandler extends BaseIntentHandler<DuelInvitePayload> {
         displayName: toWorld.displayName.trim() || 'Operative',
         skinBundleId: toAppearance.skinBundleId || DEFAULT_PLAYER_SKIN_BUNDLE_ID,
         ready: false,
+        stakeVolts: 0,
+        stakeLocked: false,
       },
     );
 
@@ -55,7 +59,7 @@ export class DuelInviteHandler extends BaseIntentHandler<DuelInvitePayload> {
 
     this.sendResponse(playerId, intentId, true, {
       inviteId: result.snapshot.inviteId,
-      message: `Convite enviado para ${result.snapshot.toDisplayName}.`,
+      message: `Desafio enviado para ${result.snapshot.toDisplayName}.`,
     });
   }
 }

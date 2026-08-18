@@ -177,11 +177,28 @@ export class TacticalSprayService {
     return feed;
   }
 
-  public resetAllSpraysSunday(): number {
+  public removeSpraysForAuthor(userId: string, characterId: number): number {
+    let removed = 0;
+    for (const spray of [...this.activeSprays.values()]) {
+      if (spray.userId !== userId || spray.authorCharacterId !== characterId) continue;
+      this.activeSprays.delete(spray.id);
+      this.sprayInteractions.delete(spray.id);
+      removed += 1;
+    }
+    return removed;
+  }
+
+  /** Wipe de todos os pixos do chão (corte semanal). */
+  public resetAllWorldSprays(): number {
     const count = this.activeSprays.size;
     this.activeSprays.clear();
     this.sprayInteractions.clear();
     return count;
+  }
+
+  /** @deprecated Use resetAllWorldSprays — corte é segunda 07h, não domingo. */
+  public resetAllSpraysSunday(): number {
+    return this.resetAllWorldSprays();
   }
 }
 

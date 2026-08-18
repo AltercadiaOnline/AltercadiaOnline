@@ -1,7 +1,12 @@
 /**
  * Atmosfera dinâmica — overlay fixo; espelha gameTime interpolado do servidor.
+ * Modo Leve: sem rAF 60fps — atualiza só no tick de âncora.
  */
 import { resolveAmbientOverlay } from '../../../shared/world/gameTime.js';
+import {
+  isLitePerformance,
+  subscribePerformanceMode,
+} from '../../runtime/performancePreset.js';
 import { getGameTimeStore } from '../../world/gameTimeStore.js';
 
 const OVERLAY_ID = 'ambient-overlay';
@@ -14,7 +19,7 @@ function applyAmbientStyle(element: HTMLElement, gameTimeSeconds: number): void 
   const style = resolveAmbientOverlay(gameTimeSeconds);
   element.style.opacity = String(style.opacity);
   element.style.backgroundColor = style.backgroundColor;
-  element.style.filter = style.filter;
+  element.style.filter = isLitePerformance() ? 'none' : style.filter;
 }
 
 export function mountAmbientOverlay(): AmbientOverlayHandle {
@@ -37,15 +42,32 @@ export function mountAmbientOverlay(): AmbientOverlayHandle {
   });
 
   let rafId = 0;
+  const stopTick = (): void => {
+    if (!rafId) return;
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  };
   const tick = (): void => {
     applyAmbientStyle(element, store.getInterpolatedGameTime());
     rafId = requestAnimationFrame(tick);
   };
-  rafId = requestAnimationFrame(tick);
+  const syncTickWithPreset = (): void => {
+    if (isLitePerformance()) {
+      stopTick();
+      applyAmbientStyle(element, store.getInterpolatedGameTime());
+      return;
+    }
+    if (!rafId) {
+      rafId = requestAnimationFrame(tick);
+    }
+  };
+  syncTickWithPreset();
+  const unsubscribePerf = subscribePerformanceMode(syncTickWithPreset);
 
   return {
     destroy: () => {
-      cancelAnimationFrame(rafId);
+      stopTick();
+      unsubscribePerf();
       unsubscribe();
       element.remove();
     },

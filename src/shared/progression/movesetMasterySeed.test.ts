@@ -30,10 +30,27 @@ describe('reconcileClassAndMovesetMastery', () => {
     expect(Object.keys(result.movesetMastery).every((id) => id.startsWith('DIS_'))).toBe(true);
   });
 
+  it('hub class vence save leftover IMPETUS', () => {
+    const leftover = ensureMovesetMasteryForClass({}, 'IMPETUS');
+    const result = reconcileClassAndMovesetMastery('IMPETUS', leftover, 'COGITOR');
+    expect(result.classId).toBe('COGITOR');
+    expect(result.inventedFallback).toBe(false);
+    expect(Object.keys(result.movesetMastery).some((id) => id.startsWith('COG_'))).toBe(true);
+  });
+
   it('marca classIdWasMissing e grava a classe inferida do domínio', () => {
     const mastery = ensureMovesetMasteryForClass({}, 'TUTATOR');
     const result = reconcileClassAndMovesetMastery(undefined, mastery);
     expect(result.classId).toBe('TUTATOR');
     expect(result.classIdWasMissing).toBe(true);
+    expect(result.inventedFallback).toBe(false);
+  });
+
+  it('não inventa fallback persistível quando save e hub estão vazios', () => {
+    const result = reconcileClassAndMovesetMastery(undefined, {});
+    expect(result.classId).toBe('IMPETUS');
+    expect(result.inventedFallback).toBe(true);
+    expect(result.masteryWasPatched).toBe(false);
+    expect(result.movesetMastery).toEqual({});
   });
 });

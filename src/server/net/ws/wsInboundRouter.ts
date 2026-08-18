@@ -116,6 +116,7 @@ export type CombatWsRouteHost = {
       readonly stationId: string;
       readonly displayName?: string;
       readonly skinBundleId?: string;
+      readonly stakeVolts?: number;
     },
   ): void;
 
@@ -123,19 +124,25 @@ export type CombatWsRouteHost = {
     ws: LiveSocket,
     connectionId: string,
     payload: { readonly stationId: string },
-  ): void;
+  ): Promise<void>;
+
+  handlePvpRankedSetStake(
+    ws: LiveSocket,
+    connectionId: string,
+    payload: { readonly stationId: string; readonly stakeVolts: number },
+  ): Promise<void>;
 
   handlePvpRankedReady(
     ws: LiveSocket,
     connectionId: string,
     payload: { readonly stationId: string },
-  ): void;
+  ): Promise<void>;
 
   handlePvpRankedUnready(
     ws: LiveSocket,
     connectionId: string,
     payload: { readonly stationId: string },
-  ): void;
+  ): Promise<void>;
 
   handleCollectLoot(
     ws: LiveSocket,

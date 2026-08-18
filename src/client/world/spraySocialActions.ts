@@ -7,13 +7,33 @@ import {
   openSprayInspectHud,
   setSprayInspectPending,
 } from './sprayInspectStore.js';
-import { pickWorldSprayAt } from './worldSpraySyncBridge.js';
+import { pickWorldSprayAt, removeMirroredSpraysForAuthor } from './worldSpraySyncBridge.js';
+import { tacticalSprayService } from '../../shared/social/tacticalSprayStore.js';
+import { isLocalGameMode } from '../runtime/gameMode.js';
 import { getActiveCharacterIdentity } from '../character/activeCharacterIdentity.js';
 import { getLocalSession } from '../services/localSessionStore.js';
 import { isOfficialSprayItemId } from '../../shared/social/spraySocialTypes.js';
 import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { sanitizeSprayLegacyMessage } from '../../shared/social/spraySocialTypes.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
+
+const LOCAL_WORLD_SPRAYS_KEY = 'altercadia.worldSprays.v1';
+
+/** Espelho local imediato — o tick do servidor confirma no online. */
+export function purgeClientSpraysForDeletedCharacter(
+  playerId: string,
+  characterId: number,
+): void {
+  removeMirroredSpraysForAuthor(playerId, characterId);
+  if (!isLocalGameMode()) return;
+
+  tacticalSprayService.removeSpraysForAuthor(playerId, characterId);
+  try {
+    localStorage.setItem(LOCAL_WORLD_SPRAYS_KEY, JSON.stringify(tacticalSprayService.exportSprays()));
+  } catch {
+    /* quota / private mode */
+  }
+}
 
 function resolveActivePlayerId(): string | null {
   return getLocalSession()?.id ?? null;

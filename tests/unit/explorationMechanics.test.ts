@@ -132,7 +132,7 @@ describe('Mecânica 2: Spray Tático (Sinalização Assíncrona & Hub Social)', 
     );
     expect(sprayService.getSpraysInZone('Z1')).toHaveLength(1);
 
-    const clearedCount = sprayService.resetAllSpraysSunday();
+    const clearedCount = sprayService.resetAllWorldSprays();
     expect(clearedCount).toBe(1);
     expect(sprayService.getSpraysInZone('Z1')).toHaveLength(0);
   });

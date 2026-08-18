@@ -97,10 +97,6 @@ import {
   resolveStackingDamageMultiplier,
 } from '../../shared/combat/movePowerScaling.js';
 import {
-  cloneTransferredStatus,
-  findFirstTransferableDebuff,
-} from '../../shared/combat/debuffTransfer.js';
-import {
   resolveBonusHealAmount,
   resolveHealPower,
 } from '../../shared/combat/resolveHealPower.js';
@@ -2231,18 +2227,13 @@ export class CombatEngine {
           ignoreBarrierPercent: params.ignoreBarrierPercent ?? 100,
         });
         break;
-      case MoveEffectKind.InvertDebuff: {
-        const swapCount = Math.max(0, Math.floor(params.swapDebuffCount ?? 0));
-        for (let i = 0; i < swapCount; i += 1) {
-          this.transferOneDebuffToTarget(request.actorId, targetId, selectedSkill.id, events);
-        }
+      case MoveEffectKind.InvertDebuff:
         this.applyWeakenModifier(
           targetId,
           params.enemyAttackDamageReductionPercent ?? 30,
           Math.max(1, Math.floor(params.enemyAttackWeakenTurns ?? 3)),
         );
         break;
-      }
       case MoveEffectKind.CopyLastMove: {
         const copied = target.lastSkillUsedId
           ? target.skills.find((entry) => entry.id === target.lastSkillUsedId)
@@ -2292,66 +2283,6 @@ export class CombatEngine {
         this.applyDirectDamage(request.actorId, targetId, scaledPower, events, dmgOpts);
         break;
     }
-  }
-
-  private transferOneDebuffToTarget(
-    sourceId: string,
-    targetId: string,
-    sourceSkillId: string,
-    events: CombatEvent[],
-  ): void {
-    const source = this.state.combatants[sourceId];
-    if (!source) return;
-
-    const transferable = findFirstTransferableDebuff(source, this.state.turn);
-    if (!transferable) return;
-
-    if (transferable.kind === 'status') {
-      const { status } = transferable;
-      this.updateCombatant(sourceId, (current) => ({
-        ...current,
-        activeStatuses: getStatuses(current).filter((row) => row.id !== status.id),
-      }));
-      this.setStatusEffectsFromRuntime(sourceId);
-      this.pushStatusEvent(events, sourceId, status.id, 'expired');
-      events.push({
-        type: CombatEventType.STATUS_EXPIRED,
-        payload: { battleId: this.state.battleId, targetId: sourceId, statusId: status.id },
-      });
-
-      this.addOrRefreshStatus(
-        targetId,
-        cloneTransferredStatus(status, this.state.turn, sourceId, sourceSkillId),
-        events,
-      );
-      events.push({
-        type: CombatEventType.COMBAT_LOG,
-        battleId: this.state.battleId,
-        line: `${source.name} inverte ${status.name} para ${this.state.combatants[targetId]?.name ?? targetId}.`,
-        ts: Date.now(),
-      });
-      return;
-    }
-
-    const { modifier } = transferable;
-    this.updateCombatant(sourceId, (current) => ({
-      ...current,
-      temporaryModifiers: getModifiers(current).filter(
-        (row) => !(
-          row.kind === modifier.kind
-          && row.percent === modifier.percent
-          && row.turnsRemaining === modifier.turnsRemaining
-          && row.appliedAtTurn === modifier.appliedAtTurn
-        ),
-      ),
-    }));
-    this.applyWeakenModifier(targetId, modifier.percent, modifier.turnsRemaining);
-    events.push({
-      type: CombatEventType.COMBAT_LOG,
-      battleId: this.state.battleId,
-      line: `${source.name} inverte enfraquecimento (−${modifier.percent}%) para ${this.state.combatants[targetId]?.name ?? targetId}.`,
-      ts: Date.now(),
-    });
   }
 
   private rankPetQueueActions(requests: readonly ResolvedCombatAction[]): RankedAction[] {

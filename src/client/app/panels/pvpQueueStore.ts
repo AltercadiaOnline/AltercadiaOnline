@@ -19,6 +19,8 @@ export type PvpQueueSlot = {
   readonly ready: boolean;
   readonly isLocal: boolean;
   readonly skinBundleId: PlayerSkinBundleId;
+  readonly stakeVolts: number;
+  readonly stakeLocked: boolean;
 };
 
 export type PvpQueuePhase = 'idle' | 'waiting' | 'countdown' | 'starting' | 'in_battle';
@@ -33,6 +35,8 @@ export type PvpQueueSnapshot = {
   readonly countdownSecondsRemaining: number | null;
   readonly exclusive: boolean;
   readonly matchId: string | null;
+  readonly tableStakeVolts: number;
+  readonly potVolts: number;
 };
 
 type Listener = (snapshot: PvpQueueSnapshot) => void;
@@ -53,6 +57,8 @@ function emptySnapshot(
     countdownSecondsRemaining: null,
     exclusive: false,
     matchId: null,
+    tableStakeVolts: 0,
+    potVolts: 0,
   };
 }
 
@@ -116,6 +122,8 @@ class PvpQueueStore {
             ready: wire.slots[0].ready,
             isLocal: this.isLocalSlot(wire.slots[0].playerId, wire.slots[0].characterId),
             skinBundleId: wire.slots[0].skinBundleId,
+            stakeVolts: wire.slots[0].stakeVolts,
+            stakeLocked: wire.slots[0].stakeLocked,
           }
         : null,
       wire.slots[1]
@@ -126,6 +134,8 @@ class PvpQueueStore {
             ready: wire.slots[1].ready,
             isLocal: this.isLocalSlot(wire.slots[1].playerId, wire.slots[1].characterId),
             skinBundleId: wire.slots[1].skinBundleId,
+            stakeVolts: wire.slots[1].stakeVolts,
+            stakeLocked: wire.slots[1].stakeLocked,
           }
         : null,
     ];
@@ -142,6 +152,8 @@ class PvpQueueStore {
       countdownSecondsRemaining: remainingSeconds(wire.countdownEndsAtMs),
       exclusive: wire.exclusive,
       matchId: wire.matchId,
+      tableStakeVolts: wire.tableStakeVolts,
+      potVolts: wire.potVolts,
     };
     this.emit();
 
@@ -224,6 +236,8 @@ class PvpQueueStore {
       ready: false,
       isLocal: true,
       skinBundleId,
+      stakeVolts: 0,
+      stakeLocked: false,
     };
     this.snapshot = {
       ...this.snapshot,
@@ -315,6 +329,8 @@ class PvpQueueStore {
         ready: false,
         isLocal: false,
         skinBundleId,
+        stakeVolts: this.snapshot.slots[0]?.stakeVolts ?? 0,
+        stakeLocked: false,
       },
     ];
     this.snapshot = {

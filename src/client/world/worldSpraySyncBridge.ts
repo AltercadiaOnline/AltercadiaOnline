@@ -69,6 +69,25 @@ export function pickWorldSprayAt(
   return null;
 }
 
+export function removeMirroredSpraysForAuthor(
+  authorPlayerId: string,
+  authorCharacterId: number,
+): void {
+  let changed = false;
+  for (const [mapId, rows] of spraysByMap) {
+    const next = rows.filter(
+      (spray) =>
+        spray.authorPlayerId !== authorPlayerId
+        || spray.authorCharacterId !== authorCharacterId,
+    );
+    if (next.length !== rows.length) {
+      spraysByMap.set(mapId, next);
+      changed = true;
+    }
+  }
+  if (changed) notify();
+}
+
 export function resetWorldSprayMirror(): void {
   spraysByMap.clear();
   notify();

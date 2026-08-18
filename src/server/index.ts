@@ -8,6 +8,7 @@ import { bootstrapIntentHandlers } from './handlers/bootstrapHandlers.js';
 import { CombatWsHub } from './network/CombatWsHub.js';
 import { createStaticServer, resolveStaticDirs } from './net/staticServer.js';
 import { flushAllPersistence, initializePersistence, shutdownPersistenceStorage } from './persistence/initializePersistence.js';
+import { stopWorldSprayWeeklyResetScheduler } from './world/worldSprayWeeklyResetScheduler.js';
 import { initSessionAuthGateway } from './auth/SessionAuthGateway.js';
 import { hasDatabaseConnection } from './persistence/databaseConnection.js';
 import { bootstrapSupabase } from './supabase/initializeSupabase.js';
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
 
   const shutdown = (signal: string) => {
     console.log(`[server] ${signal} — encerrando…`);
+    stopWorldSprayWeeklyResetScheduler();
     void flushAllPersistence()
       .then(() => flushAuditLogger())
       .then(() => shutdownPersistenceStorage())

@@ -15,6 +15,8 @@ export type ProfileRow = {
   readonly display_name: string | null;
   readonly email: string | null;
   readonly server_id: string;
+  /** Classe da criação — identidade do slot. Ausente até a migration 018. */
+  readonly class_id?: string | null;
   readonly level: number;
   readonly xp_current: number;
   readonly quests_data: Readonly<Record<string, unknown>>;

@@ -14,6 +14,9 @@ const LABELS: Readonly<Record<PvpRankedQueueErrorCode, string>> = {
   NOT_NEAR_STATION: 'Aproxime-se do púlpito da arena para entrar na fila.',
   PLAYER_BUSY: 'Personagem ocupado (já em combate ou fila).',
   MATCH_START_FAILED: 'Falha ao iniciar o duelo rankeado. Tente de novo.',
+  INVALID_STAKE: 'Valor de aposta inválido.',
+  STAKE_MISMATCH: 'Os dois precisam apostar o mesmo valor de VOLTS.',
+  INSUFFICIENT_VOLTS: 'VOLTS insuficientes para travar esta aposta.',
 };
 
 export function formatPvpRankedQueueError(reason: string): string {

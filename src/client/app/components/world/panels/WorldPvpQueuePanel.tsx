@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
 import { isWorldPanelOpen } from '../../../store/worldPanelsStore.js';
@@ -8,6 +8,7 @@ import {
   sendPvpRankedJoin,
   sendPvpRankedLeave,
   sendPvpRankedReady,
+  sendPvpRankedSetStake,
   sendPvpRankedUnready,
 } from '../../../panels/pvpRankedQueueBridge.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
@@ -19,9 +20,12 @@ import {
   PVP_RANKED_STATION_ID,
   PVP_RANKED_STATION_LABEL,
 } from '../../../../../shared/combat/pvp/pvpRankedQueueConfig.js';
+import { PVP_RANKED_STAKE_PRESETS } from '../../../../../shared/combat/pvp/pvpRankedDuelStake.js';
 import { resolvePlayerSkinBundleSouthPreviewUrl } from '../../../../../shared/character/playerSkinBundle.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
 import { getGameStore } from '../../../../state/GameStore.js';
+import { getPlayerWalletStore } from '../../../../ui/wallet/playerWalletStore.js';
+import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.js';
 
 type WorldPvpQueuePanelProps = {
   context: WorldPanelContext;
@@ -88,6 +92,11 @@ function PvpFighterCard({
       <p className="pvp-queue__fighter-state">
         {!slot ? 'Vazio' : slot.ready ? 'Pronto' : 'Na fila'}
       </p>
+      {slot ? (
+        <p className="pvp-queue__fighter-stake">
+          {slot.stakeVolts > 0 ? formatVoltsShort(slot.stakeVolts) : 'Sem aposta'}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -103,6 +112,12 @@ export function WorldPvpQueuePanel({
 }: WorldPvpQueuePanelProps) {
   const station = resolveStation(context);
   const snapshot = usePvpQueueSnapshot();
+  const wallet = useSyncExternalStore(
+    (onStoreChange) => getPlayerWalletStore().subscribe(() => onStoreChange()),
+    () => getPlayerWalletStore().getSnapshot(),
+    () => getPlayerWalletStore().getSnapshot(),
+  );
+  const [selectedStakeVolts, setSelectedStakeVolts] = useState(0);
   const identity = useMemo(() => resolveLocalPvpIdentity(), []);
   const localPlayerId = identity.playerId;
   const profile = getPlayerProfileStore().getSnapshot();
@@ -114,11 +129,18 @@ export function WorldPvpQueuePanel({
     }
     return true;
   }) ?? null;
+  const leftSlot = snapshot.slots[0];
+  const rightSlot = snapshot.slots[1];
   const inQueue = Boolean(localSlot);
   const countdownActive =
     snapshot.phase === 'countdown'
     || snapshot.phase === 'starting'
     || snapshot.phase === 'in_battle';
+  const stakesAgree =
+    Boolean(leftSlot && rightSlot && leftSlot.stakeVolts === rightSlot.stakeVolts);
+  const tableStake = snapshot.tableStakeVolts;
+  const potVolts = snapshot.potVolts;
+  const canChangeStake = inQueue && !countdownActive && !localSlot?.ready;
   const countdownLabel =
     snapshot.countdownSecondsRemaining !== null
       ? String(snapshot.countdownSecondsRemaining)
@@ -128,7 +150,7 @@ export function WorldPvpQueuePanel({
     store.setLocalPlayerId(localPlayerId, identity.characterId ?? undefined);
     store.openStation(station.objectId, station.label);
     // Autoridade decide slots — front só pede join.
-    sendPvpRankedJoin(station.objectId, profile.displayName || 'Você');
+    sendPvpRankedJoin(station.objectId, profile.displayName || 'Você', selectedStakeVolts);
     return () => {
       queueMicrotask(() => {
         if (isWorldPanelOpen('pvpQueue')) return;
@@ -153,8 +175,7 @@ export function WorldPvpQueuePanel({
     });
   }, [store]);
 
-  const leftSlot = snapshot.slots[0];
-  const rightSlot = snapshot.slots[1];
+  const displayedStake = localSlot?.stakeVolts ?? selectedStakeVolts;
 
   return (
     <MovablePanelFrame
@@ -189,12 +210,41 @@ export function WorldPvpQueuePanel({
           <PvpFighterCard slot={rightSlot} side="right" />
         </div>
 
+        <div className="pvp-queue__stake" aria-label="Aposta em VOLTS">
+          <p className="pvp-queue__stake-label">
+            {potVolts > 0
+              ? `Pote ${formatVoltsShort(potVolts)} · ${formatVoltsShort(tableStake)} cada`
+              : tableStake > 0
+                ? `Aposta proposta: ${formatVoltsShort(tableStake)} (os dois precisam igualar)`
+                : 'Sem aposta — só rating. Vencedor leva o pote se ambos apostarem o mesmo valor.'}
+          </p>
+          <div className="pvp-queue__stake-chips">
+            {PVP_RANKED_STAKE_PRESETS.map((value) => {
+              const unaffordable = value > 0 && wallet.dollarVolt < value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={`pvp-queue__stake-chip${displayedStake === value ? ' is-selected' : ''}`}
+                  disabled={!canChangeStake || unaffordable}
+                  onClick={() => {
+                    setSelectedStakeVolts(value);
+                    sendPvpRankedSetStake(station.objectId, value);
+                  }}
+                >
+                  {value === 0 ? '0 V' : formatVoltsShort(value)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="pvp-queue__actions">
           {inQueue && !localSlot?.ready && !countdownActive ? (
             <button
               type="button"
               className="pvp-queue__btn pvp-queue__btn--primary pvp-queue__btn--enter"
-              disabled={!snapshot.slots[0] || !snapshot.slots[1]}
+              disabled={!leftSlot || !rightSlot || !stakesAgree}
               onClick={() => sendPvpRankedReady(station.objectId)}
             >
               Entrar na batalha rankeada

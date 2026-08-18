@@ -4,13 +4,13 @@ import { worldPixelToTile } from '../world/portals.js';
 export const PLAYER_INSPECT_MAX_RANGE_TILES = 16;
 
 /** Convite / aceite de duelo casual — perto o bastante para “estar na briga”. */
-export const CASUAL_DUEL_MAX_RANGE_TILES = 3;
+export const CASUAL_DUEL_MAX_RANGE_TILES = 6;
 
 export const CASUAL_DUEL_COUNTDOWN_MS = 5_000;
 
 export const CASUAL_DUEL_PENDING_TIMEOUT_MS = 25_000;
 
-/** Mesa presencial — mesmo alcance do duelo (face a face). */
+/** Mesa presencial — face a face (independente do alcance do duelo). */
 export const PLAYER_TRADE_MAX_RANGE_TILES = 3;
 
 export const PLAYER_TRADE_PENDING_TIMEOUT_MS = 25_000;

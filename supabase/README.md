@@ -8,6 +8,7 @@
    - `supabase/migrations/004_zero_trust_client_rls.sql` — remove INSERT/UPDATE/DELETE no cliente (apenas SELECT).
    - `supabase/migrations/010_immutable_profile_server_id.sql` — `server_id` imutável após criação do personagem.
    - `supabase/migrations/011_hybrid_character_persistence.sql` — colunas de posição (LOW) e gameplay (HIGH) em `profiles`.
+   - `supabase/migrations/018_profile_class_id.sql` — `class_id` da criação (identidade; evita enter-world como IMPETUS).
 3. Confirme em **Table Editor** que existem as tabelas `profiles`, `inventory` e `currency`.
 
 Ou via script local (requer `DATABASE_URL` em `.env`):
@@ -49,7 +50,7 @@ SUPABASE_SERVICE_ROLE_KEY=sua-service-role
 
 | Tabela | Descrição |
 |--------|-----------|
-| `profiles` | Perfil por `user_id` + `character_id` (identidade) + `slot_index` (UI 0..4) + `server_id` |
+| `profiles` | Perfil por `user_id` + `character_id` (identidade) + `slot_index` (UI 0..4) + `server_id` + `class_id` (migration 018) |
 | `currency` | Carteira (`dollar_volt`, `alter_coins`) por personagem/shard |
 | `inventory` | Pilhas (`stacks` JSONB) e equipamento (`equipped` JSONB) |
 | `character_pets` | Roster + afinidade de pets (`roster` / `affinity` JSONB) — migração `016` |

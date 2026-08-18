@@ -7,7 +7,7 @@ Legado = **1 mensagem por personagem** (perfil), não por tile. Todos os pixos d
 | Ação | HUD |
 |------|-----|
 | Botão direito no pixo **do colega** no chão | Mini HUD só: nome, Lv, recado personalizado, Fechar, **Adicione como amigo**. Sem online, sem editor, sem duelo. |
-| Botão direito no **player** (sprite na tela 640×360) | **Outra HUD** (`PlayerInspectHud`): SET, **Adicione como amigo**, convite de duelo, **Fazer trade**. Não fecha se o alvo andar. Pixo tem prioridade no mesmo pixel. |
+| Botão direito no **player** (sprite na tela 640×360) | **Outra HUD** (`PlayerInspectHud`): SET, **Adicione como amigo**, **Desafiar para batalha**, **Fazer trade**. Não fecha se o alvo andar. Pixo tem prioridade no mesmo pixel. |
 | Botão direito na lata no inventário | Editor do próprio legado → `UPDATE_SPRAY_LEGACY` |
 | Tecla G | só `PLACE_SPRAY` (não consome no cliente) |
 
@@ -27,7 +27,7 @@ Proximidade: overlap AABB > 30% com pixo de **outro** = rejeita `"Este pixo est�
 | HUD store/actions | `sprayInspectStore.ts`, `spraySocialActions.ts` |
 | UI | `src/client/app/components/world/hud/SprayInspectHud.tsx` (z overlay, `position: fixed`) |
 | Overlay draw | `ConstructEntityOverlay.ts` lê **mirror**, não o service |
-| Amigo | `AddFriendHandler.ts` + `friendListStore.ts` — unilateral (Tibia), sem aceite. Nomes no save do personagem. |
+| Amigo | `AddFriendHandler.ts` + `friendListStore.ts` — unilateral (Tibia), sem aceite. Nomes no save. Hub Social aba **Amigos** espelha a lista; clique abre whisper. |
 
 ## Ainda não fechado (não fingir que está)
 
@@ -35,6 +35,7 @@ Proximidade: overlap AABB > 30% com pixo de **outro** = rejeita `"Este pixo est�
 - Painel Social ainda mostra upvotes/volts de protótipo (não é economia real).
 - Gift P2P: mesma autoridade file do trade (`commitAuthoritativeGiftTransfer`). Destinatário no mundo. Não misturar com a mesa presencial.
 - SQL `supabase/migrations/017_world_sprays_legacy.sql` é contrato; runtime = **file**.
+- Wipe semanal do chão: **segunda 07:00 America/Sao_Paulo**. Delete de personagem também some os pixos daquela ficha.
 - Pick no chão depende do overlay (`pointer-events: none`) + hitbox 64px — sprite muito maior pode “errar” o clique.
 - Paths de PNG em `OFFICIAL_SPRAY_STENCILS` precisam existir em `public/assets/items/assets_sprays/`.
 

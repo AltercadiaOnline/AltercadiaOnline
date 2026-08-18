@@ -19,6 +19,12 @@ export const MARCO_XP_THRESHOLD_BASE = 100;
  */
 export const MARCO_ABILITY_LEVEL_MIN_PLAYER_LEVEL: readonly number[] = [10, 30, 50, 70, 100];
 
+/** Rótulo do degrau da trilha (1–5) — distinto do Nvl. da habilidade (XP de combate). */
+export function formatMarcoTrailStepOrdinal(step: number): string {
+  const n = Math.max(1, Math.min(MARCO_NODE_MAX_LEVEL, Math.floor(step)));
+  return `${n}º degrau`;
+}
+
 /** Máximo nível de habilidade Marco permitido para o nível atual do personagem (0–5). */
 export function resolveMaxMarcoAbilityLevelForPlayer(playerLevel: number): number {
   const level = Math.max(1, Math.floor(playerLevel));

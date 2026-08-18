@@ -17,6 +17,7 @@ import { applyMarcoProgressEvents } from '../shared/progression/marcoProgressEng
 import type { MarcoProgressEvent } from '../shared/progression/marcoProgressEngine.js';
 import {
   emptyMarcosNodeProgression,
+  ensureMarcoNodeProgressEntry,
   type MarcoNodeProgressSnapshot,
   type MarcosNodeProgressionData,
 } from '../shared/progression/marcoProgression.js';
@@ -130,10 +131,13 @@ export function selectMarcoBranchAuthoritative(
   const current = getAuthoritativeProgression(playerId, characterId);
   // Confirmar 1 trilha + 1º nível (starter) na mesma ativação do botão de cima.
   const activeMarcos = [starterNodeId];
-  const nodeProgression = filterNodeProgressionToTrail(
-    current.marcos.nodeProgression,
-    ramificacao,
-    true,
+  const nodeProgression = ensureMarcoNodeProgressEntry(
+    filterNodeProgressionToTrail(
+      current.marcos.nodeProgression,
+      ramificacao,
+      true,
+    ),
+    starterNodeId,
   );
 
   patchAuthoritativeProgression(playerId, characterId, {
@@ -176,15 +180,19 @@ export function chooseMarcoAuthoritative(
     trilhaTravada,
   );
   const activeMarcos = sanitized.includes(nodeId) ? sanitized : [...sanitized, nodeId];
+  const nodeProgression = ensureMarcoNodeProgressEntry(
+    filterNodeProgressionToTrail(
+      current.marcos.nodeProgression,
+      ramificacao,
+      trilhaTravada,
+    ),
+    nodeId,
+  );
 
   patchAuthoritativeProgression(playerId, characterId, {
     marcos: {
       activeMarcos,
-      nodeProgression: filterNodeProgressionToTrail(
-        current.marcos.nodeProgression,
-        ramificacao,
-        trilhaTravada,
-      ),
+      nodeProgression,
     },
   });
 

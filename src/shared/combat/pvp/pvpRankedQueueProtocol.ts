@@ -22,6 +22,8 @@ export type PvpRankedQueueSlotWire = {
   readonly displayName: string;
   readonly ready: boolean;
   readonly skinBundleId: PlayerSkinBundleId;
+  readonly stakeVolts: number;
+  readonly stakeLocked: boolean;
 };
 
 export type PvpRankedQueueSnapshot = {
@@ -33,6 +35,9 @@ export type PvpRankedQueueSnapshot = {
   readonly countdownEndsAtMs: number | null;
   readonly exclusive: boolean;
   readonly matchId: string | null;
+  /** Valor combinado quando os dois apostam o mesmo; 0 se divergir ou mesa vazia. */
+  readonly tableStakeVolts: number;
+  readonly potVolts: number;
 };
 
 export type PvpRankedQueueErrorCode =
@@ -44,7 +49,10 @@ export type PvpRankedQueueErrorCode =
   | 'INVALID_STATION'
   | 'NOT_NEAR_STATION'
   | 'PLAYER_BUSY'
-  | 'MATCH_START_FAILED';
+  | 'MATCH_START_FAILED'
+  | 'INVALID_STAKE'
+  | 'STAKE_MISMATCH'
+  | 'INSUFFICIENT_VOLTS';
 
 export const PVP_RANKED_QUEUE_SLOT_COUNT_WIRE = PVP_RANKED_QUEUE_SLOT_COUNT;
 
@@ -61,6 +69,8 @@ export function createEmptyPvpRankedQueueSnapshot(
     countdownEndsAtMs: null,
     exclusive: false,
     matchId: null,
+    tableStakeVolts: 0,
+    potVolts: 0,
   };
 }
 
@@ -73,5 +83,6 @@ export function isPvpRankedQueueSnapshot(value: unknown): value is PvpRankedQueu
   if (!(r.countdownEndsAtMs === null || typeof r.countdownEndsAtMs === 'number')) return false;
   if (!(r.matchId === null || typeof r.matchId === 'string')) return false;
   if (!Array.isArray(r.slots) || r.slots.length !== 2) return false;
+  if (typeof r.tableStakeVolts !== 'number' || typeof r.potVolts !== 'number') return false;
   return true;
 }

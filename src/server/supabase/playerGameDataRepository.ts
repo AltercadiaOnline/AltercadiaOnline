@@ -326,3 +326,58 @@ export async function upsertPlayerPets(
   }
   return { ok: true };
 }
+
+/** Apaga roster de pets no shard. Tabela ausente = ok (pets só no file). */
+export async function deletePlayerPets(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+  serverId: string,
+): Promise<{ ok: boolean; message?: string }> {
+  const scopedServerId = requireServerId(serverId);
+  const { error } = await client
+    .from('character_pets')
+    .delete()
+    .eq('user_id', userId)
+    .eq('character_id', characterId)
+    .eq('server_id', scopedServerId);
+
+  if (error && !isMissingRelationError(error)) {
+    return { ok: false, message: error.message };
+  }
+  return { ok: true };
+}
+
+/**
+ * Inventário + carteira + pets do characterId — sem tocar no profile.
+ * Delete da ficha e create (limpa leftover de ID órfão) usam o mesmo wipe.
+ */
+export async function wipeCharacterScopedEconomyRows(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+  serverId: string,
+): Promise<{ ok: boolean; message?: string }> {
+  const scopedServerId = requireServerId(serverId);
+
+  const pets = await deletePlayerPets(client, userId, characterId, scopedServerId);
+  if (!pets.ok) return pets;
+
+  const { error: inventoryError } = await client
+    .from('inventory')
+    .delete()
+    .eq('user_id', userId)
+    .eq('character_id', characterId)
+    .eq('server_id', scopedServerId);
+  if (inventoryError) return { ok: false, message: inventoryError.message };
+
+  const { error: currencyError } = await client
+    .from('currency')
+    .delete()
+    .eq('user_id', userId)
+    .eq('character_id', characterId)
+    .eq('server_id', scopedServerId);
+  if (currencyError) return { ok: false, message: currencyError.message };
+
+  return { ok: true };
+}

@@ -127,17 +127,22 @@ function ensureWsInboundRoutesRegistered(): void {
 
   registerWsInboundRoute('pvp-ranked-leave', (host, ws, connectionId, message) => {
     if (message.type !== 'pvp-ranked-leave') return;
-    host.handlePvpRankedLeave(ws, connectionId, message.payload);
+    void host.handlePvpRankedLeave(ws, connectionId, message.payload);
+  });
+
+  registerWsInboundRoute('pvp-ranked-set-stake', (host, ws, connectionId, message) => {
+    if (message.type !== 'pvp-ranked-set-stake') return;
+    void host.handlePvpRankedSetStake(ws, connectionId, message.payload);
   });
 
   registerWsInboundRoute('pvp-ranked-ready', (host, ws, connectionId, message) => {
     if (message.type !== 'pvp-ranked-ready') return;
-    host.handlePvpRankedReady(ws, connectionId, message.payload);
+    void host.handlePvpRankedReady(ws, connectionId, message.payload);
   });
 
   registerWsInboundRoute('pvp-ranked-unready', (host, ws, connectionId, message) => {
     if (message.type !== 'pvp-ranked-unready') return;
-    host.handlePvpRankedUnready(ws, connectionId, message.payload);
+    void host.handlePvpRankedUnready(ws, connectionId, message.payload);
   });
 
   registerWsInboundRoute('combat-forfeit', async (host, ws, connectionId, message) => {

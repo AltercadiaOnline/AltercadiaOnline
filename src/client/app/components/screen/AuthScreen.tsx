@@ -5,6 +5,7 @@ import { useLiveLeaderboard } from '../../hooks/useLiveLeaderboard.js';
 import type { LeaderboardBoardId } from '../../../../shared/leaderboard/leaderboardTypes.js';
 import { CLASS_CATALOG, type ClassType } from '../../../../shared/types/classes.js';
 import { AUTH_COMMUNITY_LINKS } from './authHudTestFlag.js';
+import { PerformancePresetToggle } from './PerformancePresetToggle.js';
 
 const AUTH_RANK_TABS: ReadonlyArray<{ readonly id: LeaderboardBoardId; readonly label: string }> = [
   { id: 'level_global', label: 'Level' },
@@ -163,6 +164,7 @@ export function AuthScreen() {
           >
             CADASTRAR
           </button>
+          <PerformancePresetToggle className="perf-preset--nav" />
         </nav>
       </header>
 

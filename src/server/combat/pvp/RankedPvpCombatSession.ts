@@ -62,6 +62,8 @@ export type RankedPvpCombatSessionOptions = {
   /** false = duelo social (sem rating). Default rankeado. */
   readonly appliesRankedRating?: boolean;
   readonly casualInviteId?: string;
+  /** Aposta 1x1 (cada lado). 0 = só rating. */
+  readonly stakeVolts?: number;
 };
 
 export class RankedPvpCombatSession {
@@ -69,6 +71,7 @@ export class RankedPvpCombatSession {
   private readonly matchId: string;
   private readonly appliesRankedRatingFlag: boolean;
   private readonly casualInviteIdValue: string | null;
+  private readonly stakeVoltsValue: number;
   private readonly peersByConnection = new Map<string, RankedPvpPeer>();
   private readonly peersByActor = new Map<string, RankedPvpPeer>();
   private readonly ruleManifest: MutableCombatRuleManifest;
@@ -86,6 +89,7 @@ export class RankedPvpCombatSession {
     this.matchId = options.matchId;
     this.appliesRankedRatingFlag = options.appliesRankedRating !== false;
     this.casualInviteIdValue = options.casualInviteId ?? null;
+    this.stakeVoltsValue = Math.max(0, Math.floor(options.stakeVolts ?? 0));
     this.peersByConnection.set(options.peerA.connectionId, options.peerA);
     this.peersByConnection.set(options.peerB.connectionId, options.peerB);
     this.peersByActor.set(options.peerA.actorId, options.peerA);
@@ -110,6 +114,10 @@ export class RankedPvpCombatSession {
 
   getCasualInviteId(): string | null {
     return this.casualInviteIdValue;
+  }
+
+  getStakeVolts(): number {
+    return this.stakeVoltsValue;
   }
 
   getBattleId(): string {

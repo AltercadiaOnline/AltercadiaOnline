@@ -14,6 +14,10 @@ import {
   type PlayerSkinBundleId,
 } from '../../../shared/character/playerSkinBundle.js';
 import { PVP_RANKED_STATION_ID } from '../../../shared/combat/pvp/pvpRankedQueueConfig.js';
+import {
+  parsePvpRankedStakeVolts,
+  PVP_RANKED_PRACTICE_BOT_PLAYER_ID,
+} from '../../../shared/combat/pvp/pvpRankedDuelStake.js';
 import type { PvpRankedQueueSnapshot } from '../../../shared/combat/pvp/pvpRankedQueueProtocol.js';
 import { PVP_DUELIST_REGISTRY } from '../../../shared/world/pvpDuelistRegistry.js';
 import { BattleType } from '../../../shared/combat/battleType.js';
@@ -33,6 +37,11 @@ import {
 import { createPvpArenaBattleBootstrap } from '../../../server/combat/pvp/buildPvpArenaBattle.js';
 import { PvpCombatSession } from '../../../server/combat/pvp/PvpCombatSession.js';
 import { applyPvpRankedRatingDelta } from '../../../server/combat/pvp/pvpRankedRating.js';
+import {
+  lockQueuedPvpRankedStake,
+  refundPvpRankedStakeMembers,
+  settleQueuedPvpRankedPot,
+} from '../../../server/combat/pvp/pvpRankedDuelStakeService.js';
 import { getActivePlayerSkinBundleId } from '../../entities/player/activePlayerSkinBundle.js';
 import { resolveWorldLoreCredentials } from '../../services/worldLoreCredentials.js';
 import { getPlayerProfileStore } from '../../ui/character/playerProfileStore.js';
@@ -40,7 +49,7 @@ import { getGameStore } from '../../state/GameStore.js';
 
 const LOCAL_CONN = 'local-pvp-human';
 const LOCAL_BOT_CONN = 'local-pvp-practice-bot';
-const LOCAL_BOT_PLAYER_ID = 'pvp_practice_bot';
+const LOCAL_BOT_PLAYER_ID = PVP_RANKED_PRACTICE_BOT_PLAYER_ID;
 const pvpTurnWindows = new Map<string, CombatTurnWindowState>();
 let pvpTurnTimer: ReturnType<typeof setTimeout> | null = null;
 let pvpTurnTimerToken = 0;
@@ -93,6 +102,7 @@ let unsubQueue: (() => void) | null = null;
 let unsubMatch: (() => void) | null = null;
 let practiceSession: PvpCombatSession | null = null;
 let delivering = false;
+let practiceStakeVolts = 0;
 let botAutoReadyTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function bindLocalPvpRankedEmitter(next: Emit | null): void {
@@ -148,20 +158,34 @@ function resolveLocalIdentity(): {
   };
 }
 
+function syncPracticeBotStake(): void {
+  const queue = getPvpRankedQueueManager();
+  const human = queue.getMember(LOCAL_CONN);
+  if (!human) return;
+  const bot = queue.getMember(LOCAL_BOT_CONN);
+  if (!bot || bot.stakeVolts === human.stakeVolts) return;
+  queue.alignStake(LOCAL_BOT_CONN, human.stakeVolts);
+}
+
 function ensurePracticeBotSeated(): void {
   const queue = getPvpRankedQueueManager();
   const snap = queue.getSnapshot();
-  if (snap.slots[0] && snap.slots[1]) return;
+  if (snap.slots[0] && snap.slots[1]) {
+    syncPracticeBotStake();
+    return;
+  }
   if (snap.phase === 'countdown' || snap.phase === 'starting' || snap.phase === 'in_battle') {
     return;
   }
   const duelist = PVP_DUELIST_REGISTRY[0]!;
+  const human = queue.getMember(LOCAL_CONN);
   const result = queue.join({
     connectionId: LOCAL_BOT_CONN,
     playerId: LOCAL_BOT_PLAYER_ID,
     characterId: 0,
     displayName: `${duelist.displayName} (prática)`,
     skinBundleId: 'player_male_2',
+    stakeVolts: human?.stakeVolts ?? 0,
   });
   if (!result.ok) {
     send('pvp-ranked-queue-error', { reason: result.reason });
@@ -172,6 +196,7 @@ export function localPvpRankedJoin(payload: {
   readonly stationId: string;
   readonly displayName?: string;
   readonly skinBundleId?: string;
+  readonly stakeVolts?: number;
 }): void {
   ensureQueueWired();
   const id = resolveLocalIdentity();
@@ -179,6 +204,7 @@ export function localPvpRankedJoin(payload: {
     typeof payload.skinBundleId === 'string' && isValidPlayerSkinBundleId(payload.skinBundleId)
       ? payload.skinBundleId
       : id.skinBundleId;
+  const stakeVolts = parsePvpRankedStakeVolts(payload.stakeVolts) ?? 0;
   const queue = getPvpRankedQueueManager();
   const result = queue.join(
     {
@@ -187,6 +213,7 @@ export function localPvpRankedJoin(payload: {
       characterId: id.characterId,
       displayName: payload.displayName?.trim() || id.displayName,
       skinBundleId: skin,
+      stakeVolts,
     },
     payload.stationId || PVP_RANKED_STATION_ID,
   );
@@ -199,21 +226,66 @@ export function localPvpRankedJoin(payload: {
   broadcastSnapshot();
 }
 
-export function localPvpRankedLeave(_payload: { readonly stationId: string }): void {
+export async function localPvpRankedSetStake(payload: {
+  readonly stationId: string;
+  readonly stakeVolts?: number;
+}): Promise<void> {
   ensureQueueWired();
+  const stakeVolts = parsePvpRankedStakeVolts(payload.stakeVolts);
+  if (stakeVolts === null) {
+    send('pvp-ranked-queue-error', { reason: 'INVALID_STAKE' });
+    return;
+  }
   const queue = getPvpRankedQueueManager();
-  queue.leave(LOCAL_CONN);
-  queue.leave(LOCAL_BOT_CONN);
-  queue.clearAfterBattle();
+  const result = queue.setStake(LOCAL_CONN, stakeVolts);
+  if (!result.ok) {
+    send('pvp-ranked-queue-error', { reason: result.reason });
+    broadcastSnapshot();
+    return;
+  }
+  await refundPvpRankedStakeMembers(result.unlockMembers);
+  ensurePracticeBotSeated();
+  syncPracticeBotStake();
   broadcastSnapshot();
 }
 
-export function localPvpRankedReady(_payload: { readonly stationId: string }): void {
+export async function localPvpRankedLeave(_payload: { readonly stationId: string }): Promise<void> {
+  ensureQueueWired();
+  const queue = getPvpRankedQueueManager();
+  const humanLeave = queue.leave(LOCAL_CONN);
+  if (humanLeave.ok) {
+    await refundPvpRankedStakeMembers(humanLeave.unlockMembers);
+  }
+  queue.leave(LOCAL_BOT_CONN);
+  queue.clearAfterBattle();
+  practiceStakeVolts = 0;
+  broadcastSnapshot();
+}
+
+export async function localPvpRankedReady(_payload: { readonly stationId: string }): Promise<void> {
   ensureQueueWired();
   ensurePracticeBotSeated();
+  syncPracticeBotStake();
   const queue = getPvpRankedQueueManager();
+  const member = queue.getMember(LOCAL_CONN);
+  if (!member) {
+    send('pvp-ranked-queue-error', { reason: 'NOT_IN_QUEUE' });
+    broadcastSnapshot();
+    return;
+  }
+  const lockResult = await lockQueuedPvpRankedStake(member);
+  if (!lockResult.ok) {
+    send('pvp-ranked-queue-error', { reason: lockResult.reason });
+    broadcastSnapshot();
+    return;
+  }
+  if (member.stakeVolts > 0) {
+    queue.setStakeLocked(LOCAL_CONN, true);
+  }
   const human = queue.setReady(LOCAL_CONN, true);
   if (!human.ok) {
+    await refundPvpRankedStakeMembers([{ ...member, stakeLocked: true }]);
+    queue.setStakeLocked(LOCAL_CONN, false);
     send('pvp-ranked-queue-error', { reason: human.reason });
     broadcastSnapshot();
     return;
@@ -230,7 +302,7 @@ export function localPvpRankedReady(_payload: { readonly stationId: string }): v
   }, 400);
 }
 
-export function localPvpRankedUnready(_payload: { readonly stationId: string }): void {
+export async function localPvpRankedUnready(_payload: { readonly stationId: string }): Promise<void> {
   ensureQueueWired();
   if (botAutoReadyTimer) {
     clearTimeout(botAutoReadyTimer);
@@ -241,7 +313,10 @@ export function localPvpRankedUnready(_payload: { readonly stationId: string }):
   const human = queue.setReady(LOCAL_CONN, false);
   if (!human.ok) {
     send('pvp-ranked-queue-error', { reason: human.reason });
+    broadcastSnapshot();
+    return;
   }
+  await refundPvpRankedStakeMembers(human.unlockMembers);
   broadcastSnapshot();
 }
 
@@ -254,11 +329,14 @@ async function startLocalPracticeMatch(match: PvpRankedMatchPair): Promise<void>
     return;
   }
 
+  practiceStakeVolts = human.stakeVolts ?? 0;
+
   const loadoutProvider = (globalThis as {
     __ALTERCADIA_LOCAL_PVP_LOADOUT__?: () => PlayerCombatLoadout | null;
   }).__ALTERCADIA_LOCAL_PVP_LOADOUT__;
   const loadout = loadoutProvider?.() ?? null;
   if (!loadout) {
+    await refundPvpRankedStakeMembers([{ ...human, stakeLocked: true }]);
     getPvpRankedQueueManager().clearAfterBattle();
     send('pvp-ranked-queue-error', { reason: 'MATCH_START_FAILED' });
     send('combat-error', { reason: 'PROFILE_NOT_READY' });
@@ -271,6 +349,7 @@ async function startLocalPracticeMatch(match: PvpRankedMatchPair): Promise<void>
   const botActorId =
     Object.keys(bootstrap.state.combatants).find((id) => id !== loadout.playerId) ?? '';
   if (!botActorId) {
+    await refundPvpRankedStakeMembers([{ ...human, stakeLocked: true }]);
     getPvpRankedQueueManager().clearAfterBattle();
     send('pvp-ranked-queue-error', { reason: 'MATCH_START_FAILED' });
     broadcastSnapshot();
@@ -406,6 +485,21 @@ async function deliverPracticePayload(
     rankingResult,
   });
 
+  const stakeVolts = practiceStakeVolts;
+  practiceStakeVolts = 0;
+  if (stakeVolts > 0) {
+    const localId = resolveLocalIdentity();
+    await settleQueuedPvpRankedPot({
+      winner: victory
+        ? { playerId: localId.playerId, characterId: localId.characterId }
+        : { playerId: LOCAL_BOT_PLAYER_ID, characterId: 0 },
+      loser: victory
+        ? { playerId: LOCAL_BOT_PLAYER_ID, characterId: 0 }
+        : { playerId: localId.playerId, characterId: localId.characterId },
+      stakeVolts,
+    });
+  }
+
   practiceSession = null;
   getPvpRankedQueueManager().clearAfterBattle();
   pvpTurnWindows.clear();
@@ -420,6 +514,7 @@ export function resetLocalPvpRankedAuthority(): void {
   clearPvpTurnTimer();
   practiceSession = null;
   delivering = false;
+  practiceStakeVolts = 0;
   pvpTurnWindows.clear();
   unsubQueue?.();
   unsubMatch?.();

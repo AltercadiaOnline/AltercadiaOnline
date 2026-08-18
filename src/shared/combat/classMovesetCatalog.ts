@@ -540,7 +540,6 @@ const DISSOLUTUS_MOVES: readonly ClassMoveDefinition[] = [
       basePp: 8,
       cooldown: 2,
       effectParams: {
-        swapDebuffCount: 1,
         enemyAttackDamageReductionPercent: 30,
         enemyAttackWeakenTurns: 3,
       },

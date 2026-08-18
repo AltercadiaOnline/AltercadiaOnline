@@ -7,6 +7,7 @@ export type MarcoTooltipPayload = {
   readonly name: string;
   readonly effect: string;
   readonly requirement?: string;
+  readonly hint?: string;
 };
 
 /** Payload unificado — item do catálogo, move do moveset, status de combate ou nó Marcos. */

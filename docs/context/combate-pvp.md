@@ -13,7 +13,8 @@ Sem cassino de loot de criatura neste fluxo.
 | Sessão rankeada | `src/server/combat/pvp/RankedPvpCombatSession.ts` |
 | Duelista | `src/server/combat/pvp/buildPvpDuelistCombatant.ts` |
 | Fim + rating | `src/server/combat/finalizeAuthoritativeRankedPvpEnd.ts` |
-| WS | `pvp-ranked-join` / leave / ready + snapshot em `src/shared/wsProtocol.ts` |
+| Aposta 1x1 | `pvpRankedDuelStake.ts` + `lockPvpRankedDuelStake` / `settlePvpRankedDuelStake` |
+| WS | `pvp-ranked-join` / leave / ready / set-stake + snapshot em `src/shared/wsProtocol.ts` |
 | HUD fila | `WorldPvpQueuePanel.tsx`, `pvpQueueStore.ts`, `pvpRankedQueueBridge.ts` |
 | Local | `src/client/combat/local/localPvpRankedAuthority.ts` |
 
@@ -21,7 +22,13 @@ Marker Construct / `npcId`: `combate_pvp` (`PVP_RANKED_STATION_ID`). Catálogo: 
 
 NPC `computador_arena` = monitor de ranking, **não** a fila.
 
-Duelo **casual** (HUD do player, convite Aceitar/Recusar, countdown 5s, sem rating, cancela se afastar) ≠ este púlpito. Intents `DUEL_INVITE` / `DUEL_INVITE_RESPOND`.
+Duelo **casual** (HUD do player, **Desafiar para batalha**, Aceitar/Recusar, quem desafiou cancela, countdown 5s, alcance **6 tiles**, sem rating; bloqueado se estiver no púlpito) ≠ este púlpito. Intents `DUEL_INVITE` / `DUEL_INVITE_RESPOND`.
+
+## Aposta 1x1 (pote)
+
+Os dois escolhem o **mesmo** valor de VOLTS (0 = só rating). O servidor trava a quantia no aceite (`lockPvpRankedDuelStake` via `economyGateway`). Sair / desconectar / falha no start **devolve**. No fim da luta o vencedor recebe a aposta do perdedor (`settlePvpRankedDuelStake`). Cliente só espelha `stakeVolts` / `potVolts` no snapshot.
+
+Local vs bot de prática: a casa cobre o lado do bot (vitória = +aposta; derrota = perde a trava).
 
 ## Save
 

@@ -50,6 +50,8 @@ import {
   resetCharacterPersistenceDirtyStore,
 } from './characterPersistenceDirty.js';
 import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
+import { nextMonotonicCharacterId } from '../../shared/characterCreation.js';
+import { isClassType } from '../../shared/progression/movesetMasterySeed.js';
 
 export type PersistCharacterSessionOptions = {
   /** Sempre grava (logout / disconnect / shutdown / login / marketplace). */
@@ -146,6 +148,14 @@ function buildRecordFromRuntime(
 }
 
 function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
+  const existingClassId = getAuthoritativeProgression(
+    record.playerId,
+    record.characterId,
+  ).characterProfile.classId;
+  const incomingClassId = record.characterProfile.classId;
+  const characterProfile = !isClassType(incomingClassId) && isClassType(existingClassId)
+    ? { ...record.characterProfile, classId: existingClassId }
+    : record.characterProfile;
   hydrateCharacterEconomyPersistence(record.playerId, record.characterId, {
     wallet: { ...record.wallet },
     profile: {
@@ -180,7 +190,7 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
   loadAuthoritativeProgression(record.playerId, record.characterId, {
     progression: record.progression,
     marcos: record.marcos,
-    characterProfile: record.characterProfile,
+    characterProfile,
   });
 
   if (record.petRoster) {
@@ -261,6 +271,31 @@ export async function hydrateCharacterSession(
 
 export function wasCharacterHydratedFromDisk(playerId: string, characterId: number): boolean {
   return hydratedFromDisk.has(recordKey(playerId, characterId));
+}
+
+/** Apaga o JSON do personagem. O characterId não volta — só o arquivo leftover. */
+export async function deleteCharacterPersistence(
+  playerId: string,
+  characterId: number,
+): Promise<void> {
+  hydratedFromDisk.delete(recordKey(playerId, characterId));
+  await getActivePersistenceStorage().deleteCharacter(playerId, characterId);
+}
+
+/**
+ * Próximo characterId da conta: max(vivos no hub, arquivos leftover, seq persistido) + 1.
+ * A seq sobrevive ao delete — nunca recicla o ID do personagem morto.
+ */
+export async function allocateMonotonicCharacterId(
+  playerId: string,
+  liveCharacterIds: readonly number[],
+): Promise<number> {
+  const storage = getActivePersistenceStorage();
+  const persistedIds = await storage.listCharacterIds(playerId);
+  const lastAllocated = await storage.loadCharacterIdSeq(playerId);
+  const next = nextMonotonicCharacterId([...liveCharacterIds, ...persistedIds], lastAllocated);
+  await storage.saveCharacterIdSeq(playerId, next);
+  return next;
 }
 
 /**

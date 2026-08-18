@@ -5,6 +5,7 @@
  * Pronto para frames de ataque futuros via setStance / setCue.
  */
 import { DESIGN_CONFIG } from '../../../config/designConstants.js';
+import { shouldSkipRenderFrame } from '../../runtime/performancePreset.js';
 import {
   COMBAT_HIT_ANIM_MS,
   COMBAT_STRIKE_DASH_MS,
@@ -257,12 +258,16 @@ export class BattleArenaCanvas {
   startLoop(): void {
     if (this.running) return;
     this.running = true;
-    const tick = (): void => {
+    let lastPaintMs = 0;
+    const tick = (nowMs: number): void => {
       if (!this.running) return;
-      try {
-        this.paint();
-      } catch (error) {
-        console.warn('[BattleArenaCanvas] paint falhou:', error);
+      if (!shouldSkipRenderFrame(lastPaintMs, nowMs)) {
+        lastPaintMs = nowMs;
+        try {
+          this.paint();
+        } catch (error) {
+          console.warn('[BattleArenaCanvas] paint falhou:', error);
+        }
       }
       this.rafId = requestAnimationFrame(tick);
     };

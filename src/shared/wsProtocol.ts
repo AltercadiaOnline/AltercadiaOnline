@@ -171,6 +171,18 @@ export type WsOutboundMessage =
       readonly payload: import('./social/chatWhisperTypes.js').ChatWhisperPayload;
     }
   | {
+      readonly type: 'static-apagao';
+      readonly payload: import('./static/staticNetworkTypes.js').StaticApagaoPayload;
+    }
+  | {
+      readonly type: 'static-war-room-call';
+      readonly payload: import('./static/staticNetworkTypes.js').StaticWarRoomCallPayload;
+    }
+  | {
+      readonly type: 'static-war-room-update';
+      readonly payload: import('./static/staticNetworkTypes.js').StaticWarRoomUpdatePayload;
+    }
+  | {
       readonly type: 'log-service';
       readonly payload: import('./world/logServiceTypes.js').LogServicePayload;
     }
@@ -375,11 +387,16 @@ export type WsInboundMessage =
         readonly stationId: string;
         readonly displayName?: string;
         readonly skinBundleId?: string;
+        readonly stakeVolts?: number;
       };
     }
   | { readonly type: 'pvp-ranked-leave'; readonly payload: { readonly stationId: string } }
   | { readonly type: 'pvp-ranked-ready'; readonly payload: { readonly stationId: string } }
-  | { readonly type: 'pvp-ranked-unready'; readonly payload: { readonly stationId: string } };
+  | { readonly type: 'pvp-ranked-unready'; readonly payload: { readonly stationId: string } }
+  | {
+      readonly type: 'pvp-ranked-set-stake';
+      readonly payload: { readonly stationId: string; readonly stakeVolts: number };
+    };
 
 export function parseWsInbound(raw: string): WsInboundMessage | null {
 
@@ -911,6 +928,7 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
       || type === 'pvp-ranked-leave'
       || type === 'pvp-ranked-ready'
       || type === 'pvp-ranked-unready'
+      || type === 'pvp-ranked-set-stake'
     ) {
       const payload = record.payload;
       if (typeof payload !== 'object' || payload === null) return null;
@@ -924,8 +942,13 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
             stationId: stationId.trim(),
             ...(typeof p.displayName === 'string' ? { displayName: p.displayName } : {}),
             ...(typeof p.skinBundleId === 'string' ? { skinBundleId: p.skinBundleId } : {}),
+            ...(typeof p.stakeVolts === 'number' ? { stakeVolts: p.stakeVolts } : {}),
           },
         };
+      }
+      if (type === 'pvp-ranked-set-stake') {
+        if (typeof p.stakeVolts !== 'number') return null;
+        return { type, payload: { stationId: stationId.trim(), stakeVolts: p.stakeVolts } };
       }
       return { type, payload: { stationId: stationId.trim() } };
     }

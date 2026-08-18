@@ -27,12 +27,14 @@ export function purgeCharacterRuntimeState(playerId: string, characterId: number
   removeLeaderboardRow(playerId, characterId);
 }
 
-/** Personagem recém-criado: força economia zerada (defesa contra reuso de slot). */
+/** Personagem recém-criado: força economia/classe/pose zeradas (defesa contra leftover). */
 export function resetNewCharacterEconomy(playerId: string, characterId: number): void {
   resetAuthoritativePlayerEconomyToEmpty(playerId, characterId);
   clearPetRosterForCharacter(playerId, characterId);
   clearPetAffinityForCharacter(playerId, characterId);
+  clearOwnedSkinsForCharacter(playerId, characterId);
   clearMarketplaceForCharacter(playerId, characterId);
   clearMercenaryQuestProgress(playerId, characterId);
   clearWorldProfile(playerId, characterId);
+  clearAuthoritativeProgression(playerId, characterId);
 }

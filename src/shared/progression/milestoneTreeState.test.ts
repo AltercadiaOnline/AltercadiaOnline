@@ -3,6 +3,8 @@ import { emptyMarcosNodeProgression } from './marcoProgression.js';
 import {
   canChooseMarco,
   canSelectBranchStarter,
+  resolveMarcoChooseBlockedMessage,
+  resolveNextObtainableMarco,
   sanitizeActiveMarcosForTrail,
   type MarcoTreePlayerContext,
 } from './milestoneTreeState.js';
@@ -131,5 +133,42 @@ describe('marcos trail selection', () => {
         true,
       ),
     ).toEqual(['quickStep', 'fluxRush']);
+  });
+
+  it('no Nv.60 com 2º nó ativo libera o 3º degrau da mesma trilha', () => {
+    const ctx = baseCtx({
+      activeMarcos: ['quickStep', 'fluxRush'],
+      ramificacaoSelecionada: 'fluxo',
+      trilhaTravada: true,
+      playerLevel: 60,
+    });
+    expect(canChooseMarco('timelessStride', ctx)).toBe(true);
+    expect(canChooseMarco('stableFlux', ctx)).toBe(false);
+    expect(resolveNextObtainableMarco(ctx)?.id).toBe('timelessStride');
+  });
+
+  it('no Nv.60 sem o 2º nó não pula para o 3º', () => {
+    const ctx = baseCtx({
+      activeMarcos: ['quickStep'],
+      ramificacaoSelecionada: 'fluxo',
+      trilhaTravada: true,
+      playerLevel: 60,
+    });
+    expect(canChooseMarco('timelessStride', ctx)).toBe(false);
+    expect(canChooseMarco('fluxRush', ctx)).toBe(true);
+    expect(resolveNextObtainableMarco(ctx)?.id).toBe('fluxRush');
+    expect(resolveMarcoChooseBlockedMessage('timelessStride', ctx)).toMatch(/Investida Flux/);
+    expect(resolveMarcoChooseBlockedMessage('quickStep', ctx)).toMatch(/Investida Flux/);
+  });
+
+  it('abaixo do Nv.50 bloqueia o 3º degrau mesmo com o 2º ativo', () => {
+    const ctx = baseCtx({
+      activeMarcos: ['quickStep', 'fluxRush'],
+      ramificacaoSelecionada: 'fluxo',
+      trilhaTravada: true,
+      playerLevel: 49,
+    });
+    expect(canChooseMarco('timelessStride', ctx)).toBe(false);
+    expect(resolveMarcoChooseBlockedMessage('timelessStride', ctx)).toMatch(/Nv\. 50/);
   });
 });

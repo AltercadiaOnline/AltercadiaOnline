@@ -297,7 +297,6 @@ Itens ainda não wired ou parciais no `CombatEngine` — tooltips já descrevem 
 | Move | Nota |
 |------|------|
 | **DIS_6** Instabilidade Quântica | Proc `bonusHealChancePercent` (+40% cura) ainda não aplicado no case `Heal` |
-| **DIS_2** Paradoxo | `swapDebuffCount` no catálogo não implementado; só debuff −30% dano |
 | **IMP_2** Impulso Crescente | Eco não gasta carga em cura/setup; reusar não renova cargas |
 
 ---

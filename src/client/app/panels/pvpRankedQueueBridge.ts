@@ -12,7 +12,8 @@ type PvpRankedOutboundType =
   | 'pvp-ranked-join'
   | 'pvp-ranked-leave'
   | 'pvp-ranked-ready'
-  | 'pvp-ranked-unready';
+  | 'pvp-ranked-unready'
+  | 'pvp-ranked-set-stake';
 
 type PvpRankedSender = (
   type: PvpRankedOutboundType,
@@ -20,6 +21,7 @@ type PvpRankedSender = (
     readonly stationId: string;
     readonly displayName?: string;
     readonly skinBundleId?: string;
+    readonly stakeVolts?: number;
   },
 ) => void;
 
@@ -41,6 +43,7 @@ function send(
     readonly stationId: string;
     readonly displayName?: string;
     readonly skinBundleId?: string;
+    readonly stakeVolts?: number;
   },
 ): boolean {
   const sender = getSenderSlot().__ALTERCADIA_PVP_RANKED_SENDER__;
@@ -52,11 +55,23 @@ function send(
 export function sendPvpRankedJoin(
   stationId: string,
   displayName?: string,
+  stakeVolts = 0,
 ): boolean {
   return send('pvp-ranked-join', {
     stationId: stationId || PVP_RANKED_STATION_ID,
     ...(displayName ? { displayName } : {}),
     skinBundleId: getActivePlayerSkinBundleId(),
+    stakeVolts,
+  });
+}
+
+export function sendPvpRankedSetStake(
+  stationId: string = PVP_RANKED_STATION_ID,
+  stakeVolts = 0,
+): boolean {
+  return send('pvp-ranked-set-stake', {
+    stationId: stationId || PVP_RANKED_STATION_ID,
+    stakeVolts,
   });
 }
 

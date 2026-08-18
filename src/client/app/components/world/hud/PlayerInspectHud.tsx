@@ -89,7 +89,7 @@ export function PlayerInspectHud() {
           disabled={state.pending}
           onClick={() => dispatchDuelInvite(view.playerId, view.characterId)}
         >
-          {state.pending ? 'Enviando…' : 'Convidar para batalha'}
+          {state.pending ? 'Enviando…' : 'Desafiar para batalha'}
         </button>
       ) : null}
 

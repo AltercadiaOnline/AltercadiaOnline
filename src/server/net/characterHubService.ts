@@ -8,6 +8,13 @@ import { validateCreateCharacterInput } from '../../shared/characterCreation.js'
 import { createDefaultPlayerSkin } from '../../shared/character/playerSkin.js';
 import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 import type { ProfileRow } from '../../shared/supabase/gameDatabaseTypes.js';
+import { discardPendingLootForCharacter } from '../../Economy/pendingLootStore.js';
+import { persistWorldSpraySnapshot } from '../persistence/worldSprayPersistence.js';
+import { markWorldSpraySyncDirty } from '../world/spraySyncDirty.js';
+import { tacticalSprayService } from '../../shared/social/tacticalSprayStore.js';
+import { parseHubClassId } from '../../shared/character/characterIdentity.js';
+import { createEmptyPetRoster } from '../../shared/pet/petRoster.js';
+import { emptyPersistedPetAffinity } from '../../shared/persistence/characterPersistenceRecord.js';
 import type { ClassType } from '../../shared/types/classes.js';
 import {
   ensureMovesetMasteryForClass,
@@ -18,15 +25,26 @@ import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
 import { getSupabaseAdminClient } from '../supabase/supabaseAdmin.js';
 import { ensureServerPlayerBootstrap } from '../supabase/bootstrapPlayerOnServer.js';
 import {
-  allocateNextCharacterId,
   insertProfileForCharacter,
+  listCharacterIdsForUser,
   listProfilesForUserOnServer,
   slotOccupiedOnServer,
   deleteCharacterOnServer,
   resolveAccountEmail,
 } from '../supabase/characterHubRepository.js';
-import { upsertPlayerCurrency, upsertPlayerInventory } from '../supabase/playerGameDataRepository.js';
-import { hydrateCharacterSession, persistCharacterSession } from '../persistence/PersistenceGateway.js';
+import {
+  upsertPlayerCurrency,
+  upsertPlayerInventory,
+  upsertPlayerPets,
+  wipeCharacterScopedEconomyRows,
+} from '../supabase/playerGameDataRepository.js';
+import {
+  allocateMonotonicCharacterId,
+  deleteCharacterPersistence,
+  hydrateCharacterSession,
+  persistCharacterSession,
+  persistPendingLootSnapshot,
+} from '../persistence/PersistenceGateway.js';
 import {
   getAuthoritativeProgression,
   loadAuthoritativeProgression,
@@ -56,7 +74,11 @@ function mapProfileToCharacter(
   profile: ProfileRow,
   slotIndex: number,
 ): AccountCharacter {
-  const classId = reconcileAuthoritativeCharacterClassLink(playerId, profile.character_id);
+  const classId = reconcileAuthoritativeCharacterClassLink(
+    playerId,
+    profile.character_id,
+    parseHubClassId(profile.class_id),
+  );
   const progression = getAuthoritativeProgression(playerId, profile.character_id);
   const displayName = profile.display_name?.trim()
     || progression.characterProfile.displayName?.trim()
@@ -164,9 +186,24 @@ export async function createAuthoritativeCharacterInSlot(
     return { ok: false, message: 'Já existe um personagem com este nome nesta conta.' };
   }
 
-  const characterId = await allocateNextCharacterId(client, playerId, instance.id);
+  const liveIds = await listCharacterIdsForUser(client, playerId);
+  const characterId = await allocateMonotonicCharacterId(playerId, liveIds);
+  await deleteCharacterPersistence(playerId, characterId);
+  const leftoverWipe = await wipeCharacterScopedEconomyRows(
+    client,
+    playerId,
+    characterId,
+    instance.id,
+  );
+  if (!leftoverWipe.ok) {
+    return {
+      ok: false,
+      message: leftoverWipe.message ?? 'Falha ao limpar leftover do personagem.',
+    };
+  }
+
   const email = await resolveAccountEmail(client, playerId, instance.id);
-  await insertProfileForCharacter(
+  const profileInsert = await insertProfileForCharacter(
     client,
     playerId,
     characterId,
@@ -174,9 +211,10 @@ export async function createAuthoritativeCharacterInSlot(
     validation.name,
     email,
     instance.id,
+    validation.class,
   );
 
-  // Trigger bootstrap: força inventário + carteira vazios no Supabase (por personagem).
+  // Trigger bootstrap: força inventário + carteira + pets vazios no Supabase (por personagem).
   const emptyInventory = await upsertPlayerInventory(
     client,
     playerId,
@@ -207,9 +245,26 @@ export async function createAuthoritativeCharacterInSlot(
     };
   }
 
+  const emptyPets = await upsertPlayerPets(
+    client,
+    playerId,
+    characterId,
+    instance.id,
+    createEmptyPetRoster(),
+    emptyPersistedPetAffinity(),
+  );
+  if (!emptyPets.ok) {
+    return {
+      ok: false,
+      message: emptyPets.message ?? 'Falha ao inicializar pets do personagem.',
+    };
+  }
+
   resetNewCharacterEconomy(playerId, characterId);
 
-  const bootstrap = await ensureServerPlayerBootstrap(playerId, characterId);
+  const bootstrap = await ensureServerPlayerBootstrap(playerId, characterId, {
+    newCharacter: true,
+  });
   if (!bootstrap.profileReady) {
     return { ok: false, message: 'Personagem criado, mas o servidor ainda está provisionando. Tente novamente.' };
   }
@@ -223,12 +278,20 @@ export async function createAuthoritativeCharacterInSlot(
     },
   });
 
-  await persistCharacterSession(playerId, characterId, {
-    force: true,
-    reason: 'login',
-  }).catch((error) => {
+  try {
+    await persistCharacterSession(playerId, characterId, {
+      force: true,
+      reason: 'login',
+    });
+  } catch (error) {
+    if (!profileInsert.classIdStored) {
+      return {
+        ok: false,
+        message: 'Personagem criado, mas a classe não pôde ser gravada. Tente novamente.',
+      };
+    }
     console.warn('[characterHub] persist after create failed:', error);
-  });
+  }
 
   const updatedHub = await buildAuthoritativeCharacterHub(playerId, env);
   return { ok: true, hub: updatedHub };
@@ -258,6 +321,22 @@ export async function deleteAuthoritativeCharacter(
   }
 
   purgeCharacterRuntimeState(playerId, characterId);
+  discardPendingLootForCharacter(characterId);
+  const removedSprays = tacticalSprayService.removeSpraysForAuthor(playerId, characterId);
+  if (removedSprays > 0) {
+    markWorldSpraySyncDirty();
+  }
+  try {
+    await persistPendingLootSnapshot();
+  } catch (error) {
+    console.warn('[characterHub] persist pending loot after delete failed:', error);
+  }
+  try {
+    await persistWorldSpraySnapshot();
+  } catch (error) {
+    console.warn('[characterHub] persist sprays after delete failed:', error);
+  }
+  await deleteCharacterPersistence(playerId, characterId);
 
   const updatedHub = await buildAuthoritativeCharacterHub(playerId, env);
   return { ok: true, hub: updatedHub };

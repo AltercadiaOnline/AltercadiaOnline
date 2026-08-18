@@ -1,7 +1,9 @@
 import path from 'node:path';
+import { readdir } from 'node:fs/promises';
 import { PersistenceMode } from '../../../shared/persistence/persistenceConfig.js';
 import type { CharacterPersistenceRecord } from '../../../shared/persistence/characterPersistenceRecord.js';
 import {
+  deleteJsonFile,
   ensureDirectory,
   readJsonFile,
   writeJsonFileAtomic,
@@ -36,9 +38,16 @@ export class FileStorage implements PersistenceStorage {
     return path.join(this.dataDir, 'pending-loot.json');
   }
 
+  private characterDir(playerId: string): string {
+    return path.join(this.dataDir, 'characters', encodeURIComponent(playerId));
+  }
+
   private characterFilePath(playerId: string, characterId: number): string {
-    const safePlayer = encodeURIComponent(playerId);
-    return path.join(this.dataDir, 'characters', safePlayer, `${characterId}.json`);
+    return path.join(this.characterDir(playerId), `${characterId}.json`);
+  }
+
+  private characterIdSeqPath(playerId: string): string {
+    return path.join(this.characterDir(playerId), '_id-seq.json');
   }
 
   async loadPendingLoot(): Promise<PendingLootSnapshot | null> {
@@ -63,5 +72,41 @@ export class FileStorage implements PersistenceStorage {
       this.characterFilePath(record.playerId, record.characterId),
       record,
     );
+  }
+
+  async deleteCharacter(playerId: string, characterId: number): Promise<void> {
+    await deleteJsonFile(this.characterFilePath(playerId, characterId));
+  }
+
+  async listCharacterIds(playerId: string): Promise<readonly number[]> {
+    let names: string[];
+    try {
+      names = await readdir(this.characterDir(playerId));
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') return [];
+      throw error;
+    }
+
+    const ids: number[] = [];
+    for (const name of names) {
+      const match = /^(\d+)\.json$/.exec(name);
+      if (!match) continue;
+      const id = Number(match[1]);
+      if (Number.isInteger(id) && id >= 1) ids.push(id);
+    }
+    return ids.sort((a, b) => a - b);
+  }
+
+  async loadCharacterIdSeq(playerId: string): Promise<number> {
+    const record = await readJsonFile<{ lastAllocatedId?: unknown }>(
+      this.characterIdSeqPath(playerId),
+    );
+    const value = record?.lastAllocatedId;
+    return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
+  }
+
+  async saveCharacterIdSeq(playerId: string, lastAllocatedId: number): Promise<void> {
+    await writeJsonFileAtomic(this.characterIdSeqPath(playerId), { lastAllocatedId });
   }
 }

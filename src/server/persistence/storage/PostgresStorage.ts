@@ -65,4 +65,22 @@ export class PostgresStorage implements PersistenceStorage {
   async saveCharacter(_record: CharacterPersistenceRecord): Promise<void> {
     warnSchemaPending('saveCharacter');
   }
+
+  async deleteCharacter(_playerId: string, _characterId: number): Promise<void> {
+    warnSchemaPending('deleteCharacter');
+  }
+
+  async listCharacterIds(_playerId: string): Promise<readonly number[]> {
+    warnSchemaPending('listCharacterIds');
+    return [];
+  }
+
+  async loadCharacterIdSeq(_playerId: string): Promise<number> {
+    warnSchemaPending('loadCharacterIdSeq');
+    return 0;
+  }
+
+  async saveCharacterIdSeq(_playerId: string, _lastAllocatedId: number): Promise<void> {
+    warnSchemaPending('saveCharacterIdSeq');
+  }
 }

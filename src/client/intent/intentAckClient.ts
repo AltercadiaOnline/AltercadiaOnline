@@ -225,17 +225,17 @@ function tryNotifyPlayerSocialResult(intentId: string, success: boolean, data?: 
   }
 
   if (pending.action.type === 'DUEL_INVITE' || pending.action.type === 'DUEL_INVITE_RESPOND') {
-    setPlayerInspectPending(false, success ? null : (typeof data === 'string' ? data : 'Falha no convite.'));
+    setPlayerInspectPending(false, success ? null : (typeof data === 'string' ? data : 'Falha no desafio.'));
     if (success) {
       const message = data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
         ? (data as { message: string }).message
         : pending.action.type === 'DUEL_INVITE'
-          ? 'Convite enviado.'
+          ? 'Desafio enviado.'
           : 'Resposta enviada.';
       postSystemNotification(message);
       return;
     }
-    postSystemNotification(typeof data === 'string' ? data : 'Não foi possível completar o convite.');
+    postSystemNotification(typeof data === 'string' ? data : 'Não foi possível completar o desafio.');
   }
 }
 

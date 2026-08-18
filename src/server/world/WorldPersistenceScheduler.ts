@@ -9,6 +9,7 @@ import {
   persistCharacterSession,
   persistPendingLootSnapshot,
 } from '../persistence/PersistenceGateway.js';
+import { persistStaticNetworkSnapshot } from '../persistence/staticNetworkPersistence.js';
 import { buildCriticalCharacterDataFromRuntime } from '../supabase/buildCriticalCharacterData.js';
 import {
   getPersistenceManager,
@@ -93,6 +94,9 @@ export class WorldPersistenceScheduler {
     if (this.flushing) return;
     this.flushing = true;
     try {
+      if (isDurablePersistence()) {
+        await persistStaticNetworkSnapshot();
+      }
       const players = this.gameState.listPersistablePlayers();
       const force = isForcePersistReason(reason);
       const targets = force

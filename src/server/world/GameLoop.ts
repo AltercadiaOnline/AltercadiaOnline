@@ -22,6 +22,8 @@ import {
   buildWorldSpraySignature,
   shouldSendWorldSprays,
 } from './spraySyncDirty.js';
+import { staticDistrictStore } from '../../shared/static/staticDistrictStore.js';
+import { shouldSendStaticNetwork } from '../static/staticNetworkSyncDirty.js';
 
 export type GameLoopWorldSession = {
   readonly connectionId: string;
@@ -129,6 +131,12 @@ export class GameLoop {
       const spraySig = buildWorldSpraySignature(zoneSprays);
       const sendSprays = shouldSendWorldSprays(session.connectionId, spraySig);
 
+      const staticNetwork = staticDistrictStore.buildHudSnapshot(envelope.serverTimeMs);
+      const sendStatic = shouldSendStaticNetwork(
+        session.connectionId,
+        String(staticNetwork.revision),
+      );
+
       deps.sendStateSync(session.connectionId, envelope, {
         mode: 'tick',
         delta: {
@@ -137,6 +145,7 @@ export class GameLoop {
           ...(sendCreatures ? { creatures: aoiCreatures } : {}),
           nearbyPlayers,
           ...(sendSprays ? { sprays: zoneSprays } : {}),
+          ...(sendStatic ? { staticNetwork } : {}),
         },
       });
     }

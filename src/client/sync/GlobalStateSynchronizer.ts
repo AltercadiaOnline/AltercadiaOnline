@@ -24,6 +24,7 @@ import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { isWorldSessionReady } from '../world/worldSessionGate.js';
 import { isClassType } from '../../shared/progression/movesetMasterySeed.js';
+import { getActiveCharacterClassId } from '../character/activeCharacterIdentity.js';
 
 import { getGameTimeStore } from '../world/gameTimeStore.js';
 
@@ -41,6 +42,7 @@ import {
 } from '../world/worldCreatureSyncBridge.js';
 import { parseAndApplyRemotePlayerSnapshots } from '../world/remoteEntitySyncBridge.js';
 import { parseAndApplyWorldSpraySnapshots } from '../world/worldSpraySyncBridge.js';
+import { parseAndApplyStaticNetworkHudSnapshot } from '../world/staticNetworkSyncBridge.js';
 import { isVisualDebugModeEnabled } from '../debug/visualDebugMode.js';
 import { resetAuthoritativeRenderStore } from '../render/AuthoritativeRenderStore.js';
 import { clearRemoteEntitySyncBridge } from '../world/remoteEntitySyncBridge.js';
@@ -161,24 +163,25 @@ export class GlobalStateSynchronizer {
 
     applyGameTimeFromPlayerSnapshot(state);
 
-    // SSOT enter-world: snapshot é a única escrita de class/loadout/economia.
-    // Classe autoritativa ANTES da progressão/loadout — evita espelho preso em IMPETUS.
-    if (isClassType(state.classId)) {
+    // Identidade do hub manda na classe. Snapshot só preenche se a sessão ainda não ligou.
+    const classId = getActiveCharacterClassId()
+      ?? (isClassType(state.classId) ? state.classId : null);
+    if (classId) {
       const equip = getPlayerEquipmentStore().getSnapshot();
       getPlayerEquipmentStore().setPlayerInfo(equip.displayName, equip.level, {
-        classId: state.classId,
+        classId,
       });
-      getGlobalPlayerStore().ensureClassMovePool(state.classId);
+      getGlobalPlayerStore().ensureClassMovePool(classId);
     }
 
     const result = getMutableDataStore().applyFullState(state);
     if (result === 'applied' && state.activeMovesets && state.activeMovesets.length > 0) {
       getGlobalPlayerStore().hydrateConfirmedLoadout(
         state.activeMovesets,
-        isClassType(state.classId) ? state.classId : undefined,
+        classId ?? undefined,
       );
       getBattleStore().resyncLoadout();
-    } else if (result === 'applied' && isClassType(state.classId)) {
+    } else if (result === 'applied' && classId) {
       getBattleStore().resyncLoadout();
     }
     getGameStore().bootstrapFromServerSession();
@@ -285,6 +288,10 @@ export class GlobalStateSynchronizer {
         if (mapId) {
           parseAndApplyWorldSpraySnapshots(mapId, tickDelta.sprays);
         }
+      }
+
+      if (tickDelta.staticNetwork) {
+        parseAndApplyStaticNetworkHudSnapshot(tickDelta.staticNetwork);
       }
 
     }

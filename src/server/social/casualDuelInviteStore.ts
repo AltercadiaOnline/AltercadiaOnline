@@ -63,16 +63,13 @@ function exploringPeer(
   return row;
 }
 
+function isOnRankedPulpit(playerId: string, characterId: number): boolean {
+  return getPvpRankedQueueManager().hasOccupant(playerId, characterId);
+}
+
 function isBusy(playerId: string, characterId: number): boolean {
   if (isPlayerInBattle(playerId, characterId)) return true;
-  const queue = getPvpRankedQueueManager();
-  const snapshot = queue.getSnapshot();
-  if (snapshot.phase === 'countdown' || snapshot.phase === 'starting' || snapshot.phase === 'in_battle') {
-    return snapshot.slots.some(
-      (slot) => slot?.playerId === playerId && slot.characterId === characterId,
-    );
-  }
-  return false;
+  return isOnRankedPulpit(playerId, characterId);
 }
 
 export class CasualDuelInviteStore {
@@ -101,13 +98,13 @@ export class CasualDuelInviteStore {
     | { readonly ok: true; readonly snapshot: CasualDuelSnapshot }
     | { readonly ok: false; readonly reason: string } {
     if (from.playerId === to.playerId && from.characterId === to.characterId) {
-      return { ok: false, reason: 'Não é possível convidar a si mesmo.' };
+      return { ok: false, reason: 'Não é possível desafiar a si mesmo.' };
     }
     if (this.byPlayerKey.has(this.playerKey(from.playerId, from.characterId))) {
-      return { ok: false, reason: 'Você já tem um convite de duelo pendente.' };
+      return { ok: false, reason: 'Você já tem um desafio pendente.' };
     }
     if (this.byPlayerKey.has(this.playerKey(to.playerId, to.characterId))) {
-      return { ok: false, reason: 'Esse jogador já tem um convite pendente.' };
+      return { ok: false, reason: 'Esse jogador já tem um desafio pendente.' };
     }
     if (getPlayerTradeStore().hasOpenTrade(from.playerId, from.characterId)
       || getPlayerTradeStore().hasOpenTrade(to.playerId, to.characterId)) {
@@ -116,11 +113,17 @@ export class CasualDuelInviteStore {
 
     const fromWorld = exploringPeer(from.playerId, from.characterId);
     const toWorld = exploringPeer(to.playerId, to.characterId);
-    if (!fromWorld) return { ok: false, reason: 'Você precisa estar no mundo para convidar.' };
+    if (!fromWorld) return { ok: false, reason: 'Você precisa estar no mundo para desafiar.' };
     if (!toWorld) return { ok: false, reason: 'Jogador indisponível ou offline.' };
     if (fromWorld.mapId !== toWorld.mapId) return { ok: false, reason: 'O jogador não está no mesmo mapa.' };
     if (!isWithinCasualDuelRange(fromWorld.x, fromWorld.y, toWorld.x, toWorld.y)) {
-      return { ok: false, reason: 'Chegue mais perto para convidar.' };
+      return { ok: false, reason: 'Chegue mais perto para desafiar.' };
+    }
+    if (isOnRankedPulpit(from.playerId, from.characterId)) {
+      return { ok: false, reason: 'Saia do púlpito para desafiar.' };
+    }
+    if (isOnRankedPulpit(to.playerId, to.characterId)) {
+      return { ok: false, reason: 'O jogador está no púlpito de PvP rankeado.' };
     }
     if (isBusy(from.playerId, from.characterId)) {
       return { ok: false, reason: 'Você está ocupado.' };
@@ -161,6 +164,14 @@ export class CasualDuelInviteStore {
     }
     const isTarget =
       record.to.playerId === actorPlayerId && record.to.characterId === actorCharacterId;
+    const isInviter =
+      record.from.playerId === actorPlayerId && record.from.characterId === actorCharacterId;
+    if (isInviter) {
+      if (accept) {
+        return { ok: false, reason: 'Você não pode aceitar o próprio desafio.' };
+      }
+      return { ok: true, snapshot: this.cancel(record, 'self') };
+    }
     if (!isTarget) {
       return { ok: false, reason: 'Este convite não é seu.' };
     }
@@ -240,6 +251,11 @@ export class CasualDuelInviteStore {
       }
       if (!isWithinCasualDuelRange(fromWorld.x, fromWorld.y, toWorld.x, toWorld.y)) {
         this.cancel(record, 'range');
+        continue;
+      }
+      if (isBusy(record.from.playerId, record.from.characterId)
+        || isBusy(record.to.playerId, record.to.characterId)) {
+        this.cancel(record, 'busy');
         continue;
       }
 

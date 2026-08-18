@@ -5,6 +5,7 @@ import { getCharacterProfile } from '../../../Economy/economyStore.js';
 import { getItemById } from '../../../shared/items/itemCatalog.js';
 import { EQUIPMENT_UI_SLOT_ORDER, createEmptyEquipmentUiGrid } from '../../../shared/character/equipmentUiSlots.js';
 import { hasFriend } from '../../social/friendListStore.js';
+import { getPvpRankedQueueManager } from '../../combat/pvp/PvpRankedQueueManager.js';
 import { isWithinPlayerInspectRange } from '../../../shared/social/playerSocialRange.js';
 import type { InspectPlayerPayload, PlayerInspectView } from '../../../shared/social/playerInspectTypes.js';
 
@@ -50,6 +51,7 @@ export function buildPlayerInspectView(
     || 'Operative';
   const level = Math.max(1, Math.floor(progression.characterProfile.level || 1));
   const grid = profile.equipmentUiGrid ?? createEmptyEquipmentUiGrid();
+  const rankedQueue = getPvpRankedQueueManager();
 
   return {
     ok: true,
@@ -65,7 +67,9 @@ export function buildPlayerInspectView(
         return { slotId, itemId, itemName };
       }),
       canAddFriend: !hasFriend(viewerPlayerId, viewerCharacterId, targetPlayerId, targetCharacterId),
-      canInviteDuel: true,
+      canInviteDuel:
+        !rankedQueue.hasOccupant(viewerPlayerId, viewerCharacterId)
+        && !rankedQueue.hasOccupant(targetPlayerId, targetCharacterId),
       canTrade: true,
     },
   };

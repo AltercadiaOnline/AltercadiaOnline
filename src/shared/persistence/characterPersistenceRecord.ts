@@ -61,6 +61,14 @@ export type PersistedPetAffinitySlice = {
   readonly lastPetAffectionAtMs: number | null;
 };
 
+export function emptyPersistedPetAffinity(): PersistedPetAffinitySlice {
+  return {
+    rationCharges: 0,
+    lastPetRationFeedAtMs: null,
+    lastPetAffectionAtMs: null,
+  };
+}
+
 export type PersistedOwnedSkinsSlice = Record<SkinSlotId, readonly string[]>;
 
 export type PersistedMarketplaceListingSlice = {
@@ -162,11 +170,7 @@ export function createEmptyCharacterPersistenceRecord(
       xpCurrent: 0,
     },
     petRoster: createEmptyPetRoster(),
-    petAffinity: {
-      rationCharges: 0,
-      lastPetRationFeedAtMs: null,
-      lastPetAffectionAtMs: null,
-    },
+    petAffinity: emptyPersistedPetAffinity(),
     petMemorial: [],
   };
 }

@@ -58,3 +58,17 @@ export function nextCharacterId(existingIds: readonly number[]): number {
   if (existingIds.length === 0) return 1;
   return Math.max(...existingIds) + 1;
 }
+
+/**
+ * Próximo characterId da conta. `lastAllocatedId` sobrevive ao delete —
+ * o ID do personagem morto nunca volta para um slot novo.
+ */
+export function nextMonotonicCharacterId(
+  knownIds: readonly number[],
+  lastAllocatedId: number,
+): number {
+  const floor = Number.isInteger(lastAllocatedId) && lastAllocatedId >= 0
+    ? lastAllocatedId
+    : 0;
+  return nextCharacterId([...knownIds, floor]);
+}
