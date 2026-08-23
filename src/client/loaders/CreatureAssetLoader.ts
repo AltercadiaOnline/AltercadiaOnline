@@ -16,7 +16,11 @@ import {
   ZONE1_ID,
 } from '../../shared/world/zone1CreatureRegistry.js';
 import { resolveZone1BattleSpriteUrl } from '../../shared/assets/zone1BattleCreatureAssets.js';
-import { resolveZone1TopDownRotationUrl } from '../../shared/assets/zone1TopDownCreatureAssets.js';
+import {
+  hasZone1TopDownBundle,
+  resolveZone1TopDownRotationUrl,
+} from '../../shared/assets/zone1TopDownCreatureAssets.js';
+import { getCreatureDropEntry } from '../../shared/items/creatureDrops.js';
 
 import { DEFAULT_PLAYER_SOUTH_ROTATION_URL } from '../entities/player/playerConstants.js';
 
@@ -35,7 +39,8 @@ function bundleFromManifest(
   folder: string,
   manifest: CreatureManifest,
 ): CreatureAssetBundle {
-  // Mundo: top-down. Batalha: side-view em zona1_tela_de_batalha (fallback → top-down sul).
+  // Mundo: top-down. Batalha: side-view em zona1_tela_de_batalha
+  // (agente Vórtex: top-down west; demais: PNG de batalha, fallback sul).
   const topDownSouth =
     zoneId === ZONE1_ID ? resolveZone1TopDownRotationUrl(creatureId, 'south') : null;
   const battleSprite =
@@ -79,6 +84,14 @@ export function getCreatureAssets(
     const entry = resolveZone1CreatureEntry(creatureId);
     if (entry) {
       return bundleFromManifest(creatureId, zoneId, entry.folder, entry.manifest);
+    }
+    if (hasZone1TopDownBundle(creatureId) || resolveZone1BattleSpriteUrl(creatureId)) {
+      const dropName = getCreatureDropEntry(creatureId)?.creatureName ?? creatureId;
+      return bundleFromManifest(creatureId, zoneId, creatureId, {
+        id: `${creatureId}_${zoneId}`,
+        displayName: dropName,
+        sprites: { idle: 'idle.png', attack: 'attack.png' },
+      });
     }
   }
 

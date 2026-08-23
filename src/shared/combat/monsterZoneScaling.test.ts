@@ -7,6 +7,9 @@ import {
   MONSTER_ZONE_LEVEL_GROWTH,
   resolveMonsterStats,
   resolveMonsterNativeLevel,
+  resolveMonsterZoneDefaultLevel,
+  resolveVortexAgentZoneStats,
+  VORTEX_AGENT_ZONE_STAT_MULTIPLIER,
 } from './monsterZoneScaling.js';
 
 describe('monsterZoneScaling', () => {
@@ -84,5 +87,14 @@ describe('monsterZoneScaling', () => {
     }
     expect(levels.size).toBeGreaterThan(1);
     expect(resolveMonsterNativeLevel(ZoneId.Zone1, '')).toBe(1);
+  });
+
+  it('Agente Vórtex usa 2.5× o nível médio da zona', () => {
+    const mid = resolveMonsterStats(ZoneId.Zone1, resolveMonsterZoneDefaultLevel(ZoneId.Zone1), false);
+    const agent = resolveVortexAgentZoneStats(ZoneId.Zone1);
+    expect(agent.level).toBe(mid.level);
+    expect(agent.maxHp).toBe(Math.floor(mid.maxHp * VORTEX_AGENT_ZONE_STAT_MULTIPLIER));
+    expect(agent.attack).toBe(Math.floor(mid.attack * VORTEX_AGENT_ZONE_STAT_MULTIPLIER));
+    expect(agent.defense).toBe(Math.floor(mid.defense * VORTEX_AGENT_ZONE_STAT_MULTIPLIER));
   });
 });

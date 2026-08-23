@@ -89,6 +89,11 @@ import {
   ingestBattleStatsReport,
 } from '../battleReportSession.js';
 import { BattleType } from '../../../shared/combat/battleType.js';
+import {
+  getPendingBattleArenaMode,
+  setActiveBattleTypeFromDispatch,
+} from '../battleWorldLifecycle.js';
+import { applyAuthoritativeWorldVitals } from '../../world/applyAuthoritativeWorldVitals.js';
 import { buildEmptyLootRevealSlots } from '../../../shared/loot/lootRevealSlots.js';
 import {
   setBattlePlaybackClosing,
@@ -173,6 +178,7 @@ export type BattleFinishedResult = {
 
 export type BattleScreenMountOptions = {
   readonly monsterId: string | null;
+  readonly arenaMode?: 'pve' | 'pvp';
   readonly onBattleFinished: (result: BattleFinishedResult) => void;
 };
 
@@ -583,6 +589,8 @@ async function exitBattleToWorld(payload: BattleEndedPayload): Promise<boolean> 
       victory: payload.victory,
       ...(payload.endReason !== undefined ? { endReason: payload.endReason } : {}),
       ...(monsterId ? { monsterId } : {}),
+      ...(payload.battleType !== undefined ? { battleType: payload.battleType } : {}),
+      ...(payload.casualPvp === true ? { casualPvp: true } : {}),
     });
 
     // Garante DOM + Construct em exploração mesmo se o listener atrasar.
@@ -706,7 +714,7 @@ function mirrorPostBattleProgressionFromDispatch(
   const finished = dispatch.events.find((e) => e.type === CombatEventType.COMBAT_FINISHED);
   if (finished?.type !== CombatEventType.COMBAT_FINISHED) return;
   const payload = finished.payload;
-  if (payload.victory && payload.progressionGrant) {
+  if (payload.progressionGrant) {
     mirrorBattleProgressionGrant(battleId, payload.progressionGrant);
   }
   if (!payload.victory && payload.deathPenaltyOutcome) {
@@ -812,7 +820,7 @@ async function finalizeBattleFinishAfterPlayback(
     return;
   }
 
-  if (combatFinished?.victory && combatFinished.progressionGrant) {
+  if (combatFinished?.progressionGrant) {
     mirrorBattleProgressionGrant(battleId, combatFinished.progressionGrant);
   }
 
@@ -1054,9 +1062,10 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     },
     onSurrender: () => {
       if (battleInputFrozen || forfeitInFlight) return;
+      const kind = lastDispatch?.state.battleType === BattleType.PVP ? 'pvp' : 'pve';
       showBattleSurrenderConfirm(() => {
         GameClient.sendForfeit();
-      });
+      }, kind);
     },
   });
 
@@ -1123,9 +1132,10 @@ export function initBattleHud(root: ParentNode = document): HUDManager {
     },
     surrender: () => {
       if (battleInputFrozen || forfeitInFlight) return;
+      const kind = lastDispatch?.state.battleType === BattleType.PVP ? 'pvp' : 'pve';
       showBattleSurrenderConfirm(() => {
         GameClient.sendForfeit();
-      });
+      }, kind);
     },
   };
 
@@ -1188,10 +1198,20 @@ function rehydrateBattleUiFromLastDispatch(): void {
 /** Monta BattleScreen com props (≈ `<BattleScreen monsterId onBattleFinished />`). */
 export function mountBattleScreen(options: BattleScreenMountOptions): void {
   battleMount = options;
+  const arenaMode = options.arenaMode
+    ?? (lastDispatch?.state.battleType === BattleType.PVP ? 'pvp' : getPendingBattleArenaMode());
   mountBattleScreenView(
-    { monsterId: options.monsterId, onBattleFinished: options.onBattleFinished },
+    {
+      monsterId: options.monsterId,
+      arenaMode,
+      onBattleFinished: options.onBattleFinished,
+    },
   );
   battleScreen?.bindMonsterId(options.monsterId);
+  // Mount PvP limpa slots — força rebind mesmo se packKey já tinha sido setado cedo.
+  if (arenaMode === 'pvp' && battleScreen) {
+    battleScreen.invalidateArenaBind();
+  }
   rehydrateBattleUiFromLastDispatch();
 }
 
@@ -1350,6 +1370,7 @@ export const GameClient = {
     combatDispatchGeneration = dispatchGeneration;
 
     lastDispatch = data;
+    setActiveBattleTypeFromDispatch(data.state.battleType);
     getGameStore().resolveFromCombatEvents(data.events);
     const hudManager = ensureHud();
     hudManager.syncCombatantsFromState(
@@ -1570,6 +1591,9 @@ export const GameClient = {
       battleId: payload.battleId,
       victory: payload.victory,
     });
+    if (payload.worldVitals) {
+      applyAuthoritativeWorldVitals(payload.worldVitals);
+    }
     if (battleEndHandled) return;
     if (activeBattleId && activeBattleId !== payload.battleId) return;
     pendingBattleEndedPayload = payload;

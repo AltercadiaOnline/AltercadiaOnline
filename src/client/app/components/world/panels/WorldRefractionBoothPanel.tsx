@@ -100,7 +100,7 @@ export function WorldRefractionBoothPanel({
       }
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--refraction-booth ui-panel--refraction-booth"
+      panelClassName="world-panel--refraction-booth ui-panel--refraction-booth ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(520px, 96vw)' }}
       onFocus={() => tryFocusReactWorldPanel('refractionBooth')}
       onClose={() => tryCloseReactWorldPanel('refractionBooth')}

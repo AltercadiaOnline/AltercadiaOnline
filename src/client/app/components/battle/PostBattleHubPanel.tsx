@@ -113,6 +113,12 @@ export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
         <h2 className="post-battle-hub__title">{resolvePostBattleTitleText(summary)}</h2>
         <p className="post-battle-hub__subtitle">{resolvePostBattleSubtitleText(summary)}</p>
 
+        {(summary.xpGain ?? 0) > 0 ? (
+          <p className="post-battle-hub__xp" aria-label="XP de batalha">
+            +{summary.xpGain} XP
+          </p>
+        ) : null}
+
         {shouldShowPostBattleDeathPenalty(summary) ? (
           <ul className="post-battle-hub__penalty" aria-label="Perdas da derrota">
             {(summary.deathPenaltyLines ?? []).map((line) => (

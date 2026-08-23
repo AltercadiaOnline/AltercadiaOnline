@@ -111,6 +111,20 @@ export function resolveMonsterZoneDefaultLevel(zoneId: ZoneIdType): number {
   return Math.floor((cfg.levelMin + cfg.levelMax) / 2);
 }
 
+/** Agente Vórtex: 2,5× HP/Atk/Def do nível médio da zona. */
+export const VORTEX_AGENT_ZONE_STAT_MULTIPLIER = 2.5;
+
+export function resolveVortexAgentZoneStats(zoneId: ZoneIdType): ResolvedMonsterZoneStats {
+  const midLevel = resolveMonsterZoneDefaultLevel(zoneId);
+  const base = resolveMonsterStats(zoneId, midLevel, false);
+  return {
+    ...base,
+    maxHp: Math.max(1, Math.floor(base.maxHp * VORTEX_AGENT_ZONE_STAT_MULTIPLIER)),
+    attack: Math.max(1, Math.floor(base.attack * VORTEX_AGENT_ZONE_STAT_MULTIPLIER)),
+    defense: Math.max(1, Math.floor(base.defense * VORTEX_AGENT_ZONE_STAT_MULTIPLIER)),
+  };
+}
+
 /** Quantos níveis acima do mínimo um spawn nativo pode ir (Zona 1 → 1–3). */
 export const MONSTER_NATIVE_LEVEL_SPAN = 2;
 

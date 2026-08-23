@@ -34,19 +34,13 @@ function emptySources(patch: Partial<CombatStatSources> = {}): CombatStatSources
 }
 
 describe('playerCombatLevelScale', () => {
-  it('nível 1 = baseline da classe', () => {
-    expect(resolvePlayerLevelAttack(CLASS_CATALOG.IMPETUS.bonus.attack, 1)).toBe(10);
-    expect(resolvePlayerLevelDefense(CLASS_CATALOG.IMPETUS.bonus.defense, 1)).toBe(2);
-  });
-
-  it('nível 30 Impetus: ATK 30 / DEF 11 — piso mais grosso', () => {
-    expect(resolvePlayerLevelAttack(10, 30)).toBe(30);
-    expect(resolvePlayerLevelDefense(2, 30)).toBe(11);
-  });
-
-  it('Cogitor 60 não fica preso no ATK 3 da classe — o extra usa piso 8', () => {
-    expect(resolvePlayerLevelAttack(CLASS_CATALOG.COGITOR.bonus.attack, 60)).toBe(36);
-    expect(resolvePlayerLevelDefense(CLASS_CATALOG.COGITOR.bonus.defense, 60)).toBe(21);
+  it('nível não escala ATK/DEF — só o baseline da classe', () => {
+    expect(resolvePlayerLevelAttack(CLASS_CATALOG.IMPETUS.bonus.attack, 1)).toBe(6);
+    expect(resolvePlayerLevelDefense(CLASS_CATALOG.IMPETUS.bonus.defense, 1)).toBe(4);
+    expect(resolvePlayerLevelAttack(CLASS_CATALOG.IMPETUS.bonus.attack, 30)).toBe(6);
+    expect(resolvePlayerLevelDefense(CLASS_CATALOG.IMPETUS.bonus.defense, 30)).toBe(4);
+    expect(resolvePlayerLevelAttack(CLASS_CATALOG.COGITOR.bonus.attack, 60)).toBe(5);
+    expect(resolvePlayerLevelDefense(CLASS_CATALOG.COGITOR.bonus.defense, 60)).toBe(5);
   });
 
   it('nível ausente não infla o stat', () => {
@@ -54,16 +48,15 @@ describe('playerCombatLevelScale', () => {
     expect(resolvePlayerLevelDefense(10, null)).toBe(10);
   });
 
-  it('nível 60 + domínio 30 da Execução ≈ golpe 80 (ATK 36 + move 44)', () => {
+  it('domínio do golpe continua sendo o teto de poder do move', () => {
     const attack = resolvePlayerLevelAttack(CLASS_CATALOG.COGITOR.bonus.attack, 60);
     const execucaoBase = 18;
     const movePower = Math.floor(execucaoBase * (1 + MOVE_POWER_GROWTH_PER_LEVEL * 29));
-    expect(attack).toBe(36);
+    expect(attack).toBe(5);
     expect(movePower).toBe(44);
-    expect(attack + movePower).toBe(80);
   });
 
-  it('resolveClassAttack aplica o nível só em PLAYER', () => {
+  it('resolveClassAttack usa só a classe no PLAYER', () => {
     const player: Combatant = {
       id: 'player',
       name: 'Operative',
@@ -79,8 +72,8 @@ describe('playerCombatLevelScale', () => {
       temporaryModifiers: [],
       lockedSkillIds: [],
     };
-    expect(resolveClassAttack(player)).toBe(30);
-    expect(resolveClassDefense(player)).toBe(11);
+    expect(resolveClassAttack(player)).toBe(6);
+    expect(resolveClassDefense(player)).toBe(4);
 
     const rat: Combatant = {
       ...player,
@@ -94,7 +87,7 @@ describe('playerCombatLevelScale', () => {
     expect(resolveClassDefense(rat)).toBe(3);
   });
 
-  it('PLAYER ignora baseAttack 0 — o golpe usa ATK de nível', () => {
+  it('PLAYER ignora baseAttack 0 — o golpe usa ATK da classe', () => {
     const player: Combatant = {
       id: 'player',
       name: 'Cogitor',
@@ -111,10 +104,10 @@ describe('playerCombatLevelScale', () => {
       temporaryModifiers: [],
       lockedSkillIds: [],
     };
-    expect(resolveClassAttack(player)).toBe(36);
+    expect(resolveClassAttack(player)).toBe(5);
   });
 
-  it('Cogitor 60 + Execução domínio 50 não fecha em 32 — ATK, move e CRIT% entram', () => {
+  it('Cogitor 60 + Execução domínio 50: ATK de classe + move + CRIT%', () => {
     const skill = moveIdToSkillData('COG_1', totalMasteryXpForLevel(50));
     const player: Combatant = {
       id: 'player',
@@ -130,6 +123,7 @@ describe('playerCombatLevelScale', () => {
           [ItemBuffType.Strength]: 6,
           [ItemBuffType.Critical]: 16,
         },
+        allocatedAttackFlat: 20,
       }),
       statusEffects: [],
       activeStatuses: [],
@@ -159,15 +153,17 @@ describe('playerCombatLevelScale', () => {
       power: skill.basePower ?? skill.damage,
     });
     const atkLine = result.attackBreakdown.lines.find((line) => line.source === 'ataque');
+    const fichaLine = result.attackBreakdown.lines.find((line) => line.source === 'ficha');
     const moveLine = result.attackBreakdown.lines.find((line) => line.source === 'moveset');
     const critLine = result.attackBreakdown.lines.find(
       (line) => line.buffType === ItemBuffType.Critical && line.includeInTotal !== false,
     );
 
-    expect(atkLine?.value).toBe(36);
+    expect(atkLine?.value).toBe(5);
+    expect(fichaLine?.value).toBe(20);
     expect(moveLine?.value).toBeGreaterThanOrEqual(62);
     expect(critLine?.value).toBeGreaterThan(0);
-    expect(result.finalDamage).toBeGreaterThan(90);
+    expect(result.finalDamage).toBeGreaterThan(80);
     expect(result.finalDamage).not.toBe(32);
   });
 });

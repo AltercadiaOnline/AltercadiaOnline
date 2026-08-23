@@ -19,18 +19,23 @@ import {
 import { isMapId, type MapId } from '../../shared/world/mapRegistry.js';
 import type { MonsterRegistryEntry } from '../../shared/world/monsterRegistry.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
-import {
-  getActiveMonstersForMap,
+import { getActiveMonstersForMap,
   getWorldMonsterEntry,
   getWorldMonsterEntryRaw,
   restoreWorldMonsterAfterRespawn,
   stashWorldMonsterForRespawn,
 } from '../../shared/world/worldMonsterInstances.js';
+import { isVortexAgentCreatureId, isVortexAgentInstanceId, noteVortexHuntBattleStarted, tickVortexAgentWaves } from '../../shared/static/vortexAgentWave.js';
+import { staticDistrictStore } from '../../shared/static/staticDistrictStore.js';
 import { monsterEntryToCreatureSnapshot } from '../../shared/world/worldCreatureSync.js';
 import { resolveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
 import { getGameMode } from '../runtime/gameMode.js';
 import { applyServerWorldCreatureSnapshots } from './worldCreatureSyncBridge.js';
+import {
+  applyStaticNetworkHudSnapshot,
+  getMirroredStaticNetwork,
+} from './staticNetworkSyncBridge.js';
 
 export type LocalPvePlayerPose = {
   readonly mapId: string;
@@ -132,6 +137,7 @@ export function tryAcceptLocalPveEncounter(
 function beginForcedBattle(monster: MonsterRegistryEntry): void {
   forceBattleNext = false;
   pending = null;
+  noteVortexHuntBattleStarted(monster.id);
   getPveEncounterStore().applyClear({
     monsterInstanceId: monster.id,
     reason: 'accepted',
@@ -171,9 +177,22 @@ function tickLocalCreatureWander(nowMs: number, pose: LocalPvePlayerPose): void 
   }
 }
 
+function publishLocalStaticHud(nowMs: number): void {
+  const snap = staticDistrictStore.buildHudSnapshot(nowMs);
+  const current = getMirroredStaticNetwork();
+  if (current?.revision === snap.revision) return;
+  applyStaticNetworkHudSnapshot(snap);
+}
+
 function tickLocalEncounters(nowMs: number): void {
   if (getGameMode() !== 'local') return;
   if (!exploringProvider?.()) return;
+
+  const waveDirty = tickVortexAgentWaves(nowMs, 'local');
+  publishLocalStaticHud(nowMs);
+  for (const mapId of waveDirty) {
+    if (isMapId(mapId)) publishLocalCreatureSnapshots(mapId);
+  }
 
   // Respawn
   for (const [id, entry] of [...respawnAtById]) {
@@ -213,7 +232,7 @@ function tickLocalEncounters(nowMs: number): void {
 
   const candidates = findCandidates(pose.mapId, pose.worldX, pose.worldY);
   for (const monster of candidates) {
-    if (forceBattleNext) {
+    if (forceBattleNext || isVortexAgentCreatureId(monster.creatureId)) {
       beginForcedBattle(monster);
       return;
     }
@@ -348,5 +367,6 @@ export function scheduleLocalMonsterRespawn(monsterId: string, nowMs: number = D
   };
   stashWorldMonsterForRespawn(monsterId);
   clearCreatureAiRuntime(monsterId);
+  if (isVortexAgentInstanceId(monsterId)) return;
   respawnAtById.set(monsterId, { template, atMs: nowMs + CREATURE_RESPAWN_MS });
 }

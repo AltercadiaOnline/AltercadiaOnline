@@ -132,7 +132,7 @@ export function WorldPetTrainerShopPanel({
       title={customize ? 'Nome e Sexo' : vendor.vendorName}
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--pet-trainer-shop ui-panel--pet-trainer-shop"
+      panelClassName="world-panel--pet-trainer-shop ui-panel--pet-trainer-shop ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: customize ? 'min(420px, 96vw)' : 'min(520px, 96vw)' }}
       onFocus={() => tryFocusReactWorldPanel('petTrainerShop')}
       onClose={handleClose}

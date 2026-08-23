@@ -107,3 +107,41 @@ export function resolvePlayerCardinalRotationUrls(
     url: resolvePlayerSkinBundleRotationUrl(bundleId, direction),
   }));
 }
+
+/**
+ * Asset de batalha por skin.
+ * Ordem atual (teste): rotations do **mundo** (east/west) → flip → south →
+ * transform dedicada `battle/{facing}.png` (futuro) → default.
+ */
+export function resolvePlayerSkinBundleBattleFacingUrl(
+  bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  facing: 'east' | 'west',
+): string {
+  return `${PLAYER_ASSET_PUBLIC_BASE}/${bundleId}/battle/${facing}.png`;
+}
+
+export function resolvePlayerSkinBundleBattleFacingCandidates(
+  bundleId: PlayerSkinBundleId = DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  facing: 'east' | 'west',
+): readonly string[] {
+  const flipFacing = facing === 'east' ? 'west' : 'east';
+  const urls: string[] = [
+    resolvePlayerSkinBundleRotationUrl(bundleId, facing),
+    resolvePlayerSkinBundleRotationUrl(bundleId, flipFacing),
+    resolvePlayerSkinBundleRotationUrl(bundleId, 'south'),
+    // Estrutura futura — só depois do mundo, para não “ganhar” soft-404 HTML.
+    resolvePlayerSkinBundleBattleFacingUrl(bundleId, facing),
+  ];
+  if (bundleId !== DEFAULT_PLAYER_SKIN_BUNDLE_ID) {
+    urls.push(
+      resolvePlayerSkinBundleRotationUrl(DEFAULT_PLAYER_SKIN_BUNDLE_ID, facing),
+      resolvePlayerSkinBundleRotationUrl(DEFAULT_PLAYER_SKIN_BUNDLE_ID, 'south'),
+      resolvePlayerSkinBundleBattleFacingUrl(DEFAULT_PLAYER_SKIN_BUNDLE_ID, facing),
+    );
+  }
+  const unique: string[] = [];
+  for (const url of urls) {
+    if (url && !unique.includes(url)) unique.push(url);
+  }
+  return unique;
+}

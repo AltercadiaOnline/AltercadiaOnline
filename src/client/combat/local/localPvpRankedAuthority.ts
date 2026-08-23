@@ -37,6 +37,11 @@ import {
 import { createPvpArenaBattleBootstrap } from '../../../server/combat/pvp/buildPvpArenaBattle.js';
 import { PvpCombatSession } from '../../../server/combat/pvp/PvpCombatSession.js';
 import { applyPvpRankedRatingDelta } from '../../../server/combat/pvp/pvpRankedRating.js';
+import { resolvePvpBattleProgressionGrant } from '../../../shared/progression/battleProgressionGrant.js';
+import { getMutableDataStore } from '../../PlayerDataStore.js';
+import { getPlayerProgressionStore } from '../../progression/playerProgressionStore.js';
+import { ensureMovesetMasteryForClass } from '../../../shared/progression/movesetMasterySeed.js';
+import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore.js';
 import {
   lockQueuedPvpRankedStake,
   refundPvpRankedStakeMembers,
@@ -453,15 +458,40 @@ async function deliverPracticePayload(
   const rankingResult = applyPvpRankedRatingDelta(playerId, characterId, victory);
   const endReason = forcedForfeit ? 'FORFEIT' as const : victory ? 'VICTORY' as const : 'DEFEAT' as const;
 
+  const selfLevel = Math.max(1, getMutableDataStore().getCharacterLevel().level);
+  const botId = practiceSession.getBotActorId();
+  const botLevel = Math.max(1, Math.floor(payload.state.combatants[botId]?.level ?? selfLevel));
+  const classId = getPlayerEquipmentStore().getSnapshot().classId;
+  const movesetMastery = ensureMovesetMasteryForClass(
+    getPlayerProgressionStore().getSnapshot().movesetMastery,
+    classId,
+  );
+  const progressionGrant = forcedForfeit
+    ? undefined
+    : (() => {
+        const grant = resolvePvpBattleProgressionGrant({
+          victory,
+          endReason,
+          selfLevel,
+          opponentLevel: botLevel,
+          movesUsedInBattle: [],
+          characterLevel: selfLevel,
+          movesetMastery,
+        });
+        return grant.totalBattleXp > 0 ? grant : undefined;
+      })();
+  const xpGain = progressionGrant?.totalBattleXp ?? 0;
+
   const finishedPayload: CombatFinishedPayload = {
     battleId: payload.state.battleId,
     victory,
-    xpGain: 0,
+    xpGain,
     loot: null,
     lootReveal: buildEmptyLootRevealSlots(),
     battleType: BattleType.PVP,
     endReason,
     rankingResult,
+    ...(progressionGrant ? { progressionGrant } : {}),
   };
 
   const enriched: CombatDispatchPayload = {
@@ -483,6 +513,7 @@ async function deliverPracticePayload(
     endReason,
     battleType: BattleType.PVP,
     rankingResult,
+    ...(xpGain > 0 ? { xpGain } : {}),
   });
 
   const stakeVolts = practiceStakeVolts;

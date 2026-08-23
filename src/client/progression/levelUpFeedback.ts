@@ -1,5 +1,6 @@
 import { postGameChatMessage } from '../ui/gameChat.js';
 import type { CharacterXpSource } from '../../shared/character/characterLevelTypes.js';
+import { STAT_POINTS_PER_LEVEL } from '../../shared/character/characterStatPoints.js';
 
 export type LevelUpFeedbackPayload = {
   readonly previousLevel: number;
@@ -9,10 +10,11 @@ export type LevelUpFeedbackPayload = {
 };
 
 function resolveLevelUpMessage(payload: LevelUpFeedbackPayload): string {
+  const points = payload.levelsGained * STAT_POINTS_PER_LEVEL;
   if (payload.levelsGained > 1) {
-    return `Subiu para o nível ${payload.newLevel}! (+${payload.levelsGained} níveis)`;
+    return `Subiu para o nível ${payload.newLevel}! +${points} pontos — abra a Ficha.`;
   }
-  return `Subiu para o nível ${payload.newLevel}!`;
+  return `Subiu para o nível ${payload.newLevel}! +${points} pontos — abra a Ficha.`;
 }
 
 /** SFX opcional — elemento `#sfx-level-up` no DOM, se existir. */

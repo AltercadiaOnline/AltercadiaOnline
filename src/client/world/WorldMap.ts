@@ -18,6 +18,7 @@ import type { WorldDepthDrawable } from '../../shared/world/worldDepthSort.js';
 
 import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
 import { listZone1CreatureIds } from '../../shared/world/zone1CreatureRegistry.js';
+import { listZone1TopDownCreatureIds } from '../../shared/assets/zone1TopDownCreatureAssets.js';
 
 import { InteractiveEntity, type InteractiveEntityProps } from './InteractiveEntity.js';
 
@@ -157,11 +158,13 @@ export class WorldMap {
     );
 
     const creatureIds: string[] = entries.map((entry) => entry.creatureId);
-    // Sprites Zone1 só na farm (ou quando já há spawns no mapa) — cidade fica leve.
     if (mapId === FARM_ZONE_01_ID) {
       for (const id of listZone1CreatureIds()) {
         if (!creatureIds.includes(id)) creatureIds.push(id);
       }
+    }
+    for (const id of listZone1TopDownCreatureIds()) {
+      if (!creatureIds.includes(id)) creatureIds.push(id);
     }
     preloadCreatureWorldSprites(creatureIds);
 

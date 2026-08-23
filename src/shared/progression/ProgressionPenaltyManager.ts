@@ -86,20 +86,17 @@ export function applyDeathPenalty(player: PlayerProgressionPenaltyInput): DeathP
     nextMastery[movesetId] = after;
   }
 
-  const milestoneBefore = clampProgress(player.milestoneTotalProgress);
-  const milestoneAfter = applyRatioLoss(milestoneBefore, DEATH_PENALTY_MILESTONE_LOSS_RATIO);
-  const milestoneProgressRemoved = roundProgress(milestoneBefore - milestoneAfter);
-
+  // Medidor de marco legado desativado — não remove progresso meta.
   return {
     applied: true,
     player: {
       level: player.level,
       xpCurrent: nextXp,
       movesetMastery: nextMastery,
-      milestoneTotalProgress: milestoneAfter,
+      milestoneTotalProgress: clampProgress(player.milestoneTotalProgress),
     },
     xpRemoved,
     masteryRemoved,
-    milestoneProgressRemoved,
+    milestoneProgressRemoved: 0,
   };
 }

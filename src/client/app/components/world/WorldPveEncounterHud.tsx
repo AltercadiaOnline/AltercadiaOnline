@@ -66,7 +66,7 @@ export function WorldPveEncounterHud(): ReactElement | null {
         className="pointer-events-none absolute left-1/2 top-1/2 z-[40] w-[min(345px,92%)] -translate-x-1/2 -translate-y-1/2"
         data-ui-surface="pve-encounter-toast"
       >
-        <div className="rounded-md border border-alter-border bg-alter-panel/95 px-3.5 py-2.5 text-center text-[11.5px] tracking-wide text-white/80 shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+        <div className="pve-encounter-hud pve-encounter-hud--toast hud-overlay-card ui-skin-hybrid">
           {lastFleeMessage}
         </div>
       </div>
@@ -105,25 +105,21 @@ export function WorldPveEncounterHud(): ReactElement | null {
       role="dialog"
       aria-label={`Encontro com ${offer.name}`}
     >
-      <div className="rounded-md border border-alter-border bg-alter-panel/95 px-3.5 py-3.5 shadow-[0_10px_28px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-        <div className="text-center text-[11.5px] uppercase tracking-[0.18em] text-alter-accent">
-          Criatura selvagem
-        </div>
-        <div className="mt-1.5 text-center text-[16px] font-medium tracking-wide text-white">
-          {offer.name}
-        </div>
-        <p className="mt-1.5 text-center text-[11.5px] leading-snug text-white/55">
+      <div className="pve-encounter-hud hud-overlay-card ui-skin-hybrid">
+        <p className="pve-encounter-hud__kicker">Criatura selvagem</p>
+        <p className="pve-encounter-hud__title">{offer.name}</p>
+        <p className="pve-encounter-hud__hint">
           Aceitar a batalha ou tentar fugir (50% de chance).
         </p>
         {remainingSec !== null ? (
-          <p className="mt-1.5 text-center text-[11.5px] tracking-wide text-white/40">
+          <p className="pve-encounter-hud__hint">
             Sem decisão: {remainingSec}s — próximo encontro será obrigatório
           </p>
         ) : null}
-        <div className="mt-3.5 flex gap-2.5">
+        <div className="pve-encounter-hud__actions">
           <button
             type="button"
-            className="flex-1 rounded border border-alter-accent/60 bg-alter-accent/20 px-2.5 py-2.5 text-[12.5px] font-medium tracking-wide text-alter-accent transition hover:bg-alter-accent/30 disabled:opacity-50"
+            className="pve-encounter-hud__accept"
             disabled={busy}
             aria-busy={busy}
             onClick={onAccept}
@@ -132,7 +128,7 @@ export function WorldPveEncounterHud(): ReactElement | null {
           </button>
           <button
             type="button"
-            className="flex-1 rounded border border-white/20 bg-black/35 px-2.5 py-2.5 text-[12.5px] tracking-wide text-white/85 transition hover:bg-black/50 disabled:opacity-50"
+            className="pve-encounter-hud__refuse"
             disabled={busy}
             aria-busy={busy}
             onClick={onFlee}

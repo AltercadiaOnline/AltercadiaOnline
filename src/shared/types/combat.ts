@@ -142,6 +142,9 @@ export type CombatStatSources = {
   readonly marcoCritPercent: number;
   readonly marcoDodgePercent: number;
   readonly marcoDamageReductionPercent: number;
+  /** Flat da Ficha — depois dos % de SET (1 ponto = +1 no plano). */
+  readonly allocatedAttackFlat?: number;
+  readonly allocatedDefenseFlat?: number;
 };
 
 export type CombatClassId = 'IMPETUS' | 'COGITOR' | 'TUTATOR' | 'DISSOLUTUS';
@@ -220,6 +223,11 @@ export interface Combatant {
   readonly combatStats?: CombatantCombatStats;
   readonly combatStatSources?: CombatStatSources;
   readonly marcoCombatFlags?: MarcoCombatFlags;
+  /**
+   * Bundle visual do personagem — arena PvP espelha o mundo.
+   * Futuro: pasta `battle/` por skin; hoje usa rotations do mapa.
+   */
+  readonly skinBundleId?: string;
 }
 
 export interface CombatState {

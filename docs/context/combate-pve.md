@@ -18,11 +18,11 @@ Sessão vs criatura. Motor / HUD: [combate.md](combate.md). Itens/moeda depois d
 
 | Canal | Quando | Se sair sem ação |
 |-------|--------|------------------|
-| XP / marcos progressão | automático na vitória PVE | já no perfil |
+| XP / domínio | automático na vitória PVE | já no perfil |
 | Loot cassino | só após **Coletar** | perde (`dismissBattleLootOnServer`) |
 | Loot vazio | botão Recompensas ainda existe | anima “nenhum drop” |
 
-Marcos de árvore (habilidade) ≠ loot. Trilha lenta: [progressao-pets-quests.md](progressao-pets-quests.md).
+Árvore de marcos: libera por **nível do personagem** + clique (sem medidor `milestoneTotalProgress`). Trilha: [progressao-pets-quests.md](progressao-pets-quests.md). PvP: [combate-pvp.md](combate-pvp.md).
 
 ## Proibido
 

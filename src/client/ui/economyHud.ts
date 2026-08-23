@@ -12,11 +12,10 @@ import { getPendingIntentRegistry } from '../sync/pendingIntentRegistry.js';
 import { scheduleInventoryUpdatedPayload } from '../game/PlayerItemSession.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
 import { getGameStore } from '../state/GameStore.js';
-import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
-import { getPlayerEquipmentStore } from '../ui/equipment/playerEquipmentStore.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getPlayerSkinStore } from '../ui/character/playerSkinStore.js';
 import { applyMarketplaceOrderBookSnapshot } from '../ui/market/marketplaceOrderBookClient.js';
+import { applyAuthoritativeWorldVitals } from '../world/applyAuthoritativeWorldVitals.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 export function formatDollarVolt(amount: number): string {
   return formatVolts(amount);
@@ -134,13 +133,7 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
   }
 
   if (event.type === EconomyEventType.WorldVitalsUpdated) {
-    getGlobalPlayerStore().applyWorldVitals(event.payload.vitals);
-    getPlayerEquipmentStore().setVitals({
-      hpCurrent: event.payload.vitals.hpCurrent,
-      hpMax: event.payload.vitals.hpMax,
-      mpCurrent: event.payload.vitals.mpCurrent,
-      mpMax: event.payload.vitals.mpMax,
-    });
+    applyAuthoritativeWorldVitals(event.payload.vitals);
     if (event.payload.intentId) {
       dispatcher.confirmIntent(event.payload.intentId);
     }

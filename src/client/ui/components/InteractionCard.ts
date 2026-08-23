@@ -30,7 +30,8 @@ type InteractionCardButton = {
 };
 
 /**
- * Card de ações por clique duplo — NPC (âncora no alvo) ou jogador (HUD móvel).
+ * Card de ações — NPC (duplo esquerdo / direito) ou âncora de navegação.
+ * Ficha de jogador no mundo = botão direito (`PlayerInspectHud`), não este card.
  */
 export class InteractionCard {
   private readonly root: HTMLDivElement;
@@ -54,7 +55,7 @@ export class InteractionCard {
 
     this.root = document.createElement('div');
     this.root.id = 'interaction-card';
-    this.root.className = 'interaction-card hidden';
+    this.root.className = 'interaction-card ui-skin-hybrid hidden';
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-live', 'polite');
 
@@ -227,7 +228,6 @@ export class InteractionCard {
   private buildPlayerButtons(): InteractionCardButton[] {
     return [
       { action: 'trade', label: 'Trade' },
-      { action: 'duel', label: 'Desafiar' },
       { action: 'follow', label: 'Seguir' },
     ];
   }
@@ -239,7 +239,7 @@ export class InteractionCard {
     if (targetType === TargetType.NPC && (action === 'talk' || action === 'buy')) {
       return { targetType: TargetType.NPC, action };
     }
-    if (targetType === TargetType.PLAYER && (action === 'duel' || action === 'trade' || action === 'follow')) {
+    if (targetType === TargetType.PLAYER && (action === 'trade' || action === 'follow')) {
       return { targetType: TargetType.PLAYER, action };
     }
     return null;

@@ -55,7 +55,7 @@ export function WorldTournamentBetPanel({
       title={pulpit.pulpitName}
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--tournament-bet ui-panel--tournament-bet"
+      panelClassName="world-panel--tournament-bet ui-panel--tournament-bet ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(480px, 96vw)' }}
       onFocus={() => tryFocusReactWorldPanel('tournamentBet')}
       onClose={() => tryCloseReactWorldPanel('tournamentBet')}

@@ -91,12 +91,16 @@ export function syncBattleHudVitalsFromState(state: CombatState, ui: CombatUiHin
   const opponent = opponentId ? state.combatants[opponentId] : null;
   const enemyIds = listPveEnemyActorIds(state.combatants);
   const packSize = enemyIds.length;
-  const opponents = enemyIds.flatMap((actorId, index) => {
+  const pveOpponents = enemyIds.flatMap((actorId, index) => {
     const combatant = state.combatants[actorId];
     if (!combatant) return [];
     const packLabel = packSize > 1 ? `${combatant.name} ${index + 1}` : combatant.name;
     return [buildFighterSnapshot(actorId, combatant, state.turn, packLabel)];
   });
+  const pvpOpponent = opponentId && opponent && pveOpponents.length === 0
+    ? [buildFighterSnapshot(opponentId, opponent, state.turn)]
+    : [];
+  const opponents = pveOpponents.length > 0 ? pveOpponents : pvpOpponent;
   const primary = opponentId && opponent
     ? opponents.find((entry) => entry.actorId === opponentId)
       ?? buildFighterSnapshot(opponentId, opponent, state.turn)

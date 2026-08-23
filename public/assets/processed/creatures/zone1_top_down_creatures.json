@@ -1,8 +1,168 @@
 {
   "frames": {
-    "corvo__corvo_topdown_test__rotations__east": {
+    "agente_vortex__agente_vortex_topdown__rotations__east": {
       "frame": {
         "x": 2,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "agente_vortex__agente_vortex_topdown__rotations__north-east": {
+      "frame": {
+        "x": 72,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "agente_vortex__agente_vortex_topdown__rotations__north-west": {
+      "frame": {
+        "x": 142,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "agente_vortex__agente_vortex_topdown__rotations__north": {
+      "frame": {
+        "x": 212,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "agente_vortex__agente_vortex_topdown__rotations__south-east": {
+      "frame": {
+        "x": 282,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "agente_vortex__agente_vortex_topdown__rotations__south-west": {
+      "frame": {
+        "x": 352,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "agente_vortex__agente_vortex_topdown__rotations__south": {
+      "frame": {
+        "x": 422,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "agente_vortex__agente_vortex_topdown__rotations__west": {
+      "frame": {
+        "x": 492,
+        "y": 2,
+        "w": 68,
+        "h": 68
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "sourceSize": {
+        "w": 68,
+        "h": 68
+      }
+    },
+    "corvo__corvo_topdown_test__rotations__east": {
+      "frame": {
+        "x": 562,
         "y": 2,
         "w": 60,
         "h": 60
@@ -22,7 +182,7 @@
     },
     "corvo__corvo_topdown_test__rotations__north-east": {
       "frame": {
-        "x": 64,
+        "x": 624,
         "y": 2,
         "w": 60,
         "h": 60
@@ -42,7 +202,7 @@
     },
     "corvo__corvo_topdown_test__rotations__north-west": {
       "frame": {
-        "x": 126,
+        "x": 686,
         "y": 2,
         "w": 60,
         "h": 60
@@ -62,7 +222,7 @@
     },
     "corvo__corvo_topdown_test__rotations__north": {
       "frame": {
-        "x": 188,
+        "x": 748,
         "y": 2,
         "w": 60,
         "h": 60
@@ -82,7 +242,7 @@
     },
     "corvo__corvo_topdown_test__rotations__south-east": {
       "frame": {
-        "x": 250,
+        "x": 810,
         "y": 2,
         "w": 60,
         "h": 60
@@ -102,7 +262,7 @@
     },
     "corvo__corvo_topdown_test__rotations__south-west": {
       "frame": {
-        "x": 312,
+        "x": 872,
         "y": 2,
         "w": 60,
         "h": 60
@@ -122,7 +282,7 @@
     },
     "corvo__corvo_topdown_test__rotations__south": {
       "frame": {
-        "x": 374,
+        "x": 934,
         "y": 2,
         "w": 60,
         "h": 60
@@ -142,7 +302,7 @@
     },
     "corvo__corvo_topdown_test__rotations__west": {
       "frame": {
-        "x": 436,
+        "x": 996,
         "y": 2,
         "w": 60,
         "h": 60
@@ -162,7 +322,7 @@
     },
     "morcego__morcego_topdown_test__rotations__east": {
       "frame": {
-        "x": 498,
+        "x": 1058,
         "y": 2,
         "w": 60,
         "h": 60
@@ -182,7 +342,7 @@
     },
     "morcego__morcego_topdown_test__rotations__north-east": {
       "frame": {
-        "x": 560,
+        "x": 1120,
         "y": 2,
         "w": 60,
         "h": 60
@@ -202,7 +362,7 @@
     },
     "morcego__morcego_topdown_test__rotations__north-west": {
       "frame": {
-        "x": 622,
+        "x": 1182,
         "y": 2,
         "w": 60,
         "h": 60
@@ -222,7 +382,7 @@
     },
     "morcego__morcego_topdown_test__rotations__north": {
       "frame": {
-        "x": 684,
+        "x": 1244,
         "y": 2,
         "w": 60,
         "h": 60
@@ -242,7 +402,7 @@
     },
     "morcego__morcego_topdown_test__rotations__south-east": {
       "frame": {
-        "x": 746,
+        "x": 1306,
         "y": 2,
         "w": 60,
         "h": 60
@@ -262,7 +422,7 @@
     },
     "morcego__morcego_topdown_test__rotations__south-west": {
       "frame": {
-        "x": 808,
+        "x": 1368,
         "y": 2,
         "w": 60,
         "h": 60
@@ -282,7 +442,7 @@
     },
     "morcego__morcego_topdown_test__rotations__south": {
       "frame": {
-        "x": 870,
+        "x": 1430,
         "y": 2,
         "w": 60,
         "h": 60
@@ -302,7 +462,7 @@
     },
     "morcego__morcego_topdown_test__rotations__west": {
       "frame": {
-        "x": 932,
+        "x": 1492,
         "y": 2,
         "w": 60,
         "h": 60
@@ -322,7 +482,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__east": {
       "frame": {
-        "x": 994,
+        "x": 1554,
         "y": 2,
         "w": 56,
         "h": 56
@@ -342,7 +502,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__north-east": {
       "frame": {
-        "x": 1052,
+        "x": 1612,
         "y": 2,
         "w": 56,
         "h": 56
@@ -362,7 +522,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__north-west": {
       "frame": {
-        "x": 1110,
+        "x": 1670,
         "y": 2,
         "w": 56,
         "h": 56
@@ -382,7 +542,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__north": {
       "frame": {
-        "x": 1168,
+        "x": 1728,
         "y": 2,
         "w": 56,
         "h": 56
@@ -402,7 +562,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__south-east": {
       "frame": {
-        "x": 1226,
+        "x": 1786,
         "y": 2,
         "w": 56,
         "h": 56
@@ -422,7 +582,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__south-west": {
       "frame": {
-        "x": 1284,
+        "x": 1844,
         "y": 2,
         "w": 56,
         "h": 56
@@ -442,7 +602,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__south": {
       "frame": {
-        "x": 1342,
+        "x": 1902,
         "y": 2,
         "w": 56,
         "h": 56
@@ -462,7 +622,7 @@
     },
     "aranha__aranha_topdown_test__Top-down_2d_game_character_sprite__rotations__west": {
       "frame": {
-        "x": 1400,
+        "x": 1960,
         "y": 2,
         "w": 56,
         "h": 56
@@ -482,8 +642,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__east": {
       "frame": {
-        "x": 1458,
-        "y": 2,
+        "x": 2,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -502,8 +662,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__north-east": {
       "frame": {
-        "x": 1508,
-        "y": 2,
+        "x": 52,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -522,8 +682,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__north-west": {
       "frame": {
-        "x": 1558,
-        "y": 2,
+        "x": 102,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -542,8 +702,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__north": {
       "frame": {
-        "x": 1608,
-        "y": 2,
+        "x": 152,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -562,8 +722,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__south-east": {
       "frame": {
-        "x": 1658,
-        "y": 2,
+        "x": 202,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -582,8 +742,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__south-west": {
       "frame": {
-        "x": 1708,
-        "y": 2,
+        "x": 252,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -602,8 +762,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__south": {
       "frame": {
-        "x": 1758,
-        "y": 2,
+        "x": 302,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -622,8 +782,8 @@
     },
     "cao_selvagem__cachorro_topdown_test__rotations__west": {
       "frame": {
-        "x": 1808,
-        "y": 2,
+        "x": 352,
+        "y": 72,
         "w": 48,
         "h": 48
       },
@@ -642,8 +802,8 @@
     },
     "rato__rato_topdown__rotations__east": {
       "frame": {
-        "x": 1858,
-        "y": 2,
+        "x": 402,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -662,8 +822,8 @@
     },
     "rato__rato_topdown__rotations__north-east": {
       "frame": {
-        "x": 1896,
-        "y": 2,
+        "x": 440,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -682,8 +842,8 @@
     },
     "rato__rato_topdown__rotations__north-west": {
       "frame": {
-        "x": 1934,
-        "y": 2,
+        "x": 478,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -702,8 +862,8 @@
     },
     "rato__rato_topdown__rotations__north": {
       "frame": {
-        "x": 1972,
-        "y": 2,
+        "x": 516,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -722,8 +882,8 @@
     },
     "rato__rato_topdown__rotations__south-east": {
       "frame": {
-        "x": 2,
-        "y": 64,
+        "x": 554,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -742,8 +902,8 @@
     },
     "rato__rato_topdown__rotations__south-west": {
       "frame": {
-        "x": 40,
-        "y": 64,
+        "x": 592,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -762,8 +922,8 @@
     },
     "rato__rato_topdown__rotations__south": {
       "frame": {
-        "x": 78,
-        "y": 64,
+        "x": 630,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -782,8 +942,8 @@
     },
     "rato__rato_topdown__rotations__west": {
       "frame": {
-        "x": 116,
-        "y": 64,
+        "x": 668,
+        "y": 72,
         "w": 36,
         "h": 36
       },
@@ -807,8 +967,8 @@
     "image": "zone1_top_down_creatures.png",
     "format": "RGBA8888",
     "size": {
-      "w": 2012,
-      "h": 104
+      "w": 2020,
+      "h": 124
     },
     "scale": "1"
   }

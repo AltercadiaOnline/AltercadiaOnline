@@ -11,15 +11,23 @@ export function WorldQuestPanel({ zIndex, focused }: WorldQuestPanelProps) {
   return (
     <MovablePanelFrame
       windowId="quest"
-      title="Quadro de Agente"
+      title="Contratos"
+      titleMeta="// AGENTE //"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="ui-panel--quest"
-      panelStyle={{ width: 'min(420px, 94vw)', maxHeight: 'min(520px, 88vh)' }}
+      bodyOverflow="auto"
+      panelClassName="ui-panel--quest ui-panel--quest-hybrid ui-panel--npc-hybrid ui-skin-hybrid"
+      panelStyle={{
+        width: 'min(360px, 92vw)',
+        height: 'auto',
+        maxHeight: 'min(380px, 72vh)',
+      }}
       onFocus={() => tryFocusReactWorldPanel('quest')}
       onClose={() => tryCloseReactWorldPanel('quest')}
     >
-      <MercenaryQuestBoard />
+      <div className="quest-contracts-hud">
+        <MercenaryQuestBoard />
+      </div>
     </MovablePanelFrame>
   );
 }

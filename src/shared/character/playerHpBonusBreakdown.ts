@@ -5,7 +5,7 @@ import {
 } from '../items/itemCatalog.js';
 import { ItemBuffType } from '../items/itemTypes.js';
 import type { EquippedSlots } from './equipmentState.js';
-import { computePlayerHpMax, PLAYER_HP_PER_LEVEL, resolvePlayerBaseHpForLevel } from './playerVitals.js';
+import { computePlayerHpMax, resolveAllocatedHpFlat, resolvePlayerBaseHpForLevel } from './playerVitals.js';
 
 /** Uma fonte de bônus de vida — sempre percentual sobre a base. */
 export type PlayerHpBonusLine = {
@@ -15,6 +15,7 @@ export type PlayerHpBonusLine = {
 
 export type PlayerHpBonusBreakdown = {
   readonly baseHp: number;
+  readonly allocatedHpFlat: number;
   readonly totalBonusPercent: number;
   readonly hpMax: number;
   readonly lines: readonly PlayerHpBonusLine[];
@@ -49,6 +50,7 @@ function pushLine(
 export function resolvePlayerHpBonusBreakdownFromEquipped(
   equipped: EquippedSlots,
   level = 1,
+  allocatedHpPoints = 0,
 ): PlayerHpBonusBreakdown {
   const lines: PlayerHpBonusLine[] = [];
 
@@ -90,11 +92,12 @@ export function resolvePlayerHpBonusBreakdownFromEquipped(
   }
 
   const totalBonusPercent = lines.reduce((sum, line) => sum + line.percent, 0);
-  const baseHp = resolvePlayerBaseHpForLevel(level);
+  const baseHp = resolvePlayerBaseHpForLevel(level, allocatedHpPoints);
   return {
     baseHp,
+    allocatedHpFlat: resolveAllocatedHpFlat(allocatedHpPoints),
     totalBonusPercent,
-    hpMax: computePlayerHpMax(level, totalBonusPercent),
+    hpMax: computePlayerHpMax(level, totalBonusPercent, allocatedHpPoints),
     lines,
   };
 }
@@ -104,6 +107,9 @@ export function formatPlayerHpBonusTooltipLines(
   breakdown: PlayerHpBonusBreakdown,
 ): readonly string[] {
   const out: string[] = [`Base: ${breakdown.baseHp} HP`];
+  if (breakdown.allocatedHpFlat > 0) {
+    out.push(`+${breakdown.allocatedHpFlat} HP — Pontos da Ficha`);
+  }
 
   if (breakdown.lines.length === 0) {
     out.push('Sem bônus de vida ativos.');

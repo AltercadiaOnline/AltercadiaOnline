@@ -133,6 +133,14 @@ export function buildAttackBreakdownLines(
   appendBuffLines(lines, 'livro', sources.bookByBuff, strikeBase, 'attack', scalingStat);
   appendBuffLines(lines, 'runa', sources.runeByBuff, strikeBase, 'attack', scalingStat);
   appendMarcosLines(lines, sources, strikeBase, 'attack', scalingStat);
+  if (sources.allocatedAttackFlat && sources.allocatedAttackFlat > 0) {
+    lines.push({
+      source: 'ficha',
+      percent: 0,
+      value: Math.max(0, Math.floor(sources.allocatedAttackFlat)),
+      includeInTotal: true,
+    });
+  }
 
   return { kind: 'attack', lines };
 }
@@ -154,6 +162,15 @@ export function buildDefenseBreakdownLines(
   appendBuffLines(lines, 'livro', sources.bookByBuff, gearDefBase, 'defense');
   appendBuffLines(lines, 'runa', sources.runeByBuff, gearDefBase, 'defense');
   appendMarcosLines(lines, sources, classDef, 'defense');
+
+  if (sources.allocatedDefenseFlat && sources.allocatedDefenseFlat > 0) {
+    lines.push({
+      source: 'ficha',
+      percent: 0,
+      value: Math.max(0, Math.floor(sources.allocatedDefenseFlat)),
+      includeInTotal: true,
+    });
+  }
 
   return { kind: 'defense', lines };
 }

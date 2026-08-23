@@ -6,7 +6,8 @@ export const TRADE_OFFER_SET_ACTION = 'TRADE_OFFER_SET' as const;
 export const TRADE_LOCK_ACTION = 'TRADE_LOCK' as const;
 export const TRADE_CANCEL_ACTION = 'TRADE_CANCEL' as const;
 
-export const TRADE_SLOT_COUNT = 4;
+/** Mesa presencial 1×1 — um item por lado. */
+export const TRADE_SLOT_COUNT = 1;
 
 export const TradePhase = {
   Pending: 'pending',

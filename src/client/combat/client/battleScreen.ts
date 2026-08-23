@@ -28,6 +28,8 @@ import { resolveBattleOpponentActorId } from '../../../shared/combat/resolveBatt
 import { listPveEnemyActorIds } from '../../../shared/combat/pveEncounterPack.js';
 import { resolveCreatureIdFromActorId } from '../../../shared/combat/MonsterCatalog.js';
 import { resolveCombatantHp } from '../../../shared/pet/petCombatRules.js';
+import { BattleType } from '../../../shared/combat/battleType.js';
+import { getActivePlayerSkinBundleId } from '../../entities/player/activePlayerSkinBundle.js';
 
 export type BattleScreenElements = {
   readonly playerPortrait?: HTMLElement | null;
@@ -88,7 +90,7 @@ export class BattleScreen {
     } catch (error) {
       console.warn('[BattleScreen] Falha ao publicar frame da arena:', error);
     }
-    this.bindArenaFoePack(state);
+    this.bindArenaFighters(state);
     this.syncArenaFoeDefeat(state);
     void getBattleArenaCanvas()?.bindPet(resolveBattleArenaPetKindId());
   }
@@ -96,6 +98,17 @@ export class BattleScreen {
   private syncArenaFoeDefeat(state: CombatState): void {
     const canvas = getBattleArenaCanvas();
     if (!canvas || typeof canvas.syncFoeDefeat !== 'function') return;
+    if (state.battleType === BattleType.PVP) {
+      const opponentId = this.boundOpponentId;
+      if (!opponentId) return;
+      const combatant = state.combatants[opponentId];
+      if (!combatant) return;
+      canvas.syncFoeDefeat([{
+        actorId: opponentId,
+        defeated: resolveCombatantHp(combatant) <= 0,
+      }]);
+      return;
+    }
     const enemyIds = listPveEnemyActorIds(state.combatants);
     if (enemyIds.length === 0) return;
     canvas.syncFoeDefeat(enemyIds.map((actorId) => ({
@@ -104,9 +117,60 @@ export class BattleScreen {
     })));
   }
 
-  private bindArenaFoePack(state: CombatState): void {
+  private bindArenaFighters(state: CombatState): void {
     const canvas = getBattleArenaCanvas();
-    if (!canvas || typeof canvas.bindCreaturePack !== 'function') return;
+    if (!canvas) return;
+
+    if (state.battleType === BattleType.PVP) {
+      const player = state.combatants[this.lastPlayerActorId ?? ''];
+      const opponentId = this.boundOpponentId;
+      const opponent = opponentId ? state.combatants[opponentId] : null;
+      if (!player || !opponent || !opponentId) return;
+      if (typeof canvas.bindPvpDuel !== 'function') return;
+      const allySkinBundleId = player.skinBundleId ?? getActivePlayerSkinBundleId();
+      const foeSkinBundleId = opponent.skinBundleId ?? null;
+      const canvasKey = [
+        allySkinBundleId ?? '',
+        player.classId ?? '',
+        foeSkinBundleId ?? '',
+        opponent.classId ?? '',
+        opponentId,
+        player.name,
+        opponent.name,
+      ].join('|');
+      const packKey = `pvp:${this.lastPlayerActorId}:${opponentId}:${allySkinBundleId}:${foeSkinBundleId}:${player.classId}:${opponent.classId}`;
+      // Só skip se a arena realmente tem os dois sprites (mount PvP pode ter invalidado).
+      if (
+        this.boundPackKey === packKey
+        && typeof canvas.isPvpDuelBound === 'function'
+        && canvas.isPvpDuelBound(canvasKey)
+      ) {
+        return;
+      }
+      this.boundPackKey = packKey;
+      console.info('[BattleScreen][PvP] bindArenaFighters', {
+        playerActorId: this.lastPlayerActorId,
+        opponentId,
+        allyClassId: player.classId,
+        allySkinBundleId,
+        foeClassId: opponent.classId,
+        foeSkinBundleId,
+        allySkills: player.skills?.length ?? 0,
+        foeSkills: opponent.skills?.length ?? 0,
+      });
+      void canvas.bindPvpDuel({
+        allyClassId: player.classId,
+        allySkinBundleId,
+        allyLabel: player.name,
+        foeClassId: opponent.classId,
+        foeSkinBundleId,
+        foeLabel: opponent.name,
+        foeActorId: opponentId,
+      });
+      return;
+    }
+
+    if (typeof canvas.bindCreaturePack !== 'function') return;
     try {
       const enemyIds = listPveEnemyActorIds(state.combatants);
       if (enemyIds.length === 0) return;
@@ -207,6 +271,11 @@ export class BattleScreen {
     this.combatantVitals.clear();
     this.isSpawnFxRunning = false;
     this.clearSpawnInitializationFx();
+  }
+
+  /** Mount PvP / arena reset — próximo syncFromState deve chamar bindPvpDuel de novo. */
+  public invalidateArenaBind(): void {
+    this.boundPackKey = null;
   }
 
   public async playCombatExchange(sourceId: string, targetId: string): Promise<void> {

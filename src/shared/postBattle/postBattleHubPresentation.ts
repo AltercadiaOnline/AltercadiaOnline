@@ -16,6 +16,12 @@ export function resolvePostBattleTitleText(summary: PostBattleHubSummary): strin
 
 export function resolvePostBattleSubtitleText(summary: PostBattleHubSummary): string {
   if (summary.battleType === BattleType.PVP) {
+    const xp = summary.xpGain ?? 0;
+    if (xp > 0) {
+      return summary.victory
+        ? `Duelo encerrado. +${xp} XP de batalha (nível e domínio).`
+        : `Duelo encerrado. Consolação: +${xp} XP de batalha.`;
+    }
     return 'Duelo encerrado. O chat da arena permanece ativo — interaja antes de sair.';
   }
   if (summary.victory) {

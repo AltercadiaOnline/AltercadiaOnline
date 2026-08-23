@@ -10,6 +10,8 @@ import { getNpcDefinition } from '../../assets/npcs/npcDefinition.js';
 import { resolveNpcRegistryEntries } from './npcBuildingAnchorsResolver.js';
 import { resolveNpcGreeting } from './npcLoreCatalog.js';
 import { WORLD_TERMINAL_IDS } from './worldTerminalCatalog.js';
+import { ZONE_DOMAIN_TERMINAL_CATALOG } from './zoneDomainTerminals.js';
+import { CONSTRUCT_NPC_PLACEMENTS_GENERATED } from './constructNpcPlacements.generated.js';
 
 export { getNpcDefinition, resolveNpcSpriteImageUrl } from '../../assets/npcs/npcDefinition.js';
 
@@ -180,7 +182,7 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     mapId: CITY_01_ID,
     ...CONSTRUCT_POS,
     actionType: NpcActionType.OPEN_ARENA_COMPUTER,
-    dialogue: 'Computador da Arena — ranking PvP e hub da central.',
+    dialogue: 'Computador da Arena — placar e estrutura do PvP ranqueado (cidade 01).',
     dimensions: DESIGN_NPC_DIMENSIONS,
     featured: true,
   },
@@ -198,17 +200,37 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
   },
   {
     id: WORLD_TERMINAL_IDS.ZONE_1,
-    name: 'Computador Zona 1',
+    name: 'Terminal Zona 1 — Entrada',
     level: 1,
     sprite: 'terminal',
     mapId: FARM_ZONE_01_ID,
     ...CONSTRUCT_POS,
     actionType: NpcActionType.DIALOG,
-    dialogue: 'Terminal de domínio do Beco dos Fundos — bypass de subzona e mapa de quem está dominando.',
+    dialogue: 'Terminal de entrada do Beco — bypass para liberar Z1A.',
     dimensions: DESIGN_NPC_DIMENSIONS,
     featured: true,
     collidable: false,
   },
+  ...ZONE_DOMAIN_TERMINAL_CATALOG.filter(
+    (gate) =>
+      gate.terminalId !== WORLD_TERMINAL_IDS.ZONE_1
+      && Object.prototype.hasOwnProperty.call(CONSTRUCT_NPC_PLACEMENTS_GENERATED, gate.terminalId),
+  ).map(
+    (gate) =>
+      ({
+        id: gate.terminalId,
+        name: gate.label,
+        level: 1,
+        sprite: 'terminal',
+        mapId: FARM_ZONE_01_ID,
+        ...CONSTRUCT_POS,
+        actionType: NpcActionType.DIALOG,
+        dialogue: gate.dialogue,
+        dimensions: DESIGN_NPC_DIMENSIONS,
+        featured: true,
+        collidable: false,
+      }) as const,
+  ),
 ] as const;
 
 export const NPC_REGISTRY_WITH_LORE: readonly NpcRegistryEntry[] = NPC_REGISTRY.map(withLoreGreeting);

@@ -58,4 +58,10 @@ export type PlayerCombatLoadout = {
   worldVitals?: PlayerWorldVitals;
   /** Domínio acumulado por move — escala power/PP no combate. */
   movesetMastery?: Readonly<Record<string, number>>;
+  /** Pontos gastos na Ficha (ATK / DEF / Vida). */
+  allocatedAtk?: number;
+  allocatedDef?: number;
+  allocatedHp?: number;
+  /** Skin do personagem — arena PvP / futuros assets de batalha. */
+  skinBundleId?: string;
 };

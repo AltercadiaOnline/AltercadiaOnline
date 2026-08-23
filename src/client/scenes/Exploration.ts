@@ -94,6 +94,7 @@ import { getPlayerNametagAnchor, formatRemotePlayerNametag } from '../world/name
 import { buildRemoteCompanionRenderSnapshot } from '../world/remoteCompanionPose.js';
 import { getPetVisualBounds } from '../../shared/world/petEntity.js';
 import { syncWorldPlayerPicks, clearWorldPlayerPicks } from '../world/worldPlayerPickRegistry.js';
+import { remotePlayerEntityId } from '../world/remoteEntityInterpolator.js';
 import {
   bindInteractionCardController,
   InteractionCardController,
@@ -382,8 +383,8 @@ export class ExplorationScene implements Disposable {
       onWorldClick: (screenX, screenY, options) => {
         this.pointClickController.handleWorldClick(screenX, screenY, options);
       },
-      onWorldContextMenu: (screenX, screenY, clientX, clientY) => {
-        this.pointClickController.handleWorldContextMenu(screenX, screenY, clientX, clientY);
+      onWorldSecondaryClick: (screenX, screenY, clientX, clientY) => {
+        this.pointClickController.handleWorldSecondaryClick(screenX, screenY, clientX, clientY);
       },
     });
 
@@ -801,7 +802,7 @@ export class ExplorationScene implements Disposable {
 
     syncWorldPlayerPicks(
       snapshots.map((snap) => {
-        const display = displayById.get(snap.playerId);
+        const display = displayById.get(remotePlayerEntityId(snap.playerId, snap.characterId));
         return {
           playerId: snap.playerId,
           characterId: snap.characterId,
@@ -828,7 +829,7 @@ export class ExplorationScene implements Disposable {
         sampleRemoteEntitiesForRender(mapId as MapId).map((state) => [state.entityId, state] as const),
       );
       for (const snap of remoteSnapshots) {
-        const display = byPlayerId.get(snap.playerId);
+        const display = byPlayerId.get(remotePlayerEntityId(snap.playerId, snap.characterId));
         if (!display) continue;
         manager.registerEntity({
           playerId: snap.playerId,

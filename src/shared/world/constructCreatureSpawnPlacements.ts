@@ -4,7 +4,7 @@ import { constructMarkerToLogicalWorld } from './constructNpcPlacements.js';
 import { CONSTRUCT_ZONE1_CREATURE_SPAWNS_GENERATED } from './constructCreatureSpawnPlacements.generated.js';
 
 /** IDs de gameplay das criaturas Zona 1 (espelha ZONE1_ALLEY_CREATURES). */
-export type ConstructZone1CreatureId = 'rat' | 'crow' | 'wild_dog' | 'bat' | 'spider';
+export type ConstructZone1CreatureId = 'rat' | 'crow' | 'wild_dog' | 'bat' | 'spider' | 'vortex_agent';
 
 export const CONSTRUCT_SPAWN_MARKER_TO_CREATURE: Readonly<
   Record<string, ConstructZone1CreatureId>
@@ -14,6 +14,7 @@ export const CONSTRUCT_SPAWN_MARKER_TO_CREATURE: Readonly<
   spawn_cachorro: 'wild_dog',
   spawn_morcego: 'bat',
   spawn_aranha: 'spider',
+  spawn_agente_vortex: 'vortex_agent',
 };
 
 export type ConstructCreatureSpawnPlacement = {

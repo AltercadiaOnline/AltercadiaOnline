@@ -13,6 +13,7 @@
  */
 import { initializePlayerState } from './initializePlayerState.js';
 import { clearActiveCharacterIdentity } from '../character/activeCharacterIdentity.js';
+import { resetDataStore } from '../PlayerDataStore.js';
 
 import { resetPlayerDiaryStore } from '../ui/diary/playerDiaryStore.js';
 import { resetPetMemorialStore } from '../ui/pet/petMemorialStore.js';
@@ -44,7 +45,10 @@ import { resetBattleProgressionClientGuard } from '../progression/battleProgress
 
 import { resetWorldAssetImageCache } from '../world/worldAssetImageLoader.js';
 import { resetWorldSprayMirror } from '../world/worldSpraySyncBridge.js';
+import { clearRemoteEntitySyncBridge } from '../world/remoteEntitySyncBridge.js';
+import { clearWorldPlayerPicks } from '../world/worldPlayerPickRegistry.js';
 import { resetStaticNetworkMirror } from '../world/staticNetworkSyncBridge.js';
+import { resetZoneBypassSyncBridge } from '../world/zoneBypassSyncBridge.js';
 import { resetSprayInspectSession } from '../world/sprayInspectStore.js';
 import { resetPlayerInspectSession } from '../world/playerInspectStore.js';
 import { resetCasualDuelSession } from '../world/casualDuelStore.js';
@@ -68,6 +72,7 @@ export type PurgeClientGameSessionOptions = {
 /** Espelho de personagem — recriado do zero no próximo `full-state-sync`. */
 function purgeCharacterMirror(): void {
   initializePlayerState({ requestServerSync: false });
+  resetDataStore();
 
   clearAuthoritativeMarketplaceOffers();
   releasePlayerMarketStore();
@@ -89,7 +94,10 @@ function purgeSessionState(): void {
   resetMinimapState();
   resetClientZoneLoadState();
   resetWorldSprayMirror();
+  clearRemoteEntitySyncBridge();
+  clearWorldPlayerPicks();
   resetStaticNetworkMirror();
+  resetZoneBypassSyncBridge();
   resetSprayInspectSession();
   resetPlayerInspectSession();
   resetCasualDuelSession();

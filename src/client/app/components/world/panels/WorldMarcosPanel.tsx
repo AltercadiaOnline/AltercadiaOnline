@@ -33,9 +33,10 @@ export function WorldMarcosPanel({ zIndex, focused }: WorldMarcosPanelProps) {
     <MovablePanelFrame
       windowId="marcos"
       title="Habilidade Marcos"
+      titleMeta="// TRILHA //"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--marcos ui-panel--marcos ui-panel--movable !max-h-[min(640px,94vh)] !h-[min(640px,94vh)] !min-h-[min(560px,88vh)] !w-[min(580px,96vw)]"
+      panelClassName="world-panel--marcos ui-panel--marcos ui-panel--marcos-hybrid ui-panel--movable ui-skin-hybrid !max-h-[min(640px,94vh)] !h-[min(640px,94vh)] !min-h-[min(560px,88vh)] !w-[min(580px,96vw)]"
       panelStyle={{
         width: 'min(580px, 96vw)',
         height: 'min(640px, 94vh)',

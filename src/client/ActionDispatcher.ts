@@ -8,6 +8,7 @@ import type { RotatePlayerIntentPayload } from '../shared/world/movementIntent.j
 import type { IEconomyService } from './economy/IEconomyService.js';
 import { requestAlterToVoltsExchangeLocal } from './economy/walletExchangeClient.js';
 import { getMutableDataStore } from './PlayerDataStore.js';
+import { tryAllocateStatPoints } from '../shared/character/characterStatPoints.js';
 import {
   canApplyLocalGameplayMutations,
   isClientAuthoritativeVendorAction,
@@ -45,7 +46,10 @@ import { getMercenaryQuestStore } from './ui/quests/mercenaryQuestStore.js';
 import {
   abandonMercenaryQuest,
   acceptMercenaryQuest,
+  completeMercenaryQuest,
 } from '../shared/quests/mercenaryQuestProgress.js';
+import { getMercenaryQuestById } from '../shared/quests/mercenaryQuestCatalog.js';
+import { applyCharacterXpGain } from '../shared/character/characterLevelProgression.js';
 import { getPlayerProfileStore } from './ui/character/playerProfileStore.js';
 import { resolveMarcoChooseBlockedMessage } from '../shared/progression/milestoneTreeState.js';
 import { formatVolts } from '../shared/economy/premiumCurrency.js';
@@ -77,6 +81,7 @@ import type { MovePlayerIntentPayload } from '../shared/world/movementIntent.js'
 import { createIntentId } from '../shared/intent/clientIntent.js';
 import { resetUIIntentStore } from './ui/intent/uiIntentStore.js';
 import type { RefractionBoothCompletePayload } from '../shared/cityMinigames/refractionBoothTypes.js';
+import type { SubZoneTransitionId } from '../shared/types/zoneBypass.js';
 import { getGlobalMessageBus } from './net/GlobalMessageBus.js';
 
 /** Intenções emitidas pela UI — formato único type + payload. */
@@ -94,6 +99,10 @@ export type ClientAction =
         readonly count: number;
       }[];
     };
+  }
+  | {
+    readonly type: 'ALLOCATE_STAT_POINTS';
+    readonly payload: { readonly atk?: number; readonly def?: number; readonly hp?: number };
   }
   | { readonly type: 'DEPOSIT_ITEM'; readonly payload: { readonly itemId: string; readonly quantity?: number } }
   | { readonly type: 'WITHDRAW_ITEM'; readonly payload: { readonly itemId: string; readonly quantity?: number } }
@@ -132,6 +141,7 @@ export type ClientAction =
   }
   | { readonly type: 'ACCEPT_MERCENARY_TASK'; readonly payload: { readonly taskId: string } }
   | { readonly type: 'ABANDON_MERCENARY_TASK'; readonly payload: { readonly taskId?: string } }
+  | { readonly type: 'COMPLETE_MERCENARY_TASK'; readonly payload: { readonly taskId?: string } }
   | {
     readonly type: 'SELL_NPC_ITEM';
     readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
@@ -181,6 +191,14 @@ export type ClientAction =
   | {
     readonly type: 'REFRACTION_BOOTH_COMPLETE';
     readonly payload: RefractionBoothCompletePayload;
+  }
+  | {
+    readonly type: 'ZONE_BYPASS_INIT';
+    readonly payload: { readonly transitionId: SubZoneTransitionId };
+  }
+  | {
+    readonly type: 'ZONE_BYPASS_SUBMIT';
+    readonly payload: { readonly sessionId: string; readonly inputCode: string };
   }
   | {
     readonly type: 'CREATE_MARKET_LISTING';
@@ -554,7 +572,9 @@ export class ActionDispatcher {
 
     if (
       this.mode === 'online'
-      && (action.type === 'ACCEPT_MERCENARY_TASK' || action.type === 'ABANDON_MERCENARY_TASK')
+      && (action.type === 'ACCEPT_MERCENARY_TASK'
+        || action.type === 'ABANDON_MERCENARY_TASK'
+        || action.type === 'COMPLETE_MERCENARY_TASK')
     ) {
       return this.dispatchPending(action);
     }
@@ -612,11 +632,16 @@ export class ActionDispatcher {
       return this.dispatchPending(action);
     }
 
+    if (this.mode === 'online' && this.isZoneBypassAction(action)) {
+      return this.dispatchPending(action);
+    }
+
     if (
       this.mode === 'online'
       && (action.type === 'CHOOSE_MARCO'
         || action.type === 'SELECT_MARCO_BRANCH'
-        || action.type === 'RESET_MARCO_TRAIL')
+        || action.type === 'RESET_MARCO_TRAIL'
+        || action.type === 'ALLOCATE_STAT_POINTS')
     ) {
       return this.dispatchPending(action);
     }
@@ -795,6 +820,10 @@ export class ActionDispatcher {
       default:
         return false;
     }
+  }
+
+  private isZoneBypassAction(action: ClientAction): boolean {
+    return action.type === 'ZONE_BYPASS_INIT' || action.type === 'ZONE_BYPASS_SUBMIT';
   }
 
   private isDevCheatAction(action: ClientAction): boolean {
@@ -1101,6 +1130,17 @@ export class ActionDispatcher {
         dataStore.bumpRevision('marcosState');
         return { ok: true, status: 'applied' };
 
+      case 'ALLOCATE_STAT_POINTS': {
+        const current = dataStore.getCharacterStatPoints();
+        const result = tryAllocateStatPoints(dataStore.getCharacterLevel().level, current, action.payload);
+        if (!result.ok) {
+          return { ok: false, reason: result.reason };
+        }
+        dataStore.applyCharacterStatPoints(result.allocated);
+        refreshHudPlayerHpMax();
+        return { ok: true, status: 'applied' };
+      }
+
       case 'PROGRESS_MARCO':
         return { ok: false, reason: 'Progressão de Marcos requer validação do servidor.' };
 
@@ -1129,6 +1169,38 @@ export class ActionDispatcher {
         }
         getMercenaryQuestStore().applyAuthoritative(result.progress);
         alertSystem('Contrato abandonado.');
+        return { ok: true, status: 'applied' };
+      }
+
+      case 'COMPLETE_MERCENARY_TASK': {
+        const snapshot = getMercenaryQuestStore().getSnapshot();
+        const activeId = snapshot.activeQuestId;
+        if (!activeId) {
+          return { ok: false, reason: 'Nenhum contrato ativo para entregar.' };
+        }
+        const quest = getMercenaryQuestById(activeId);
+        if (!quest) {
+          return { ok: false, reason: 'Contrato inexistente no quadro.' };
+        }
+        const result = completeMercenaryQuest(snapshot, action.payload.taskId);
+        if (!result.ok) {
+          return { ok: false, reason: result.message };
+        }
+        const levelSnap = getPlayerProfileStore().getSnapshot();
+        const xpApplied = applyCharacterXpGain(
+          { level: levelSnap.level, xpCurrent: levelSnap.xpCurrent },
+          quest.rewardExp,
+        );
+        getMutableDataStore().applyCharacterLevelState(
+          xpApplied.level,
+          xpApplied.xpCurrent,
+          'server_sync',
+        );
+        if (quest.rewardVolts > 0) {
+          getPlayerWalletStore().creditVolts(quest.rewardVolts);
+        }
+        getMercenaryQuestStore().applyAuthoritative(result.progress);
+        alertSystem(`Contrato entregue: +${quest.rewardExp} XP · +${quest.rewardVolts} VOLTS`);
         return { ok: true, status: 'applied' };
       }
 
@@ -1235,6 +1307,10 @@ export class ActionDispatcher {
       case 'REFRACTION_BOOTH_START':
       case 'REFRACTION_BOOTH_COMPLETE':
         return { ok: false, reason: 'Estande de Refração requer servidor online.' };
+
+      case 'ZONE_BYPASS_INIT':
+      case 'ZONE_BYPASS_SUBMIT':
+        return { ok: false, reason: 'Terminal de domínio requer servidor online ou mock.' };
 
       case 'STAGE_BATTLE_LOOT':
       case 'COLLECT_BATTLE_LOOT':

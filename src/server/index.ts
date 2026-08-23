@@ -108,7 +108,8 @@ async function main(): Promise<void> {
     serverName: env.serverInstance.displayName,
     serverMaps: env.serverInstance.mapIds,
     persistence: persistence.mode,
-    dataDir: persistence.dataDir,
+    characterDataDir: persistence.characterDataDir,
+    worldDataDir: persistence.worldDataDir,
     clientDistOk: distCheck.ok,
     ...(distCheck.ok
       ? { clientArtifacts: [...CLIENT_DIST_ARTIFACTS] }
@@ -127,7 +128,9 @@ async function main(): Promise<void> {
     console.log(`  SERVER_ID    → ${env.serverInstance.id} (${env.serverInstance.displayName})`);
     console.log(`  Mapas shard  → ${env.serverInstance.mapIds.join(', ')}`);
     console.log(`  NODE_ENV     → ${env.nodeEnv}`);
-    console.log(`  Persistência → ${persistence.mode} (${persistence.dataDir})`);
+    console.log(
+      `  Persistência → ${persistence.mode} (conta ${persistence.characterDataDir} | mundo ${persistence.worldDataDir})`,
+    );
     console.log('  Supabase API → conectado (service_role validado no bootstrap)');
     console.log(
       `  Supabase Auth (browser) → ${supabaseReport.clientPublicConfigured ? 'configurado' : 'ANON_KEY ausente — login no browser indisponível'}`,

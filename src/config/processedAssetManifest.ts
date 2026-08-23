@@ -26,7 +26,7 @@ export const PROCESSED_SPRITE_ATLASES: readonly ProcessedSpriteAtlasEntry[] = [
   {
     "imageUrl": "/assets/processed/creatures/zone1_top_down_creatures.png",
     "atlasUrl": "/assets/processed/creatures/zone1_top_down_creatures.json",
-    "frameCount": 40
+    "frameCount": 48
   }
 ] as const;
 

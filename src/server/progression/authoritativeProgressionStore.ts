@@ -7,6 +7,7 @@ import type {
   PersistedMarcosSlice,
 } from '../../shared/persistence/characterPersistenceRecord.js';
 import { characterPersistenceKey } from '../../shared/persistence/characterPersistenceRecord.js';
+import { allocatedStatsFromProfile, allocatedStatsToProfileFields } from '../../shared/character/characterStatPoints.js';
 import { sanitizeActiveMarcosForTrail } from '../../shared/progression/milestoneTreeState.js';
 import { isNodeOnRamificacao } from '../../shared/progression/milestoneTreeCatalog.js';
 import { markCharacterPersistenceDirty } from '../persistence/characterPersistenceDirty.js';
@@ -85,7 +86,10 @@ function sanitizeProgressionEntry(data: AuthoritativeProgressionEntry): Authorit
       flowSpeedBase: data.marcos.flowSpeedBase,
       nodeProgression,
     },
-    characterProfile: { ...data.characterProfile },
+    characterProfile: {
+      ...data.characterProfile,
+      ...allocatedStatsToProfileFields(allocatedStatsFromProfile(data.characterProfile)),
+    },
   };
 }
 
@@ -96,6 +100,13 @@ export function getAuthoritativeProgression(
   const existing = entries.get(key(playerId, characterId));
   if (!existing) return defaultEntry();
   return sanitizeProgressionEntry(existing);
+}
+
+export function hasAuthoritativeProgressionEntry(
+  playerId: string,
+  characterId: number,
+): boolean {
+  return entries.has(key(playerId, characterId));
 }
 
 export function loadAuthoritativeProgression(

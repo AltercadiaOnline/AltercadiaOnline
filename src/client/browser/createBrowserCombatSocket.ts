@@ -36,6 +36,9 @@ export type ResilientSocketOptions = {
 const WS_OPEN = 1;
 const WS_CONNECTING = 0;
 
+/** Erros fatais de sessão — não reconectar após o servidor encerrar a conexão. */
+const SESSION_FATAL_NO_RECONNECT = new Set(['SESSION_REPLACED']);
+
 function createSocketHandlers() {
   const handlers = new Map<string, Set<(payload: unknown) => void>>();
   const openHandlers = new Set<() => void>();
@@ -55,7 +58,8 @@ function createSocketHandlers() {
 function bindWsEvents(
   ws: WebSocket,
   store: ReturnType<typeof createSocketHandlers>,
-  onSystemError?: ResilientSocketOptions['onSystemError'],
+  onSystemError: ResilientSocketOptions['onSystemError'] | undefined,
+  suppressReconnect: () => void,
 ): void {
   ws.addEventListener('message', (event) => {
     try {
@@ -70,6 +74,9 @@ function bindWsEvents(
             ? String((data.payload as { reason?: unknown }).reason ?? 'COMBAT_ERROR')
             : 'COMBAT_ERROR';
         console.warn('[WS] combat-error:', data.payload);
+        if (SESSION_FATAL_NO_RECONNECT.has(reason)) {
+          suppressReconnect();
+        }
         onSystemError?.(reason, data.payload);
         getGameStore().rejectLatestCombatPending(reason);
         void loadCombatClient().then((combat) => {
@@ -118,12 +125,20 @@ export function createBrowserCombatSocket(
     for (const handler of store.openHandlers) handler();
   };
 
+  const suppressReconnect = () => {
+    manualClose = true;
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  };
+
   const connect = () => {
     if (manualClose) return;
     notifyPhase(reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
 
     ws = new WebSocket(wsUrl);
-    bindWsEvents(ws, store, options.onSystemError);
+    bindWsEvents(ws, store, options.onSystemError, suppressReconnect);
 
     ws.addEventListener('open', () => {
       const wasReconnect = reconnectAttempt > 0;

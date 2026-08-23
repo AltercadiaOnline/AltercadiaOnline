@@ -183,7 +183,7 @@ export function WorldPvpQueuePanel({
       title={station.label}
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--pvp-queue ui-panel--pvp-queue"
+      panelClassName="world-panel--pvp-queue ui-panel--pvp-queue ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(520px, 96vw)' }}
       onFocus={() => tryFocusReactWorldPanel('pvpQueue')}
       onClose={() => {

@@ -9,6 +9,7 @@ import {
 } from '../../../shared/character/equipmentUiSlots.js';
 import type { EquippedSlots } from '../../../shared/character/equipmentState.js';
 import type { ClassType } from '../../../shared/types/classes.js';
+import { isClassType } from '../../../shared/progression/movesetMasterySeed.js';
 import {
   canEquipItemWeight,
   CAPACITY_OVERLOAD_MESSAGE,
@@ -122,7 +123,7 @@ export class PlayerEquipmentStore {
     return {
       displayName: this.displayName,
       level: this.readAuthoritativeLevel(),
-      classId: this.classId,
+      classId: isClassType(this.classId) ? this.classId : 'IMPETUS',
       vitals: { ...this.vitals },
       equipment: { ...this.slots },
       equipped: equipmentUiGridToEquipped(this.slots),
@@ -135,7 +136,7 @@ export class PlayerEquipmentStore {
     options?: { readonly resetVitals?: boolean; readonly classId?: ClassType },
   ): void {
     this.displayName = name;
-    if (options?.classId) {
+    if (options?.classId && isClassType(options.classId)) {
       this.classId = options.classId;
     }
     // Level arg só escala MP/vitals se o PDS ainda não hidratou; snapshot sempre lê o PDS.

@@ -17,6 +17,7 @@ Loop que o jogador percorre **toda vez**. Intent e save atravessam tudo. Combate
 |------:|-----------------------|-------|----------------|
 | 1 | Login, Supabase, char select | [login.md](login.md) | `src/client/app/components/screen/` `src/shared/auth/` |
 | 2 | Classe, slot, nome, skin | [identidade.md](identidade.md) | `src/shared/character/` |
+| 2b | Char da conta × mundo (hop RuneScape) | [personagem-mundos.md](personagem-mundos.md) | hub + persistência + `world-login` |
 | 3 | Mapa, movimento, NPC, overlay | [mundo.md](mundo.md) | `src/server/world/` + Construct |
 | 4 | React HUD, painéis, teclado | [ui-cliente.md](ui-cliente.md) | `src/client/app/` |
 | 5 | Motor, payload, Battle HUD, nomenclatura de move | [combate.md](combate.md) | `src/server/combat/` `src/server/engine/` |

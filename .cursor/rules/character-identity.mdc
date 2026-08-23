@@ -23,7 +23,8 @@ full-state-sync → ESTADO (itens, XP, posição, pets, skins…)
 | `characterId` | hub slot |
 | `classId` | hub slot (criação) |
 | `displayName` | hub slot |
-| `serverId` / `slotIndex` | hub slot |
+| `slotIndex` | hub slot |
+| `serverId` | **hoje** ainda no slot (char preso ao shard). **Alvo:** sessão / `lastWorldId`, não identidade. Migração: `docs/context/personagem-mundos.md` — não remover do tipo antes da fase 4. |
 
 \*Rename = intent dedicado que atualiza a identidade — não vem de “default de boot”.
 

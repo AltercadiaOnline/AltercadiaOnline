@@ -1,7 +1,11 @@
+export type BattleSurrenderKind = 'pve' | 'pvp';
+
 type SurrenderConfirmListener = (open: boolean) => void;
 
 class SurrenderConfirmBridge {
   private open = false;
+
+  private kind: BattleSurrenderKind = 'pve';
 
   private confirmHandler: (() => void) | null = null;
 
@@ -17,9 +21,14 @@ class SurrenderConfirmBridge {
     return this.open;
   }
 
-  show(onConfirm: () => void): void {
+  getKind(): BattleSurrenderKind {
+    return this.kind;
+  }
+
+  show(onConfirm: () => void, kind: BattleSurrenderKind = 'pve'): void {
     this.dismiss();
     this.confirmHandler = onConfirm;
+    this.kind = kind;
     this.open = true;
     this.emit();
   }
@@ -28,6 +37,7 @@ class SurrenderConfirmBridge {
     if (!this.open && !this.confirmHandler) return;
     this.open = false;
     this.confirmHandler = null;
+    this.kind = 'pve';
     this.emit();
   }
 

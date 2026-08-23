@@ -1,7 +1,4 @@
-import {
-  EQUIPMENT_UI_SLOT_ORDER,
-  type EquipmentUiSlotId,
-} from '../character/equipmentUiSlots.js';
+import type { ClassType } from '../types/classes.js';
 
 export const INSPECT_PLAYER_ACTION = 'INSPECT_PLAYER' as const;
 
@@ -12,10 +9,20 @@ export type InspectPlayerPayload = {
   readonly screenY?: number;
 };
 
-export type PlayerInspectEquipSlot = {
-  readonly slotId: EquipmentUiSlotId;
-  readonly itemId: string | null;
-  readonly itemName: string | null;
+/** Build sem SET — classe + pontos da ficha (servidor calcula). */
+export type PlayerInspectBuild = {
+  readonly atk: number;
+  readonly def: number;
+  readonly crit: number;
+  readonly agil: number;
+};
+
+/** Placar PvP ranqueado (púlpito) — cliente só exibe. */
+export type PlayerInspectPvpStats = {
+  readonly rating: number;
+  readonly wins: number;
+  readonly losses: number;
+  readonly matches: number;
 };
 
 export type PlayerInspectView = {
@@ -23,32 +30,59 @@ export type PlayerInspectView = {
   readonly characterId: number;
   readonly displayName: string;
   readonly level: number;
+  readonly classId: ClassType;
   readonly online: boolean;
-  readonly equipment: readonly PlayerInspectEquipSlot[];
+  readonly build: PlayerInspectBuild;
+  readonly pvp: PlayerInspectPvpStats;
   readonly canAddFriend: boolean;
   readonly canInviteDuel: boolean;
+  /** Motivo autoritativo quando `canInviteDuel` é false — UI só exibe. */
+  readonly duelInviteBlockReason: string | null;
   readonly canTrade: boolean;
 };
+
+function isFiniteInt(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isClassId(value: unknown): value is ClassType {
+  return value === 'IMPETUS'
+    || value === 'COGITOR'
+    || value === 'TUTATOR'
+    || value === 'DISSOLUTUS';
+}
+
+function isInspectBuild(value: unknown): value is PlayerInspectBuild {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return isFiniteInt(row.atk) && isFiniteInt(row.def) && isFiniteInt(row.crit) && isFiniteInt(row.agil);
+}
+
+function isInspectPvp(value: unknown): value is PlayerInspectPvpStats {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return isFiniteInt(row.rating)
+    && isFiniteInt(row.wins)
+    && isFiniteInt(row.losses)
+    && isFiniteInt(row.matches);
+}
 
 export function isPlayerInspectView(value: unknown): value is PlayerInspectView {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   if (typeof record.playerId !== 'string' || record.playerId.length === 0) return false;
-  if (typeof record.characterId !== 'number' || !Number.isFinite(record.characterId)) return false;
+  if (!isFiniteInt(record.characterId)) return false;
   if (typeof record.displayName !== 'string') return false;
-  if (typeof record.level !== 'number' || !Number.isFinite(record.level)) return false;
+  if (!isFiniteInt(record.level)) return false;
+  if (!isClassId(record.classId)) return false;
   if (typeof record.online !== 'boolean') return false;
+  if (!isInspectBuild(record.build)) return false;
+  if (!isInspectPvp(record.pvp)) return false;
   if (typeof record.canAddFriend !== 'boolean') return false;
   if (typeof record.canInviteDuel !== 'boolean') return false;
-  if (typeof record.canTrade !== 'boolean') return false;
-  if (!Array.isArray(record.equipment)) return false;
-  if (record.equipment.length !== EQUIPMENT_UI_SLOT_ORDER.length) return false;
-  for (const slot of record.equipment) {
-    if (!slot || typeof slot !== 'object') return false;
-    const row = slot as Record<string, unknown>;
-    if (typeof row.slotId !== 'string') return false;
-    if (row.itemId !== null && typeof row.itemId !== 'string') return false;
-    if (row.itemName !== null && typeof row.itemName !== 'string') return false;
+  if (record.duelInviteBlockReason !== null && typeof record.duelInviteBlockReason !== 'string') {
+    return false;
   }
+  if (typeof record.canTrade !== 'boolean') return false;
   return true;
 }

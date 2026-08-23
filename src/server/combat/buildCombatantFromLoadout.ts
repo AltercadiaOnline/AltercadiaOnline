@@ -9,12 +9,18 @@ import {
   resolveEquippedRuneDurability,
 } from '../../shared/items/chargedEquipment.js';
 import { applyPlayerHpMaxChange, computePlayerHpMax } from '../../shared/character/playerVitals.js';
+import { allocatedStatsFromLoadout, allocatedStatsToLoadoutFields } from '../../shared/character/characterStatPoints.js';
+import {
+  DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+  resolvePlayerSkinBundleId,
+} from '../../shared/character/playerSkinBundle.js';
 
 export function buildCombatantFromLoadout(
   loadout: PlayerCombatLoadout,
   battleSkills: SkillData[],
   displayName = 'Operative',
 ): Combatant {
+  const allocated = allocatedStatsToLoadoutFields(allocatedStatsFromLoadout(loadout));
   const resolved = resolveCombatLoadout({
     classId: loadout.classId,
     level: loadout.level,
@@ -24,9 +30,10 @@ export function buildCombatantFromLoadout(
     equipped: loadout.equipped,
     ...(loadout.equippedItemIds ? { equippedItemIds: loadout.equippedItemIds } : {}),
     flowSpeedBase: loadout.flowSpeedBase,
+    ...allocated,
   });
 
-  const maxHp = computePlayerHpMax(loadout.level, resolved.modifiers.maxHpBonusPercent);
+  const maxHp = computePlayerHpMax(loadout.level, resolved.modifiers.maxHpBonusPercent, allocated.allocatedHpPoints);
   const persisted = loadout.worldVitals;
   const hpCurrent = persisted
     ? applyPlayerHpMaxChange(
@@ -71,6 +78,9 @@ export function buildCombatantFromLoadout(
     classId: loadout.classId,
     level: loadout.level,
     combatRole: 'PLAYER',
+    skinBundleId: resolvePlayerSkinBundleId({
+      skinBundleId: loadout.skinBundleId ?? DEFAULT_PLAYER_SKIN_BUNDLE_ID,
+    }),
     speedProfile: {
       flowSpeedBase: loadout.flowSpeedBase,
       activeMarcos: [...loadout.activeMarcos],

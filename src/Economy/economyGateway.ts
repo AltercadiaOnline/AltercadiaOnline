@@ -2705,4 +2705,38 @@ export async function commitAuthoritativePlayerTrade(
   return { ok: true };
 }
 
+/** Pagamento VOLTS de contrato do Quadro de Agente (Completar no NPC). */
+export async function creditMercenaryQuestVolts(request: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly amountVolts: number;
+  readonly intentId?: string;
+}): Promise<
+  | { readonly ok: true; readonly dollarVolt: number }
+  | { readonly ok: false; readonly message: string }
+> {
+  const amount = Math.max(0, Math.floor(request.amountVolts));
+  if (amount <= 0) {
+    return { ok: true, dollarVolt: getPlayerWallet(request.playerId, request.characterId).dollarVolt };
+  }
+
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      store.addDollarVolt(amount);
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, message: tx.message };
+  }
+
+  publishWalletUpdated(request.playerId, request.characterId, tx, {
+    ...(request.intentId ? { intentId: request.intentId } : {}),
+  });
+
+  return { ok: true, dollarVolt: tx.walletBalance };
+}
+
 export { ALTER_TO_VOLTS_EXCHANGE_RATE };

@@ -185,7 +185,7 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
       zIndex={zIndex}
       focused={focused}
       bodyOverflow="hidden"
-      panelClassName="world-panel--market ui-panel ui-panel--market ui-panel--market-terminal ui-panel--movable"
+      panelClassName="world-panel--market ui-panel ui-panel--market ui-panel--market-terminal ui-panel--movable ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{
         width: 'min(1040px, 97vw)',
         minWidth: 'min(760px, 94vw)',

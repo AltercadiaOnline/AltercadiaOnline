@@ -21,6 +21,9 @@ módulo combate — XP aplica, loot some ao sair
 
 módulo combate — fila do púlpito não inicia o match
 @docs/context/combate-pvp.md
+
+módulo personagem-mundos — fase 2 save (userId, characterId) no Azul
+@docs/context/personagem-mundos.md
 ```
 
 ## O que o agente deve fazer

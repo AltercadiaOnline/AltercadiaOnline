@@ -10,6 +10,11 @@ import { getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { CITY_01_ID } from '../../shared/world/maps/city01.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
 import { buildCitySafeSpawnPayload } from '../../shared/world/zoneTransition.js';
+import {
+  onBattleEnterClient,
+  onBattleExitClient,
+  resolveLocalDefeatCityTeleport,
+} from '../combat/battleWorldLifecycle.js';
 import { buildBattleEncounter } from '../../shared/world/monsterRegistry.js';
 import type { BattleEncounterData, BattleFinishedPayload, GameState } from '../../shared/game/gameState.js';
 import type { GameStateContextType } from '../../shared/game/gameStateContext.js';
@@ -380,6 +385,7 @@ export async function enterBattleFromServer(
   const hooks = getGameStateProviderSlot().hooks;
   if (!hooks) return;
 
+  onBattleEnterClient();
   clearPendingCombatJoinState();
   getPveEncounterStore().setBusy(false);
 
@@ -479,8 +485,13 @@ export async function returnToExplorationFromBattle(
   getGameStateProviderSlot().pendingCombatJoin = false;
   clearPendingCombatJoinTimer();
 
-  // Derrota (não fuga) → centro da cidade (espelha respawn autoritativo do servidor).
-  if (!options.victory && options.endReason !== 'FORFEIT') {
+  // PVE derrota / PVP casual derrota → cidade. PVP rankeado → mesma pose do duelo.
+  if (resolveLocalDefeatCityTeleport({
+    victory: options.victory,
+    ...(options.endReason !== undefined ? { endReason: options.endReason } : {}),
+    ...(options.battleType !== undefined ? { battleType: options.battleType } : {}),
+    ...(options.casualPvp === true ? { casualPvp: true } : {}),
+  })) {
     const citySpawn = buildCitySafeSpawnPayload();
     if (isMapId(citySpawn.mapId)) {
       hooks.persistence.saveExplorationSnapshot({
@@ -498,11 +509,13 @@ export async function returnToExplorationFromBattle(
     const snap = hooks.persistence.getExplorationSnapshot();
     if (snap) hooks.onResumeExploration(snap);
     syncGameScenesToCurrentState();
+    onBattleExitClient();
     return;
   }
 
   if (!manager.isBattle() && !manager.isTransitioning()) {
     syncGameScenesToCurrentState();
+    onBattleExitClient();
     return;
   }
 
@@ -533,6 +546,7 @@ export async function returnToExplorationFromBattle(
   await manager.endBattle({ encounter, victory: options.victory, rewards }, hooks);
 
   syncGameScenesToCurrentState();
+  onBattleExitClient();
 
   const payload: BattleFinishedPayload = { encounter, victory: options.victory, rewards };
   uiEvents.emit(UIEventType.BATTLE_FINISHED, payload);

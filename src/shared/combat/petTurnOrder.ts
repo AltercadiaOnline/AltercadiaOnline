@@ -107,6 +107,14 @@ export function resolveAttackTargetId(
       if (getCombatRole(combatant) !== 'ENEMY') continue;
       if (resolveCombatantHp(combatant) > 0) return id;
     }
+    // PvP PLAYER vs PLAYER — sem ENEMY no estado; mira o rival humano vivo.
+    const ownerId = role === 'PET' ? actor.ownerPlayerId : actorId;
+    for (const [id, combatant] of Object.entries(combatants)) {
+      if (id === actorId || id === ownerId) continue;
+      if (id.startsWith('pet_')) continue;
+      if (getCombatRole(combatant) !== 'PLAYER') continue;
+      if (resolveCombatantHp(combatant) > 0) return id;
+    }
     return null;
   }
 

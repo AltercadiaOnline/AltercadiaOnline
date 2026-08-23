@@ -33,6 +33,7 @@ export const COMBAT_BREAKDOWN_SOURCE_LABELS = {
   livro: 'Livro',
   runa: 'Runa',
   marcos: 'Marcos',
+  ficha: 'Ficha',
 } as const;
 
 export type CombatBreakdownSourceId = keyof typeof COMBAT_BREAKDOWN_SOURCE_LABELS;

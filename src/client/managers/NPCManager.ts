@@ -32,7 +32,7 @@ import {
 } from '../../shared/world/npcRegistry.js';
 import { grantMarketTerminalAccess } from '../../shared/economy/marketAccessGate.js';
 import { MESTRE_TRILHAS_NPC_ID } from '../../shared/world/marcosTrailResetPolicy.js';
-import { WORLD_TERMINAL_IDS } from '../../shared/world/worldTerminalCatalog.js';
+import { getZoneDomainTerminalById } from '../../shared/world/zoneDomainTerminals.js';
 import { setPlayerAtMarcosResetNpc } from '../ui/marcos/marcosTrailResetGate.js';
 import { ARENA_COMPUTER_FACING } from '../../shared/world/maps/city01LayoutConstants.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
@@ -181,24 +181,33 @@ export class NPCManager {
   /** Executa a ação data-driven do NPC (abre HUD correspondente). */
   executeAction(npc: NPC, player?: Player): void {
     if (npc.actionType === NpcActionType.DIALOG) {
+      if (npc.id === MESTRE_TRILHAS_NPC_ID) {
+        setPlayerAtMarcosResetNpc(true);
+      }
+      if (getZoneDomainTerminalById(npc.id)) {
+        const gate = getZoneDomainTerminalById(npc.id)!;
+        hideInteractionCard();
+        windowManager.close('dialogue');
+        if (player) {
+          beginWorldHudInteractionSession({
+            x: player.x,
+            y: player.y,
+            facing: player.facing,
+          });
+        }
+        uiEvents.emit(UIEventType.SHOW_MEMORY_TERMINAL, {
+          transitionId: gate.transitionId,
+          zoneName: gate.label,
+          terminalId: gate.terminalId,
+        });
+        return;
+      }
       if (player) {
         beginWorldHudInteractionSession({
           x: player.x,
           y: player.y,
           facing: player.facing,
         });
-      }
-      if (npc.id === MESTRE_TRILHAS_NPC_ID) {
-        setPlayerAtMarcosResetNpc(true);
-      }
-      if (npc.id === WORLD_TERMINAL_IDS.ZONE_1) {
-        windowManager.close('dialogue');
-        hideInteractionCard();
-        uiEvents.emit(UIEventType.SHOW_MEMORY_TERMINAL, {
-          transitionId: 'Z1_TO_Z1A',
-          zoneName: npc.name,
-        });
-        return;
       }
       uiEvents.emit(UIEventType.SHOW_DIALOGUE, {
         npcId: npc.id,

@@ -3,7 +3,7 @@ import type { InventoryStack } from '../../shared/character/equipmentState.js';
 import type { ClientAction } from '../ActionDispatcher.js';
 
 export type IntentHandleResult =
-  | { readonly ok: true }
+  | { readonly ok: true; readonly data?: unknown }
   | { readonly ok: false; readonly reason: string };
 
 /**

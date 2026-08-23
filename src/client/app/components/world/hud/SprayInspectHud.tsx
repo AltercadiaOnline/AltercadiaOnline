@@ -53,7 +53,7 @@ export function SprayInspectHud() {
   return (
     <div
       ref={rootRef}
-      className="spray-inspect-hud pointer-events-auto"
+      className="spray-inspect-hud hud-overlay-card ui-skin-hybrid pointer-events-auto"
       role="dialog"
       aria-label={isOwnEditor ? 'Editar mensagem de legado' : 'Pixo tático'}
       style={{

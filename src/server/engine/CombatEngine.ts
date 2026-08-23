@@ -102,6 +102,7 @@ import {
 } from '../../shared/combat/resolveHealPower.js';
 import {
   inferMoveTargetFromEffectKind,
+  isAlliedCombatant,
   resolveSkillTargetId,
 } from '../../shared/combat/resolveSkillTarget.js';
 import {
@@ -1816,7 +1817,15 @@ export class CombatEngine {
     if (!targetId) return events;
     const target = this.state.combatants[targetId];
     if (!target) return events;
-    const allEnemies = Object.values(this.state.combatants).filter((entry) => entry.id !== request.actorId && getCombatRole(entry) === 'ENEMY');
+    const allEnemies = Object.values(this.state.combatants).filter((entry) => {
+      if (entry.id === request.actorId) return false;
+      if (getCombatRole(entry) === 'ENEMY') return true;
+      // PvP: rivais PLAYER contam como hostis para efeitos em área.
+      if (this.state.battleType === BattleType.PVP && getCombatRole(entry) === 'PLAYER') {
+        return !isAlliedCombatant(request.actorId, entry.id, this.state.combatants);
+      }
+      return false;
+    });
 
     this.applySkillEffects({
       request,

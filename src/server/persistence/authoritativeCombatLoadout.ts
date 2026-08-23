@@ -14,6 +14,8 @@ import { resolveAuthoritativePlayerLoadout } from '../world/loadoutGateway.js';
 import { getWorldProfile } from '../world/worldProfileStore.js';
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { getAuthoritativeCombatMarcos } from './authoritativeCombatMarcos.js';
+import { allocatedStatsFromProfile, allocatedStatsToProfileFields } from '../../shared/character/characterStatPoints.js';
+import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 
 /** Monta loadout de combate exclusivamente a partir do estado autoritativo persistido. */
 export function resolveAuthoritativeCombatLoadout(
@@ -40,6 +42,10 @@ export function resolveAuthoritativeCombatLoadout(
         ?? getDefaultClassActiveLoadout(classId)
       : getDefaultClassActiveLoadout(classId);
 
+  const allocated = allocatedStatsToProfileFields(
+    allocatedStatsFromProfile(progressionState.characterProfile),
+  );
+
   return {
     playerId,
     characterId,
@@ -56,8 +62,12 @@ export function resolveAuthoritativeCombatLoadout(
     activeBookBuff: economy.profile.activeBookBuff,
     equippedSkillIds: [...normalizedMoves],
     displayName: progressionState.characterProfile.displayName ?? 'Operative',
+    allocatedAtk: allocated.allocatedAtk,
+    allocatedDef: allocated.allocatedDef,
+    allocatedHp: allocated.allocatedHp,
     ...(sessionSync?.worldVitals ? { worldVitals: { ...sessionSync.worldVitals } } : {}),
     ...(sessionSync?.pet !== undefined ? { pet: sessionSync.pet } : {}),
     movesetMastery,
+    skinBundleId: resolvePlayerSkinBundleId(progressionState.characterProfile),
   };
 }

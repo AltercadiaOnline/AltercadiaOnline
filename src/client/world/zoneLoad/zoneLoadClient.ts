@@ -9,6 +9,7 @@ import {
 } from '../../../shared/world/zoneLoad/zoneLoadTypes.js';
 import { ensureHuntZoneLoaded } from '../../../shared/world/worldMonsterInstances.js';
 import { listZone1CreatureIds } from '../../../shared/world/zone1CreatureRegistry.js';
+import { listZone1TopDownCreatureIds } from '../../../shared/assets/zone1TopDownCreatureAssets.js';
 import { getActionDispatcher } from '../../ActionDispatcher.js';
 import { getGameMode } from '../../runtime/gameMode.js';
 import { preloadCreatureWorldSprites } from '../creatureWorldImageLoader.js';
@@ -28,6 +29,7 @@ function markPhase(mapId: MapId, phase: ZoneLoadPhase): void {
 /** Warm local: colisão/layout + sprites Zone1 (hunt). */
 function warmClientZoneModules(mapId: MapId): void {
   getZoneMapPreloader()?.ensureReady(mapId);
+  preloadCreatureWorldSprites(listZone1TopDownCreatureIds());
   if (mapId === FARM_ZONE_01_ID || isHuntZoneMapId(mapId)) {
     ensureHuntZoneLoaded(mapId);
     preloadCreatureWorldSprites(listZone1CreatureIds());

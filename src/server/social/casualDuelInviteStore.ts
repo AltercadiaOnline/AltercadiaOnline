@@ -2,6 +2,7 @@ import { createIntentId } from '../../shared/intent/clientIntent.js';
 import {
   CASUAL_DUEL_COUNTDOWN_MS,
   CASUAL_DUEL_PENDING_TIMEOUT_MS,
+  CASUAL_DUEL_REFUSE_COOLDOWN_MS,
   isWithinCasualDuelRange,
 } from '../../shared/social/playerSocialRange.js';
 import {
@@ -16,6 +17,10 @@ import {
   type PvpRankedQueueMember,
 } from '../combat/pvp/PvpRankedQueueManager.js';
 import { getPlayerTradeStore } from './playerTradeStore.js';
+import {
+  canPlayerEnterCasualDuel,
+  casualDuelHpBlockedReason,
+} from './casualDuelHpGate.js';
 
 export type CasualDuelMatchPair = {
   readonly matchId: string;
@@ -72,9 +77,20 @@ function isBusy(playerId: string, characterId: number): boolean {
   return isOnRankedPulpit(playerId, characterId);
 }
 
+function pairKey(
+  fromPlayerId: string,
+  fromCharacterId: number,
+  toPlayerId: string,
+  toCharacterId: number,
+): string {
+  return `${fromPlayerId}:${fromCharacterId}->${toPlayerId}:${toCharacterId}`;
+}
+
 export class CasualDuelInviteStore {
   private readonly invites = new Map<string, InviteRecord>();
   private readonly byPlayerKey = new Map<string, string>();
+  /** Desafiante → alvo: até quando não pode reenviar após recusa. */
+  private readonly refuseCooldownUntilMs = new Map<string, number>();
   private readonly snapshotListeners = new Set<SnapshotListener>();
   private readonly matchReadyListeners = new Set<MatchReadyListener>();
   private rangeTimer: ReturnType<typeof setInterval> | null = null;
@@ -89,6 +105,19 @@ export class CasualDuelInviteStore {
     return this.byPlayerKey.has(this.playerKey(playerId, characterId));
   }
 
+  getRefuseCooldownRemainingMs(
+    fromPlayerId: string,
+    fromCharacterId: number,
+    toPlayerId: string,
+    toCharacterId: number,
+  ): number {
+    const until = this.refuseCooldownUntilMs.get(
+      pairKey(fromPlayerId, fromCharacterId, toPlayerId, toCharacterId),
+    );
+    if (until === undefined) return 0;
+    return Math.max(0, until - Date.now());
+  }
+
   onMatchReady(listener: MatchReadyListener): () => void {
     this.matchReadyListeners.add(listener);
     return () => this.matchReadyListeners.delete(listener);
@@ -99,6 +128,19 @@ export class CasualDuelInviteStore {
     | { readonly ok: false; readonly reason: string } {
     if (from.playerId === to.playerId && from.characterId === to.characterId) {
       return { ok: false, reason: 'Não é possível desafiar a si mesmo.' };
+    }
+    const cooldownMs = this.getRefuseCooldownRemainingMs(
+      from.playerId,
+      from.characterId,
+      to.playerId,
+      to.characterId,
+    );
+    if (cooldownMs > 0) {
+      const seconds = Math.ceil(cooldownMs / 1000);
+      return {
+        ok: false,
+        reason: `Aguarde ${seconds}s para convidar de novo (recusou recentemente).`,
+      };
     }
     if (this.byPlayerKey.has(this.playerKey(from.playerId, from.characterId))) {
       return { ok: false, reason: 'Você já tem um desafio pendente.' };
@@ -131,6 +173,12 @@ export class CasualDuelInviteStore {
     if (isBusy(to.playerId, to.characterId)) {
       return { ok: false, reason: 'O jogador está ocupado.' };
     }
+    if (!canPlayerEnterCasualDuel(from.playerId, from.characterId)) {
+      return { ok: false, reason: casualDuelHpBlockedReason('self') };
+    }
+    if (!canPlayerEnterCasualDuel(to.playerId, to.characterId)) {
+      return { ok: false, reason: casualDuelHpBlockedReason('target') };
+    }
 
     const inviteId = createIntentId();
     const record: InviteRecord = {
@@ -159,13 +207,26 @@ export class CasualDuelInviteStore {
     | { readonly ok: true; readonly snapshot: CasualDuelSnapshot }
     | { readonly ok: false; readonly reason: string } {
     const record = this.invites.get(inviteId);
-    if (!record || record.phase !== CasualDuelPhase.Pending) {
+    if (!record) {
       return { ok: false, reason: 'Convite expirado ou inválido.' };
     }
+
     const isTarget =
       record.to.playerId === actorPlayerId && record.to.characterId === actorCharacterId;
     const isInviter =
       record.from.playerId === actorPlayerId && record.from.characterId === actorCharacterId;
+
+    if (record.phase === CasualDuelPhase.Countdown) {
+      if (!accept && (isTarget || isInviter)) {
+        return { ok: true, snapshot: this.cancel(record, 'self') };
+      }
+      return { ok: false, reason: 'A batalha já está iniciando.' };
+    }
+
+    if (record.phase !== CasualDuelPhase.Pending) {
+      return { ok: false, reason: 'Convite expirado ou inválido.' };
+    }
+
     if (isInviter) {
       if (accept) {
         return { ok: false, reason: 'Você não pode aceitar o próprio desafio.' };
@@ -176,6 +237,7 @@ export class CasualDuelInviteStore {
       return { ok: false, reason: 'Este convite não é seu.' };
     }
     if (!accept) {
+      this.armRefuseCooldown(record);
       return { ok: true, snapshot: this.cancel(record, 'refused') };
     }
 
@@ -193,6 +255,10 @@ export class CasualDuelInviteStore {
     if (isBusy(record.from.playerId, record.from.characterId)
       || isBusy(record.to.playerId, record.to.characterId)) {
       return { ok: true, snapshot: this.cancel(record, 'busy') };
+    }
+    if (!canPlayerEnterCasualDuel(record.from.playerId, record.from.characterId)
+      || !canPlayerEnterCasualDuel(record.to.playerId, record.to.characterId)) {
+      return { ok: true, snapshot: this.cancel(record, 'downed') };
     }
 
     record.phase = CasualDuelPhase.Countdown;
@@ -229,8 +295,24 @@ export class CasualDuelInviteStore {
     this.drop(record);
   }
 
+  private armRefuseCooldown(record: InviteRecord): void {
+    this.refuseCooldownUntilMs.set(
+      pairKey(
+        record.from.playerId,
+        record.from.characterId,
+        record.to.playerId,
+        record.to.characterId,
+      ),
+      Date.now() + CASUAL_DUEL_REFUSE_COOLDOWN_MS,
+    );
+  }
+
   private tick(): void {
     const now = Date.now();
+    for (const [key, until] of [...this.refuseCooldownUntilMs.entries()]) {
+      if (until <= now) this.refuseCooldownUntilMs.delete(key);
+    }
+
     for (const record of [...this.invites.values()]) {
       if (record.phase === CasualDuelPhase.Starting) continue;
 
@@ -258,13 +340,18 @@ export class CasualDuelInviteStore {
         this.cancel(record, 'busy');
         continue;
       }
+      if (!canPlayerEnterCasualDuel(record.from.playerId, record.from.characterId)
+        || !canPlayerEnterCasualDuel(record.to.playerId, record.to.characterId)) {
+        this.cancel(record, 'downed');
+        continue;
+      }
 
       if (record.phase === CasualDuelPhase.Countdown && record.countdownEndsAtMs !== null && now >= record.countdownEndsAtMs) {
         this.finishCountdown(record);
       }
     }
 
-    if (this.invites.size === 0) {
+    if (this.invites.size === 0 && this.refuseCooldownUntilMs.size === 0) {
       this.clearTimer();
     }
   }

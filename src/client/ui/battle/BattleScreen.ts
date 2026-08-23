@@ -36,6 +36,8 @@ export const BATTLE_SCREEN_ROOT_SELECTOR = '.battle-screen--terminal';
 
 export type BattleScreenMountProps = {
   readonly monsterId: string | null;
+  /** pvp = não chama bindMonster/bindPlayer (evita race que apaga o foe do duelo). */
+  readonly arenaMode?: 'pve' | 'pvp';
   readonly onBattleFinished?: (result: { monsterId: string; victory: boolean }) => void;
 };
 
@@ -116,21 +118,27 @@ export function mountBattleScreenView(
 ): void {
   ensureBattleScreenShell(root);
   mountedMonsterId = props.monsterId;
+  const arenaMode = props.arenaMode ?? 'pve';
 
   if (battleArena) {
     attachArenaPetSync();
-    // Fonte primária: encontro ativo (tem creatureId mesmo se o bicho já saiu do mundo).
-    const encounter = getGlobalPlayerStore().getActiveEncounter();
-    if (
-      encounter?.creatureId
-      && (!props.monsterId || encounter.monsterId === props.monsterId)
-    ) {
-      void battleArena.bindCreature(encounter.creatureId, encounter.monsterName);
+    if (arenaMode === 'pvp') {
+      // Arena PvP: só fundo + loop. Sprites vêm de bindPvpDuel no sync do combat-event.
+      battleArena.preparePvpArenaMount();
     } else {
-      void battleArena.bindMonster(props.monsterId);
+      // Fonte primária: encontro ativo (tem creatureId mesmo se o bicho já saiu do mundo).
+      const encounter = getGlobalPlayerStore().getActiveEncounter();
+      if (
+        encounter?.creatureId
+        && (!props.monsterId || encounter.monsterId === props.monsterId)
+      ) {
+        void battleArena.bindCreature(encounter.creatureId, encounter.monsterName);
+      } else {
+        void battleArena.bindMonster(props.monsterId);
+      }
+      void battleArena.bindPlayer();
+      syncArenaPetFromRenderFrame();
     }
-    void battleArena.bindPlayer();
-    syncArenaPetFromRenderFrame();
     if (!arenaBackgroundApplied) {
       const variant = consumeBattleBackgroundVariant();
       void battleArena.applyBackground(variant);

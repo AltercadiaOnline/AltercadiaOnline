@@ -8,6 +8,8 @@ import { getPlayerEquipmentStore } from './playerEquipmentStore.js';
 import { getPlayerItemStore } from '../items/playerItemStore.js';
 import { getPlayerMarcosStore } from '../marcos/playerMarcosStore.js';
 import { getGlobalPlayerStore } from '../moveset/globalPlayerStore.js';
+import { getMutableDataStore } from '../../PlayerDataStore.js';
+import { getWorldVitalsBridge } from '../../app/bridge/worldVitalsBridge.js';
 import { uiEvents, UIEventType } from '../uiEvents.js';
 
 export function buildHudCombatLoadoutInput(params: {
@@ -19,6 +21,7 @@ export function buildHudCombatLoadoutInput(params: {
   readonly flowSpeedBase: number;
   readonly equippedSkillIds: readonly string[];
 }): CombatLoadoutResolveInput {
+  const points = getMutableDataStore().getCharacterStatPoints();
   return {
     classId: params.classId,
     level: params.level,
@@ -27,6 +30,9 @@ export function buildHudCombatLoadoutInput(params: {
     nodeProgression: params.nodeProgression,
     flowSpeedBase: params.flowSpeedBase,
     equippedSkillIds: params.equippedSkillIds,
+    allocatedAttack: points.atk,
+    allocatedDefense: points.def,
+    allocatedHpPoints: points.hp,
   };
 }
 
@@ -64,14 +70,25 @@ export function refreshHudPlayerHpMax(): void {
     }
 
     const global = getGlobalPlayerStore().getWorldVitals();
+    const bridge = getWorldVitalsBridge().snapshot().vitals;
     const equipVitals = getPlayerEquipmentStore().getSnapshot().vitals;
+    // SSOT: bridge (cross-bundle) → stores. Nunca elevar HP copiando equipment → global.
+    const authoritativeHpMax = hpMax;
+    const authoritative = {
+      hpCurrent: Math.min(bridge.hpCurrent, authoritativeHpMax),
+      hpMax: authoritativeHpMax,
+      mpCurrent: bridge.mpCurrent,
+      mpMax: bridge.mpMax > 0 ? bridge.mpMax : equipVitals.mpMax,
+    };
     if (
-      global.hpMax !== equipVitals.hpMax
-      || global.hpCurrent !== equipVitals.hpCurrent
-      || global.mpMax !== equipVitals.mpMax
-      || global.mpCurrent !== equipVitals.mpCurrent
+      equipVitals.hpMax !== authoritative.hpMax
+      || equipVitals.hpCurrent !== authoritative.hpCurrent
+      || global.hpCurrent !== authoritative.hpCurrent
+      || global.hpMax !== authoritative.hpMax
     ) {
-      getGlobalPlayerStore().syncWorldVitalsFromEquipment();
+      getPlayerEquipmentStore().setVitals(authoritative);
+      getGlobalPlayerStore().applyWorldVitals(authoritative);
+      getWorldVitalsBridge().apply(authoritative);
     }
   } finally {
     refreshInFlight = false;
@@ -88,5 +105,6 @@ export function initPlayerHudHpMaxSync(): void {
   uiEvents.on(UIEventType.MARCOS_UPDATED, refresh);
   uiEvents.on(UIEventType.LOADOUT_SAVED, refresh);
   uiEvents.on(UIEventType.CHARACTER_LEVEL_UPDATED, refresh);
+  uiEvents.on(UIEventType.CHARACTER_STAT_POINTS_UPDATED, refresh);
   refresh();
 }

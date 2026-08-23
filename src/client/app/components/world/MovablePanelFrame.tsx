@@ -85,6 +85,7 @@ export function MovablePanelFrame({
       aria-modal="false"
       aria-label={resolvedTitle}
       data-world-panel={windowId}
+      id={`world-panel-${windowId}`}
       onMouseDown={onFocus}
     >
       <header
@@ -113,7 +114,7 @@ export function MovablePanelFrame({
       </header>
       <div
         className={[
-          'min-h-0 flex-1',
+          'ui-panel__content min-h-0 flex-1',
           bodyOverflow === 'hidden'
             ? 'flex flex-col overflow-hidden'
             : 'overflow-auto p-3',

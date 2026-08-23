@@ -3,6 +3,10 @@ import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
 import type { Camera } from '../scenes/Camera.js';
 import { worldToScreenPixel } from './screenCoords.js';
+import {
+  NAMETAG_FONT_SIZE_PX,
+  resolveNametagOffsetAboveHeadPx,
+} from './nametagRenderer.js';
 
 export type WorldPlayerPickEntry = {
   readonly playerId: string;
@@ -75,6 +79,72 @@ export function resolvePlayerSpriteScreenRect(
   };
 }
 
+/** Folga no clique: PNG 1:1 + faixa da nametag acima da cabeça. */
+const PLAYER_INSPECT_PAD_PX = 8;
+const PLAYER_INSPECT_NAMETAG_MIN_WIDTH_PX = 120;
+const PLAYER_INSPECT_NAMETAG_PAD_PX = 8;
+
+/**
+ * Hitbox do direito no peer — corpo 35×54 mais a faixa do nome.
+ * Nametag é `pointer-events: none`; sem isto o clique no nome cai no chão.
+ */
+export function resolvePlayerInspectScreenRect(
+  screenFeetX: number,
+  screenFeetY: number,
+  zoom = 1,
+): PlayerSpriteScreenRect {
+  const sprite = resolvePlayerSpriteScreenRect(screenFeetX, screenFeetY, zoom);
+  const extraTop =
+    (resolveNametagOffsetAboveHeadPx() + NAMETAG_FONT_SIZE_PX + PLAYER_INSPECT_NAMETAG_PAD_PX) * zoom;
+  const pad = PLAYER_INSPECT_PAD_PX * zoom;
+  const minWidth = PLAYER_INSPECT_NAMETAG_MIN_WIDTH_PX * zoom;
+  const width = Math.max(sprite.width + pad * 2, minWidth);
+  return {
+    x: screenFeetX - width / 2,
+    y: sprite.y - extraTop,
+    width,
+    height: sprite.height + extraTop + pad,
+  };
+}
+
+export type PlayerInspectWorldRect = {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+};
+
+/** Mesma hitbox do inspect, em px de mundo (pés do peer). */
+export function resolvePlayerInspectWorldRect(
+  feetX: number,
+  feetY: number,
+): PlayerInspectWorldRect {
+  const extraTop =
+    resolveNametagOffsetAboveHeadPx() + NAMETAG_FONT_SIZE_PX + PLAYER_INSPECT_NAMETAG_PAD_PX;
+  const pad = PLAYER_INSPECT_PAD_PX;
+  const halfWidth = Math.max(
+    DESIGN_CONFIG.PLAYER.WIDTH / 2 + pad,
+    PLAYER_INSPECT_NAMETAG_MIN_WIDTH_PX / 2,
+  );
+  return {
+    left: feetX - halfWidth,
+    right: feetX + halfWidth,
+    top: feetY - DESIGN_CONFIG.PLAYER.HEIGHT - extraTop,
+    bottom: feetY + pad,
+  };
+}
+
+export function playerInspectWorldRectContains(
+  rect: PlayerInspectWorldRect,
+  worldX: number,
+  worldY: number,
+): boolean {
+  return worldX >= rect.left
+    && worldX <= rect.right
+    && worldY >= rect.top
+    && worldY <= rect.bottom;
+}
+
 export function playerSpriteRectIntersectsViewport(
   rect: PlayerSpriteScreenRect,
   viewportWidth = DESIGN_CONFIG.VIEWPORT.WIDTH,
@@ -115,8 +185,36 @@ export function pickWorldPlayerAt(tileX: number, tileY: number): WorldPlayerPick
   return closest;
 }
 
+export function hasWorldPlayerPicks(): boolean {
+  return entries.size > 0;
+}
+
 /**
- * Direito no sprite on-screen (640×360). Não usa raio de NPC.
+ * Direito no peer: hitbox em px de mundo (independe do scale CSS).
+ * Preferir este pick; o on-screen fica como fallback.
+ */
+export function pickWorldPlayerAtWorldPixel(
+  worldX: number,
+  worldY: number,
+): WorldPlayerPickEntry | null {
+  let closest: WorldPlayerPickEntry | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+
+  for (const entry of entries.values()) {
+    const rect = resolvePlayerInspectWorldRect(entry.worldX, entry.worldY);
+    if (!playerInspectWorldRectContains(rect, worldX, worldY)) continue;
+    const distance = Math.hypot(worldX - entry.worldX, worldY - entry.worldY);
+    if (distance < closestDistance) {
+      closest = entry;
+      closestDistance = distance;
+    }
+  }
+
+  return closest;
+}
+
+/**
+ * Direito no peer on-screen (640×360): corpo + nametag. Não usa raio de NPC.
  * O HUD pinado não depende deste pick depois de aberto.
  */
 export function pickWorldPlayerSpriteOnScreen(
@@ -130,9 +228,38 @@ export function pickWorldPlayerSpriteOnScreen(
 
   for (const entry of entries.values()) {
     const feet = worldToScreenPixel(camera, entry.worldX, entry.worldY);
-    const rect = resolvePlayerSpriteScreenRect(feet.screenX, feet.screenY, zoom);
+    const rect = resolvePlayerInspectScreenRect(feet.screenX, feet.screenY, zoom);
     if (!playerSpriteRectIntersectsViewport(rect)) continue;
     if (!playerSpriteRectContains(rect, screenX, screenY)) continue;
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    const distance = Math.hypot(screenX - cx, screenY - cy);
+    if (distance < closestDistance) {
+      closest = entry;
+      closestDistance = distance;
+    }
+  }
+
+  return closest;
+}
+
+/** Folga se o clique cair perto do peer mas fora do AABB (scale CSS / nametag). */
+const PLAYER_INSPECT_NEAREST_FALLBACK_PX = 72;
+
+export function pickNearestWorldPlayerOnScreen(
+  camera: Camera,
+  screenX: number,
+  screenY: number,
+  maxDistancePx = PLAYER_INSPECT_NEAREST_FALLBACK_PX,
+): WorldPlayerPickEntry | null {
+  let closest: WorldPlayerPickEntry | null = null;
+  let closestDistance = maxDistancePx;
+  const zoom = camera.effectiveZoom || 1;
+
+  for (const entry of entries.values()) {
+    const feet = worldToScreenPixel(camera, entry.worldX, entry.worldY);
+    const rect = resolvePlayerInspectScreenRect(feet.screenX, feet.screenY, zoom);
+    if (!playerSpriteRectIntersectsViewport(rect)) continue;
     const cx = rect.x + rect.width / 2;
     const cy = rect.y + rect.height / 2;
     const distance = Math.hypot(screenX - cx, screenY - cy);

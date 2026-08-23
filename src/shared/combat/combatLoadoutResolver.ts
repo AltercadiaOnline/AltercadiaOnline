@@ -60,6 +60,12 @@ export type CombatLoadoutResolveInput = {
 
   readonly flowSpeedBase: number;
 
+  readonly allocatedAttack?: number;
+
+  readonly allocatedDefense?: number;
+
+  readonly allocatedHpPoints?: number;
+
 };
 
 
@@ -248,6 +254,8 @@ function emptyCombatStatSources(): CombatStatSources {
     marcoCritPercent: 0,
     marcoDodgePercent: 0,
     marcoDamageReductionPercent: 0,
+    allocatedAttackFlat: 0,
+    allocatedDefenseFlat: 0,
   };
 }
 
@@ -532,6 +540,10 @@ export function resolveCombatLoadout(input: CombatLoadoutResolveInput): Resolved
     marcoDodgePercent,
 
     marcoDamageReductionPercent,
+
+    allocatedAttackFlat: Math.max(0, Math.floor(input.allocatedAttack ?? 0)),
+
+    allocatedDefenseFlat: Math.max(0, Math.floor(input.allocatedDefense ?? 0)),
 
   };
 

@@ -63,6 +63,26 @@ export function isFriendListViewEntry(value: unknown): value is FriendListViewEn
   return isFriendListEntry(value) && typeof (value as { online?: unknown }).online === 'boolean';
 }
 
+/** Delta WS — presença de um amigo mudou (login/logout de outro jogador). */
+export type FriendPresenceUpdate = {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly online: boolean;
+};
+
+export function isFriendPresenceUpdate(value: unknown): value is FriendPresenceUpdate {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.playerId === 'string'
+    && record.playerId.trim().length > 0
+    && typeof record.characterId === 'number'
+    && Number.isFinite(record.characterId)
+    && record.characterId >= 1
+    && typeof record.online === 'boolean'
+  );
+}
+
 export function sanitizeFriendListView(value: unknown): FriendListViewEntry[] {
   if (!Array.isArray(value)) return [];
   return sanitizeFriendList(value).map((row, index) => {

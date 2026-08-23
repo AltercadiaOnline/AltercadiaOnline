@@ -1,8 +1,19 @@
 import { getActionDispatcher } from '../ActionDispatcher.js';
 import { postSystemNotification } from '../ui/logService.js';
 import { closeSprayInspectHud } from './sprayInspectStore.js';
-import { closePlayerInspectHud, setPlayerInspectPending } from './playerInspectStore.js';
-import { pickWorldPlayerSpriteOnScreen } from './worldPlayerPickRegistry.js';
+import {
+  closePlayerInspectHud,
+  getPlayerInspectHudState,
+  openPlayerInspectHudPending,
+  setPlayerInspectPending,
+} from './playerInspectStore.js';
+import {
+  pickNearestWorldPlayerOnScreen,
+  pickWorldPlayerAt,
+  pickWorldPlayerAtWorldPixel,
+  pickWorldPlayerSpriteOnScreen,
+} from './worldPlayerPickRegistry.js';
+import { screenToWorldPixel, worldPixelToTile } from './screenCoords.js';
 import type { Camera } from '../scenes/Camera.js';
 
 export function inspectWorldPlayerAt(
@@ -12,9 +23,22 @@ export function inspectWorldPlayerAt(
   clientX: number,
   clientY: number,
 ): boolean {
-  const target = pickWorldPlayerSpriteOnScreen(camera, screenX, screenY);
+  const { worldX, worldY } = screenToWorldPixel(camera, screenX, screenY);
+  const tile = worldPixelToTile(worldX, worldY);
+  const target =
+    pickWorldPlayerAt(tile.tileX, tile.tileY)
+    ?? pickWorldPlayerAtWorldPixel(worldX, worldY)
+    ?? pickWorldPlayerSpriteOnScreen(camera, screenX, screenY)
+    ?? pickNearestWorldPlayerOnScreen(camera, screenX, screenY);
   if (!target) return false;
   closeSprayInspectHud();
+  openPlayerInspectHudPending({
+    playerId: target.playerId,
+    characterId: target.characterId,
+    displayName: target.displayName,
+    screenX: clientX,
+    screenY: clientY,
+  });
   const result = getActionDispatcher().dispatch({
     type: 'INSPECT_PLAYER',
     payload: {
@@ -25,8 +49,8 @@ export function inspectWorldPlayerAt(
     },
   });
   if (!result.ok) {
+    setPlayerInspectPending(false, result.reason);
     postSystemNotification(result.reason);
-    return false;
   }
   return true;
 }
@@ -48,6 +72,33 @@ export function dispatchDuelInvite(targetPlayerId: string, targetCharacterId: nu
   const result = getActionDispatcher().dispatch({
     type: 'DUEL_INVITE',
     payload: { targetPlayerId, targetCharacterId },
+  });
+  if (!result.ok) {
+    setPlayerInspectPending(false, result.reason);
+    postSystemNotification(result.reason);
+  }
+}
+
+/** Revalida a ficha aberta (ex.: chegou mais perto) — servidor atualiza canInviteDuel. */
+export function refreshOpenPlayerInspect(): void {
+  const hud = getPlayerInspectHudState();
+  const view = hud.view;
+  if (!view || hud.pending || hud.loadingInspect) return;
+  openPlayerInspectHudPending({
+    playerId: view.playerId,
+    characterId: view.characterId,
+    displayName: view.displayName,
+    screenX: hud.screenX,
+    screenY: hud.screenY,
+  });
+  const result = getActionDispatcher().dispatch({
+    type: 'INSPECT_PLAYER',
+    payload: {
+      targetPlayerId: view.playerId,
+      targetCharacterId: view.characterId,
+      screenX: hud.screenX,
+      screenY: hud.screenY,
+    },
   });
   if (!result.ok) {
     setPlayerInspectPending(false, result.reason);

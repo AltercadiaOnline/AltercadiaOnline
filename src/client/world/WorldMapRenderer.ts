@@ -17,12 +17,13 @@ export type WorldMapRendererOptions = {
   readonly inputSurface: HTMLElement;
   readonly camera: Camera;
   readonly onWorldClick?: (screenX: number, screenY: number, options?: WorldMapClickOptions) => void;
-  readonly onWorldContextMenu?: (screenX: number, screenY: number, clientX: number, clientY: number) => void;
+  readonly onWorldSecondaryClick?: (screenX: number, screenY: number, clientX: number, clientY: number) => void;
 };
 
 const CLICK_DRAG_THRESHOLD_PX = 5;
 const DOUBLE_CLICK_WINDOW_MS = 320;
 const DOUBLE_CLICK_DISTANCE_PX = 8;
+const WORLD_INPUT_HIT_ID = 'world-input-hit';
 
 export type WorldMapHoverState = {
   readonly tileX: number;
@@ -30,15 +31,17 @@ export type WorldMapHoverState = {
 };
 
 /**
- * Input do mundo — render visual exclusivo do Construct.
- * Colisão/rede permanecem no mapa autoritativo (MapManager / servidor).
+ * Um palco: `#world-input-hit` por cima do Construct.
+ * Esquerdo = andar (duplo em NPC ainda abre o card). Direito no cursor = inspect personagem / pixo.
  */
 export class WorldMapRenderer implements Disposable {
   private readonly inputSurface: HTMLElement;
+  private readonly hitLayer: HTMLElement;
   private readonly camera: Camera;
   private readonly onWorldClick: ((screenX: number, screenY: number, options?: WorldMapClickOptions) => void) | undefined;
-  private readonly onWorldContextMenu: ((screenX: number, screenY: number, clientX: number, clientY: number) => void) | undefined;
+  private readonly onWorldSecondaryClick: ((screenX: number, screenY: number, clientX: number, clientY: number) => void) | undefined;
   private layout: MapVisualLayout;
+  private hitLayerObserver: MutationObserver | null = null;
 
   private pointerDown = false;
   private pointerDragged = false;
@@ -49,13 +52,15 @@ export class WorldMapRenderer implements Disposable {
   private lastClickY = 0;
   private hover: WorldMapHoverState | null = null;
   private bound = false;
+  private lastSecondaryAtMs = 0;
 
   constructor(options: WorldMapRendererOptions) {
     this.inputSurface = options.inputSurface;
     this.camera = options.camera;
     this.onWorldClick = options.onWorldClick;
-    this.onWorldContextMenu = options.onWorldContextMenu;
+    this.onWorldSecondaryClick = options.onWorldSecondaryClick;
     this.layout = buildMapVisualLayout('city_01');
+    this.hitLayer = ensureWorldInputHitLayer(options.inputSurface);
     this.bindInput();
   }
 
@@ -101,34 +106,58 @@ export class WorldMapRenderer implements Disposable {
     );
   }
 
-  /** Labels DOM de estruturas/portais — Construct-first: vazio até markers de label. */
   public collectDomLabelEntries(): DomNametagEntry[] {
     return [];
   }
 
   private bindInput(): void {
-    if (this.bound) return;
+    this.unbindInput();
     this.bound = true;
+    this.keepHitLayerOnTop();
 
-    this.inputSurface.addEventListener('mousedown', this.onPointerDown);
-    this.inputSurface.addEventListener('mousemove', this.onPointerMove);
+    this.hitLayer.addEventListener('pointerdown', this.onSecondaryPointerDown);
+    this.hitLayer.addEventListener('mousedown', this.onPointerDown);
+    this.hitLayer.addEventListener('mousemove', this.onPointerMove);
+    this.hitLayer.addEventListener('mouseleave', this.onPointerLeave);
+    this.hitLayer.addEventListener('contextmenu', this.onContextMenu);
+    this.hitLayer.addEventListener('selectstart', this.onSelectStart);
+    this.hitLayer.addEventListener('dblclick', this.onNativeDoubleClick);
     window.addEventListener('mouseup', this.onPointerUp);
-    this.inputSurface.addEventListener('mouseleave', this.onPointerLeave);
-    this.inputSurface.addEventListener('selectstart', this.onSelectStart);
-    this.inputSurface.addEventListener('dblclick', this.onNativeDoubleClick);
-    this.inputSurface.addEventListener('contextmenu', this.onContextMenu);
+    window.addEventListener('contextmenu', this.onContextMenu, true);
+  }
+
+  private unbindInput(): void {
+    if (!this.bound) return;
+    this.bound = false;
+    this.hitLayer.removeEventListener('pointerdown', this.onSecondaryPointerDown);
+    this.hitLayer.removeEventListener('mousedown', this.onPointerDown);
+    this.hitLayer.removeEventListener('mousemove', this.onPointerMove);
+    this.hitLayer.removeEventListener('mouseleave', this.onPointerLeave);
+    this.hitLayer.removeEventListener('contextmenu', this.onContextMenu);
+    this.hitLayer.removeEventListener('selectstart', this.onSelectStart);
+    this.hitLayer.removeEventListener('dblclick', this.onNativeDoubleClick);
+    window.removeEventListener('mouseup', this.onPointerUp);
+    window.removeEventListener('contextmenu', this.onContextMenu, true);
   }
 
   public dispose(): void {
-    if (!this.bound) return;
-    this.bound = false;
-    this.inputSurface.removeEventListener('mousedown', this.onPointerDown);
-    this.inputSurface.removeEventListener('mousemove', this.onPointerMove);
-    window.removeEventListener('mouseup', this.onPointerUp);
-    this.inputSurface.removeEventListener('mouseleave', this.onPointerLeave);
-    this.inputSurface.removeEventListener('selectstart', this.onSelectStart);
-    this.inputSurface.removeEventListener('dblclick', this.onNativeDoubleClick);
-    this.inputSurface.removeEventListener('contextmenu', this.onContextMenu);
+    this.unbindInput();
+    this.hitLayerObserver?.disconnect();
+    this.hitLayerObserver = null;
+  }
+
+  private keepHitLayerOnTop(): void {
+    this.hitLayerObserver?.disconnect();
+    const host = this.inputSurface;
+    const lift = (): void => {
+      silenceConstructIframe(host);
+      if (host.lastElementChild !== this.hitLayer) {
+        host.appendChild(this.hitLayer);
+      }
+    };
+    lift();
+    this.hitLayerObserver = new MutationObserver(lift);
+    this.hitLayerObserver.observe(host, { childList: true });
   }
 
   private readonly onSelectStart = (event: Event): void => {
@@ -139,15 +168,23 @@ export class WorldMapRenderer implements Disposable {
     event.preventDefault();
   };
 
+  /** Direito no ponto do cursor: barra o menu nativo e abre a HUD. */
   private readonly onContextMenu = (event: MouseEvent): void => {
+    if (!pointerOverlapsElement(this.hitLayer, event.clientX, event.clientY)) return;
     event.preventDefault();
-    const buffer = mapPointerToRenderBuffer(this.inputSurface, event.clientX, event.clientY);
-    const viewport = this.clampToViewport(buffer.x, buffer.y);
-    this.onWorldContextMenu?.(viewport.x, viewport.y, event.clientX, event.clientY);
+    if (isInventoryContextTarget(event.target)) return;
+    this.emitSecondary(event.clientX, event.clientY);
+  };
+
+  private readonly onSecondaryPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 2) return;
+    event.preventDefault();
+    this.emitSecondary(event.clientX, event.clientY);
   };
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (event.button !== 0) return;
+    if (performance.now() - this.lastSecondaryAtMs < 400) return;
     this.pointerDown = true;
     this.pointerDragged = false;
     this.pointerDownX = event.clientX;
@@ -171,7 +208,8 @@ export class WorldMapRenderer implements Disposable {
   private readonly onPointerUp = (event: MouseEvent): void => {
     if (event.button !== 0) return;
 
-    if (this.pointerDown && !this.pointerDragged) {
+    const suppressPrimary = performance.now() - this.lastSecondaryAtMs < 400;
+    if (this.pointerDown && !this.pointerDragged && !suppressPrimary) {
       const now = performance.now();
       const buffer = mapPointerToRenderBuffer(this.inputSurface, event.clientX, event.clientY);
       const isDoubleClick =
@@ -195,6 +233,16 @@ export class WorldMapRenderer implements Disposable {
     this.hover = null;
   };
 
+  private emitSecondary(clientX: number, clientY: number): void {
+    const now = performance.now();
+    if (now - this.lastSecondaryAtMs < 400) return;
+    this.lastSecondaryAtMs = now;
+
+    const buffer = mapPointerToRenderBuffer(this.inputSurface, clientX, clientY);
+    const viewport = this.clampToViewport(buffer.x, buffer.y);
+    this.onWorldSecondaryClick?.(viewport.x, viewport.y, clientX, clientY);
+  }
+
   private pickHover(screenX: number, screenY: number): WorldMapHoverState | null {
     const viewport = this.clampToViewport(screenX, screenY);
     const { worldX, worldY } = screenToWorldPixel(this.camera, viewport.x, viewport.y);
@@ -213,4 +261,49 @@ export class WorldMapRenderer implements Disposable {
 
     return { tileX, tileY };
   }
+}
+
+function ensureWorldInputHitLayer(host: HTMLElement): HTMLElement {
+  const existing = host.querySelector<HTMLElement>(`#${WORLD_INPUT_HIT_ID}`);
+  if (existing) return existing;
+
+  const layer = document.createElement('div');
+  layer.id = WORLD_INPUT_HIT_ID;
+  layer.setAttribute('aria-hidden', 'true');
+  Object.assign(layer.style, {
+    position: 'absolute',
+    left: '0',
+    top: '0',
+    width: `${DESIGN_CONFIG.VIEWPORT.WIDTH}px`,
+    height: `${DESIGN_CONFIG.VIEWPORT.HEIGHT}px`,
+    zIndex: '30',
+    pointerEvents: 'auto',
+    background: 'transparent',
+  });
+  host.appendChild(layer);
+  return layer;
+}
+
+function silenceConstructIframe(host: HTMLElement): void {
+  const iframe = host.querySelector('iframe');
+  if (iframe) {
+    iframe.style.pointerEvents = 'none';
+  }
+  const viewport = host.querySelector<HTMLElement>('.construct-world-viewport');
+  if (viewport) {
+    viewport.style.pointerEvents = 'none';
+  }
+}
+
+function pointerOverlapsElement(element: HTMLElement, clientX: number, clientY: number): boolean {
+  const rect = element.getBoundingClientRect();
+  return clientX >= rect.left
+    && clientX <= rect.right
+    && clientY >= rect.top
+    && clientY <= rect.bottom;
+}
+
+function isInventoryContextTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest('[data-context-menu-kind], [data-action-menu-kind]'));
 }

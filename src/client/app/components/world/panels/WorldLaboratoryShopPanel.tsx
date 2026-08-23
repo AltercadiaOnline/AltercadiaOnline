@@ -72,7 +72,7 @@ export function WorldLaboratoryShopPanel({
       title={vendor.vendorName}
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--laboratory-shop ui-panel--laboratory-shop"
+      panelClassName="world-panel--laboratory-shop ui-panel--laboratory-shop ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(640px, 96vw)' }}
       onFocus={() => tryFocusReactWorldPanel('laboratoryShop')}
       onClose={() => tryCloseReactWorldPanel('laboratoryShop')}

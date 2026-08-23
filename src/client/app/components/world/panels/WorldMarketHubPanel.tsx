@@ -28,9 +28,10 @@ export function WorldMarketHubPanel({ zIndex, focused }: WorldMarketHubPanelProp
     <MovablePanelFrame
       windowId="marketHub"
       title="Mercado"
+      titleMeta="// MARKET //"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="ui-panel--market-hub"
+      panelClassName="ui-panel--market-hub ui-panel--market-hub-hybrid ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(480px, 94vw)', maxHeight: 'min(520px, 88vh)' }}
       onFocus={() => tryFocusReactWorldPanel('marketHub')}
       onClose={() => tryCloseReactWorldPanel('marketHub')}

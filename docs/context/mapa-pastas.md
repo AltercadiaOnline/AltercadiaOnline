@@ -28,7 +28,7 @@ character, combat, economy, items, world, pet, persistence, intent, sync, social
 | `handlers/` | IntentHandlers (`economy/`, `social/`, `world/`, `pets/`, `combat/`, `city/`, `crafting/`, `progression/`, `dev/`) |
 | `combat/` | CombatGateway; PVE = CombatSession; PVP = `pvp/` — fichas [combate.md](combate.md) / [combate-pve.md](combate-pve.md) / [combate-pvp.md](combate-pvp.md) |
 | `world/` | GameLoop, movimento, sprays dirty |
-| `persistence/` | load/save personagem + world-sprays.json |
+| `persistence/` | save da conta (`data/account/`) + JSON do mundo (`data/{serverId}/`) |
 | `net/` | WS hub, staticServer, rotas |
 | `network/` | ActionDispatcher server, BaseIntentHandler |
 | `progression/` | XP/nível/marcos autoritativos |

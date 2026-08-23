@@ -65,7 +65,15 @@ export function App() {
       {viewMode === 'world' ? (
         <HudErrorBoundary fallback={null}>
           <SprayInspectHud />
+        </HudErrorBoundary>
+      ) : null}
+      {viewMode === 'world' ? (
+        <HudErrorBoundary fallback={null}>
           <PlayerInspectHud />
+        </HudErrorBoundary>
+      ) : null}
+      {viewMode === 'world' ? (
+        <HudErrorBoundary fallback={null}>
           <CasualDuelInviteHud />
         </HudErrorBoundary>
       ) : null}

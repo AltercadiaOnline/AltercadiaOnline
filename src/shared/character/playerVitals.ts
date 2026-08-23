@@ -1,16 +1,23 @@
+import { STAT_POINT_HP_FLAT } from './characterStatPoints.js';
+
 /** HP base do jogador no nível 1 — mesma referência do motor de combate (sem bônus de equipamento/marcos). */
 export const BASE_PLAYER_HP = 100;
 
 /** Vida flat ganha por nível acima de 1 (nível 12 → +110 HP antes de buffs %). */
 export const PLAYER_HP_PER_LEVEL = 10;
 
-export function resolvePlayerBaseHpForLevel(level: number): number {
-  const safeLevel = Math.max(1, Math.floor(level));
-  return BASE_PLAYER_HP + (safeLevel - 1) * PLAYER_HP_PER_LEVEL;
+export function resolveAllocatedHpFlat(allocatedHpPoints = 0): number {
+  if (typeof allocatedHpPoints !== 'number' || !Number.isFinite(allocatedHpPoints)) return 0;
+  return Math.max(0, Math.floor(allocatedHpPoints)) * STAT_POINT_HP_FLAT;
 }
 
-export function computePlayerHpMax(level = 1, maxHpBonusPercent = 0): number {
-  const base = resolvePlayerBaseHpForLevel(level);
+export function resolvePlayerBaseHpForLevel(level: number, allocatedHpPoints = 0): number {
+  const safeLevel = Math.max(1, Math.floor(level));
+  return BASE_PLAYER_HP + (safeLevel - 1) * PLAYER_HP_PER_LEVEL + resolveAllocatedHpFlat(allocatedHpPoints);
+}
+
+export function computePlayerHpMax(level = 1, maxHpBonusPercent = 0, allocatedHpPoints = 0): number {
+  const base = resolvePlayerBaseHpForLevel(level, allocatedHpPoints);
   return Math.max(1, Math.floor(base * (1 + maxHpBonusPercent / 100)));
 }
 

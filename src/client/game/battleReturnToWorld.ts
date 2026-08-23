@@ -1,4 +1,5 @@
 import type { BattleEndReason } from '../../shared/combat/battleEnded.js';
+import type { BattleType } from '../../shared/combat/battleType.js';
 import type { BattleEncounterData } from '../../shared/game/gameState.js';
 import { CITY_01_ID } from '../../shared/world/maps/city01.js';
 import { buildBattleEncounter } from '../../shared/world/monsterRegistry.js';
@@ -12,6 +13,10 @@ export type ReturnToExplorationOptions = {
   readonly victory: boolean;
   readonly endReason?: BattleEndReason;
   readonly monsterId?: string;
+  /** Autoridade do servidor — sem isto o cliente assume PVE e pode teleportar à cidade. */
+  readonly battleType?: BattleType;
+  /** Duelo casual — derrota real espelha PVE (cidade + HP mínimo). */
+  readonly casualPvp?: boolean;
 };
 
 type ReturnToExplorationFn = (options: ReturnToExplorationOptions) => Promise<void>;

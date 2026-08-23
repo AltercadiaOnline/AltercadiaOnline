@@ -22,11 +22,17 @@ DATA_DIR=./data
 
 ```text
 data/
-  characters/
-    {playerId encoded}/
-      {characterId}.json    ← economia, mundo, progressão, marcos
-  pending-loot.json           ← loot staged (cassino) até coletar/dismiss
+  account/                          ← save da conta (userId, characterId)
+    characters/{playerId encoded}/{characterId}.json
+    pending-loot.json
+    global-marketplace.json
+  azul/                             ← instância (SERVER_ID)
+    world-sprays.json
+    static-network.json
+    leaderboard.json
 ```
+
+Legado `data/azul/characters/` e JSON na raiz `data/` são promovidos na leitura. Detalhe: [persistencia.md](context/persistencia.md) / [personagem-mundos.md](context/personagem-mundos.md).
 
 ## Módulos (arquitetura)
 

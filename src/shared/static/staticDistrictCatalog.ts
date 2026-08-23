@@ -1,3 +1,4 @@
+import { worldPixelToTile } from '../world/portals.js';
 import { CITY_01_ID } from '../world/maps/city01.js';
 import {
   FARM_ZONE_01_ID,
@@ -41,7 +42,10 @@ export type StaticDistrictDef = {
 export const STATIC_SABOTAGE_GOAL_DEFAULT = 10_000;
 export const STATIC_HOT_THRESHOLD_DEFAULT = 5_000;
 export const STATIC_APAGAO_DURATION_MS = 10 * 60 * 1000;
-export const STATIC_AGENT_WAVE_COOLDOWN_MS = 7 * 60 * 1000;
+/** Onda de agentes: 10 min reais (:00/:10/:20…). */
+export const STATIC_AGENT_WAVE_INTERVAL_MS = 10 * 60 * 1000;
+/** @deprecated Use STATIC_AGENT_WAVE_INTERVAL_MS */
+export const STATIC_AGENT_WAVE_COOLDOWN_MS = STATIC_AGENT_WAVE_INTERVAL_MS;
 export const STATIC_WAR_ROOM_MAX_SLOTS = 4;
 export const STATIC_WAR_ROOM_EXPIRE_MS = 5 * 60 * 1000;
 export const STATIC_FLEX_HEADLINE_MAX_CHARS = 120;
@@ -132,6 +136,17 @@ function inBounds(bounds: StaticTileBounds, tileX: number, tileY: number): boole
     && tileY <= bounds.tileY1;
 }
 
+export function isTileInStaticDistrict(
+  districtId: StaticDistrictId,
+  mapId: string,
+  tileX: number,
+  tileY: number,
+): boolean {
+  const def = getStaticDistrictDef(districtId);
+  if (!def || def.mapId !== mapId) return false;
+  return inBounds(def.bounds, tileX, tileY);
+}
+
 export function resolveStaticDistrictAt(
   mapId: string,
   tileX: number,
@@ -142,4 +157,13 @@ export function resolveStaticDistrictAt(
     if (inBounds(entry.bounds, tileX, tileY)) return entry;
   }
   return null;
+}
+
+export function resolveStaticDistrictIdAtPixel(
+  mapId: string,
+  worldX: number,
+  worldY: number,
+): StaticDistrictId | null {
+  const { tileX, tileY } = worldPixelToTile(worldX, worldY);
+  return resolveStaticDistrictAt(mapId, tileX, tileY)?.id ?? null;
 }

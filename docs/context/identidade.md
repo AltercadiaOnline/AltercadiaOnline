@@ -10,8 +10,10 @@ full-state-sync = ESTADO (itens, XP, pos, pets, skin…)
 
 ## Imutável (hub)
 
-characterId, classId, displayName, serverId, slotIndex  
+characterId, classId, displayName, slotIndex  
 (rename = intent dedicado)
+
+**Hoje o código ainda grava `serverId` na identidade** (char preso ao shard). Alvo: mundo = sessão, não identidade — fases em [personagem-mundos.md](personagem-mundos.md). Não remover `serverId` do tipo antes da fase 4.
 
 Online: `profiles.class_id` (migration 018) é a cópia durável da classe no hub. Enter-world lê o slot, não inventa IMPETUS.
 

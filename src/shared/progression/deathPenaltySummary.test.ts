@@ -21,7 +21,7 @@ describe('formatDeathPenaltySummaryLines', () => {
     expect(lines.some((line) => line.includes('cidade'))).toBe(true);
   });
 
-  it('lista perdas aplicadas', () => {
+  it('lista perdas aplicadas (sem medidor de marco)', () => {
     const lines = formatDeathPenaltySummaryLines({
       applied: true,
       player: {
@@ -32,10 +32,10 @@ describe('formatDeathPenaltySummaryLines', () => {
       },
       xpRemoved: 20,
       masteryRemoved: { a: 0.5 },
-      milestoneProgressRemoved: 1.2,
+      milestoneProgressRemoved: 0,
     });
     expect(lines).toContain('−20 XP de personagem');
-    expect(lines.some((line) => line.includes('Marcos'))).toBe(true);
+    expect(lines.some((line) => line.includes('Marcos'))).toBe(false);
     expect(lines.some((line) => line.includes('domínio'))).toBe(true);
   });
 });

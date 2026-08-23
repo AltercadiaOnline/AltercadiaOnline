@@ -62,6 +62,19 @@ export function isStaticHeat(value: unknown): value is StaticHeat {
   return value === 'cold' || value === 'hot' || value === 'blackout';
 }
 
+/** Calor ao vivo: apagão > patrulha/agentes > sabotagem no limiar > frio. */
+export function resolveStaticLiveHeat(input: {
+  readonly blackoutRemainMs: number;
+  readonly agentCount: number;
+  readonly sabotage: number;
+  readonly hotThreshold: number;
+}): StaticHeat {
+  if (input.blackoutRemainMs > 0) return 'blackout';
+  if (input.agentCount > 0) return 'hot';
+  if (input.hotThreshold > 0 && input.sabotage >= input.hotThreshold) return 'hot';
+  return 'cold';
+}
+
 export function isStaticFlexReactionKind(value: unknown): value is StaticFlexReactionKind {
   return value === 'glitch' || value === 'respect' || value === 'static';
 }

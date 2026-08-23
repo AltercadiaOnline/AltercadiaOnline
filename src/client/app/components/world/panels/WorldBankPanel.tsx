@@ -45,7 +45,7 @@ export function WorldBankPanel({ zIndex, focused }: WorldBankPanelProps) {
       title="Banco — Banqueiro"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--bank ui-panel--bank ui-panel--movable"
+      panelClassName="world-panel--bank ui-panel--bank ui-panel--movable ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(880px, 96vw)', maxHeight: 'min(88vh, 640px)' }}
       bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('bank')}

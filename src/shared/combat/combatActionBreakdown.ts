@@ -79,6 +79,8 @@ export function resolveCombatBreakdownLineLabel(line: CombatBreakdownLine): stri
 
   if (line.source === 'classe') return 'Defesa';
 
+  if (line.source === 'ficha') return 'Ficha';
+
   if (!stat) return source;
 
   return `${source} ${stat}`;
@@ -97,7 +99,7 @@ function lineCountsInTotal(line: CombatBreakdownLine): boolean {
 
 function isPrimaryLine(line: CombatBreakdownLine): boolean {
 
-  return line.source === 'ataque' || line.source === 'moveset' || line.source === 'classe';
+  return line.source === 'ataque' || line.source === 'moveset' || line.source === 'classe' || line.source === 'ficha';
 
 }
 
@@ -159,13 +161,15 @@ export function formatCombatActionBreakdown(breakdown: CombatActionBreakdown): s
 
 function formatEquationTerm(line: CombatBreakdownLine, isFirst: boolean): string {
 
-  if (line.source === 'ataque' || line.source === 'moveset' || line.source === 'classe') {
+  if (line.source === 'ataque' || line.source === 'moveset' || line.source === 'classe' || line.source === 'ficha') {
 
     const label = line.source === 'ataque'
       ? 'ATK'
       : line.source === 'moveset'
         ? 'Move'
-        : 'Defesa';
+        : line.source === 'classe'
+          ? 'Defesa'
+          : 'Ficha';
 
     return isFirst ? `${label} ${Math.round(line.value)}` : `${label} +${Math.round(line.value)}`;
 

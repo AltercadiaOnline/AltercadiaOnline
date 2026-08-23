@@ -16,4 +16,9 @@ describe('playerVitals', () => {
   it('applies equipment HP percent on top of level base', () => {
     expect(computePlayerHpMax(12, 10)).toBe(231);
   });
+
+  it('adds allocated Ficha HP to the base before percent', () => {
+    expect(computePlayerHpMax(1, 0, 2)).toBe(116);
+    expect(computePlayerHpMax(12, 10, 2)).toBe(Math.floor(226 * 1.1));
+  });
 });

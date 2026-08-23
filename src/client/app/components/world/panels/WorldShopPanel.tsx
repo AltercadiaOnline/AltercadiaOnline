@@ -12,9 +12,10 @@ export function WorldShopPanel({ zIndex, focused }: WorldShopPanelProps) {
     <MovablePanelFrame
       windowId="shop"
       title="Loja de Skins"
+      titleMeta="// COSMÉTICO //"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="ui-panel--shop"
+      panelClassName="ui-panel--shop ui-panel--shop-hybrid ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(340px, 94vw)', maxHeight: 'min(280px, 88vh)' }}
       onFocus={() => tryFocusReactWorldPanel('shop')}
       onClose={() => tryCloseReactWorldPanel('shop')}

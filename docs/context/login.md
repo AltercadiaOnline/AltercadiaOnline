@@ -6,6 +6,8 @@ Primeira tela da sessão. Sem login estável o resto do MMO não existe.
 AuthScreen → JWT / sessão local → CharSelect (hub) → identidade → enter-world
 ```
 
+Alvo hop: slot da **conta** → escolhe **mundo** → WS daquele host. Hoje o hub ainda filtra por `SERVER_ID` do processo (fase 3). Save file já é `(userId, characterId)` em `data/account/`. Plano: [personagem-mundos.md](personagem-mundos.md).
+
 ## Arquivos âncora
 
 | Peça | Path |
@@ -48,5 +50,7 @@ Persistência: `localStorage` `altercadia.performancePreset`. Query `?perf=lite`
 Código: `src/client/runtime/performancePreset.ts`. Não muda 640×360 nem o servidor.
 
 Leve também: sem fontes Google no boot, teto ~30 fps no mundo/arena, sem sombras/blur.
+
+Vitrine de ranking no login (`LiveRankPanel` / `AUTH_RANK_TABS`): level, classe, moveset, PvP, PvE. O PC da Arena in-game é **só** PvP ranqueado — [ranking.md](ranking.md).
 
 Identidade depois do select: [identidade.md](identidade.md). HUD in-game: [ui-cliente.md](ui-cliente.md).

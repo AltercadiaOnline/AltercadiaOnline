@@ -36,8 +36,18 @@ import {
   notifyRefractionBoothQuoteResult,
   notifyRefractionBoothStartedResult,
 } from '../cityMinigames/refractionBoothClient.js';
+import {
+  notifyZoneBypassInitResult,
+  notifyZoneBypassSubmitResult,
+} from '../world/zoneBypassClient.js';
+import type {
+  TerminalInitResponse,
+  TerminalSubmitResponse,
+  ZoneDomainSnapshot,
+} from '../../shared/types/zoneBypass.js';
 import { getPlayerProgressionStore } from '../progression/playerProgressionStore.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
+import { applyAuthoritativeWorldVitals } from '../world/applyAuthoritativeWorldVitals.js';
 import type {
   RefractionBoothCompleteSuccess,
   RefractionBoothQuoteResult,
@@ -45,6 +55,7 @@ import type {
 } from '../../shared/cityMinigames/refractionBoothTypes.js';
 import type { MarcosStateSnapshot } from '../../shared/playerDataSnapshots.js';
 import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
+import { alertSystem } from '../ui/alertSystem.js';
 import { upsertFriend } from '../world/friendListStore.js';
 import { isFriendListViewEntry } from '../../shared/social/friendListTypes.js';
 import { isChatWhisperPayload } from '../../shared/social/chatWhisperTypes.js';
@@ -65,6 +76,7 @@ import {
 } from '../world/sprayInspectStore.js';
 import { isPlayerInspectView } from '../../shared/social/playerInspectTypes.js';
 import {
+  closePlayerInspectHud,
   markPlayerInspectFriendSent,
   openPlayerInspectHud,
   setPlayerInspectPending,
@@ -85,7 +97,39 @@ function isMarcosStateIntentData(data: unknown): data is {
     && typeof record.flowSpeedBase === 'number';
 }
 
-/** Fallback: aplica marcos do intent-result se o economy-event atrasar. */
+/** Aplica bolsa da Ficha + HP máximo do ACK de ALLOCATE_STAT_POINTS. */
+function tryApplyStatPointsFromIntentData(intentId: string, data: unknown): boolean {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending || pending.action.type !== 'ALLOCATE_STAT_POINTS') return false;
+  if (!data || typeof data !== 'object') return false;
+  const view = (data as { characterStatPoints?: unknown }).characterStatPoints;
+  if (!view || typeof view !== 'object') return false;
+  const record = view as Record<string, unknown>;
+  getMutableDataStore().applyCharacterStatPoints({
+    atk: typeof record.atk === 'number' ? record.atk : 0,
+    def: typeof record.def === 'number' ? record.def : 0,
+    hp: typeof record.hp === 'number' ? record.hp : 0,
+  });
+  const vitals = (data as { worldVitals?: unknown }).worldVitals;
+  if (vitals && typeof vitals === 'object') {
+    const v = vitals as Record<string, unknown>;
+    if (
+      typeof v.hpCurrent === 'number'
+      && typeof v.hpMax === 'number'
+      && typeof v.mpCurrent === 'number'
+      && typeof v.mpMax === 'number'
+    ) {
+      applyAuthoritativeWorldVitals({
+        hpCurrent: v.hpCurrent,
+        hpMax: v.hpMax,
+        mpCurrent: v.mpCurrent,
+        mpMax: v.mpMax,
+      });
+    }
+  }
+  return true;
+}
+
 function tryApplyMarcosFromIntentData(intentId: string, data: unknown): boolean {
   const pending = getPendingIntentRegistry().get(intentId);
   if (
@@ -104,14 +148,38 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
   if (
     !pending
     || (pending.action.type !== 'ACCEPT_MERCENARY_TASK'
-      && pending.action.type !== 'ABANDON_MERCENARY_TASK')
+      && pending.action.type !== 'ABANDON_MERCENARY_TASK'
+      && pending.action.type !== 'COMPLETE_MERCENARY_TASK')
   ) {
     return false;
   }
   if (!data || typeof data !== 'object') return false;
-  const progress = (data as { mercenaryQuests?: unknown }).mercenaryQuests;
-  if (!progress) return false;
-  getMercenaryQuestStore().applyAuthoritative(progress);
+  const record = data as {
+    mercenaryQuests?: unknown;
+    characterLevel?: { level?: unknown; xpCurrent?: unknown };
+    rewardExp?: unknown;
+    rewardVolts?: unknown;
+  };
+  if (!record.mercenaryQuests) return false;
+  getMercenaryQuestStore().applyAuthoritative(record.mercenaryQuests);
+
+  const level = typeof record.characterLevel?.level === 'number'
+    ? Math.max(1, Math.floor(record.characterLevel.level))
+    : null;
+  const xpCurrent = typeof record.characterLevel?.xpCurrent === 'number'
+    ? Math.max(0, Math.floor(record.characterLevel.xpCurrent))
+    : null;
+  if (level !== null && xpCurrent !== null) {
+    getMutableDataStore().applyCharacterLevelState(level, xpCurrent, 'server_sync');
+  }
+
+  if (pending.action.type === 'COMPLETE_MERCENARY_TASK') {
+    const xp = typeof record.rewardExp === 'number' ? Math.floor(record.rewardExp) : 0;
+    const volts = typeof record.rewardVolts === 'number' ? Math.floor(record.rewardVolts) : 0;
+    if (xp > 0 || volts > 0) {
+      alertSystem(`Contrato entregue: +${xp} XP · +${volts} VOLTS`);
+    }
+  }
   return true;
 }
 
@@ -211,13 +279,19 @@ function tryNotifyPlayerSocialResult(intentId: string, success: boolean, data?: 
   if (pending.action.type === 'INSPECT_PLAYER') {
     if (!success) {
       const reason = typeof data === 'string' ? data : 'Jogador indisponível.';
+      setPlayerInspectPending(false, reason);
       postSystemNotification(reason);
       return;
     }
     const inspect = data && typeof data === 'object'
       ? (data as { inspect?: unknown }).inspect
       : null;
-    if (!isPlayerInspectView(inspect)) return;
+    if (!isPlayerInspectView(inspect)) {
+      const reason = 'Ficha do jogador inválida (servidor).';
+      setPlayerInspectPending(false, reason);
+      postSystemNotification(reason);
+      return;
+    }
     const screenX = pending.action.payload.screenX ?? 0;
     const screenY = pending.action.payload.screenY ?? 0;
     openPlayerInspectHud(inspect, screenX, screenY);
@@ -227,10 +301,13 @@ function tryNotifyPlayerSocialResult(intentId: string, success: boolean, data?: 
   if (pending.action.type === 'DUEL_INVITE' || pending.action.type === 'DUEL_INVITE_RESPOND') {
     setPlayerInspectPending(false, success ? null : (typeof data === 'string' ? data : 'Falha no desafio.'));
     if (success) {
+      if (pending.action.type === 'DUEL_INVITE') {
+        closePlayerInspectHud();
+      }
       const message = data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
         ? (data as { message: string }).message
         : pending.action.type === 'DUEL_INVITE'
-          ? 'Desafio enviado.'
+          ? 'Desafio enviado. Aguardando resposta…'
           : 'Resposta enviada.';
       postSystemNotification(message);
       return;
@@ -338,6 +415,41 @@ function tryNotifyRefractionResult(intentId: string, success: boolean, data?: un
       }
       if (data && typeof data === 'object') {
         notifyRefractionBoothCompleteResult(data as RefractionBoothCompleteSuccess);
+      }
+      return;
+    default:
+      return;
+  }
+}
+
+function tryNotifyZoneBypassResult(intentId: string, success: boolean, data?: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending) return;
+
+  const failReason =
+    !success && data && typeof data === 'object' && typeof (data as { reason?: unknown }).reason === 'string'
+      ? (data as { reason: string }).reason
+      : !success
+        ? 'Falha no terminal de domínio.'
+        : null;
+
+  switch (pending.action.type) {
+    case 'ZONE_BYPASS_INIT':
+      if (!success) {
+        notifyZoneBypassInitResult({ ok: false, reason: failReason ?? 'Falha ao iniciar.' });
+        return;
+      }
+      if (data && typeof data === 'object') {
+        notifyZoneBypassInitResult(data as TerminalInitResponse);
+      }
+      return;
+    case 'ZONE_BYPASS_SUBMIT':
+      if (!success) {
+        notifyZoneBypassSubmitResult({ ok: false, reason: failReason ?? 'Falha ao enviar código.' });
+        return;
+      }
+      if (data && typeof data === 'object') {
+        notifyZoneBypassSubmitResult(data as TerminalSubmitResponse & { zoneDomain?: ZoneDomainSnapshot });
       }
       return;
     default:
@@ -625,14 +737,18 @@ export function handleIntentResultPayload(raw: unknown): void {
     tryNotifyPlayerSocialResult(raw.intentId, true, raw.data);
     tryNotifyWhisperResult(raw.intentId, true, raw.data);
     tryNotifyRefractionResult(raw.intentId, true, raw.data);
+    tryNotifyZoneBypassResult(raw.intentId, true, raw.data);
     const petRosterApplied = tryApplyPetRosterFromIntentData(raw.intentId, raw.data);
     const inventoryApplied = tryApplyInventoryFromIntentData(raw.intentId, raw.data);
     tryApplyMarcosFromIntentData(raw.intentId, raw.data);
+    const statPointsApplied = tryApplyStatPointsFromIntentData(raw.intentId, raw.data);
     tryApplyMercenaryQuestsFromIntentData(raw.intentId, raw.data);
     tryApplyMovesetMasteryFromIntentData(raw.intentId, raw.data);
     tryApplyHealVitalsFromIntentData(raw.intentId, raw.data);
     tryApplyMarketplaceFromIntentData(raw.intentId, raw.data);
-    if (!petRosterApplied || !inventoryApplied) {
+    const skipFullStateForAllocatedStats =
+      pendingIntent?.action.type === 'ALLOCATE_STAT_POINTS' && statPointsApplied;
+    if (!skipFullStateForAllocatedStats && (!petRosterApplied || !inventoryApplied)) {
       getGlobalStateSynchronizer().requestFullState();
     }
 
@@ -661,6 +777,7 @@ export function handleIntentResultPayload(raw: unknown): void {
   tryNotifyPlayerSocialResult(raw.intentId, false, raw.error ?? 'INTENT_REJECTED');
   tryNotifyWhisperResult(raw.intentId, false, raw.error ?? 'INTENT_REJECTED');
   tryNotifyRefractionResult(raw.intentId, false, { reason: raw.error ?? 'INTENT_REJECTED' });
+  tryNotifyZoneBypassResult(raw.intentId, false, { reason: raw.error ?? 'INTENT_REJECTED' });
 
   if (pendingInRegistry) {
     getActionDispatcher().rejectIntent(raw.intentId, raw.error ?? 'INTENT_REJECTED');

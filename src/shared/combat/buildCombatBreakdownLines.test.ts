@@ -9,6 +9,7 @@ import {
 import { calculateDamage } from './calculateDamage.js';
 import { resolveCombatLoadout } from './combatLoadoutResolver.js';
 import { emptyMarcosNodeProgression } from '../progression/marcoProgression.js';
+import { CLASS_CATALOG } from '../types/classes.js';
 import type { Combatant, CombatStatSources } from '../types.js';
 
 function minimalSources(patch: Partial<CombatStatSources> = {}): CombatStatSources {
@@ -108,6 +109,23 @@ describe('buildAttackBreakdownLines', () => {
     expect(breakdown.lines.some((line) => line.source === 'equip' && line.value > 0)).toBe(true);
     expect(breakdown.lines.some((line) => line.source === 'amuleto' && line.value > 0)).toBe(true);
   });
+
+  it('ficha ATK is a flat add after SET percent', () => {
+    const classAtk = 6;
+    const movePower = 10;
+    const strikeBase = 16;
+    const breakdown = buildAttackBreakdownLines(
+      minimalSources({
+        equipByBuff: { [ItemBuffType.Strength]: 50 },
+        allocatedAttackFlat: 4,
+      }),
+      classAtk,
+      movePower,
+    );
+    expect(sumAttackBreakdownTotal(breakdown)).toBe(
+      strikeBase + Math.floor(strikeBase * 50 / 100) + 4,
+    );
+  });
 });
 
 describe('SET DEF no golpe recebido', () => {
@@ -132,7 +150,9 @@ describe('SET DEF no golpe recebido', () => {
       combatStats: { defensePercent: 10 },
     });
     const breakdown = buildDefenseBreakdown(defender, null, incomingStrike);
-    expect(sumDefenseBreakdownTotal(breakdown)).toBe(3 + Math.floor(incomingStrike * 10 / 100));
+    expect(sumDefenseBreakdownTotal(breakdown)).toBe(
+      CLASS_CATALOG.COGITOR.bonus.defense + Math.floor(incomingStrike * 10 / 100),
+    );
   });
 
   it('Rato vs COGITOR: Armadura de Trilhos corta o dano em relação ao nu', () => {

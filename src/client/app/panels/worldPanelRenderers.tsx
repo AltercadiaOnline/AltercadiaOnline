@@ -9,6 +9,7 @@ import { WorldLaboratoryShopPanel } from '../components/world/panels/WorldLabora
 import { WorldPetMemorialPanel } from '../components/world/panels/WorldPetMemorialPanel.js';
 import { WorldPetTrainerShopPanel } from '../components/world/panels/WorldPetTrainerShopPanel.js';
 import { WorldQuestPanel } from '../components/world/panels/WorldQuestPanel.js';
+import { WorldStaticNetworkPanel } from '../components/world/panels/WorldStaticNetworkPanel.js';
 import { WorldRankingMonitorPanel } from '../components/world/panels/WorldRankingMonitorPanel.js';
 import { WorldPvpQueuePanel } from '../components/world/panels/WorldPvpQueuePanel.js';
 import { WorldRefractionBoothPanel } from '../components/world/panels/WorldRefractionBoothPanel.js';
@@ -209,6 +210,9 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
   ),
   quest: ({ entry, focused }) => (
     <WorldQuestPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
+  ),
+  staticNet: ({ entry, focused }) => (
+    <WorldStaticNetworkPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />
   ),
   social: ({ entry, focused }) => (
     <WorldSocialPanel key={entry.windowId} zIndex={entry.zIndex} focused={focused} />

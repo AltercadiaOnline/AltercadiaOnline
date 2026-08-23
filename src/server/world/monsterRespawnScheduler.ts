@@ -8,6 +8,7 @@ import { resolveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
 import type { MonsterRegistryEntry } from '../../shared/world/monsterRegistry.js';
 import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
+import { isVortexAgentInstanceId } from '../../shared/static/vortexAgentWave.js';
 import {
   getWorldMonsterEntryRaw,
   restoreWorldMonsterAfterRespawn,
@@ -55,6 +56,10 @@ export function scheduleWorldMonsterRespawn(
   stashWorldMonsterForRespawn(monsterId);
   releasePveMonsterClaim(monsterId);
   clearCreatureAiRuntime(monsterId);
+
+  if (isVortexAgentInstanceId(monsterId)) {
+    return;
+  }
 
   pendingById.set(monsterId, {
     template,

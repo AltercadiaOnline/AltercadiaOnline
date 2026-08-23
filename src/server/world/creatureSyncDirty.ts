@@ -9,7 +9,7 @@ const lastSigByConnection = new Map<string, string>();
 const ticksSinceFullByConnection = new Map<string, number>();
 
 /** Reenvio completo periódico (reconciliação), em ticks de 20 Hz. */
-export const CREATURE_AOI_FULL_RESYNC_TICKS = 40;
+export const CREATURE_AOI_FULL_RESYNC_TICKS = 20;
 
 export function markCreatureSyncDirty(monsterId: string): void {
   dirtyMonsterIds.add(monsterId);

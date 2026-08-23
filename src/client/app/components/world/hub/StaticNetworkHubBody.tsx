@@ -8,6 +8,7 @@ import {
   formatBlackoutRemain,
   sabotagePercent,
   staticHeatLabel,
+  vortexPatrolStatusLabel,
 } from './staticNetworkView.js';
 
 type StaticHubTab = 'alerta' | 'sabotagem' | 'war' | 'flex';
@@ -33,7 +34,7 @@ export function StaticNetworkHubBody() {
   return (
     <div className="static-net" data-static-linked={linked ? '1' : '0'}>
       <p className="static-net__channel">
-        STATIC // {linked ? 'SINAL' : 'AGUARDANDO LINK'}
+        VORTEX // {linked ? 'SINAL' : 'AGUARDANDO'}
       </p>
 
       <ul className="static-net__heat" aria-label="Temperatura dos distritos">
@@ -75,7 +76,8 @@ export function StaticNetworkHubBody() {
                   </span>
                 </div>
                 <p className="static-net__meta">
-                  Agentes na zona: {row.agentCount}
+                  {vortexPatrolStatusLabel(row)
+                    ?? `Agentes na zona: ${row.agentCount}`}
                   {row.heat === 'hot' ? ' · patrulha ativa' : ''}
                   {row.blackoutRemainMs > 0
                     ? ` · apagão ${formatBlackoutRemain(row.blackoutRemainMs)}`
@@ -83,7 +85,7 @@ export function StaticNetworkHubBody() {
                 </p>
               </li>
             ))}
-            <li className="static-net__hint">Respawn de patrulha: 7 min após a onda (servidor).</li>
+            <li className="static-net__hint">Beco: a cada 10 min, 50% de um agente entrar. Sem luta em 1 min, some.</li>
           </ul>
         ) : null}
 

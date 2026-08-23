@@ -31,6 +31,8 @@ export type WorldTickDelta = {
   readonly nearbyPlayers?: readonly RemotePlayerSnapshot[];
   /** Pichações da zona atual do observador. */
   readonly sprays?: readonly WorldSpraySnapshot[];
+  /** Domínio zona 1 — unlocks pessoais + holders globais do shard. */
+  readonly zoneDomain?: import('../types/zoneBypass.js').ZoneDomainSnapshot;
   /** Rede Static (distritos) — shard inteiro, só se a revision mudou. */
   readonly staticNetwork?: StaticNetworkHudSnapshot;
 };

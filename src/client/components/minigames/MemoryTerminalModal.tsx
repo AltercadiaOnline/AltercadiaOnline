@@ -175,7 +175,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 9999,
+    zIndex: 10000,
     pointerEvents: 'auto',
     fontFamily: `'Inter', 'Roboto', sans-serif`,
   },

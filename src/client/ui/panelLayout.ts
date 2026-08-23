@@ -91,6 +91,11 @@ export function resolvePanelDefaultPosition(
         left: Math.max(margin, (layerWidth - width) / 2),
         top: hubTop,
       });
+    case 'staticNet':
+      return withHubStagger({
+        left: Math.max(margin, layerWidth - width - margin),
+        top: hubTop,
+      });
     case 'craft':
       return {
         left: Math.max(margin, layerWidth - width - margin),

@@ -13,6 +13,8 @@ export type TopDownCreatureFacing =
   | 'west'
   | 'south-west';
 
+type Zone1TopDownCreatureId = Zone1CreatureId | 'vortex_agent';
+
 type Zone1TopDownEntry = {
   /**
    * Caminho da pasta `rotations` relativo a ZONE1_TOPDOWN_BASE.
@@ -24,7 +26,7 @@ type Zone1TopDownEntry = {
 };
 
 /** Mapa autoritativo creatureId → bundle top-down em disco (public/assets/creatures). */
-const ZONE1_TOPDOWN_ENTRIES: Readonly<Record<Zone1CreatureId, Zone1TopDownEntry>> = {
+const ZONE1_TOPDOWN_ENTRIES: Readonly<Record<Zone1TopDownCreatureId, Zone1TopDownEntry>> = {
   crow: {
     rotationsBase: 'corvo/corvo_topdown_test/rotations',
     frameSize: 60,
@@ -45,10 +47,14 @@ const ZONE1_TOPDOWN_ENTRIES: Readonly<Record<Zone1CreatureId, Zone1TopDownEntry>
     rotationsBase: 'aranha/aranha_topdown_test/Top-down_2d_game_character_sprite/rotations',
     frameSize: 56,
   },
+  vortex_agent: {
+    rotationsBase: 'agente_vortex/agente_vortex_topdown/rotations',
+    frameSize: 68,
+  },
 };
 
 function getEntry(creatureId: string): Zone1TopDownEntry | null {
-  return ZONE1_TOPDOWN_ENTRIES[creatureId as Zone1CreatureId] ?? null;
+  return ZONE1_TOPDOWN_ENTRIES[creatureId as Zone1TopDownCreatureId] ?? null;
 }
 
 export function hasZone1TopDownBundle(creatureId: string): boolean {
@@ -77,4 +83,8 @@ export function resolveZone1TopDownAtlasFrameId(
 
 export function resolveZone1TopDownFrameSize(creatureId: string): number | null {
   return getEntry(creatureId)?.frameSize ?? null;
+}
+
+export function listZone1TopDownCreatureIds(): readonly string[] {
+  return Object.keys(ZONE1_TOPDOWN_ENTRIES);
 }

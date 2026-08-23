@@ -6,10 +6,13 @@ import {
   resolveNpcCollisionSize,
 } from '../npc/npcAssetBundles.js';
 import { CONSTRUCT_NPC_PLACEMENTS_GENERATED } from './constructNpcPlacements.generated.js';
+import { listZoneDomainTerminalIds } from './zoneDomainTerminals.js';
+import { ZONE_DOMAIN_TERMINAL_SPAWN_SOURCE } from './zoneDomainTerminalPlacements.js';
 
 /**
  * Posições dos markers Construct — origem = centro do objeto (ox/oy 0.5).
  * Dados: constructNpcPlacements.generated.ts (npm run generate:construct-placements).
+ * Spawn de terminal de zona = só marker no export; sem posição provisória no overlay.
  */
 export type ConstructNpcPlacement = {
   readonly mapId: MapId;
@@ -17,9 +20,15 @@ export type ConstructNpcPlacement = {
   readonly constructY: number;
 };
 
-/** Placements gerados do data.json — única autoridade de posição NPC. */
+/** Só o que o Construct exportou — `1a/1b/1c` entram quando o generate tiver o marker. */
 export const CONSTRUCT_NPC_PLACEMENTS: Readonly<Record<string, ConstructNpcPlacement>> =
   CONSTRUCT_NPC_PLACEMENTS_GENERATED;
+
+export { ZONE_DOMAIN_TERMINAL_SPAWN_SOURCE };
+
+export function hasGeneratedConstructNpcPlacement(npcId: string): boolean {
+  return Object.prototype.hasOwnProperty.call(CONSTRUCT_NPC_PLACEMENTS_GENERATED, npcId);
+}
 
 /** ObjectTypes Construct de NPCs/terminais — esconder (overlay desenha o PNG). */
 export const CONSTRUCT_NPC_MARKER_TYPES = [
@@ -34,6 +43,7 @@ export const CONSTRUCT_NPC_MARKER_TYPES = [
   'computador_arena',
   'computador_marketplace',
   'computador_zona1',
+  ...listZoneDomainTerminalIds().filter((id) => id !== 'computador_zona1'),
   'pulpito',
   'combate_pvp',
 ] as const;

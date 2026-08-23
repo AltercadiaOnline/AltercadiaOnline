@@ -29,6 +29,20 @@ export function isAlliedCombatant(
   return actorRole === 'PLAYER' && targetRole === 'PLAYER' && actorId === targetId;
 }
 
+/** Alvo hostil válido: criatura ENEMY ou rival PLAYER/PET em duelo PvP. */
+export function isHostileCombatTarget(
+  actorId: string,
+  targetId: string,
+  combatants: Readonly<Record<string, Combatant>>,
+): boolean {
+  if (!combatants[targetId] || actorId === targetId) return false;
+  if (isAlliedCombatant(actorId, targetId, combatants)) return false;
+  const target = combatants[targetId]!;
+  if (resolveCombatantHp(target) <= 0) return false;
+  const role = getCombatRole(target);
+  return role === 'ENEMY' || role === 'PLAYER' || role === 'PET';
+}
+
 export function resolveSkillTargetId(input: {
   readonly actorId: string;
   readonly requestedTargetId?: string;
@@ -42,15 +56,8 @@ export function resolveSkillTargetId(input: {
   switch (moveTarget) {
     case MoveTarget.Enemy: {
       const requested = input.requestedTargetId;
-      if (requested) {
-        const requestedCombatant = combatants[requested];
-        if (
-          requestedCombatant
-          && getCombatRole(requestedCombatant) === 'ENEMY'
-          && resolveCombatantHp(requestedCombatant) > 0
-        ) {
-          return requested;
-        }
+      if (requested && isHostileCombatTarget(actorId, requested, combatants)) {
+        return requested;
       }
       return resolveAttackTargetId(actorId, combatants, playerActorId ?? actorId);
     }

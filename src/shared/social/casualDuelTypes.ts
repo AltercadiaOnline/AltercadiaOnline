@@ -27,7 +27,8 @@ export type CasualDuelCancelReason =
   | 'busy'
   | 'offline'
   | 'map'
-  | 'self';
+  | 'self'
+  | 'downed';
 
 export type CasualDuelSnapshot = {
   readonly inviteId: string;

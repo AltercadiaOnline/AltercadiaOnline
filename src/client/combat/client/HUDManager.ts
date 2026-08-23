@@ -8,6 +8,7 @@ import type { CombatState, Skill, SkillData } from '../../../shared/types.js';
 
 import { mergeLoadoutSkillsWithRuntime } from '../../../shared/combat/mergeLoadoutSkillsWithRuntime.js';
 import { canPlayerIssueCombatChoice } from '../../../shared/combat/playerTurnChoice.js';
+import { BattleType } from '../../../shared/combat/battleType.js';
 
 import { getBattleStore } from './battleStore.js';
 import { setCombatSnapshot } from './useActiveStatuses.js';
@@ -93,6 +94,9 @@ export class HUDManager {
   private lastTurn: TurnUpdate | null = null;
 
   private lastUi: CombatUiHints | null = null;
+
+  /** Preserva battleType quando TurnUpdate (sem o campo) repinta a paleta. */
+  private lastBattleType: BattleType | undefined;
 
   /** Clone incremental de combatants — faixa de status durante animação do turno. */
   private playbackCombatants: Record<string, import('../../../shared/types.js').Combatant> | null = null;
@@ -407,6 +411,8 @@ export class HUDManager {
 
       combatants: payload.combatants,
 
+      ...(this.lastBattleType ? { battleType: this.lastBattleType } : {}),
+
     };
 
     const refreshedUi: CombatUiHints = {
@@ -509,7 +515,9 @@ export class HUDManager {
 
     this.lastUi = ui;
 
-
+    if (state.battleType === BattleType.PVP || state.battleType === BattleType.PVE) {
+      this.lastBattleType = state.battleType;
+    }
 
     const phase: TurnUpdate['phase'] =
 
@@ -533,7 +541,16 @@ export class HUDManager {
 
     this.lastTurn = turnUpdate;
 
-    this.syncSkillPalette(turnUpdate, ui);
+    this.syncPlayerLoadout(state, ui);
+
+    setCombatSnapshot(state.combatants, state.turn);
+
+    try {
+      // Estado completo (com battleType) — bindPvpDuel / arena DOM.
+      this.battleScreen?.syncFromState(state, ui);
+    } catch (error) {
+      console.warn('[HUD] syncFromState falhou — moveset segue no ar.', error);
+    }
 
   }
 
@@ -554,6 +571,8 @@ export class HUDManager {
       activeActorId: payload.activeActorId,
 
       combatants: payload.combatants,
+
+      ...(this.lastBattleType ? { battleType: this.lastBattleType } : {}),
 
     };
 
@@ -595,14 +614,24 @@ export class HUDManager {
 
     const enabled = ui.actionsEnabled && state.phase === 'CHOOSING';
 
-
+    if (state.battleType === BattleType.PVP || skills.length === 0) {
+      console.info('[HUD] syncPlayerLoadout', {
+        playerActorId: ui.playerActorId,
+        battleType: state.battleType,
+        skills: skills.length,
+        skillIds: skills.map((s) => s.id),
+        actionsEnabled: ui.actionsEnabled,
+        phase: state.phase,
+        enabled,
+      });
+    }
 
     if (this.battleCommand) {
+      // Sempre publica o kit do playerActorId — mesmo fora do turno.
+      // lock() antigo no-opava em LOCKED e deixava um peer com moveset vazio forever.
+      this.battleCommand.syncLoadout(ui.playerActorId, skills, enabled, state.turn);
       if (enabled) {
-        this.battleCommand.syncLoadout(ui.playerActorId, skills, true, state.turn);
         getBattleHudBridge().setMovesetDrawerOpen(true);
-      } else {
-        this.battleCommand.lock();
       }
     }
 
@@ -641,6 +670,8 @@ export class HUDManager {
     this.lastTurn = null;
 
     this.lastUi = null;
+
+    this.lastBattleType = undefined;
 
     this.battleCommand?.lock();
 

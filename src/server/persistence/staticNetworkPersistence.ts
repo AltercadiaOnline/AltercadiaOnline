@@ -1,9 +1,8 @@
-import path from 'node:path';
 import { isStaticDistrictId } from '../../shared/static/staticDistrictCatalog.js';
 import { staticDistrictStore, type StaticDistrictRuntime } from '../../shared/static/staticDistrictStore.js';
 import { isStaticHeat } from '../../shared/static/staticNetworkTypes.js';
-import { readJsonFile, writeJsonFileAtomic } from './DatabaseUtils.js';
-import { getPersistenceRuntimeConfig, isDurablePersistence } from './PersistenceGateway.js';
+import { readWorldScopedJson, writeWorldScopedJson } from './scopedPersistenceFiles.js';
+import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
 
 const FILE_VERSION = 1;
 
@@ -12,10 +11,6 @@ type StaticNetworkFile = {
   readonly updatedAt: number;
   readonly districts: readonly StaticDistrictRuntime[];
 };
-
-function filePath(dataDir: string): string {
-  return path.join(dataDir, 'static-network.json');
-}
 
 function parseRuntime(value: unknown): StaticDistrictRuntime | null {
   if (!value || typeof value !== 'object') return null;
@@ -50,20 +45,18 @@ function parseRuntime(value: unknown): StaticDistrictRuntime | null {
 }
 
 export async function loadStaticNetworkPersistence(): Promise<void> {
-  if (!isDurablePersistence()) return;
+  if (!getActivePersistenceStorage().isDurable()) return;
 
-  const { dataDir } = getPersistenceRuntimeConfig();
-  const snapshot = await readJsonFile<StaticNetworkFile>(filePath(dataDir));
+  const snapshot = await readWorldScopedJson<StaticNetworkFile>('static-network.json');
   const rows = snapshot?.districts?.map(parseRuntime).filter((row): row is StaticDistrictRuntime => Boolean(row))
     ?? [];
   staticDistrictStore.hydrate(rows);
 }
 
 export async function persistStaticNetworkSnapshot(): Promise<void> {
-  if (!isDurablePersistence()) return;
+  if (!getActivePersistenceStorage().isDurable()) return;
 
-  const { dataDir } = getPersistenceRuntimeConfig();
-  await writeJsonFileAtomic(filePath(dataDir), {
+  await writeWorldScopedJson('static-network.json', {
     version: FILE_VERSION,
     updatedAt: Date.now(),
     districts: staticDistrictStore.exportRuntime(),

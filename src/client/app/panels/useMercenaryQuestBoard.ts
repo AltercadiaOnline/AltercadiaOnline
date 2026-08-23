@@ -58,3 +58,14 @@ export function useAbandonMercenaryQuest(questId: string | null) {
     }),
   });
 }
+
+export function useCompleteMercenaryQuest(questId: string | null) {
+  return useActionGatewaySubmit({
+    idleLabel: 'Completar',
+    pendingLabel: 'Entregando…',
+    onClick: () => getActionDispatcher().dispatch({
+      type: 'COMPLETE_MERCENARY_TASK',
+      payload: { ...(questId ? { taskId: questId } : {}) },
+    }),
+  });
+}

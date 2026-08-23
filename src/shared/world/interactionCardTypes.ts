@@ -17,4 +17,4 @@ export type InteractionCardTarget = {
 
 export type InteractionCardNpcAction = 'talk' | 'buy';
 
-export type InteractionCardPlayerAction = 'duel' | 'trade' | 'follow';
+export type InteractionCardPlayerAction = 'trade' | 'follow';

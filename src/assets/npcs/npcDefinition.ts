@@ -57,6 +57,9 @@ export const NPC_DEFINITION_REGISTRY: Readonly<Record<string, NpcDefinition>> = 
   computador_arena: defFromBundle('computador_arena', 0, false),
   combate_pvp: defFromBundle('combate_pvp', 0, false),
   computador_zona1: defFromBundle('computador_zona1', 0, false),
+  computador_zona1a: defFromBundle('computador_zona1a', 0, false),
+  computador_zona1b: defFromBundle('computador_zona1b', 0, false),
+  computador_zona1c: defFromBundle('computador_zona1c', 0, false),
 } as const;
 
 export type NpcDefinitionId = keyof typeof NPC_DEFINITION_REGISTRY;

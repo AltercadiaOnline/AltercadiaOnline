@@ -84,6 +84,24 @@ export const NPC_ASSET_BUNDLES: Readonly<Record<string, NpcAssetBundleConfig>> =
     frameWidth: 48,
     frameHeight: 48,
   },
+  computador_zona1a: {
+    bundleFolder: 'computador_npc',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/computador_npc/metadata.json`,
+    frameWidth: 48,
+    frameHeight: 48,
+  },
+  computador_zona1b: {
+    bundleFolder: 'computador_npc',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/computador_npc/metadata.json`,
+    frameWidth: 48,
+    frameHeight: 48,
+  },
+  computador_zona1c: {
+    bundleFolder: 'computador_npc',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/computador_npc/metadata.json`,
+    frameWidth: 48,
+    frameHeight: 48,
+  },
   /** Púlpito PvP rankeado — PNG em props (`pulpito.pvp.png`) espelhado no bundle. */
   combate_pvp: {
     bundleFolder: 'pulpito_pvp',

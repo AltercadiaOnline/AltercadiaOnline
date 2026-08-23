@@ -16,17 +16,15 @@ export const MERCENARY_QUEST_INTERACTION_TYPES = [
   'tracking_negotiate',
   'base_defense',
   'vault_infiltrate',
-  'evidence_blackmail',
-  'urban_treasure',
-  'system_choice',
-  'narrative_reckoning',
 ] as const;
 
 export type MercenaryQuestInteractionType = (typeof MERCENARY_QUEST_INTERACTION_TYPES)[number];
 
-export type MercenaryQuestTier = 1 | 2 | 3 | 4 | 5;
+/** Piloto: 3 faixas. Tiers 4–5 ficam para expansão. */
+export type MercenaryQuestTier = 1 | 2 | 3;
 
 export type MercenaryQuestRewards = {
+  /** Reservado — não concedido no piloto MVP. */
   readonly reputation: number;
   readonly item?: string;
 };
@@ -42,11 +40,13 @@ export type MercenaryQuestDefinition = {
   readonly loreSummary: string;
   /** História canônica do contrato. */
   readonly lore: string;
-  /** Mecânica / interação do contrato. */
+  /** Mecânica / interação do contrato (flavor no piloto). */
   readonly interaction: string;
   readonly interactionType: MercenaryQuestInteractionType;
   readonly moralChoice: boolean;
   readonly rewardExp: number;
+  /** VOLTS pagos no Completar (economyGateway). */
+  readonly rewardVolts: number;
   readonly rewardBonds: MercenaryQuestRewards;
 };
 

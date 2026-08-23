@@ -182,12 +182,13 @@ export function WorldPetLovePanel({ zIndex, focused }: WorldPetLovePanelProps) {
       title="Pet Love"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--pet-love ui-panel--pet-love ui-panel--movable"
+      panelClassName="world-panel--pet-love ui-panel--pet-love ui-panel--pet-love-hybrid ui-panel--movable ui-panel--npc-hybrid ui-skin-hybrid"
+      titleMeta="// PET/LOVE //"
       panelStyle={{ width: 'min(520px, 96vw)', maxHeight: 'min(640px, 90vh)' }}
       onFocus={() => tryFocusReactWorldPanel('petLove')}
       onClose={() => tryCloseReactWorldPanel('petLove')}
     >
-      <div className="ui-panel__body pet-love-panel__body">
+      <div className="pet-love-panel__body">
         <nav className="pet-love-roster__tabs" aria-label="Slots de companheiros">
           {Array.from({ length: MAX_PETS_PER_CHARACTER }, (_, slotIndex) => {
             const pet = roster.pets[slotIndex] ?? null;

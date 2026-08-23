@@ -39,6 +39,11 @@ import {
   normalizeClassActiveLoadout,
 } from '../../shared/combat/movesetLoadout.js';
 import { sanitizeSprayLegacyMessage } from '../../shared/social/spraySocialTypes.js';
+import {
+  allocatedStatsFromProfile,
+  allocatedStatsToProfileFields,
+  resolveCharacterStatPointsView,
+} from '../../shared/character/characterStatPoints.js';
 
 /** Monta payload `full-state-sync` a partir do estado autoritativo em memória. */
 export function buildAuthoritativePlayerSnapshot(
@@ -128,14 +133,22 @@ export function buildAuthoritativePlayerSnapshot(
       revision,
     },
     classId,
-    characterProfile: {
-      level: Math.max(1, Math.floor(progressionState.characterProfile.level || 1)),
-      xpCurrent: Math.max(0, Math.floor(progressionState.characterProfile.xpCurrent || 0)),
-      ...(progressionState.characterProfile.displayName
-        ? { displayName: progressionState.characterProfile.displayName }
-        : {}),
-      legacyMessage: sanitizeSprayLegacyMessage(progressionState.characterProfile.legacyMessage),
-    },
+    characterProfile: (() => {
+      const level = Math.max(1, Math.floor(progressionState.characterProfile.level || 1));
+      const allocated = allocatedStatsFromProfile(progressionState.characterProfile);
+      const view = resolveCharacterStatPointsView(level, allocated);
+      const fields = allocatedStatsToProfileFields(allocated);
+      return {
+        level,
+        xpCurrent: Math.max(0, Math.floor(progressionState.characterProfile.xpCurrent || 0)),
+        ...fields,
+        unspentStatPoints: view.unspent,
+        ...(progressionState.characterProfile.displayName
+          ? { displayName: progressionState.characterProfile.displayName }
+          : {}),
+        legacyMessage: sanitizeSprayLegacyMessage(progressionState.characterProfile.legacyMessage),
+      };
+    })(),
     activeMovesets,
     petRoster: {
       ...getPetRosterSnapshot(playerId, characterId),
@@ -153,6 +166,9 @@ export function buildAuthoritativePlayerSnapshot(
       ...entry,
       online: Boolean(getWorldGameState().getByPlayer(entry.playerId, entry.characterId)),
     })),
+    ...(worldProfile.sessionSync?.worldVitals
+      ? { worldVitals: { ...worldProfile.sessionSync.worldVitals } }
+      : {}),
   };
 }
 

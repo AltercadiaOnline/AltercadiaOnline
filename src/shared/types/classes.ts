@@ -15,21 +15,21 @@ export const CLASS_CATALOG: Record<ClassType, ClassDefinition> = {
   IMPETUS: {
     name: 'IMPETUS',
     trait: 'Instinto',
-    bonus: { attack: 10, defense: 2, agility: 5, control: 1 },
+    bonus: { attack: 6, defense: 4, agility: 5, control: 1 },
   },
   COGITOR: {
     name: 'COGITOR',
     trait: 'Cálculo',
-    bonus: { attack: 3, defense: 3, agility: 3, control: 10 },
+    bonus: { attack: 5, defense: 5, agility: 3, control: 10 },
   },
   TUTATOR: {
     name: 'TUTATOR',
     trait: 'Proteção',
-    bonus: { attack: 2, defense: 10, agility: 2, control: 5 },
+    bonus: { attack: 4, defense: 6, agility: 2, control: 5 },
   },
   DISSOLUTUS: {
     name: 'DISSOLUTUS',
     trait: 'Desafio',
-    bonus: { attack: 6, defense: 4, agility: 8, control: 4 },
+    bonus: { attack: 4, defense: 6, agility: 8, control: 4 },
   },
 };

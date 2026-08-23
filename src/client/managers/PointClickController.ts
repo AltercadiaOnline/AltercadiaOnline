@@ -40,12 +40,17 @@ import type { Disposable } from '../utils/Disposable.js';
 import { openInteractionCard, hideInteractionCard, hideNpcInteractionCard } from '../world/interactionCardController.js';
 import {
   getWorldPlayerPickById,
+  hasWorldPlayerPicks,
   isWorldPlayerWithinInteractionRadius,
   pickWorldPlayerAt,
 } from '../world/worldPlayerPickRegistry.js';
 import { inspectWorldSprayAt } from '../world/spraySocialActions.js';
 import { inspectWorldPlayerAt } from '../world/playerInspectActions.js';
+import { bindPlayerInspectDomHud } from '../world/playerInspectDomHud.js';
+import { bindCasualDuelDomHud } from '../world/casualDuelDomHud.js';
+import { bindPlayerTradeDomHud } from '../world/playerTradeDomHud.js';
 import { closePlayerInspectHud } from '../world/playerInspectStore.js';
+import { postSystemNotification } from '../ui/logService.js';
 
 type MoveTarget = {
   readonly tileX: number;
@@ -121,6 +126,9 @@ export class PointClickController implements Disposable {
       this.dismissPrompt();
       this.pendingInteractableId = null;
     });
+    bindPlayerInspectDomHud();
+    bindCasualDuelDomHud();
+    bindPlayerTradeDomHud();
   }
 
   dispose(): void {
@@ -137,15 +145,15 @@ export class PointClickController implements Disposable {
   }
 
   handleWorldClick(screenX: number, screenY: number, options?: { readonly doubleClick?: boolean }): void {
-    if (options?.doubleClick) {
-      this.handleWorldDoubleClick(screenX, screenY);
+    if (options?.doubleClick && this.tryOpenNpcAtCursor(screenX, screenY)) {
       return;
     }
 
     if (this.prompt.isVisible()) {
       this.dismissPrompt();
     }
-    hideNpcInteractionCard();
+    hideInteractionCard();
+    closePlayerInspectHud();
 
     const pick = screenToTile(
       this.camera,
@@ -165,13 +173,32 @@ export class PointClickController implements Disposable {
     this.navigateToGroundTile(pick.tileX, pick.tileY);
   }
 
-  handleWorldContextMenu(screenX: number, screenY: number, clientX: number, clientY: number): void {
+  /**
+   * Direito no cursor: player primeiro (ficha visível no DOM), senão pixo, senão NPC.
+   */
+  handleWorldSecondaryClick(screenX: number, screenY: number, clientX: number, clientY: number): void {
     const { worldX, worldY } = screenToWorldPixel(this.camera, screenX, screenY);
-    if (inspectWorldSprayAt(this.mapManager.currentMapId, worldX, worldY, clientX, clientY)) {
-      closePlayerInspectHud();
+
+    if (inspectWorldPlayerAt(this.camera, screenX, screenY, clientX, clientY)) {
+      hideInteractionCard();
       return;
     }
-    inspectWorldPlayerAt(this.camera, screenX, screenY, clientX, clientY);
+
+    if (inspectWorldSprayAt(this.mapManager.currentMapId, worldX, worldY, clientX, clientY)) {
+      closePlayerInspectHud();
+      hideInteractionCard();
+      return;
+    }
+
+    if (this.tryOpenNpcAtCursor(screenX, screenY)) {
+      return;
+    }
+
+    postSystemNotification(
+      hasWorldPlayerPicks()
+        ? 'Clique com o botão direito no sprite ou no nome do outro jogador.'
+        : 'Nenhum outro jogador visível para inspecionar.',
+    );
   }
 
   cancelNavigation(): void {
@@ -256,7 +283,7 @@ export class PointClickController implements Disposable {
     return false;
   }
 
-  private handleWorldDoubleClick(screenX: number, screenY: number): void {
+  private tryOpenNpcAtCursor(screenX: number, screenY: number): boolean {
     this.dismissPrompt();
 
     const pick = screenToTile(
@@ -266,23 +293,18 @@ export class PointClickController implements Disposable {
       this.getMapTilesWide(),
       this.getMapTilesHigh(),
     );
-    if (!pick) return;
+    if (!pick) return false;
 
     const target = this.resolveInteractionCardTarget(pick.tileX, pick.tileY, screenX, screenY);
-    if (!target) return;
-
-    // Player card: abre enquanto o alvo está na tela (sem exigir caminhar até o raio).
-    if (target.targetType === InteractionTargetType.PLAYER) {
-      openInteractionCard(target);
-      return;
-    }
+    if (!target || target.targetType !== InteractionTargetType.NPC) return false;
 
     if (this.canOpenInteractionCardNow(target)) {
       openInteractionCard(target);
-      return;
+      return true;
     }
 
     this.navigateToInteractionCard(target);
+    return true;
   }
 
   private resolveInteractionCardTarget(

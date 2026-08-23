@@ -9,6 +9,7 @@ import type { MovesProgressionData } from './progression/moveProgression.js';
 import type { PlayerFacing } from './world/playerFacing.js';
 import type { WithRevision } from './snapshotRevision.js';
 import type { ClassType } from './types/classes.js';
+import type { PlayerWorldVitals } from './character/equipmentState.js';
 
 /** Snapshot de carteira exposto ao front-end (com revision anti-replay). */
 export type WalletSnapshot = WithRevision<{
@@ -113,6 +114,10 @@ export type AuthoritativePlayerSnapshot = {
     readonly level: number;
     readonly xpCurrent: number;
     readonly displayName?: string;
+    readonly allocatedAtk?: number;
+    readonly allocatedDef?: number;
+    readonly allocatedHp?: number;
+    readonly unspentStatPoints?: number;
     /** Mensagem de legado exibida nos pixos do autor. */
     readonly legacyMessage?: string;
   };
@@ -135,4 +140,6 @@ export type AuthoritativePlayerSnapshot = {
   };
   /** Amigos do personagem. `online` é da sessão atual. */
   readonly friends?: readonly import('./social/friendListTypes.js').FriendListViewEntry[];
+  /** HP/MP persistidos do mapa — SSOT para HUD e gate de duelo. */
+  readonly worldVitals?: PlayerWorldVitals;
 };

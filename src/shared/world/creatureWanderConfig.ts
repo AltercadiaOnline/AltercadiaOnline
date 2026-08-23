@@ -4,7 +4,7 @@
  */
 
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
-import { tileCenterToWorldPixel } from './portals.js';
+import { tileCenterToWorldPixel, worldPixelToTile } from './portals.js';
 
 /** Raio máximo (Chebyshev, tiles) em torno do spawn — área de ronda. */
 export const CREATURE_WANDER_LEASH_TILES = 2;
@@ -101,6 +101,14 @@ export const CREATURE_SPECIES_OVERRIDES: Readonly<
     hitboxPx: 40,
     fleeSuccessChance: 0.4,
   },
+  vortex_agent: {
+    hitboxPx: 40,
+    aggroDetectTiles: 99,
+    leashTiles: 99,
+    wanderStepIntervalMs: 220,
+    encounterRadiusTiles: 1,
+    fleeSuccessChance: 0,
+  },
 };
 
 /** @deprecated Preferir CREATURE_SPECIES_OVERRIDES.hitboxPx — mantido para imports legados. */
@@ -110,6 +118,7 @@ export const CREATURE_HITBOX_PX: Readonly<Record<string, number>> = {
   wild_dog: 40,
   bat: 36,
   spider: 40,
+  vortex_agent: 40,
 };
 
 export function resolveCreatureWanderProfile(creatureId: string): CreatureWanderProfile {
@@ -185,14 +194,28 @@ export function isPlayerInMonsterEncounterRange(
   tileSize: number,
 ): boolean {
   const feet = resolveMonsterFeetWorld(monster, tileSize);
-  return isWithinCreatureEncounterReach({
-    playerWorldX,
-    playerWorldY,
-    monsterWorldX: feet.x,
-    monsterWorldY: feet.y,
-    creatureId: monster.creatureId,
-    tileSize,
-  });
+  if (
+    isWithinCreatureEncounterReach({
+      playerWorldX,
+      playerWorldY,
+      monsterWorldX: feet.x,
+      monsterWorldY: feet.y,
+      creatureId: monster.creatureId,
+      tileSize,
+    })
+  ) {
+    return true;
+  }
+  // AI para em encounterRadiusTiles (Chebyshev). Pixel-only falha se o player
+  // não está no centro do tile — o agente “chega perto” e a luta não dispara.
+  const playerTile = worldPixelToTile(playerWorldX, playerWorldY, tileSize);
+  const profile = resolveCreatureWanderProfile(monster.creatureId);
+  return chebyshevTileDistance(
+    playerTile.tileX,
+    playerTile.tileY,
+    monster.tileX,
+    monster.tileY,
+  ) <= profile.encounterRadiusTiles;
 }
 
 export type CreatureCardinalFacing = 'south' | 'north' | 'east' | 'west';

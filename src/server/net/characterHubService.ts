@@ -28,6 +28,9 @@ import {
   insertProfileForCharacter,
   listCharacterIdsForUser,
   listProfilesForUserOnServer,
+  listProfilesForUserAccount,
+  findProfileForUserCharacter,
+  updateProfileLastWorldId,
   slotOccupiedOnServer,
   deleteCharacterOnServer,
   resolveAccountEmail,
@@ -103,8 +106,7 @@ export async function buildAuthoritativeCharacterHub(
   env: ServerEnv,
 ): Promise<AccountCharacterHub> {
   const client = await getSupabaseAdminClient(env);
-  const instance = getServerInstanceContext();
-  const profiles = await listProfilesForUserOnServer(client, playerId, instance.id);
+  const profiles = await listProfilesForUserAccount(client, playerId);
 
   if (profiles.length === 0) {
     return createEmptyCharacterHub(playerId);

@@ -43,6 +43,7 @@ import {
 import { parseAndApplyRemotePlayerSnapshots } from '../world/remoteEntitySyncBridge.js';
 import { parseAndApplyWorldSpraySnapshots } from '../world/worldSpraySyncBridge.js';
 import { parseAndApplyStaticNetworkHudSnapshot } from '../world/staticNetworkSyncBridge.js';
+import { parseZoneDomainSnapshot, applyZoneDomainSnapshot } from '../world/zoneBypassSyncBridge.js';
 import { isVisualDebugModeEnabled } from '../debug/visualDebugMode.js';
 import { resetAuthoritativeRenderStore } from '../render/AuthoritativeRenderStore.js';
 import { clearRemoteEntitySyncBridge } from '../world/remoteEntitySyncBridge.js';
@@ -292,6 +293,11 @@ export class GlobalStateSynchronizer {
 
       if (tickDelta.staticNetwork) {
         parseAndApplyStaticNetworkHudSnapshot(tickDelta.staticNetwork);
+      }
+
+      if (tickDelta.zoneDomain) {
+        const domain = parseZoneDomainSnapshot(tickDelta.zoneDomain);
+        if (domain) applyZoneDomainSnapshot(domain);
       }
 
     }

@@ -1,4 +1,7 @@
-import { STATIC_DISTRICT_CATALOG, getStaticDistrictDef } from '../../../../../shared/static/staticDistrictCatalog.js';
+import {
+  STATIC_DISTRICT_CATALOG,
+  getStaticDistrictDef,
+} from '../../../../../shared/static/staticDistrictCatalog.js';
 import type {
   StaticDistrictHudSlice,
   StaticHeat,
@@ -35,8 +38,29 @@ export function sabotagePercent(row: StaticDistrictHudSlice): number {
   return Math.max(0, Math.min(100, Math.round((row.sabotage / row.goal) * 100)));
 }
 
+export function hasVortexPatrolAlert(snapshot: StaticNetworkHudSnapshot | null): boolean {
+  return Boolean(
+    snapshot?.districts.some(
+      (row) =>
+        (row.id === 'farm_alley_north' || row.id === 'farm_alley_south')
+        && row.agentCount > 0,
+    ),
+  );
+}
+
 export function hasStaticHeatAlert(snapshot: StaticNetworkHudSnapshot | null): boolean {
-  return Boolean(snapshot?.districts.some((row) => row.heat === 'hot' || row.heat === 'blackout'));
+  return Boolean(snapshot?.districts.some((row) => row.heat === 'hot' || row.heat === 'blackout'))
+    || hasVortexPatrolAlert(snapshot);
+}
+
+export function vortexPatrolStatusLabel(row: StaticDistrictHudSlice): string | null {
+  if (row.id !== 'farm_alley_north' && row.id !== 'farm_alley_south') return null;
+  if (row.agentCount > 0) {
+    return row.id === 'farm_alley_north'
+      ? 'Zona 1 Norte — agente detectado'
+      : 'Zona 1 Sul — agente detectado';
+  }
+  return 'Zona 1 — limpa';
 }
 
 export function buildStaticHudDistrictRows(

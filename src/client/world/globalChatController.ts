@@ -86,3 +86,12 @@ export function rebindGlobalChatSocket(
   bus.attach(buildBusContext(options));
   bus.reattachSocket(socket);
 }
+
+/**
+ * Liga `chat-global` / whisper no socket ativo.
+ * `initGlobalChatController` roda antes de `connectSocket` — sem isto o peer nunca chega.
+ */
+export function rebindActiveGlobalChatSocket(socket: BrowserCombatSocket | null): void {
+  if (!socket || !activeChatOptions) return;
+  rebindGlobalChatSocket(socket, activeChatOptions);
+}

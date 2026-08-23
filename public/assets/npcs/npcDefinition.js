@@ -2,7 +2,7 @@
  * Manifesto SSOT — definições visuais e físicas de NPCs (sprites PNG).
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
-import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, } from '../../shared/npc/npcAssetBundles.js?v=e280b31';
+import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, } from '../../shared/npc/npcAssetBundles.js?v=f6b73b2';
 export { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, };
 function defFromBundle(npcId, animationSpeed, isCollidable = true) {
     const size = resolveNpcCollisionSize(npcId);
@@ -27,6 +27,9 @@ export const NPC_DEFINITION_REGISTRY = {
     computador_arena: defFromBundle('computador_arena', 0, false),
     combate_pvp: defFromBundle('combate_pvp', 0, false),
     computador_zona1: defFromBundle('computador_zona1', 0, false),
+    computador_zona1a: defFromBundle('computador_zona1a', 0, false),
+    computador_zona1b: defFromBundle('computador_zona1b', 0, false),
+    computador_zona1c: defFromBundle('computador_zona1c', 0, false),
 };
 const definitionRegistry = NPC_DEFINITION_REGISTRY;
 export function getNpcDefinition(npcId) {

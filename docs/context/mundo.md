@@ -27,6 +27,16 @@ Visual = **Construct 3**. Lógica = servidor + `src/shared/world`. Overlay canva
 
 Tick leva identidade **do peer**, não do observador: pose + `skinBundleId` + `level` + `companion` (pet convocado). Contrato: `remotePlayerSync.ts`. Servidor preenche em `nearbyPlayerAppearance.ts` (progressão + roster). Overlay: sprite **por** `skinBundleId`; pet ancora atrás do dono (`remoteCompanionPose.ts`). Nametag: `Nome (Nível: N)` via `formatRemotePlayerNametag`. Campo omitido → não inventar no cliente (sem copiar skin/pet local).
 
+### Multiplayer ao vivo (contrato)
+
+| Peça | Path / regra |
+|------|----------------|
+| Fila MOVE | `MovementIntentHandler` — fila cheia remove o **mais antigo**; nunca dropa o intent novo. Catch-up até 5 passos/tick. |
+| Tick | `GameLoop` 20 Hz → `nearbyPlayers` para AOI |
+| Local | Predição ok; hold drift > `ONLINE_HOLD_MAX_DRIFT_TILES` (4) deixa de ignorar pose do servidor |
+| Remoto | Só interpola `nearbyPlayers` (`remoteEntitySyncBridge`) |
+| HP mundo | `worldVitalsBridge` (globalThis) + `applyAuthoritativeWorldVitals` — HUD React lê o bridge, não store duplicado do bundle |
+
 ## Colisão
 
 - Props Solid Construct → polígonos bake
@@ -41,7 +51,7 @@ Editar Construct → export → `npm run sync:construct` → `prepare:construct`
 
 ## Terminais / minigames no mapa
 
-IDs em `worldTerminalCatalog.ts`. Refração e `computador_zona1`: [minigames-cidade.md](minigames-cidade.md). Não acoplar a HUD do terminal ao `WorldPanelsLayer`.
+IDs em `worldTerminalCatalog.ts` + cadeia `zoneDomainTerminals.ts`. Refração e gates zona 1: [minigames-cidade.md](minigames-cidade.md). Não acoplar a HUD do terminal ao `WorldPanelsLayer`.
 
 ## Proibido
 

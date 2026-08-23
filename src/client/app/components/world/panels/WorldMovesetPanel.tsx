@@ -66,16 +66,17 @@ export function WorldMovesetPanel({ zIndex, focused }: WorldMovesetPanelProps) {
     <MovablePanelFrame
       windowId="moveset"
       title="Moveset Loadout"
+      titleMeta="// LOADOUT //"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--moveset ui-panel--moveset ui-panel--loadout"
+      panelClassName="world-panel--moveset ui-panel--moveset ui-panel--moveset-hybrid ui-panel--loadout ui-skin-hybrid"
       panelStyle={{ width: 'min(560px, 96vw)', maxHeight: 'min(640px, 90vh)' }}
       onFocus={() => tryFocusReactWorldPanel('moveset')}
       onClose={() => tryCloseReactWorldPanel('moveset')}
     >
       <div className="ui-panel__body ui-panel__body--loadout">
         <p className="loadout-hud__tag mb-1">CONFIG // BATALHA</p>
-        <p className="loadout-hud__class mb-3 text-[11px] text-alter-accent" aria-label="Classe do personagem">
+        <p className="loadout-hud__class mb-3 text-[11px]" aria-label="Classe do personagem">
           {classLabel}
         </p>
 

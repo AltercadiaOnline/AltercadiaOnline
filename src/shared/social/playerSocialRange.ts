@@ -3,12 +3,15 @@ import { worldPixelToTile } from '../world/portals.js';
 /** Viewport 640×360 ≈ 20×11 tiles; folga para o inspect (não a AOI de 32). */
 export const PLAYER_INSPECT_MAX_RANGE_TILES = 16;
 
-/** Convite / aceite de duelo casual — perto o bastante para “estar na briga”. */
-export const CASUAL_DUEL_MAX_RANGE_TILES = 6;
+/** Convite / aceite de duelo casual — cara a cara (mesmo alcance do trade). */
+export const CASUAL_DUEL_MAX_RANGE_TILES = 3;
 
 export const CASUAL_DUEL_COUNTDOWN_MS = 5_000;
 
-export const CASUAL_DUEL_PENDING_TIMEOUT_MS = 25_000;
+export const CASUAL_DUEL_PENDING_TIMEOUT_MS = 15_000;
+
+/** Após recusar, o mesmo desafiante espera antes de convidar de novo. */
+export const CASUAL_DUEL_REFUSE_COOLDOWN_MS = 120_000;
 
 /** Mesa presencial — face a face (independente do alcance do duelo). */
 export const PLAYER_TRADE_MAX_RANGE_TILES = 3;

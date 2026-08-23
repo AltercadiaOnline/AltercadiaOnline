@@ -4,7 +4,8 @@ import { buildRuneManifest } from '../../shared/combat/combatRuleManifest.js';
 import { getMonsterByCreatureId, isBossCreatureId } from '../../shared/combat/MonsterCatalog.js';
 import { getCreatureDropEntry } from '../../shared/items/creatureDrops.js';
 import { ZoneId } from '../../shared/items/itemTypes.js';
-import { resolveMonsterStats, resolveMonsterNativeLevel } from '../../shared/combat/monsterZoneScaling.js';
+import { resolveMonsterStats, resolveMonsterNativeLevel, resolveVortexAgentZoneStats } from '../../shared/combat/monsterZoneScaling.js';
+import { isVortexAgentCreatureId } from '../../shared/static/vortexAgentWave.js';
 import { monsterSkillToSkillData } from '../../shared/combat/monsterSkillCatalog.js';
 import {
   moveIdsToSkillData,
@@ -64,7 +65,9 @@ function buildEnemyFromCreature(
   const drop = getCreatureDropEntry(creatureId);
   const zoneId = drop?.zoneId ?? ZoneId.Zone1;
   const nativeLevel = resolveMonsterNativeLevel(zoneId, spawnSalt || creatureId);
-  const stats = resolveMonsterStats(zoneId, nativeLevel, isBossCreatureId(creatureId));
+  const stats = isVortexAgentCreatureId(creatureId)
+    ? resolveVortexAgentZoneStats(zoneId)
+    : resolveMonsterStats(zoneId, nativeLevel, isBossCreatureId(creatureId));
   const actorId = buildPveEnemyActorId(creatureId, packIndex);
   const skills = (catalog?.skillIds ?? ['rat_bite']).map((skillId) => moveToSkill(skillId));
 
@@ -104,7 +107,7 @@ export function createPveBattleBootstrap(
   const creatureId = resolveCreatureIdForMonsterInstance(monsterInstanceId);
   const battleSkills = resolveBattleSkills(loadout);
   const player = buildCombatantFromLoadout(loadout, battleSkills, loadout.displayName ?? 'Operative');
-  const packSize: PveEncounterPackSize = isBossCreatureId(creatureId)
+  const packSize: PveEncounterPackSize = isBossCreatureId(creatureId) || isVortexAgentCreatureId(creatureId)
     ? 1
     : rollPveEncounterPackSizeForPlayer(loadout.level);
   const enemies = Array.from({ length: packSize }, (_, packIndex) => (

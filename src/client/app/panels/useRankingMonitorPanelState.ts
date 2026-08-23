@@ -1,7 +1,3 @@
-import { useState } from 'react';
-import type { ClassType } from '../../../shared/types/classes.js';
-import { CLASS_CATALOG } from '../../../shared/types/classes.js';
-import type { LeaderboardBoardId } from '../../../shared/leaderboard/leaderboardTypes.js';
 import { useLiveLeaderboard } from '../hooks/useLiveLeaderboard.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
 
@@ -10,18 +6,8 @@ export type RankingMonitorView = {
   readonly label: string;
 };
 
-export const RANKING_TAB_DEFS: ReadonlyArray<{
-  readonly id: LeaderboardBoardId;
-  readonly label: string;
-}> = [
-  { id: 'level_global', label: 'Level' },
-  { id: 'level_class', label: 'Classe' },
-  { id: 'moveset', label: 'Moveset' },
-  { id: 'pvp_ranked', label: 'PvP' },
-  { id: 'pve', label: 'PvE' },
-];
-
-const CLASS_TAB_IDS = Object.keys(CLASS_CATALOG) as ClassType[];
+/** Arena PC = só PvP ranqueado (cidade). Vitrine level/moveset/PvE fica no login. */
+export const ARENA_RANKED_BOARD_ID = 'pvp_ranked' as const;
 
 export function resolveRankingMonitorFromContext(
   context: WorldPanelContext,
@@ -39,21 +25,14 @@ export function resolveRankingMonitorFromContext(
 }
 
 export function useRankingMonitorPanelState(monitor: RankingMonitorView) {
-  const [boardId, setBoardId] = useState<LeaderboardBoardId>('pvp_ranked');
-  const [classId, setClassId] = useState<ClassType>('IMPETUS');
-  const { snapshot, loading } = useLiveLeaderboard(boardId, {
-    ...(boardId === 'level_class' ? { classId } : {}),
+  const { snapshot, loading } = useLiveLeaderboard(ARENA_RANKED_BOARD_ID, {
     limit: 10,
   });
 
   return {
     monitor,
-    boardId,
-    classId,
-    classIds: CLASS_TAB_IDS,
+    boardId: ARENA_RANKED_BOARD_ID,
     snapshot,
     loading,
-    selectBoard: setBoardId,
-    selectClass: setClassId,
   };
 }

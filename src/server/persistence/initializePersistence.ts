@@ -7,21 +7,22 @@ import {
 } from './PersistenceGateway.js';
 import { loadGlobalMarketplacePersistence } from './globalMarketplacePersistence.js';
 import { loadWorldSprayPersistence } from './worldSprayPersistence.js';
+import { getAuthoritativeZoneBypassGateway } from '../world/AuthoritativeZoneBypassGateway.js';
 import { startWorldSprayWeeklyResetScheduler } from '../world/worldSprayWeeklyResetScheduler.js';
 import { loadStaticNetworkPersistence } from './staticNetworkPersistence.js';
 import { initializeLeaderboardPersistence } from '../leaderboard/leaderboardFilePersistence.js';
 import { setAuthoritativeProgressionSyncHook } from '../progression/authoritativeProgressionStore.js';
 import { upsertLeaderboardFromProgression } from '../leaderboard/upsertLeaderboardFromProgression.js';
 import { createPersistenceStorage } from './storage/createPersistenceStorage.js';
-import {
-  getActivePersistenceStorage,
-  setActivePersistenceStorage,
-} from './storage/persistenceStorageRegistry.js';
+import { setActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
 import { tryGetServerInstanceContext } from '../instance/ServerInstanceContext.js';
+import { resolvePersistenceLayout } from './persistenceLayout.js';
+import { setPersistenceRuntimeConfig } from './persistenceRuntimeConfig.js';
 
 export type InitializedPersistence = {
   readonly mode: ReturnType<typeof parsePersistenceMode>;
-  readonly dataDir: string;
+  readonly characterDataDir: string;
+  readonly worldDataDir: string;
 };
 
 export { flushAllPersistence, shutdownPersistenceStorage };
@@ -60,20 +61,27 @@ export async function initializePersistence(
 
   const baseDataDir = path.resolve(env.DATA_DIR?.trim() || path.join(process.cwd(), 'data'));
   const instance = tryGetServerInstanceContext();
-  const dataDir = instance
-    ? path.join(baseDataDir, instance.id)
-    : baseDataDir;
+  const layout = resolvePersistenceLayout(baseDataDir, instance?.id ?? null);
 
   const storage = createPersistenceStorage(mode);
   setActivePersistenceStorage(storage);
-  await storage.initialize({ mode, dataDir });
+  setPersistenceRuntimeConfig({
+    mode,
+    ...layout,
+  });
+  await storage.initialize({
+    mode,
+    dataDir: layout.characterDataDir,
+    legacyCharacterDataDirs: layout.legacyCharacterDataDirs,
+  });
 
   if (storage.isDurable()) {
     await loadPendingLootPersistence();
     await loadGlobalMarketplacePersistence();
     await loadWorldSprayPersistence();
+    await getAuthoritativeZoneBypassGateway().ensureBootstrapped();
     await loadStaticNetworkPersistence();
-    await initializeLeaderboardPersistence(dataDir);
+    await initializeLeaderboardPersistence(layout.worldDataDir);
   }
 
   setAuthoritativeProgressionSyncHook((playerId, characterId) => {
@@ -84,7 +92,12 @@ export async function initializePersistence(
 
   switch (mode) {
     case PersistenceMode.File:
-      console.log('[persistence] Modo FILE — dados em', dataDir);
+      console.log(
+        '[persistence] Modo FILE — conta',
+        layout.characterDataDir,
+        '| mundo',
+        layout.worldDataDir,
+      );
       break;
     case PersistenceMode.Postgres:
       console.log('[persistence] Modo POSTGRES — pool ativo (schema SQL pendente)');
@@ -94,10 +107,9 @@ export async function initializePersistence(
       break;
   }
 
-  return { mode, dataDir };
-}
-
-/** Modo ativo após bootstrap — útil para diagnóstico. */
-export function getInitializedPersistenceMode() {
-  return getActivePersistenceStorage().mode;
+  return {
+    mode,
+    characterDataDir: layout.characterDataDir,
+    worldDataDir: layout.worldDataDir,
+  };
 }

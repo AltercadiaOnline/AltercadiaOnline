@@ -351,6 +351,7 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
       background: '#050a0d',
       opacity: '1',
       visibility: 'visible',
+      pointerEvents: 'none',
     });
 
     viewport.appendChild(iframe);

@@ -1,8 +1,22 @@
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { RemotePlayerSnapshot } from '../../shared/world/remotePlayerSync.js';
 
-/** Atraso de renderização — suaviza jitter de rede sem predição no cliente. */
+/** Atraso base de renderização remota — suaviza jitter de rede. */
 export const REMOTE_ENTITY_RENDER_DELAY_MS = 100;
+
+const REMOTE_ENTITY_RENDER_DELAY_MIN_MS = 60;
+const REMOTE_ENTITY_RENDER_DELAY_MAX_MS = 160;
+
+/** Adapta delay visual ao RTT medido (60–160 ms). */
+export function resolveRemoteRenderDelayMs(rttMs: number | null): number {
+  if (rttMs === null || !Number.isFinite(rttMs)) return REMOTE_ENTITY_RENDER_DELAY_MS;
+  if (rttMs <= 80) return REMOTE_ENTITY_RENDER_DELAY_MIN_MS;
+  if (rttMs >= 320) return REMOTE_ENTITY_RENDER_DELAY_MAX_MS;
+  return Math.round(
+    REMOTE_ENTITY_RENDER_DELAY_MIN_MS
+    + ((rttMs - 80) / (320 - 80)) * (REMOTE_ENTITY_RENDER_DELAY_MAX_MS - REMOTE_ENTITY_RENDER_DELAY_MIN_MS),
+  );
+}
 
 /** Janela máxima de histórico por entidade remota. */
 export const REMOTE_ENTITY_BUFFER_MS = 500;
@@ -48,9 +62,13 @@ function clamp01(value: number): number {
   return value;
 }
 
+export function remotePlayerEntityId(playerId: string, characterId: number): string {
+  return `${playerId}:${characterId}`;
+}
+
 export function remotePlayerSnapshotToKeyframe(snapshot: RemotePlayerSnapshot): RemoteEntityKeyframe {
   return {
-    entityId: snapshot.playerId,
+    entityId: remotePlayerEntityId(snapshot.playerId, snapshot.characterId),
     feetX: snapshot.feetX,
     feetY: snapshot.feetY,
     facing: snapshot.facing,
@@ -95,11 +113,11 @@ export class RemoteEntityInterpolator {
    * @param nowMs relógio no mesmo domínio de `keyframe.serverTimeMs`.
    * Não passar `performance.now()` cru quando os keyframes vierem do servidor.
    */
-  sample(entityId: string, nowMs: number): RemoteEntityDisplayState | null {
+  sample(entityId: string, nowMs: number, renderDelayMs = REMOTE_ENTITY_RENDER_DELAY_MS): RemoteEntityDisplayState | null {
     const buffer = this.buffers.get(entityId);
     if (!buffer || buffer.length === 0) return null;
 
-    const renderTime = nowMs - REMOTE_ENTITY_RENDER_DELAY_MS;
+    const renderTime = nowMs - renderDelayMs;
     const first = buffer[0]!;
     const last = buffer[buffer.length - 1]!;
 

@@ -7,6 +7,7 @@ import type { Combatant } from '../../shared/types.js';
 import type { PlayerWorldVitals } from '../../shared/character/equipmentState.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import { clampPlayerHpCurrent, computePlayerHpMax, resolveDefeatRespawnHpCurrent } from '../../shared/character/playerVitals.js';
+import { allocatedStatsFromProfile } from '../../shared/character/characterStatPoints.js';
 import { resolveCombatantHp } from '../../shared/pet/petCombatRules.js';
 import { EconomyEventType } from '../../shared/economy/events.js';
 import { globalEventBus } from '../../Economy/EventBus.js';
@@ -45,12 +46,14 @@ export function persistWorldVitalsAfterCombat(
 ): PlayerWorldVitals {
   const profile = getWorldProfile(playerId, characterId);
   const existing = profile.sessionSync?.worldVitals;
-  const level = getAuthoritativeProgression(playerId, characterId).characterProfile.level ?? 1;
+  const progression = getAuthoritativeProgression(playerId, characterId);
+  const level = progression.characterProfile.level ?? 1;
   const defaultMp = mpVitalsForLevel(level);
+  const allocatedHp = allocatedStatsFromProfile(progression.characterProfile).hp;
 
   const hpMax = Math.max(
     1,
-    Math.floor(playerCombatant.hpMax ?? playerCombatant.maxHp ?? computePlayerHpMax(level)),
+    Math.floor(playerCombatant.hpMax ?? playerCombatant.maxHp ?? computePlayerHpMax(level, 0, allocatedHp)),
   );
   const hpCurrent = options?.fullRestore
     ? hpMax

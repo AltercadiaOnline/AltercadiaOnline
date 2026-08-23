@@ -15,6 +15,12 @@ export const ONLINE_CORRECTION_TILES = 1.5;
 /** Drift absurdo (teleporte / speedhack) → snap seco. Dash+RTT não deve chegar aqui. */
 export const ONLINE_HARD_SNAP_TILES = 8;
 
+/**
+ * Durante hold WASD: se o servidor ficar mais longe que isto, o cliente
+ * deixa de ignorar a pose autoritativa (evita “mentir” posição aos peers).
+ */
+export const ONLINE_HOLD_MAX_DRIFT_TILES = 4;
+
 export function isNarrowCorridorMap(mapId: string | undefined): boolean {
   return mapId === FARM_ZONE_01_ID;
 }

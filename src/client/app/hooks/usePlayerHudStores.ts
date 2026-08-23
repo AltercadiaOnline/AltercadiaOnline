@@ -14,6 +14,7 @@ import { getPlayerItemStore } from '../../ui/items/playerItemStore.js';
 import { getGlobalPlayerStore } from '../../ui/moveset/globalPlayerStore.js';
 import type { GameStoreGold } from '../../state/GameStore.js';
 import { usePlayerGold } from '../store/gameStore.js';
+import { getWorldVitalsBridge } from '../bridge/worldVitalsBridge.js';
 import { subscribeExternalStore } from './subscribeExternalStore.js';
 
 /**
@@ -51,8 +52,8 @@ export function usePlayerEquipmentSnapshot(): PlayerEquipmentSnapshot {
 }
 
 /**
- * Espelho único de vitals de exploração — mesma fonte da sidebar SET
- * (`playerEquipmentStore` + `refreshHudPlayerHpMax`).
+ * Espelho único de vitals de exploração — bridge globalThis (cross-bundle)
+ * + gold do GameStore.
  */
 export function useAuthoritativeWorldVitalsStrip(): {
   readonly displayName: string;
@@ -65,14 +66,23 @@ export function useAuthoritativeWorldVitalsStrip(): {
     refreshHudPlayerHpMax();
   }, []);
 
+  useStoreRevision(
+    (listener) => getWorldVitalsBridge().subscribe(() => listener()),
+    () => {
+      const s = getWorldVitalsBridge().snapshot();
+      return `${s.revision}|${s.vitals.hpCurrent}|${s.vitals.hpMax}`;
+    },
+  );
+
   const equipment = usePlayerEquipmentSnapshot();
   const gold = usePlayerGold();
+  const vitals = getWorldVitalsBridge().snapshot().vitals;
 
   return {
     displayName: equipment.displayName,
     level: equipment.level,
-    hpCurrent: equipment.vitals.hpCurrent,
-    hpMax: equipment.vitals.hpMax,
+    hpCurrent: vitals.hpCurrent,
+    hpMax: vitals.hpMax,
     gold,
   };
 }

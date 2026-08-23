@@ -11,7 +11,7 @@ import {
 import { hasStaticHeatAlert } from '../hub/staticNetworkView.js';
 
 /**
- * Canto superior-direito do mapa — relógio + HUB (screen-space, sem scale do stage).
+ * Canto superior-direito do mapa — relógio + SINAL + HUB (screen-space).
  */
 export function WorldHubSocialCluster() {
   const hubOpen = useSyncExternalStore(
@@ -21,6 +21,16 @@ export function WorldHubSocialCluster() {
         onChange,
       ),
     () => useWorldPanelsStore.getState().hubOpen,
+    () => false,
+  );
+
+  const staticOpen = useSyncExternalStore(
+    (onChange) =>
+      subscribeExternalStore(
+        (listener) => useWorldPanelsStore.subscribe(() => listener()),
+        onChange,
+      ),
+    () => useWorldPanelsStore.getState().openPanels.some((panel) => panel.windowId === 'staticNet'),
     () => false,
   );
 
@@ -35,7 +45,7 @@ export function WorldHubSocialCluster() {
       id="ui-hub-social-cluster"
       className="ui-hub-social-cluster"
       data-ui-widget="world-hub-cluster"
-      aria-label="Hub Social e relógio do mundo"
+      aria-label="Hub Social, Agentes Vortex e relógio do mundo"
       style={{
         position: 'absolute',
         top: 'var(--ui-hub-anchor-top, 12px)',
@@ -52,8 +62,23 @@ export function WorldHubSocialCluster() {
       <WorldGameClockWidget />
       <button
         type="button"
+        id="ui-static-launcher"
+        className={`ui-hub-launcher ui-static-launcher ui-skin-hybrid${
+          staticHot ? ' ui-hub-launcher--static-hot' : ''
+        }`}
+        style={{ pointerEvents: 'auto' }}
+        aria-expanded={staticOpen}
+        aria-controls="world-panel-staticNet"
+        aria-label={staticOpen ? 'Fechar Agentes Vortex' : 'Abrir Agentes Vortex'}
+        onClick={() => windowManager.toggle('staticNet')}
+      >
+        SINAL
+        {staticHot ? <span className="ui-hub-launcher__static-dot" aria-hidden="true" /> : null}
+      </button>
+      <button
+        type="button"
         id="ui-hub-launcher"
-        className={`ui-hub-launcher ui-skin-hybrid${staticHot ? ' ui-hub-launcher--static-hot' : ''}`}
+        className="ui-hub-launcher ui-skin-hybrid"
         style={{ pointerEvents: 'auto' }}
         aria-expanded={hubOpen}
         aria-controls="world-hub-panel"
@@ -61,7 +86,6 @@ export function WorldHubSocialCluster() {
         onClick={() => windowManager.toggle('hub')}
       >
         HUB
-        {staticHot ? <span className="ui-hub-launcher__static-dot" aria-hidden="true" /> : null}
       </button>
     </div>
   );

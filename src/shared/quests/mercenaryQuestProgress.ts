@@ -93,3 +93,33 @@ export function abandonMercenaryQuest(
     },
   };
 }
+
+/**
+ * Entrega no NPC — marca concluído. Grant XP/VOLTS fica no handler (autoridade).
+ * Não exige faixa de nível: quem aceitou ainda pode entregar após upar.
+ */
+export function completeMercenaryQuest(
+  progress: MercenaryQuestProgress,
+  questId?: string,
+): MercenaryQuestMutationResult {
+  if (!progress.activeQuestId) {
+    return { ok: false, code: 'QUEST_NONE_ACTIVE', message: 'Nenhum contrato ativo para entregar.' };
+  }
+  if (questId && questId !== progress.activeQuestId) {
+    return { ok: false, code: 'QUEST_NOT_ACTIVE', message: 'Esse contrato não é o ativo.' };
+  }
+  const doneId = progress.activeQuestId;
+  if (!getMercenaryQuestById(doneId)) {
+    return { ok: false, code: 'QUEST_NOT_FOUND', message: 'Contrato inexistente no quadro.' };
+  }
+  if (progress.completedQuestIds.includes(doneId)) {
+    return { ok: false, code: 'QUEST_ALREADY_DONE', message: 'Este contrato já foi encerrado.' };
+  }
+  return {
+    ok: true,
+    progress: {
+      activeQuestId: null,
+      completedQuestIds: [...progress.completedQuestIds, doneId],
+    },
+  };
+}

@@ -45,6 +45,10 @@ export type PersistedCharacterProfileSlice = {
   readonly pveKills?: number;
   readonly pveBossKills?: number;
   readonly pveDungeonClears?: number;
+  /** Pontos gastos na Ficha (ATK / DEF / Vida). Bolsa = (nível − 1) × 2 − soma. */
+  readonly allocatedAtk?: number;
+  readonly allocatedDef?: number;
+  readonly allocatedHp?: number;
   /** Mensagem de legado exibida em sprays do autor. */
   readonly legacyMessage?: string;
 };
@@ -127,6 +131,8 @@ export type CharacterPersistenceRecord = {
   readonly mercenaryQuests?: MercenaryQuestProgress;
   /** Lista unilateral de amigos (nomes). Mensagens privadas não entram no save. */
   readonly friends?: readonly FriendListEntry[];
+  /** Subzonas liberadas via terminal de domínio (Z1A, Z1B…). */
+  readonly zoneBypassUnlocks?: readonly string[];
 };
 
 export function characterPersistenceKey(playerId: string, characterId: number): string {

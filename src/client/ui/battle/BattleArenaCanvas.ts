@@ -26,6 +26,12 @@ import {
   resolveBattlePlayerEastSpriteCandidates,
   resolveBattlePlayerEastSpriteUrl,
 } from './battlePlayerSkin.js';
+import {
+  resolveBattleFighterSkinBundleId,
+  resolveBattleSkinFacingCandidates,
+  resolveBattleSkinFacingUrl,
+} from './battleClassSprite.js';
+import { resolvePvpFighterDrawHeight, resolvePvpFighterFootPadPx } from './battlePvpSkinDrawScale.js';
 import type { BattleBackgroundVariant } from '../../../shared/combat/city1BattleBackgroundCatalog.js';
 import {
   battleSpriteSrcCandidates,
@@ -50,6 +56,8 @@ type FighterSlot = {
   attackSrc: string | null;
   label: string;
   actorId: string | null;
+  /** Skin do personagem — escala PvP (male_1 = âncora). */
+  skinBundleId: string | null;
   defeated: boolean;
   defeatStartedMs: number;
   poseX: number;
@@ -57,6 +65,8 @@ type FighterSlot = {
   poseTo: number;
   poseStartMs: number;
   poseDurationMs: number;
+  /** 1 = olha direita; -1 = espelha (olha esquerda). */
+  facingScale: 1 | -1;
   /** Geração de load própria do slot — bind novo invalida o anterior sem afetar o resto. */
   generation: number;
 };
@@ -71,6 +81,7 @@ function emptyFighterSlot(label: string): FighterSlot {
     attackSrc: null,
     label,
     actorId: null,
+    skinBundleId: null,
     defeated: false,
     defeatStartedMs: 0,
     poseX: 0,
@@ -78,6 +89,7 @@ function emptyFighterSlot(label: string): FighterSlot {
     poseTo: 0,
     poseStartMs: 0,
     poseDurationMs: 0,
+    facingScale: 1,
     generation: 0,
   };
 }
@@ -89,6 +101,8 @@ const VIEW_H = DESIGN_CONFIG.VIEWPORT.HEIGHT;
 const FOE_DRAW_H = 160;
 /** Jogador ~30% menor que a criatura — evita esticar e harmoniza side-view. */
 const ALLY_DRAW_H = Math.round(FOE_DRAW_H * 0.7);
+/** Duelo PvP: os dois do mesmo tamanho (contrato casual/rankeado). */
+const PVP_FIGHTER_DRAW_H = Math.round((ALLY_DRAW_H + FOE_DRAW_H) / 2);
 /** Pet coadjuvante — PNG east (olhando à direita), menor que o player. */
 const PET_DRAW_H = Math.round(ALLY_DRAW_H * 0.62);
 /** Mesma linha de chão; player sobe um pouco para alinhar com o pé da criatura (arte com padding). */
@@ -132,14 +146,22 @@ function drawSpriteBottom(
   maxH: number,
   flash = 0,
   defeated = false,
+  facingScale: 1 | -1 = 1,
+  /** Padding sob os pés no PNG — desce o sprite; sombra fica no groundY. */
+  footPadPx = 0,
 ): void {
   const scale = maxH / img.naturalHeight;
   const dw = img.naturalWidth * scale;
   const dh = img.naturalHeight * scale;
   const dx = anchorX - dw / 2;
-  const dy = groundY - dh;
+  const dy = groundY - dh + Math.max(0, footPadPx);
 
   ctx.save();
+  if (facingScale === -1) {
+    ctx.translate(anchorX, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-anchorX, 0);
+  }
   if (defeated) {
     const off = getSpriteTintScratch(dw, dh);
     off.clearRect(0, 0, off.canvas.width, off.canvas.height);
@@ -172,22 +194,82 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.decoding = 'async';
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      // Soft-404 HTML (SPA) dispara onload com frame inválido — rejeita.
+      if (img.naturalWidth <= 0 || img.naturalHeight <= 0) {
+        reject(new Error(`Invalid image ${src}`));
+        return;
+      }
+      resolve(img);
+    };
     img.onerror = () => reject(new Error(`Failed to load ${src}`));
     img.src = src;
   });
 }
 
-async function loadFirstAvailable(candidates: readonly string[]): Promise<HTMLImageElement | null> {
+type LoadedSprite = {
+  readonly image: HTMLImageElement;
+  readonly src: string;
+};
+
+async function loadFirstAvailable(candidates: readonly string[]): Promise<LoadedSprite | null> {
   for (const src of candidates) {
     if (!src) continue;
     try {
-      return await loadImage(src);
+      const image = await loadImage(src);
+      return { image, src };
     } catch {
       // tenta próximo candidato
     }
   }
   return null;
+}
+
+function drawPvpPlaceholder(
+  ctx: CanvasRenderingContext2D,
+  anchorX: number,
+  groundY: number,
+  maxH: number,
+  label: string,
+  facing: 'east' | 'west',
+): void {
+  const dw = Math.round(maxH * 0.55);
+  const dh = maxH;
+  const dx = anchorX - dw / 2;
+  const dy = groundY - dh;
+  ctx.save();
+  ctx.fillStyle = 'rgba(40, 58, 82, 0.92)';
+  ctx.strokeStyle = 'rgba(180, 210, 255, 0.85)';
+  ctx.lineWidth = 2;
+  ctx.fillRect(dx, dy, dw, dh);
+  ctx.strokeRect(dx + 0.5, dy + 0.5, dw - 1, dh - 1);
+  // Seta de facing provisória
+  ctx.fillStyle = 'rgba(220, 235, 255, 0.95)';
+  const midY = dy + dh * 0.42;
+  if (facing === 'east') {
+    ctx.beginPath();
+    ctx.moveTo(dx + dw * 0.25, midY - 8);
+    ctx.lineTo(dx + dw * 0.75, midY);
+    ctx.lineTo(dx + dw * 0.25, midY + 8);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(dx + dw * 0.75, midY - 8);
+    ctx.lineTo(dx + dw * 0.25, midY);
+    ctx.lineTo(dx + dw * 0.75, midY + 8);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(230, 240, 255, 0.9)';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText((label || '?').slice(0, 10), anchorX, groundY + 14);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(anchorX, groundY + 4, dw * 0.38, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawBackgroundFill(
@@ -209,6 +291,10 @@ export class BattleArenaCanvas {
   private readonly ally: FighterSlot = emptyFighterSlot('Jogador');
   private foes: FighterSlot[] = [emptyFighterSlot('Oponente')];
   private boundCreatureId: string | null = null;
+  /** Chave do duelo PvP já ligado (evita reload a cada sync). */
+  private boundPvpKey: string | null = null;
+  /** true = desenha ally/foe com o mesmo tamanho (duelo humano). */
+  private pvpDuelMode = false;
   private onFoePicked: ((actorId: string) => void) | null = null;
   private pet: {
     image: HTMLImageElement | null;
@@ -289,6 +375,8 @@ export class BattleArenaCanvas {
     this.backgroundLayers = [];
     this.backgroundId = '';
     this.boundCreatureId = null;
+    this.boundPvpKey = null;
+    this.pvpDuelMode = false;
     this.ally.image = null;
     this.pet.image = null;
     this.pet.kindId = null;
@@ -298,6 +386,33 @@ export class BattleArenaCanvas {
     this.resetFoePack(1);
     this.ctx.clearRect(0, 0, VIEW_W, VIEW_H);
     this.backgroundCtx?.clearRect(0, 0, VIEW_W, VIEW_H);
+  }
+
+  /**
+   * Mount PvP: limpa slots sem ativar bindPlayer (que derrubava pvpDuelMode / foe).
+   * bindPvpDuel preenche os dois lados no próximo sync.
+   */
+  preparePvpArenaMount(): void {
+    this.boundCreatureId = null;
+    this.boundPvpKey = null;
+    this.pvpDuelMode = true;
+    this.ally.generation += 1;
+    this.ally.image = null;
+    this.resetFoePack(1);
+    this.pet.generation += 1;
+    this.pet.image = null;
+    this.pet.kindId = null;
+    this.paint();
+  }
+
+  /** true se o duelo com esta chave já tem ally + foe carregados. */
+  isPvpDuelBound(key: string): boolean {
+    return (
+      this.pvpDuelMode
+      && this.boundPvpKey === key
+      && Boolean(this.ally.image)
+      && Boolean(this.foes[0]?.image)
+    );
   }
 
   async applyBackground(variant: BattleBackgroundVariant): Promise<void> {
@@ -317,20 +432,150 @@ export class BattleArenaCanvas {
   }
 
   async bindPlayer(): Promise<void> {
+    this.pvpDuelMode = false;
+    this.boundPvpKey = null;
     const gen = ++this.ally.generation;
     const candidates = resolveBattlePlayerEastSpriteCandidates();
-    const img = await loadFirstAvailable(candidates);
+    const loaded = await loadFirstAvailable(candidates);
     if (gen !== this.ally.generation) return;
-    if (!img) {
+    if (!loaded) {
       console.warn('[BattleArenaCanvas] Sprite do player não carregou (skin east):', candidates);
     }
-    const eastUrl = resolveBattlePlayerEastSpriteUrl();
-    this.ally.image = img;
+    const eastUrl = loaded?.src ?? resolveBattlePlayerEastSpriteUrl();
+    this.ally.image = loaded?.image ?? null;
     this.ally.idleSrc = eastUrl;
     this.ally.attackSrc = eastUrl;
     this.ally.label = 'Jogador';
     this.ally.stance = 'idle';
+    this.ally.facingScale = 1;
     this.snapHome(this.ally);
+    this.paint();
+  }
+
+  /**
+   * Duelo humano (casual / rankeado): eu à esquerda (east) · oponente à direita (west).
+   * Skin = bundle do personagem (mapa hoje; `battle/` no futuro).
+   */
+  async bindPvpDuel(input: {
+    readonly allyClassId: string | null | undefined;
+    readonly allySkinBundleId?: string | null | undefined;
+    readonly allyLabel: string;
+    readonly foeClassId: string | null | undefined;
+    readonly foeSkinBundleId?: string | null | undefined;
+    readonly foeLabel: string;
+    readonly foeActorId: string;
+  }): Promise<void> {
+    const key = [
+      input.allySkinBundleId ?? '',
+      input.allyClassId ?? '',
+      input.foeSkinBundleId ?? '',
+      input.foeClassId ?? '',
+      input.foeActorId,
+      input.allyLabel,
+      input.foeLabel,
+    ].join('|');
+    if (this.boundPvpKey === key && this.ally.image && this.foes[0]?.image) {
+      this.pvpDuelMode = true;
+      this.paint();
+      return;
+    }
+
+    this.pvpDuelMode = true;
+    this.boundCreatureId = null;
+    this.boundPvpKey = key;
+    this.resetFoePack(1, [input.foeActorId]);
+
+    console.info('[BattleArenaCanvas] bindPvpDuel start', {
+      allyClassId: input.allyClassId,
+      allySkinBundleId: input.allySkinBundleId,
+      foeClassId: input.foeClassId,
+      foeSkinBundleId: input.foeSkinBundleId,
+      foeActorId: input.foeActorId,
+      allyLabel: input.allyLabel,
+      foeLabel: input.foeLabel,
+      allyCandidates: resolveBattleSkinFacingCandidates(
+        input.allySkinBundleId,
+        'east',
+        input.allyClassId,
+      ),
+      foeCandidates: resolveBattleSkinFacingCandidates(
+        input.foeSkinBundleId,
+        'west',
+        input.foeClassId,
+      ),
+    });
+
+    const allyGen = ++this.ally.generation;
+    const foe = this.foes[0]!;
+    // resetFoePack já avançou generation — não incrementar de novo (evita race com paint).
+    const foeGen = foe.generation;
+
+    const allyCandidates = resolveBattleSkinFacingCandidates(
+      input.allySkinBundleId,
+      'east',
+      input.allyClassId,
+    );
+    // Oponente: prioriza west; se só existir east, flip via facingScale.
+    const foeCandidates = resolveBattleSkinFacingCandidates(
+      input.foeSkinBundleId,
+      'west',
+      input.foeClassId,
+    );
+    const [allyLoaded, foeLoaded] = await Promise.all([
+      loadFirstAvailable(allyCandidates),
+      loadFirstAvailable(foeCandidates),
+    ]);
+
+    if (allyGen === this.ally.generation) {
+      if (!allyLoaded) {
+        console.warn('[BattleArenaCanvas] Sprite PvP ally não carregou:', allyCandidates);
+      }
+      const allyUrl = allyLoaded?.src
+        ?? resolveBattleSkinFacingUrl(input.allySkinBundleId, 'east', input.allyClassId);
+      this.ally.image = allyLoaded?.image ?? null;
+      this.ally.idleSrc = allyUrl;
+      this.ally.attackSrc = allyUrl;
+      this.ally.label = input.allyLabel;
+      this.ally.skinBundleId = resolveBattleFighterSkinBundleId({
+        skinBundleId: input.allySkinBundleId,
+        classId: input.allyClassId,
+      });
+      this.ally.stance = 'idle';
+      this.ally.facingScale = 1;
+      this.snapHome(this.ally);
+    }
+
+    if (foeGen === foe.generation) {
+      if (!foeLoaded) {
+        console.warn('[BattleArenaCanvas] Sprite PvP foe não carregou:', foeCandidates);
+      }
+      const foeUrl = foeLoaded?.src
+        ?? resolveBattleSkinFacingUrl(input.foeSkinBundleId, 'west', input.foeClassId);
+      foe.image = foeLoaded?.image ?? null;
+      foe.idleSrc = foeUrl;
+      foe.attackSrc = foeUrl;
+      foe.label = input.foeLabel;
+      foe.actorId = input.foeActorId;
+      foe.skinBundleId = resolveBattleFighterSkinBundleId({
+        skinBundleId: input.foeSkinBundleId,
+        classId: input.foeClassId,
+      });
+      foe.stance = 'idle';
+      // west.png = -1 desnecessário; east fallback = flip horizontal.
+      const usedEastFallback = Boolean(foeLoaded?.src.includes('/east.png'));
+      foe.facingScale = usedEastFallback ? -1 : 1;
+      foe.defeated = false;
+      this.snapHome(foe);
+    }
+
+    console.info('[BattleArenaCanvas] bindPvpDuel done', {
+      foeActorId: input.foeActorId,
+      allyLoaded: Boolean(this.ally.image),
+      foeLoaded: Boolean(this.foes[0]?.image),
+      allySrc: this.ally.idleSrc,
+      foeSrc: this.foes[0]?.idleSrc ?? null,
+    });
+
     this.paint();
   }
 
@@ -349,9 +594,11 @@ export class BattleArenaCanvas {
 
     const gen = ++this.pet.generation;
     const fromCatalog = await PetSpriteLoader.loadFacingImage(kindId, PET_BATTLE_FACING);
-    const img = fromCatalog
-      ?? await loadFirstAvailable(resolvePetBattleArenaSpriteCandidates(kindId));
+    const fallback = fromCatalog
+      ? null
+      : await loadFirstAvailable(resolvePetBattleArenaSpriteCandidates(kindId));
     if (gen !== this.pet.generation) return;
+    const img = fromCatalog ?? fallback?.image ?? null;
     if (!img) {
       console.warn('[BattleArenaCanvas] Sprite do pet não carregou (east):', kindId);
     }
@@ -397,6 +644,8 @@ export class BattleArenaCanvas {
     actorIds: readonly (string | null)[],
     label?: string,
   ): Promise<void> {
+    this.pvpDuelMode = false;
+    this.boundPvpKey = null;
     const packSize = Math.max(1, Math.min(3, actorIds.length || 1));
     const ids = Array.from({ length: packSize }, (_, index) => actorIds[index] ?? null);
 
@@ -423,19 +672,20 @@ export class BattleArenaCanvas {
     const packGen = this.foes[0]?.generation ?? 0;
     const candidates = battleSpriteSrcCandidates(creatureId);
     const primary = candidates[0] || '';
-    const img = await loadFirstAvailable(candidates);
+    const loaded = await loadFirstAvailable(candidates);
     if ((this.foes[0]?.generation ?? 0) !== packGen) return;
-    if (!img) {
+    if (!loaded) {
       console.warn('[BattleArenaCanvas] Sprite da criatura não carregou:', creatureId, candidates);
     }
 
-    const attackSrc = buildCreatureAttackSpriteSrc(creatureId) || primary;
+    const idleSrc = loaded?.src ?? primary;
+    const attackSrc = buildCreatureAttackSpriteSrc(creatureId) || idleSrc;
     this.boundCreatureId = creatureId;
     for (let index = 0; index < this.foes.length; index += 1) {
       const slot = this.foes[index];
       if (!slot) continue;
-      slot.image = img;
-      slot.idleSrc = primary;
+      slot.image = loaded?.image ?? null;
+      slot.idleSrc = idleSrc;
       slot.attackSrc = attackSrc;
       slot.label = label ?? creatureId;
       slot.actorId = ids[index] ?? null;
@@ -622,13 +872,19 @@ export class BattleArenaCanvas {
     }
 
     const groundY = GROUND_Y;
-    const allyGroundY = GROUND_Y - ALLY_GROUND_LIFT;
+    const allyGroundY = this.pvpDuelMode ? GROUND_Y - 8 : GROUND_Y - ALLY_GROUND_LIFT;
     const allyX = BATTLE_ARENA_ALLY_HOME_X;
     const petX = BATTLE_ARENA_PET_HOME_X;
     const foes = this.foes ?? [];
     const packSize = Math.max(1, foes.length);
     const foeHomes = resolveBattleFoeHomeXs(packSize);
-    const foeDrawH = resolveBattleFoeDrawHeight(packSize);
+    const allyDrawH = this.pvpDuelMode
+      ? resolvePvpFighterDrawHeight(PVP_FIGHTER_DRAW_H, this.ally.skinBundleId)
+      : ALLY_DRAW_H;
+    const foeDrawHBase = this.pvpDuelMode
+      ? PVP_FIGHTER_DRAW_H
+      : resolveBattleFoeDrawHeight(packSize);
+    const foeGroundY = this.pvpDuelMode ? allyGroundY : groundY;
 
     this.tickExpiredCues(this.ally, now);
     this.tickPose(this.ally, now);
@@ -639,7 +895,7 @@ export class BattleArenaCanvas {
 
     const allyFlash = this.ally.cue === 'hit' || this.ally.cue === 'heal' ? 0.7 : 0;
 
-    if (this.pet.image) {
+    if (this.pet.image && !this.pvpDuelMode) {
       drawSpriteBottom(
         ctx,
         this.pet.image,
@@ -647,9 +903,38 @@ export class BattleArenaCanvas {
         allyGroundY + PET_GROUND_DROP,
         PET_DRAW_H,
       );
+    } else if (this.pet.image && this.pvpDuelMode) {
+      drawSpriteBottom(
+        ctx,
+        this.pet.image,
+        petX,
+        allyGroundY + PET_GROUND_DROP,
+        Math.round(PVP_FIGHTER_DRAW_H * 0.55),
+      );
     }
     if (this.ally.image) {
-      drawSpriteBottom(ctx, this.ally.image, allyX + this.ally.poseX, allyGroundY, ALLY_DRAW_H, allyFlash);
+      drawSpriteBottom(
+        ctx,
+        this.ally.image,
+        allyX + this.ally.poseX,
+        allyGroundY,
+        allyDrawH,
+        allyFlash,
+        false,
+        this.ally.facingScale,
+        this.pvpDuelMode
+          ? resolvePvpFighterFootPadPx(allyDrawH, this.ally.skinBundleId)
+          : 0,
+      );
+    } else if (this.pvpDuelMode) {
+      drawPvpPlaceholder(
+        ctx,
+        allyX + this.ally.poseX,
+        allyGroundY,
+        allyDrawH,
+        this.ally.label,
+        'east',
+      );
     }
     const foeOrder = foes.map((_, index) => index).sort((a, b) => {
       const downA = foes[a]?.defeated ? 0 : 1;
@@ -658,16 +943,31 @@ export class BattleArenaCanvas {
     });
     for (const index of foeOrder) {
       const slot = foes[index];
-      if (!slot?.image) continue;
+      if (!slot) continue;
+      const homeX = (foeHomes[index] ?? BATTLE_ARENA_FOE_HOME_X) + slot.poseX;
+      const y = foeGroundY + (this.pvpDuelMode ? 0 : resolveBattleFoeGroundDrop(packSize, index));
+      const foeDrawH = this.pvpDuelMode
+        ? resolvePvpFighterDrawHeight(foeDrawHBase, slot.skinBundleId)
+        : foeDrawHBase;
+      if (!slot.image) {
+        if (this.pvpDuelMode) {
+          drawPvpPlaceholder(ctx, homeX, y, foeDrawH, slot.label, 'west');
+        }
+        continue;
+      }
       const hitFlash = slot.defeated || slot.cue === 'hit' || slot.cue === 'heal' ? 0.7 : 0;
       drawSpriteBottom(
         ctx,
         slot.image,
-        (foeHomes[index] ?? BATTLE_ARENA_FOE_HOME_X) + slot.poseX,
-        groundY + resolveBattleFoeGroundDrop(packSize, index),
+        homeX,
+        y,
         foeDrawH,
         hitFlash,
         slot.defeated,
+        slot.facingScale,
+        this.pvpDuelMode
+          ? resolvePvpFighterFootPadPx(foeDrawH, slot.skinBundleId)
+          : 0,
       );
     }
   }

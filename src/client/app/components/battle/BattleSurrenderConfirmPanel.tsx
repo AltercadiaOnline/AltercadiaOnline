@@ -1,13 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { BATTLE_SURRENDER_VOLT_PENALTY } from '../../../../shared/combat/battleSurrenderConstants.js';
 import { formatVolts } from '../../../../shared/economy/premiumCurrency.js';
 import { getSurrenderConfirmBridge } from '../../bridge/surrenderConfirmBridge.js';
 
 export function BattleSurrenderConfirmPanel() {
-  const [open, setOpen] = useState(() => getSurrenderConfirmBridge().isOpen());
+  const open = useSyncExternalStore(
+    (onChange) => getSurrenderConfirmBridge().subscribe(onChange),
+    () => getSurrenderConfirmBridge().isOpen(),
+    () => false,
+  );
+  const kind = useSyncExternalStore(
+    (onChange) => getSurrenderConfirmBridge().subscribe(onChange),
+    () => getSurrenderConfirmBridge().getKind(),
+    () => 'pve' as const,
+  );
   const cancelRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => getSurrenderConfirmBridge().subscribe(setOpen), []);
 
   useEffect(() => {
     if (!open) return;
@@ -34,6 +41,7 @@ export function BattleSurrenderConfirmPanel() {
 
   const penaltyLabel = formatVolts(BATTLE_SURRENDER_VOLT_PENALTY);
   const bridge = getSurrenderConfirmBridge();
+  const isPvp = kind === 'pvp';
 
   return (
     <div
@@ -49,21 +57,36 @@ export function BattleSurrenderConfirmPanel() {
         onClick={() => bridge.dismiss()}
       />
       <div className="battle-surrender-confirm__card vortex-panel ui-skin-hybrid">
-        <span className="battle-surrender-confirm__tag">COMBATE // FUGA</span>
+        <span className="battle-surrender-confirm__tag">
+          {isPvp ? 'DUELO // DESISTIR' : 'COMBATE // FUGA'}
+        </span>
         <h3 className="battle-surrender-confirm__title" id="battle-surrender-confirm-title">
-          Fugir da batalha?
+          {isPvp ? 'Desistir da batalha?' : 'Fugir da batalha?'}
         </h3>
-        <p className="battle-surrender-confirm__text">
-          Penalidade: <strong>−{penaltyLabel}</strong>. O monstro permanece vivo no mapa.
-        </p>
-        <p className="battle-surrender-confirm__hint">Você perde a luta e volta ao mundo.</p>
+        {isPvp ? (
+          <>
+            <p className="battle-surrender-confirm__text">
+              <strong>Desistir = derrota + penalidade</strong> (mesma de morte do PVE).
+            </p>
+            <p className="battle-surrender-confirm__hint">
+              O oponente vence. Você volta ao mapa com o HP da luta.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="battle-surrender-confirm__text">
+              Penalidade: <strong>−{penaltyLabel}</strong>. O monstro permanece vivo no mapa.
+            </p>
+            <p className="battle-surrender-confirm__hint">Você perde a luta e volta ao mundo.</p>
+          </>
+        )}
         <div className="battle-surrender-confirm__actions">
           <button
             type="button"
             className="battle-surrender-confirm__btn battle-surrender-confirm__btn--confirm"
             onClick={() => bridge.confirm()}
           >
-            Confirmar fuga
+            {isPvp ? 'Confirmar desistência' : 'Confirmar fuga'}
           </button>
           <button
             ref={cancelRef}

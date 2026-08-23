@@ -54,6 +54,7 @@ describe('remoteEntitySyncBridge', () => {
     const frames = collectRemotePlayersForRender(CITY_01_ID, 250);
     expect(frames).toHaveLength(1);
     expect(frames[0]!.playerId).toBe('peer-1');
+    expect(frames[0]!.characterId).toBe(2);
     expect(frames[0]!.displayName).toBe('Peer');
     expect(frames[0]!.skinBundleId).toBe('player_female_1');
     expect(frames[0]!.level).toBe(9);

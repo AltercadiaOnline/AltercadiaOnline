@@ -25,6 +25,7 @@ export const REACT_WORLD_PANEL_IDS = [
   'petLove',
   'petMemorial',
   'diary',
+  'staticNet',
 ] as const satisfies readonly UiWindowId[];
 
 export type ReactWorldPanelId = (typeof REACT_WORLD_PANEL_IDS)[number];
@@ -59,6 +60,7 @@ export const WORLD_PANEL_TITLES: Partial<Record<UiWindowId, string>> = {
   petLove: 'Pet Love',
   petMemorial: 'Memorial',
   diary: 'Diário',
+  staticNet: 'Agentes Vortex',
 };
 
 export function resolveWorldPanelTitle(windowId: UiWindowId): string {

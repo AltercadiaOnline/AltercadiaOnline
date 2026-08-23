@@ -14,7 +14,13 @@ export type PendingLootSnapshot = {
 
 export type PersistenceStorageConfig = {
   readonly mode: PersistenceModeId;
+  /** Save da conta — `{base}/account` (personagem, loot pendente, seq de ID). */
   readonly dataDir: string;
+  /**
+   * Pastas do layout antigo (`data/azul`, `data`) que ainda têm `characters/`.
+   * Leitura promove para `dataDir`; delete limpa os dois lados.
+   */
+  readonly legacyCharacterDataDirs?: readonly string[];
 };
 
 /**

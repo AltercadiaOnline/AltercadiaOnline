@@ -61,6 +61,7 @@ const SPAWN_MARKER_TO_CREATURE = {
   spawn_cachorro: 'wild_dog',
   spawn_morcego: 'bat',
   spawn_aranha: 'spider',
+  spawn_agente_vortex: 'vortex_agent',
 };
 
 const LAYOUT_TO_MAP = {

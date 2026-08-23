@@ -5,6 +5,8 @@ export type PlayerInspectHudState = {
   readonly screenX: number;
   readonly screenY: number;
   readonly pending: boolean;
+  /** Esperando ACK de INSPECT_PLAYER — build/PvP ainda não são autoridade. */
+  readonly loadingInspect: boolean;
   readonly error: string | null;
 };
 
@@ -15,6 +17,7 @@ let state: PlayerInspectHudState = {
   screenX: 0,
   screenY: 0,
   pending: false,
+  loadingInspect: false,
   error: null,
 };
 
@@ -32,8 +35,8 @@ export function getPlayerInspectHudState(): PlayerInspectHudState {
 }
 
 function clampHudAnchor(screenX: number, screenY: number): { x: number; y: number } {
-  const width = 196;
-  const estimatedHeight = 220;
+  const width = 220;
+  const estimatedHeight = 320;
   const pad = 10;
   const vw = typeof window === 'undefined' ? 1280 : window.innerWidth;
   const vh = typeof window === 'undefined' ? 720 : window.innerHeight;
@@ -43,6 +46,47 @@ function clampHudAnchor(screenX: number, screenY: number): { x: number; y: numbe
   };
 }
 
+function emptyPendingView(input: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly displayName: string;
+}): PlayerInspectView {
+  return {
+    playerId: input.playerId,
+    characterId: input.characterId,
+    displayName: input.displayName,
+    level: 1,
+    classId: 'IMPETUS',
+    online: true,
+    build: { atk: 0, def: 0, crit: 0, agil: 0 },
+    pvp: { rating: 0, wins: 0, losses: 0, matches: 0 },
+    canAddFriend: false,
+    canInviteDuel: false,
+    duelInviteBlockReason: 'Carregando…',
+    canTrade: false,
+  };
+}
+
+/** Abre a ficha na hora do pick — nome do peer já veio do state-sync. Build/PvP vêm no ACK. */
+export function openPlayerInspectHudPending(input: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly displayName: string;
+  readonly screenX: number;
+  readonly screenY: number;
+}): void {
+  const anchor = clampHudAnchor(input.screenX, input.screenY);
+  state = {
+    view: emptyPendingView(input),
+    screenX: anchor.x,
+    screenY: anchor.y,
+    pending: false,
+    loadingInspect: true,
+    error: null,
+  };
+  notify();
+}
+
 export function openPlayerInspectHud(view: PlayerInspectView, screenX: number, screenY: number): void {
   const anchor = clampHudAnchor(screenX, screenY);
   state = {
@@ -50,6 +94,7 @@ export function openPlayerInspectHud(view: PlayerInspectView, screenX: number, s
     screenX: anchor.x,
     screenY: anchor.y,
     pending: false,
+    loadingInspect: false,
     error: null,
   };
   notify();
@@ -62,6 +107,7 @@ export function closePlayerInspectHud(): void {
     screenX: 0,
     screenY: 0,
     pending: false,
+    loadingInspect: false,
     error: null,
   };
   notify();
@@ -69,7 +115,7 @@ export function closePlayerInspectHud(): void {
 
 export function setPlayerInspectPending(pending: boolean, error: string | null = null): void {
   if (!state.view) return;
-  state = { ...state, pending, error };
+  state = { ...state, pending, error, loadingInspect: false };
   notify();
 }
 
@@ -79,6 +125,7 @@ export function markPlayerInspectFriendSent(): void {
   state = {
     ...state,
     pending: false,
+    loadingInspect: false,
     error: null,
     view: { ...view, canAddFriend: false },
   };
@@ -91,6 +138,7 @@ export function resetPlayerInspectSession(): void {
     screenX: 0,
     screenY: 0,
     pending: false,
+    loadingInspect: false,
     error: null,
   };
   notify();

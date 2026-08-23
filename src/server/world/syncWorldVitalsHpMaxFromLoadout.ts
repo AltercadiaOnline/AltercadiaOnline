@@ -1,5 +1,6 @@
 import type { PlayerWorldVitals } from '../../shared/character/equipmentState.js';
 import { applyPlayerHpMaxChange, computePlayerHpMax } from '../../shared/character/playerVitals.js';
+import { allocatedStatsFromLoadout, allocatedStatsToLoadoutFields } from '../../shared/character/characterStatPoints.js';
 import { resolveCombatLoadout } from '../../shared/combat/combatLoadoutResolver.js';
 import { EconomyEventType } from '../../shared/economy/events.js';
 import { globalEventBus } from '../../Economy/EventBus.js';
@@ -18,6 +19,7 @@ export function syncWorldVitalsHpMaxFromLoadout(
   intentId?: string,
 ): PlayerWorldVitals {
   const loadout = resolveAuthoritativeCombatLoadout(playerId, characterId);
+  const allocated = allocatedStatsToLoadoutFields(allocatedStatsFromLoadout(loadout));
   const resolved = resolveCombatLoadout({
     classId: loadout.classId,
     level: loadout.level,
@@ -26,9 +28,14 @@ export function syncWorldVitalsHpMaxFromLoadout(
     nodeProgression: loadout.nodeProgression,
     equipped: loadout.equipped,
     flowSpeedBase: loadout.flowSpeedBase,
+    ...allocated,
   });
 
-  const nextHpMax = computePlayerHpMax(loadout.level, resolved.modifiers.maxHpBonusPercent);
+  const nextHpMax = computePlayerHpMax(
+    loadout.level,
+    resolved.modifiers.maxHpBonusPercent,
+    allocated.allocatedHpPoints,
+  );
   const profile = getWorldProfile(playerId, characterId);
   const prev = profile.sessionSync?.worldVitals;
   const previousHpMax = prev && prev.hpMax > 0 ? prev.hpMax : nextHpMax;

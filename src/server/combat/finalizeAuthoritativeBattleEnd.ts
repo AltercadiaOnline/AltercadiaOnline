@@ -182,6 +182,7 @@ export function finalizeAuthoritativeBattleEnd(
     ...(finishedPayload.deathPenaltyOutcome !== undefined
       ? { deathPenaltyOutcome: finishedPayload.deathPenaltyOutcome }
       : {}),
+    ...(worldVitals ? { worldVitals } : {}),
   };
 
   return {

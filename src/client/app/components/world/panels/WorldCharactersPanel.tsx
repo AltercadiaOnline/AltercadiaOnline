@@ -20,7 +20,9 @@ import {
   useCharactersPanelState,
   type CharacterAchievementRow,
 } from '../../../panels/useCharactersPanelState.js';
+import { HudErrorBoundary } from '../../HudErrorBoundary.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
+import { CharacterStatPointsBlock } from './CharacterStatPointsBlock.js';
 
 type WorldCharactersPanelProps = {
   zIndex: number;
@@ -295,16 +297,17 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
     <MovablePanelFrame
       windowId="characters"
       title="Ficha do Personagem"
+      titleMeta="// FICHA //"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--characters ui-panel ui-panel--characters ui-panel--movable ui-skin-hybrid"
+      panelClassName="world-panel--characters ui-panel ui-panel--characters ui-panel--characters-hybrid ui-panel--movable ui-skin-hybrid !max-h-none !h-auto"
       bodyOverflow="hidden"
       panelStyle={{
-        width: 'min(920px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
-        minWidth: 'min(560px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
-        maxWidth: 'min(920px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
-        maxHeight: 'min(88vh, 620px)',
-        height: 'min(88vh, 620px)',
+        width: 'min(760px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
+        minWidth: 'min(520px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
+        maxWidth: 'min(760px, calc(100vw - var(--game-hud-sidebar-width, 200px) - 24px))',
+        height: 'auto',
+        maxHeight: 'none',
       }}
       onFocus={() => tryFocusReactWorldPanel('characters')}
       onClose={() => tryCloseReactWorldPanel('characters')}
@@ -332,8 +335,8 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
                 ref={previewRef}
                 className="character-sheet__canvas"
                 data-char-preview
-                width={220}
-                height={280}
+                width={176}
+                height={224}
               />
               <p className="character-sheet__sprite-meta">
                 {formatSpriteMetaLine(
@@ -351,6 +354,18 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
               className="character-progression-wrap"
               dangerouslySetInnerHTML={{ __html: progressionHtml }}
             />
+            <HudErrorBoundary
+              fallback={(
+                <section className="character-stats-block character-stat-points" aria-label="Atributos da Ficha">
+                  <header className="character-stats-block__header">
+                    <h3 className="character-stats-block__title">Atributos</h3>
+                  </header>
+                  <p className="character-pets-empty">Atributos temporariamente indisponíveis.</p>
+                </section>
+              )}
+            >
+              <CharacterStatPointsBlock />
+            </HudErrorBoundary>
 
             <section
               className="character-terminal-block character-wallet-block"

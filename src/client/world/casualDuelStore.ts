@@ -52,14 +52,22 @@ export function resetCasualDuelSession(): void {
   clearCasualDuelHud();
 }
 
-export function isCasualDuelPromptVisible(localPlayerId: string, snapshot: CasualDuelSnapshot | null): boolean {
+export function isCasualDuelPromptVisible(
+  localPlayerId: string,
+  localCharacterId: number,
+  snapshot: CasualDuelSnapshot | null,
+): boolean {
   if (!snapshot || snapshot.phase !== CasualDuelPhase.Pending) return false;
-  return snapshot.toPlayerId === localPlayerId;
+  return snapshot.toPlayerId === localPlayerId && snapshot.toCharacterId === localCharacterId;
 }
 
-export function isCasualDuelWaitingVisible(localPlayerId: string, snapshot: CasualDuelSnapshot | null): boolean {
+export function isCasualDuelWaitingVisible(
+  localPlayerId: string,
+  localCharacterId: number,
+  snapshot: CasualDuelSnapshot | null,
+): boolean {
   if (!snapshot || snapshot.phase !== CasualDuelPhase.Pending) return false;
-  return snapshot.fromPlayerId === localPlayerId;
+  return snapshot.fromPlayerId === localPlayerId && snapshot.fromCharacterId === localCharacterId;
 }
 
 export function isCasualDuelCountdownVisible(snapshot: CasualDuelSnapshot | null): boolean {

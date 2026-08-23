@@ -1,3 +1,5 @@
+import { useBattleHudStore } from '../../battle/battleHudStore.js';
+
 const BATTLE_COMMANDS = ['items', 'skip', 'surrender'] as const;
 const OPTIONAL_COMMANDS = ['moveset'] as const;
 
@@ -15,13 +17,6 @@ type GlobalBattleCommands = typeof globalThis & {
   __ALTERCADIA_BATTLE_COMMANDS?: Partial<Record<BattleCommandId, () => void>>;
 };
 
-const CMD_LABELS: Record<BattleCommandId, string> = {
-  moveset: 'Moveset',
-  items: 'Itens',
-  skip: 'Pular',
-  surrender: 'Render-se',
-};
-
 function dispatchBattleCommand(cmd: BattleCommandId): void {
   const globalCommands = globalThis as GlobalBattleCommands;
   globalCommands.__ALTERCADIA_BATTLE_COMMANDS?.[cmd]?.();
@@ -34,9 +29,21 @@ export function BattleCommandBarHud({
   locked,
   showMovesetButton = false,
 }: BattleCommandBarHudProps) {
+  const opponent = useBattleHudStore((state) => state.opponent);
+  const isPvpDuel = Boolean(
+    opponent?.actorId
+    && !opponent.actorId.startsWith('enemy_'),
+  );
   const commands: readonly BattleCommandId[] = showMovesetButton
     ? [...OPTIONAL_COMMANDS, ...BATTLE_COMMANDS]
     : BATTLE_COMMANDS;
+
+  const labels: Record<BattleCommandId, string> = {
+    moveset: 'Moveset',
+    items: 'Itens',
+    skip: 'Pular',
+    surrender: isPvpDuel ? 'Desistir' : 'Render-se',
+  };
 
   return (
     <nav
@@ -58,10 +65,16 @@ export function BattleCommandBarHud({
           ].filter(Boolean).join(' ')}
           data-battle-cmd={cmd}
           disabled={locked}
-          title={cmd === 'surrender' ? 'Fugir da batalha — penalidade −20 VOLTS' : undefined}
+          title={
+            cmd === 'surrender'
+              ? (isPvpDuel
+                ? 'Desistir = derrota + penalidade'
+                : 'Fugir da batalha — penalidade −20 VOLTS')
+              : undefined
+          }
           onClick={() => dispatchBattleCommand(cmd)}
         >
-          {CMD_LABELS[cmd]}
+          {labels[cmd]}
         </button>
       ))}
     </nav>

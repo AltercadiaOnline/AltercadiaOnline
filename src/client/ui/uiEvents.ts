@@ -4,8 +4,9 @@ import type { EquipmentUiGridState } from '../../shared/character/equipmentUiSlo
 import type { InventorySnapshot } from '../../shared/character/inventorySlots.js';
 import type { CarryCapacitySnapshot } from '../../shared/character/carryCapacity.js';
 import type { PlayerSkin } from '../../shared/character/playerSkin.js';
-import type { PlayerProfileSnapshot } from '../../shared/character/playerProfile.js';
+import type { CharacterStatPointsView } from '../../shared/character/characterStatPoints.js';
 import type { CharacterLevelSnapshot } from '../../shared/playerDataSnapshots.js';
+import type { PlayerProfileSnapshot } from '../../shared/character/playerProfile.js';
 import type {
   CharacterLevelListenerMeta,
   CharacterXpSource,
@@ -45,7 +46,8 @@ export type UiWindowId =
   | 'social'
   | 'petLove'
   | 'petMemorial'
-  | 'diary';
+  | 'diary'
+  | 'staticNet';
 
 export const UIEventType = {
   UPDATE_GOLD: 'UPDATE_GOLD',
@@ -77,6 +79,7 @@ export const UIEventType = {
   PLAYER_PROFILE_UPDATED: 'PLAYER_PROFILE_UPDATED',
   CHARACTER_LEVEL_UPDATED: 'CHARACTER_LEVEL_UPDATED',
   CHARACTER_LEVEL_UP: 'CHARACTER_LEVEL_UP',
+  CHARACTER_STAT_POINTS_UPDATED: 'CHARACTER_STAT_POINTS_UPDATED',
   SKIN_PURCHASED: 'SKIN_PURCHASED',
   SHOW_TOOLTIP: 'SHOW_TOOLTIP',
   HIDE_TOOLTIP: 'HIDE_TOOLTIP',
@@ -160,6 +163,8 @@ export type UiEventMap = {
   readonly SHOW_MEMORY_TERMINAL: {
     readonly transitionId: import('../../shared/types/zoneBypass.js').SubZoneTransitionId;
     readonly zoneName: string;
+    /** POI que abriu o terminal — trava só desta máquina. */
+    readonly terminalId: string;
   };
   readonly SHOW_SPRAY_SOCIAL_PANEL: Record<string, never>;
   readonly REFRACTION_CHALLENGE_ACCEPT: Record<string, never>;
@@ -196,6 +201,9 @@ export type UiEventMap = {
     readonly newLevel: number;
     readonly levelsGained: number;
     readonly source: CharacterXpSource;
+  };
+  readonly CHARACTER_STAT_POINTS_UPDATED: {
+    readonly view: CharacterStatPointsView;
   };
   readonly SKIN_PURCHASED: {
     readonly slot: string;

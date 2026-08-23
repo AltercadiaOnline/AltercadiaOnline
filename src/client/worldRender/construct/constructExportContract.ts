@@ -73,6 +73,9 @@ export const CONSTRUCT_OPTIONAL_MARKERS = [
   WORLD_TERMINAL_IDS.ARENA,
   WORLD_TERMINAL_IDS.COMBATE_PVP,
   WORLD_TERMINAL_IDS.ZONE_1,
+  'computador_zona1a',
+  'computador_zona1b',
+  'computador_zona1c',
   WORLD_TERMINAL_IDS.MARKETPLACE,
 ] as const;
 

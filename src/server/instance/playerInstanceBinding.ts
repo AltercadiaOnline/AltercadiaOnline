@@ -1,7 +1,11 @@
 import type { ServerEnv } from '../config/env.js';
 import { requireServerId } from '../../shared/supabase/characterServerScope.js';
 import { getSupabaseAdminClient } from '../supabase/supabaseAdmin.js';
-import { profileExistsOnServer } from '../supabase/characterHubRepository.js';
+import {
+  findProfileForUserCharacter,
+  profileExistsOnServer,
+  updateProfileLastWorldId,
+} from '../supabase/characterHubRepository.js';
 import { getServerInstanceContext } from './ServerInstanceContext.js';
 
 export type PlayerInstanceBindingResult =
@@ -9,8 +13,7 @@ export type PlayerInstanceBindingResult =
   | { readonly ok: false; readonly code: 'WRONG_SERVER'; readonly message: string };
 
 /**
- * Valida se o personagem pertence a esta instância.
- * Vínculo rígido — sem reatribuição automática de shard.
+ * Valida personagem da conta neste endpoint e atualiza last_world_id (hop).
  */
 export async function assertPlayerBoundToServerInstance(
   env: ServerEnv,
@@ -32,6 +35,15 @@ export async function assertPlayerBoundToServerInstance(
   }
 
   const client = await getSupabaseAdminClient(env);
+  const profile = await findProfileForUserCharacter(client, playerId, characterId);
+  if (!profile) {
+    return {
+      ok: false,
+      code: 'WRONG_SERVER',
+      message: 'Personagem não encontrado nesta conta.',
+    };
+  }
+
   const existsOnShard = await profileExistsOnServer(
     client,
     playerId,
@@ -40,11 +52,7 @@ export async function assertPlayerBoundToServerInstance(
   );
 
   if (!existsOnShard) {
-    return {
-      ok: false,
-      code: 'WRONG_SERVER',
-      message: `Personagem não encontrado no servidor "${expectedServerId}".`,
-    };
+    await updateProfileLastWorldId(client, playerId, characterId, expectedServerId);
   }
 
   return { ok: true };

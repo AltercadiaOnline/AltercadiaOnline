@@ -1,7 +1,8 @@
+import { isClassType } from '../progression/movesetMasterySeed.js';
 import { CLASS_CATALOG, type ClassType } from '../types/classes.js';
 
-export function formatCombatClassLabel(classId: ClassType | undefined | null): string {
-  if (!classId) return '—';
+export function formatCombatClassLabel(classId: ClassType | string | undefined | null): string {
+  if (!isClassType(classId)) return '—';
   return CLASS_CATALOG[classId].name;
 }
 

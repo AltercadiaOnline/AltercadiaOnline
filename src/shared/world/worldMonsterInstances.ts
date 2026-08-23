@@ -71,6 +71,24 @@ export function getActiveMonstersForMap(mapId: MapId): readonly MonsterRegistryE
 }
 
 /**
+ * Insere ou substitui uma criatura no runtime (ondas Vortex).
+ * Não marca a zona hunt como seeded — o beco continua via ensureHuntZoneLoaded.
+ */
+export function upsertWorldMonster(entry: MonsterRegistryEntry): void {
+  clearMonsterDefeated(entry.id);
+  activeById.set(entry.id, entry);
+  onMonsterPoseChanged?.(entry.id);
+}
+
+/** Remove sem agenda de respawn — onda falhou ou slot encerrou. */
+export function despawnWorldMonster(monsterId: string): void {
+  if (!activeById.has(monsterId) && !isMonsterDefeated(monsterId)) return;
+  activeById.delete(monsterId);
+  clearMonsterDefeated(monsterId);
+  onMonsterPoseChanged?.(monsterId);
+}
+
+/**
  * Remove do mapa ativo após vitória.
  * No servidor preferir `scheduleWorldMonsterRespawn` (volta em 3 min).
  * No cliente: some na hora; respawn chega via state-sync.

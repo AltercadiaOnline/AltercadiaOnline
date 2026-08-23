@@ -13,6 +13,13 @@ describe('shouldAcceptAuthoritativeStartCombat', () => {
     expect(shouldAcceptAuthoritativeStartCombat(exploring)).toBe(false);
   });
 
+  it('aceita PVE forçado com monsterInstanceId (agente / luta obrigatória)', () => {
+    expect(shouldAcceptAuthoritativeStartCombat({
+      ...exploring,
+      monsterInstanceId: 'vortex_agent:farm_alley_south',
+    })).toBe(true);
+  });
+
   it('aceita PVE com join pendente', () => {
     expect(shouldAcceptAuthoritativeStartCombat({
       ...exploring,

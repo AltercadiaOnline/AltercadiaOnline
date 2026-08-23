@@ -60,7 +60,7 @@ export function WorldCraftPanel({ context, zIndex, focused }: WorldCraftPanelPro
       title={station.stationName}
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--craft ui-panel--craft"
+      panelClassName="world-panel--craft ui-panel--craft ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(560px, 96vw)' }}
       onFocus={() => tryFocusReactWorldPanel('craft')}
       onClose={() => tryCloseReactWorldPanel('craft')}

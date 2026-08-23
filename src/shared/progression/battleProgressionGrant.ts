@@ -8,14 +8,16 @@
  * ## Trilhas de progressão (independentes entre si)
  * | Trilha | Store / persistência | Curva | Como ganha em batalha |
  * |--------|----------------------|-------|------------------------|
- * | Nível do personagem | `PlayerDataStore` (`characterLevel`) | `characterXpCurve` (sem teto; ritmo em lutas) | PVE × `BATTLE_LEVEL_XP_RATIO` × `BATTLE_LEVEL_XP_PACE` (35% mais lento) |
- * | Domínio de moveset | `movesetMastery` → `moveProgression.ts` | `CharacterProgressionService.getRequiredXp` (1.15^n) | PVE × `BATTLE_MOVESET_XP_RATIO` × `BATTLE_MOVESET_XP_PACE` (25% mais rápido); +10% se ≥8 usos; catch-up ×1.5 |
- * | Progresso meta (árvore) | `milestoneTotalProgress` | Degraus 10, 25, 40… | +1 por vitória PVE (farm lento) |
+ * | Nível do personagem | `PlayerDataStore` (`characterLevel`) | `characterXpCurve` (sem teto; ritmo em lutas) | PVE/PvP × `BATTLE_LEVEL_XP_RATIO` × `BATTLE_LEVEL_XP_PACE` (35% mais lento) |
+ * | Domínio de moveset | `movesetMastery` → `moveProgression.ts` | `CharacterProgressionService.getRequiredXp` (1.15^n) | PVE/PvP × `BATTLE_MOVESET_XP_RATIO` × `BATTLE_MOVESET_XP_PACE` (25% mais rápido); +10% se ≥8 usos; catch-up ×1.5 |
  * | Habilidades Marco | `nodeProgression` via `marcoProgressEngine` | Triggers por uso | **Separado** — telemetria de combate (`marcoCombatTelemetry`) |
  *
+ * PvP: pool = nível do oponente (`battlePvpXpPool`); vitória 100% / derrota KO 40% / FORFEIT = 0; sem loot.
+ * Medidor `milestoneTotalProgress` legado — grants sempre com gain 0 (árvore = nível do personagem + clique).
+ *
  * ## Autoridade
- * - Servidor calcula o grant (`resolveBattleProgressionGrant`) a partir de `resolveBattleXpGain`.
- * - **XP é da zona do bicho** (âncora de entrada da zona). Nível 70 na Zona 1 = mesmo XP do nível 1. Combate/loot podem escalar; XP não.
+ * - Servidor calcula o grant (`resolveBattleProgressionGrant` / `resolvePvpBattleProgressionGrant`).
+ * - PVE: XP da zona do bicho. PvP: XP do nível do oponente (+ nerf Δnível).
  * - Cliente **espelha** o payload — nunca recalcula XP de batalha.
  * - **Não** passar por `economyGateway` (itens/moeda). Progressão ≠ economia.
  *
@@ -29,7 +31,12 @@ import {
   resolveBattleXpGain,
   resolveDefeatedCreatureLevel,
 } from '../combat/battleXpRewards.js';
+import {
+  resolvePvpConsolationXpPool,
+  resolvePvpWinnerXpPool,
+} from '../combat/battlePvpXpPool.js';
 import { BattleType } from '../combat/battleType.js';
+import type { BattleEndReason } from '../combat/battleEnded.js';
 import { applyMoveSyncBonusToMovesetGrant } from './battleMoveSyncBonus.js';
 
 /** Fração do pool PVE que alimenta o nível do personagem (antes do pace). */
@@ -50,8 +57,8 @@ export const BATTLE_LEVEL_XP_PACE = 0.65;
  */
 export const BATTLE_MOVESET_XP_PACE = 1.25;
 
-/** Progresso meta incremental por vitória PVE — desbloqueio lento da árvore de marcos. */
-export const BATTLE_MILESTONE_PROGRESS_PER_VICTORY = 1;
+/** @deprecated Medidor de marco removido — sempre 0 nos grants. */
+export const BATTLE_MILESTONE_PROGRESS_PER_VICTORY = 0;
 
 /** Usos mínimos do mesmo move na luta para bônus de especialização. */
 export const MOVE_SPECIALIZATION_MIN_USES = 8;
@@ -84,10 +91,21 @@ export type BattleProgressionGrant = {
   readonly levelXp: number;
   /** XP de domínio por move (soma ≤ totalBattleXp × MOVESET ratio). */
   readonly movesetXpByMoveId: Readonly<Record<string, number>>;
-  /** Incremento em milestoneTotalProgress (desbloqueio de nós). */
+  /** Sempre 0 — medidor de marco legado desativado. */
   readonly milestoneProgressGain: number;
   readonly creatureId: string | null;
   readonly defeatedLevel: number;
+};
+
+export type PvpBattleProgressionGrantInput = {
+  readonly victory: boolean;
+  /** FORFEIT / DC → grant vazio (ninguém progride). */
+  readonly endReason?: BattleEndReason;
+  readonly selfLevel: number;
+  readonly opponentLevel: number;
+  readonly movesUsedInBattle?: readonly string[];
+  readonly characterLevel?: number;
+  readonly movesetMastery?: Readonly<Record<string, number>>;
 };
 
 const EMPTY_GRANT: BattleProgressionGrant = {
@@ -182,6 +200,33 @@ function distributeMovesetXp(
   return byMoveId;
 }
 
+function splitPoolIntoGrantParts(
+  totalBattleXp: number,
+  movesUsedInBattle: readonly string[],
+  options?: {
+    readonly characterLevel?: number;
+    readonly movesetMastery?: Readonly<Record<string, number>>;
+  },
+): Pick<BattleProgressionGrant, 'levelXp' | 'movesetXpByMoveId'> {
+  const levelXp = Math.floor(
+    totalBattleXp * BATTLE_LEVEL_XP_RATIO * BATTLE_LEVEL_XP_PACE,
+  );
+  const baseMovesetPool = Math.floor(
+    totalBattleXp * BATTLE_MOVESET_XP_RATIO * BATTLE_MOVESET_XP_PACE,
+  );
+  const movesetPool = applyMoveSpecializationBonusToPool(baseMovesetPool, movesUsedInBattle);
+  const baseMovesetGrant = distributeMovesetXp(movesetPool, movesUsedInBattle);
+  const movesetXpByMoveId =
+    options?.characterLevel !== undefined && options.movesetMastery
+      ? applyMoveSyncBonusToMovesetGrant(
+          baseMovesetGrant,
+          options.characterLevel,
+          options.movesetMastery,
+        )
+      : baseMovesetGrant;
+  return { levelXp, movesetXpByMoveId };
+}
+
 /**
  * Calcula o grant de progressão para uma batalha encerrada.
  * Vitória PVE com criatura → pool + split; demais casos → zeros.
@@ -204,31 +249,63 @@ export function resolveBattleProgressionGrant(
     };
   }
 
-  const levelXp = Math.floor(
-    totalBattleXp * BATTLE_LEVEL_XP_RATIO * BATTLE_LEVEL_XP_PACE,
-  );
-  const baseMovesetPool = Math.floor(
-    totalBattleXp * BATTLE_MOVESET_XP_RATIO * BATTLE_MOVESET_XP_PACE,
-  );
   const movesUsedInBattle = input.movesUsedInBattle ?? [];
-  const movesetPool = applyMoveSpecializationBonusToPool(baseMovesetPool, movesUsedInBattle);
-  const baseMovesetGrant = distributeMovesetXp(movesetPool, movesUsedInBattle);
-  const movesetXpByMoveId =
-    input.characterLevel !== undefined && input.movesetMastery
-      ? applyMoveSyncBonusToMovesetGrant(
-          baseMovesetGrant,
-          input.characterLevel,
-          input.movesetMastery,
-        )
-      : baseMovesetGrant;
+  const parts = splitPoolIntoGrantParts(totalBattleXp, movesUsedInBattle, {
+    ...(input.characterLevel !== undefined ? { characterLevel: input.characterLevel } : {}),
+    ...(input.movesetMastery !== undefined ? { movesetMastery: input.movesetMastery } : {}),
+  });
 
   return {
     totalBattleXp,
-    levelXp,
-    movesetXpByMoveId,
-    milestoneProgressGain: BATTLE_MILESTONE_PROGRESS_PER_VICTORY,
+    levelXp: parts.levelXp,
+    movesetXpByMoveId: parts.movesetXpByMoveId,
+    milestoneProgressGain: 0,
     creatureId: input.creatureId,
     defeatedLevel,
+  };
+}
+
+/**
+ * Grant PvP (casual / ranked / prática): pool pelo nível do oponente;
+ * vitória 100%; derrota KO 40% do pool já nerfado do vencedor; FORFEIT = 0.
+ */
+export function resolvePvpBattleProgressionGrant(
+  input: PvpBattleProgressionGrantInput,
+): BattleProgressionGrant {
+  if (input.endReason === 'FORFEIT') {
+    return { ...EMPTY_GRANT };
+  }
+
+  const selfLevel = Math.max(1, Math.floor(input.selfLevel));
+  const opponentLevel = Math.max(1, Math.floor(input.opponentLevel));
+  const winnerPool = resolvePvpWinnerXpPool(
+    input.victory ? selfLevel : opponentLevel,
+    input.victory ? opponentLevel : selfLevel,
+  );
+  const totalBattleXp = input.victory
+    ? winnerPool
+    : resolvePvpConsolationXpPool(winnerPool);
+
+  if (totalBattleXp <= 0) {
+    return {
+      ...EMPTY_GRANT,
+      defeatedLevel: opponentLevel,
+    };
+  }
+
+  const movesUsedInBattle = input.movesUsedInBattle ?? [];
+  const parts = splitPoolIntoGrantParts(totalBattleXp, movesUsedInBattle, {
+    characterLevel: input.characterLevel ?? selfLevel,
+    ...(input.movesetMastery !== undefined ? { movesetMastery: input.movesetMastery } : {}),
+  });
+
+  return {
+    totalBattleXp,
+    levelXp: parts.levelXp,
+    movesetXpByMoveId: parts.movesetXpByMoveId,
+    milestoneProgressGain: 0,
+    creatureId: null,
+    defeatedLevel: opponentLevel,
   };
 }
 

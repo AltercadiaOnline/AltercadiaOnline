@@ -5,7 +5,7 @@ import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import {
   ONLINE_CORRECTION_TILES,
-  ONLINE_HARD_SNAP_TILES,
+  ONLINE_HOLD_MAX_DRIFT_TILES,
 } from '../../shared/world/playerMovementReconcile.js';
 import { getMovementNetTelemetry } from './movementNetTelemetry.js';
 
@@ -257,9 +257,9 @@ class WorldMovementAuthority {
 
     const tileSize = getActiveMapTileSize();
     const dist = Math.hypot(serverX - predictedX, serverY - predictedY);
-    // Hold / freeze: qualquer sync atrás da predição é silêncio (exceto hard no resolve).
+    // Hold / freeze: sync atrás da predição é silêncio até o drift passar do teto de hold.
     if (this.continuousHoldActive || this.isVisualFrozen(nowMs)) {
-      return dist < tileSize * ONLINE_HARD_SNAP_TILES;
+      return dist < tileSize * ONLINE_HOLD_MAX_DRIFT_TILES;
     }
     return dist <= tileSize * ONLINE_CORRECTION_TILES;
   }

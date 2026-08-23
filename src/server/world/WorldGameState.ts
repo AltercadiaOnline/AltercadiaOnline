@@ -30,6 +30,11 @@ export class WorldGameState {
   private readonly byConnection = new Map<string, ActivePlayerState>();
   private readonly connectionByPlayerKey = new Map<string, string>();
 
+  /**
+   * Registra (ou substitui) presença no mapa.
+   * Se o mesmo personagem já tinha outra connectionId, remove a entrada órfã
+   * e devolve o id para o hub fazer teardown completo (WS / trade / etc.).
+   */
   registerPlayer(input: {
     readonly connectionId: string;
     readonly playerId: string;
@@ -37,7 +42,36 @@ export class WorldGameState {
     readonly displayName: string;
     readonly profile: PlayerProfile;
     readonly status?: ActivePlayerStatus;
-  }): ActivePlayerState {
+  }): { readonly state: ActivePlayerState; readonly replacedConnectionIds: readonly string[] } {
+    const key = playerKey(input.playerId, input.characterId);
+    const replacedConnectionIds: string[] = [];
+
+    const previousConnectionId = this.connectionByPlayerKey.get(key);
+    if (previousConnectionId && previousConnectionId !== input.connectionId) {
+      const orphan = this.byConnection.get(previousConnectionId);
+      if (
+        orphan
+        && orphan.playerId === input.playerId
+        && orphan.characterId === input.characterId
+      ) {
+        this.byConnection.delete(previousConnectionId);
+        replacedConnectionIds.push(previousConnectionId);
+      }
+    }
+
+    const existingOnConnection = this.byConnection.get(input.connectionId);
+    if (
+      existingOnConnection
+      && (
+        existingOnConnection.playerId !== input.playerId
+        || existingOnConnection.characterId !== input.characterId
+      )
+    ) {
+      this.connectionByPlayerKey.delete(
+        playerKey(existingOnConnection.playerId, existingOnConnection.characterId),
+      );
+    }
+
     const state: ActivePlayerState = {
       connectionId: input.connectionId,
       playerId: input.playerId,
@@ -53,8 +87,8 @@ export class WorldGameState {
     };
 
     this.byConnection.set(input.connectionId, state);
-    this.connectionByPlayerKey.set(playerKey(input.playerId, input.characterId), input.connectionId);
-    return state;
+    this.connectionByPlayerKey.set(key, input.connectionId);
+    return { state, replacedConnectionIds };
   }
 
   unregisterConnection(connectionId: string): ActivePlayerState | null {

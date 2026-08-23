@@ -57,10 +57,11 @@ export function WorldSocialPanel({ zIndex, focused }: WorldSocialPanelProps) {
   return (
     <MovablePanelFrame
       windowId="social"
-      title="Hub Social & Sinalização"
+      title="Social"
+      titleMeta="// LINK //"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="ui-panel--social"
+      panelClassName="ui-panel--social ui-panel--social-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(500px, 94vw)', maxHeight: 'min(580px, 90vh)' }}
       onFocus={() => tryFocusReactWorldPanel('social')}
       onClose={() => tryCloseReactWorldPanel('social')}
@@ -76,7 +77,7 @@ export function WorldSocialPanel({ zIndex, focused }: WorldSocialPanelProps) {
           </button>
           <button
             type="button"
-            className={`social-panel__tab ${activeTab === 'sprays' ? 'social-panel__tab--active font-bold text-cyan-400' : 'opacity-70'}`}
+            className={`social-panel__tab ${activeTab === 'sprays' ? 'social-panel__tab--active' : 'opacity-70'}`}
             onClick={() => setActiveTab('sprays')}
           >
             Marcas & Sprays

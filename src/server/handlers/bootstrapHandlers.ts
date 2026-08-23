@@ -53,6 +53,7 @@ import {
   getResetMarcoTrailHandler,
   getSelectMarcoBranchHandler,
 } from './progression/marcoHandlers.js';
+import { getAllocateStatPointsHandler } from './progression/allocateStatPointsHandler.js';
 import {
   getDevGrantCurrencyHandler,
   getDevGrantItemHandler,
@@ -90,7 +91,12 @@ import { getGetLeaderboardHandler } from './world/GetLeaderboardHandler.js';
 import {
   getAbandonMercenaryQuestHandler,
   getAcceptMercenaryQuestHandler,
+  getCompleteMercenaryQuestHandler,
 } from './world/MercenaryQuestHandlers.js';
+import {
+  getZoneBypassInitHandler,
+  getZoneBypassSubmitHandler,
+} from './world/ZoneBypassHandlers.js';
 
 let bootstrapped = false;
 
@@ -112,6 +118,9 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getGetLeaderboardHandler());
   registerIntentHandler(getAcceptMercenaryQuestHandler());
   registerIntentHandler(getAbandonMercenaryQuestHandler());
+  registerIntentHandler(getCompleteMercenaryQuestHandler());
+  registerIntentHandler(getZoneBypassInitHandler());
+  registerIntentHandler(getZoneBypassSubmitHandler());
   registerIntentHandler(getEquipFromInventoryHandler());
   registerIntentHandler(getUnequipToInventoryHandler());
   registerIntentHandler(getPurchasePetHandler());
@@ -141,6 +150,7 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getChooseMarcoHandler());
   registerIntentHandler(getResetMarcoTrailHandler());
   registerIntentHandler(getProgressMarcoHandler());
+  registerIntentHandler(getAllocateStatPointsHandler());
   registerIntentHandler(getDevGrantItemHandler());
   registerIntentHandler(getDevGrantCurrencyHandler());
   registerIntentHandler(getDevSetLevelHandler());

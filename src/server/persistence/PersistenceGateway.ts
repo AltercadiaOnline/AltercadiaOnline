@@ -2,9 +2,10 @@ import type { AuthoritativePlayerSnapshot } from '../../shared/playerDataSnapsho
 import {
   type CharacterPersistenceRecord,
   CHARACTER_PERSISTENCE_SCHEMA_VERSION,
+  emptyPersistedPetAffinity,
   isCharacterPersistenceRecord,
 } from '../../shared/persistence/characterPersistenceRecord.js';
-import { PersistenceMode, type PersistenceModeId } from '../../shared/persistence/persistenceConfig.js';
+import { createEmptyPetRoster } from '../../shared/pet/petRoster.js';
 import {
   exportCharacterEconomyPersistence,
   hydrateCharacterEconomyPersistence,
@@ -52,6 +53,7 @@ import {
 import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
 import { nextMonotonicCharacterId } from '../../shared/characterCreation.js';
 import { isClassType } from '../../shared/progression/movesetMasterySeed.js';
+import { getAuthoritativeZoneBypassGateway } from '../world/AuthoritativeZoneBypassGateway.js';
 
 export type PersistCharacterSessionOptions = {
   /** Sempre grava (logout / disconnect / shutdown / login / marketplace). */
@@ -66,11 +68,6 @@ export type PersistCharacterSessionResult = {
   readonly revision: number;
 };
 
-export type PersistenceRuntimeConfig = {
-  readonly mode: PersistenceModeId;
-  readonly dataDir: string;
-};
-
 /** Personagens carregados nesta sessão — distingue novo vs retorno. */
 const hydratedFromDisk = new Set<string>();
 
@@ -78,22 +75,9 @@ function recordKey(playerId: string, characterId: number): string {
   return `${playerId}:${characterId}`;
 }
 
-export function getPersistenceRuntimeConfig(): PersistenceRuntimeConfig {
-  const storage = getActivePersistenceStorage();
-  return {
-    mode: storage.mode,
-    dataDir: process.env.DATA_DIR?.trim() || 'data',
-  };
-}
-
 /** true quando a strategy atual persiste entre restarts (file/postgres). */
 export function isDurablePersistence(): boolean {
   return getActivePersistenceStorage().isDurable();
-}
-
-/** @deprecated Preferir `isDurablePersistence()` — mantido por compatibilidade. */
-export function isFilePersistenceEnabled(): boolean {
-  return getActivePersistenceStorage().mode === PersistenceMode.File;
 }
 
 function buildRecordFromRuntime(
@@ -144,6 +128,7 @@ function buildRecordFromRuntime(
     marketplace: exportMarketplacePersistence(playerId, characterId),
     mercenaryQuests: exportMercenaryQuestPersistence(playerId, characterId),
     friends: exportFriendListPersistence(playerId, characterId),
+    zoneBypassUnlocks: getAuthoritativeZoneBypassGateway().exportPlayerUnlocks(playerId, characterId),
   };
 }
 
@@ -195,9 +180,13 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
 
   if (record.petRoster) {
     hydratePetRosterPersistence(record.playerId, record.characterId, record.petRoster);
+  } else {
+    hydratePetRosterPersistence(record.playerId, record.characterId, createEmptyPetRoster());
   }
   if (record.petAffinity) {
     hydratePetAffinityPersistence(record.playerId, record.characterId, record.petAffinity);
+  } else {
+    hydratePetAffinityPersistence(record.playerId, record.characterId, emptyPersistedPetAffinity());
   }
   if (record.ownedSkins) {
     setOwnedSkinsRecord(record.playerId, record.characterId, {
@@ -221,6 +210,13 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
   }
   hydrateMercenaryQuestPersistence(record.playerId, record.characterId, record.mercenaryQuests);
   hydrateFriendListPersistence(record.playerId, record.characterId, record.friends);
+  void getAuthoritativeZoneBypassGateway().ensureBootstrapped().then(() => {
+    getAuthoritativeZoneBypassGateway().hydrateCharacterUnlocks(
+      record.playerId,
+      record.characterId,
+      record.zoneBypassUnlocks ?? [],
+    );
+  });
 }
 
 /** Carrega loot pendente (startup) via strategy ativa. */

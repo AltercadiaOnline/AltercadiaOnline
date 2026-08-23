@@ -21,8 +21,12 @@ const CREATURE_DISPLAY_FALLBACK: Record<Zone1CreatureId, string> = {
   spider: 'Aranha',
 };
 
-export function getZone1CreatureDisplayName(creatureId: Zone1CreatureId): string {
-  return getCreatureDropEntry(creatureId)?.creatureName ?? CREATURE_DISPLAY_FALLBACK[creatureId];
+export function getZone1CreatureDisplayName(creatureId: string): string {
+  if (creatureId in CREATURE_DISPLAY_FALLBACK) {
+    return getCreatureDropEntry(creatureId)?.creatureName
+      ?? CREATURE_DISPLAY_FALLBACK[creatureId as Zone1CreatureId];
+  }
+  return getCreatureDropEntry(creatureId)?.creatureName ?? creatureId;
 }
 
 /**

@@ -33,6 +33,8 @@ import {
 import { canPetEnterBattle } from '../../shared/pet/petModel.js';
 import { initGlobalPlayerStore, getGlobalPlayerStore } from '../ui/moveset/globalPlayerStore.js';
 import { initPlayerHudHpMaxSync } from '../ui/equipment/playerHudHpMax.js';
+import { isFriendPresenceUpdate } from '../../shared/social/friendListTypes.js';
+import { patchFriendOnlineStatus } from '../world/friendListStore.js';
 import { prefetchItemCatalogExtra } from '../../shared/items/itemCatalog.js';
 import { attachOnlineEconomyLayer, bindLocalGameCharacter, getDataStore, getMockEconomyService } from '../economy/economyLayer.js';
 import {
@@ -46,18 +48,19 @@ import {
   enterBattleFromServer,
   abortCombatJoinOnError,
   abortPendingCombatJoinSilently,
+  beginPendingPveCombatJoin,
   isPendingCombatJoin,
   getGameStateManager,
   resetGameStateManager,
 } from '../game/GameStateProvider.js';
 import { shouldAcceptAuthoritativeStartCombat } from '../combat/client/acceptAuthoritativeStartCombat.js';
+import { rememberBattleEnterContext } from '../combat/battleWorldLifecycle.js';
 import { MapManager } from '../managers/mapManager.js';
 import type { WorldSocket } from '../world/WorldSocket.js';
 import {
   createAuthoritativeWorldSocket,
   isAuthoritativeWorldSocket,
 } from '../world/authoritativeWorldSocket.js';
-import { applyWorldPeersPayload } from '../world/worldPeersStore.js';
 import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
 import { bindPveEncounterWsSender, sendPveEncounterRequest } from '../app/panels/pveEncounterBridge.js';
 import { bindCombatJoinAbortWsSender } from '../app/panels/combatJoinAbortBridge.js';
@@ -119,7 +122,10 @@ import {
 import { pendingIntentToWire } from '../../shared/intent/clientIntent.js';
 import { resolveActiveServerId } from '../auth/resolveLoginServerId.js';
 import { PositionGateway } from '../world/PositionGateway.js';
-import { initGlobalChatController } from '../world/globalChatController.js';
+import {
+  initGlobalChatController,
+  rebindActiveGlobalChatSocket,
+} from '../world/globalChatController.js';
 import { resetSpeechBubbleManager } from '../world/speech/SpeechBubbleManager.js';
 import {
   isWorldSessionReady,
@@ -157,6 +163,7 @@ import { resetExplorationRenderBridge } from '../app/bridge/explorationRenderBri
 import { deactivateGameDomain } from '../domains/executionDomain.js';
 import { resetServiceRegistry } from '../domains/ServiceRegistry.js';
 import { purgeClientGameSession } from '../player/purgeClientGameSession.js';
+import { initializePlayerState } from '../player/initializePlayerState.js';
 import { warnIfStaleClientBuild } from './runtimeBuildIntegrity.js';
 import { shutdownWorldRender } from '../worldRender/bootOnlineWorldRender.js';
 import {
@@ -281,6 +288,9 @@ const WORLD_AUTH_ERROR_MESSAGES: Record<string, string> = {
   WRONG_SERVER: 'Servidor incorreto. Escolha o shard correto na seleção de personagem.',
   PROFILE_NOT_READY: 'Personagem ainda não provisionado. Crie um personagem ou aguarde.',
   WORLD_LOGIN_FAILED: 'Falha ao sincronizar personagem — tentando novamente…',
+  ALREADY_ONLINE:
+    'Este personagem já está online em outro lugar. Feche a outra sessão ou escolha outro personagem.',
+  SESSION_REPLACED: 'Sessão encerrada — este personagem foi aberto em outro lugar.',
 };
 
 function requestWorldLoginIfPossible(): void {
@@ -378,6 +388,22 @@ function handleWorldAuthError(reason: string): void {
     return;
   }
 
+  if (reason === 'ALREADY_ONLINE' || reason === 'SESSION_REPLACED') {
+    setStatus(msg);
+    resetWorldSessionGate();
+    setWorldSessionActive(false);
+    clearWorldLoginRetry();
+    positionGateway?.stopHeartbeat();
+    hidePlayerInitLoading();
+    world?.setPaused(true);
+    if (reason === 'SESSION_REPLACED') {
+      socket?.close(4000, 'session_replaced');
+    }
+    void AppScreens.showCharSelect();
+    AppScreens.renderCharacterHubError(msg);
+    return;
+  }
+
   if (reason === 'WORLD_LOGIN_FAILED') {
     setStatus(msg);
     requestWorldLoginIfPossible();
@@ -454,6 +480,7 @@ function bindLocalPveEncounterLayer(activeWorld: ExplorationScene): void {
 async function connectSocket(): Promise<void> {
   if (socket) {
     positionGateway?.bindSocket(socket);
+    rebindActiveGlobalChatSocket(socket);
     refreshCombatDevBindings();
     syncExplorationOnlineFromSocket();
     if (getGameMode() === 'local') {
@@ -492,6 +519,7 @@ async function connectSocket(): Promise<void> {
       {
         onReconnect: () => {
           synchronizer.onReconnect();
+          rebindActiveGlobalChatSocket(socket);
           if (world && positionGateway) {
             void positionGateway.requestWorldLogin(world.captureExplorationSnapshot());
           }
@@ -602,6 +630,14 @@ async function connectSocket(): Promise<void> {
     const manager = getGameStateManager();
     const battleType = typeof payload?.battleType === 'string' ? payload.battleType : undefined;
     const matchId = typeof payload?.matchId === 'string' ? payload.matchId : undefined;
+    const monsterInstanceId =
+      payload && typeof payload.monsterInstanceId === 'string'
+        ? payload.monsterInstanceId
+        : undefined;
+    // Force-join PVE (agente) não passa pela HUD Aceitar — grava encontro/snapshot.
+    if (monsterInstanceId && !isPendingCombatJoin()) {
+      beginPendingPveCombatJoin(monsterInstanceId);
+    }
     const acceptCombat = shouldAcceptAuthoritativeStartCombat({
       pendingPveJoin: isPendingCombatJoin(),
       inExploration: manager.isExploration(),
@@ -609,17 +645,19 @@ async function connectSocket(): Promise<void> {
       inBattle: manager.isBattle(),
       ...(battleType ? { battleType } : {}),
       ...(matchId ? { matchId } : {}),
+      ...(monsterInstanceId ? { monsterInstanceId } : {}),
     });
-    // PVE órfão (sem aceite) — não monta batalha. PVP rankeado chega da fila, ainda em exploração.
+    // PVE órfão (sem aceite e sem monsterInstanceId) — não monta batalha.
+    // PVP rankeado chega da fila, ainda em exploração.
     if (!acceptCombat) {
       void abortPendingCombatJoinSilently('START_COMBAT_REJECTED');
       return;
     }
 
-    const monsterInstanceId =
-      payload && typeof payload.monsterInstanceId === 'string'
-        ? payload.monsterInstanceId
-        : undefined;
+    rememberBattleEnterContext({
+      ...(battleType ? { battleType } : {}),
+      ...(matchId ? { matchId } : {}),
+    });
     positionGateway?.stopHeartbeat();
     InputHandler.resetKeys();
     void enterBattleFromServer(
@@ -686,8 +724,9 @@ async function connectSocket(): Promise<void> {
     synchronizer.applyLegacyFullState(raw);
   });
 
-  socket.on('world-peers', (raw) => {
-    applyWorldPeersPayload(raw);
+  socket.on('friend-presence-update', (raw) => {
+    if (!isFriendPresenceUpdate(raw)) return;
+    patchFriendOnlineStatus(raw.playerId, raw.characterId, raw.online);
   });
 
   socket.on('pve-encounter-offer', (raw) => {
@@ -759,6 +798,7 @@ async function connectSocket(): Promise<void> {
   });
 
   socket.onOpen(() => {
+    rebindActiveGlobalChatSocket(socket);
     if (getGameMode() === 'online') {
       attachOnlineEconomyLayer();
       setExplorationOnlineMode(true);
@@ -794,6 +834,7 @@ async function connectSocket(): Promise<void> {
     wirePortalTransitionBridge();
   });
 
+  rebindActiveGlobalChatSocket(socket);
   setStatus('Conectando…');
 }
 
@@ -835,8 +876,12 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
 
     const selected = AppScreens.getSelectedCharacter();
     const identity = bindActiveCharacterIdentityFromHubSlot(selected);
-    // Personagem existente: NÃO zerar inventário/carteira aqui — full-state-sync hidrata.
-    // initializePlayerState fica só no DebugMenu (Reset Local Data).
+    // Isolamento: espelho começa vazio; full-state-sync / bindLocal hidratam só este characterId.
+    initializePlayerState({
+      requestServerSync: false,
+      ...(identity?.displayName ? { displayName: identity.displayName } : {}),
+      ...(identity?.classId ? { classId: identity.classId } : {}),
+    });
     if (getGameMode() === 'local') {
       if (!selected || !identity) {
         throw new Error('Entrar no mundo exige personagem selecionado com classe válida.');
@@ -854,18 +899,13 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
         throw new Error('Falha ao ligar o save local do personagem (itens/pets).');
       }
     } else if (selected) {
-      // Online: memorial ainda é espelho cliente por personagem (até existir no servidor).
+      // Online: memorial por personagem — não herdar livro global legado na ficha vazia.
       const memorial = getPetMemorialStore();
       memorial.bindCharacter(
         AppScreens.currentSession?.id ?? 'local-player',
         selected.id,
       );
-      if (memorial.getEntries().length === 0) {
-        const legacy = consumeLegacyPetMemorialMirror();
-        if (legacy && legacy.length > 0) {
-          memorial.hydrateFromEntries(legacy);
-        }
-      }
+      consumeLegacyPetMemorialMirror();
     }
     let playerSpritesReady: Promise<void> = Promise.resolve();
     if (selected && identity) {
@@ -1058,6 +1098,7 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
     }
 
     await connectSocket();
+    rebindActiveGlobalChatSocket(socket);
     wirePortalTransitionBridge();
     bindWorldInputFocusSurface();
     // Online: gateway já existe — se o socket já estiver aberto, inicia handshake agora.

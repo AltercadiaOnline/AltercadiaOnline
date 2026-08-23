@@ -21,13 +21,31 @@ describe('Mecânica 1: Bypass de Zona (Escalonamento de Memória)', () => {
     const sessionZ1 = bypassService.initTerminalSession('user_1', 'Z1_TO_Z1A');
     expect(sessionZ1.sequencePreview).toHaveLength(4);
 
-    const sessionZ1A = bypassService.initTerminalSession('user_2', 'Z1A_TO_Z1B');
+    const unlock = (userId: string, transitionId: 'Z1_TO_Z1A' | 'Z1A_TO_Z1B' | 'Z1B_TO_Z1C') => {
+      const session = bypassService.initTerminalSession(userId, transitionId);
+      bypassService.submitTerminalAnswer(session.sessionId, userId, session.sequencePreview!, 1000);
+    };
+
+    unlock('digits_user', 'Z1_TO_Z1A');
+    const sessionZ1A = bypassService.initTerminalSession('digits_user', 'Z1A_TO_Z1B');
     expect(sessionZ1A.sequencePreview).toHaveLength(6);
+    bypassService.submitTerminalAnswer(
+      sessionZ1A.sessionId,
+      'digits_user',
+      sessionZ1A.sequencePreview!,
+      1000,
+    );
 
-    const sessionZ1B = bypassService.initTerminalSession('user_3', 'Z1B_TO_Z1C');
+    const sessionZ1B = bypassService.initTerminalSession('digits_user', 'Z1B_TO_Z1C');
     expect(sessionZ1B.sequencePreview).toHaveLength(8);
+    bypassService.submitTerminalAnswer(
+      sessionZ1B.sessionId,
+      'digits_user',
+      sessionZ1B.sequencePreview!,
+      1000,
+    );
 
-    const sessionZ1C = bypassService.initTerminalSession('user_4', 'Z1C_TO_Z1D');
+    const sessionZ1C = bypassService.initTerminalSession('digits_user', 'Z1C_TO_Z1D');
     expect(sessionZ1C.sequencePreview).toHaveLength(12);
   });
 
@@ -56,6 +74,29 @@ describe('Mecânica 1: Bypass de Zona (Escalonamento de Memória)', () => {
     expect(domain.lanes[0]?.unlocked).toBe(true);
     expect(domain.lanes[0]?.holderName).toBe('Winner');
     expect(domain.nextTransitionId).toBe('Z1A_TO_Z1B');
+  });
+
+  it('terminal bound só oferece a trava daquele POI', () => {
+    const session = bypassService.initTerminalSession('bound_user', 'Z1_TO_Z1A');
+    bypassService.submitTerminalAnswer(
+      session.sessionId,
+      'bound_user',
+      session.sequencePreview!,
+      1000,
+      'Bound',
+    );
+
+    const atEntrance = bypassService.getDomainSnapshot('bound_user', Date.now(), 'Z1_TO_Z1A');
+    expect(atEntrance.nextTransitionId).toBeNull();
+
+    const atZ1A = bypassService.getDomainSnapshot('bound_user', Date.now(), 'Z1A_TO_Z1B');
+    expect(atZ1A.nextTransitionId).toBe('Z1A_TO_Z1B');
+  });
+
+  it('bloqueia gate seguinte sem pré-requisito liberado', () => {
+    expect(() => bypassService.initTerminalSession('locked_user', 'Z1A_TO_Z1B')).toThrow(
+      /libere Z1A/i,
+    );
   });
 
   it('o primeiro bypass permanece como dono do domínio', () => {

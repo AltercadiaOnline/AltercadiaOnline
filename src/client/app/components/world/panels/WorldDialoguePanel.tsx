@@ -116,10 +116,8 @@ export function WorldDialoguePanel({
   };
 
   const panelClassName = state.isCael
-    ? 'world-panel--dialogue ui-panel--dialogue ui-panel--dialogue-cael'
-    : state.isRefractionInstructor
-      ? 'world-panel--dialogue ui-panel--dialogue ui-panel--dialogue-generic'
-      : 'world-panel--dialogue ui-panel--dialogue ui-panel--dialogue-generic';
+    ? 'world-panel--dialogue ui-panel--dialogue ui-panel--dialogue-cael ui-panel--dialogue-hybrid ui-skin-hybrid'
+    : 'world-panel--dialogue ui-panel--dialogue ui-panel--dialogue-generic ui-panel--dialogue-hybrid ui-skin-hybrid';
 
   const panelStyle = state.isCael
     ? { width: 'min(720px, 98vw)' }
@@ -129,6 +127,7 @@ export function WorldDialoguePanel({
     <MovablePanelFrame
       windowId="dialogue"
       title={dialogue.npcName || 'NPC'}
+      titleMeta={state.isCael ? '// NPC // CAEL' : '// NPC // DIALOG'}
       zIndex={zIndex}
       focused={focused}
       panelClassName={panelClassName}

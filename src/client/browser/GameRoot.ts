@@ -7,6 +7,7 @@ import {
   unmountBattleScreen,
   type BattleFinishedResult,
 } from '../combat/index.js';
+import { getPendingBattleArenaMode, getActiveBattleType } from '../combat/battleWorldLifecycle.js';
 import { applyGameStateToScenes } from './sceneManager.js';
 
 /**
@@ -47,6 +48,7 @@ export function renderGameRoot(gameState: GameState, root: ParentNode = document
 
     mountBattleScreen({
       monsterId: activeMonsterId,
+      arenaMode: getPendingBattleArenaMode(),
       onBattleFinished: (result: BattleFinishedResult) => {
         handleBattleFinished(result);
       },
@@ -66,6 +68,7 @@ function syncLoadingOverlay(root: ParentNode, visible: boolean): void {
 function handleBattleFinished(result: BattleFinishedResult): void {
   void requestReturnToExploration({
     victory: result.victory,
+    battleType: getActiveBattleType(),
     ...(result.endReason !== undefined ? { endReason: result.endReason } : {}),
     ...(result.monsterId ? { monsterId: result.monsterId } : {}),
   });

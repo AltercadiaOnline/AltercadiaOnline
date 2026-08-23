@@ -5,6 +5,7 @@ import {
   inventoryStacksFromItems,
 } from '../../shared/character/itemSlotModel.js';
 import type { AuthoritativePlayerSnapshot } from '../../shared/playerDataSnapshots.js';
+import { allocatedStatsToProfileFields } from '../../shared/character/characterStatPoints.js';
 import { readMovesProgressionSnapshot } from '../progression/movesProgressionReader.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
 import { getPlayerMarcosStore } from '../ui/marcos/playerMarcosStore.js';
@@ -17,6 +18,7 @@ import { getPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
 export function captureClientAuthoritativeSnapshot(): AuthoritativePlayerSnapshot {
   const dataStore = getMutableDataStore();
   const playerSnapshot = dataStore.getSnapshot();
+  const points = dataStore.getCharacterStatPoints();
   const itemSnap = getPlayerItemStore().getSnapshot();
   const stacks = inventoryStacksFromItems(itemSnap.items);
   const wallet = getPlayerWalletStore().getSnapshot();
@@ -62,6 +64,12 @@ export function captureClientAuthoritativeSnapshot(): AuthoritativePlayerSnapsho
     petAffinity: {
       ...petAffinity,
       revision: dataStore.getGlobalRevision(),
+    },
+    characterProfile: {
+      level: playerSnapshot.characterLevel.level,
+      xpCurrent: playerSnapshot.characterLevel.xpCurrent,
+      ...allocatedStatsToProfileFields(points),
+      unspentStatPoints: points.unspent,
     },
   };
 }

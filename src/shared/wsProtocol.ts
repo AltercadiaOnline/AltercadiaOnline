@@ -104,6 +104,11 @@ export type WsOutboundMessage =
   | { readonly type: 'full-state-sync'; readonly payload: AuthoritativePlayerSnapshot }
 
   | {
+      readonly type: 'friend-presence-update';
+      readonly payload: import('./social/friendListTypes.js').FriendPresenceUpdate;
+    }
+
+  | {
       readonly type: 'state-sync';
       readonly payload: import('./sync/syncProtocol.js').StateSyncPayload;
     }

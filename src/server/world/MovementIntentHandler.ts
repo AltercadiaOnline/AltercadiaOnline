@@ -10,13 +10,14 @@ type ConnectionMoveState = {
   lastProcessedRotateSeq: number;
 };
 
-const MAX_MOVE_QUEUE_DEPTH = 12;
-
 /**
- * Até 3 passos por tick quando a fila atrasou (RTT). 1 era pouco e o sprite
- * puxava para trás; rajada enorme virava dash residual após Key Up.
+ * Até 5 passos por tick quando a fila atrasou (RTT). Catch-up maior evita
+ * peer remoto “congelado” enquanto o local ainda anda na predição.
  */
-export const MOVE_CATCHUP_MAX_PER_TICK = 3;
+export const MOVE_CATCHUP_MAX_PER_TICK = 5;
+
+/** Capacidade da fila — ao estourar, remove o mais antigo (nunca dropa o novo). */
+export const MAX_MOVE_QUEUE_DEPTH = 24;
 
 /**
  * Acumula intenções MOVE e processa no WorldTick (1 SQM por tick).
@@ -31,8 +32,10 @@ export class MovementIntentHandler {
       lastProcessedSeq: 0,
       lastProcessedRotateSeq: 0,
     };
-    if (state.queue.length >= MAX_MOVE_QUEUE_DEPTH) {
-      return;
+    // Estrutura: nunca descartar o intent mais recente em silêncio.
+    // Fila cheia → remove o mais antigo (servidor alcança a trajetória atual).
+    while (state.queue.length >= MAX_MOVE_QUEUE_DEPTH) {
+      state.queue.shift();
     }
     state.queue.push(payload);
     this.byConnection.set(connectionId, state);

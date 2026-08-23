@@ -12,7 +12,7 @@ import { postSystemNotification } from '../ui/logService.js';
 import { InputHandler } from '../inputHandler.js';
 import type { Disposable } from '../utils/Disposable.js';
 import { getWorldPlayerPickById } from './worldPlayerPickRegistry.js';
-import { dispatchDuelInvite, dispatchTradeRequest } from './playerInspectActions.js';
+import { dispatchTradeRequest } from './playerInspectActions.js';
 import { worldToScreenPixel } from './screenCoords.js';
 
 export type InteractionCardControllerOptions = {
@@ -127,7 +127,7 @@ export class InteractionCardController implements Disposable {
 
   private handlePlayerAction(
     target: InteractionCardTarget,
-    action: 'duel' | 'trade' | 'follow',
+    action: 'trade' | 'follow',
   ): void {
     const name = target.displayName;
     switch (action) {
@@ -138,15 +138,6 @@ export class InteractionCardController implements Disposable {
           return;
         }
         dispatchTradeRequest(pick.playerId, pick.characterId);
-        break;
-      }
-      case 'duel': {
-        const pick = getWorldPlayerPickById(target.targetId);
-        if (!pick) {
-          postSystemNotification('Jogador não está mais na tela.');
-          break;
-        }
-        dispatchDuelInvite(pick.playerId, pick.characterId);
         break;
       }
       case 'follow':

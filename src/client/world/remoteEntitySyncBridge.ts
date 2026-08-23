@@ -9,14 +9,19 @@ import {
 import {
   estimateRemoteServerNowMs,
   RemoteEntityInterpolator,
+  resolveRemoteRenderDelayMs,
+  remotePlayerEntityId,
   type RemoteEntityClockAnchor,
   type RemoteEntityDisplayState,
 } from './remoteEntityInterpolator.js';
+import { getMovementNetTelemetry } from './movementNetTelemetry.js';
+import { resolveWorldLoreCredentials } from '../services/worldLoreCredentials.js';
 
 type RemoteEntitySyncListener = (mapId: MapId) => void;
 
 export type RemotePlayerRenderFrame = {
   readonly playerId: string;
+  readonly characterId: number;
   readonly displayName: string;
   readonly skinBundleId?: PlayerSkinBundleId;
   readonly level?: number;
@@ -54,11 +59,18 @@ export function applyServerRemotePlayerSnapshots(
   clockAnchor = { serverTimeMs, localMs: localNowMs };
   const resolvedMapId = mapId as MapId;
   activeMapId = resolvedMapId;
-  latestSnapshotsByMap.set(resolvedMapId, [...snapshots]);
+  const local = resolveLocalIdentityForRemotes();
+  const withoutSelf = local
+    ? snapshots.filter(
+      (row) => !(row.playerId === local.playerId && row.characterId === local.characterId),
+    )
+    : snapshots;
+  latestSnapshotsByMap.set(resolvedMapId, [...withoutSelf]);
 
   const seen = new Set<string>();
-  for (const snapshot of snapshots) {
-    seen.add(snapshot.playerId);
+  for (const snapshot of withoutSelf) {
+    const entityId = remotePlayerEntityId(snapshot.playerId, snapshot.characterId);
+    seen.add(entityId);
     interpolator.pushRemotePlayerSnapshot({
       ...snapshot,
       serverTimeMs: snapshot.serverTimeMs > 0 ? snapshot.serverTimeMs : serverTimeMs,
@@ -92,8 +104,9 @@ export function sampleRemoteEntitiesForRender(
 ): readonly RemoteEntityDisplayState[] {
   if (activeMapId !== mapId) return [];
   const serverNowMs = estimateRemoteServerNowMs(clockAnchor, localNowMs);
+  const renderDelayMs = resolveRemoteRenderDelayMs(getMovementNetTelemetry().getSnapshot().rttMs);
   return interpolator.listEntityIds()
-    .map((entityId) => interpolator.sample(entityId, serverNowMs))
+    .map((entityId) => interpolator.sample(entityId, serverNowMs, renderDelayMs))
     .filter((state): state is RemoteEntityDisplayState => state !== null);
 }
 
@@ -105,23 +118,40 @@ export function collectRemotePlayersForRender(
   const snapshots = latestSnapshotsByMap.get(mapId) ?? [];
   if (snapshots.length === 0) return [];
 
+  const local = resolveLocalIdentityForRemotes();
   const displayById = new Map(
     sampleRemoteEntitiesForRender(mapId, localNowMs).map((state) => [state.entityId, state] as const),
   );
 
-  return snapshots.map((snapshot) => {
-    const display = displayById.get(snapshot.playerId);
-    return {
-      playerId: snapshot.playerId,
-      displayName: snapshot.displayName?.trim() || 'Jogador',
-      feetX: display?.feetX ?? snapshot.feetX,
-      feetY: display?.feetY ?? snapshot.feetY,
-      facing: display?.facing ?? snapshot.facing,
-      ...(snapshot.skinBundleId ? { skinBundleId: snapshot.skinBundleId } : {}),
-      ...(snapshot.level !== undefined ? { level: snapshot.level } : {}),
-      ...(snapshot.companion ? { companion: snapshot.companion } : {}),
-    };
-  });
+  return snapshots
+    .filter((snapshot) =>
+      !local
+      || !(snapshot.playerId === local.playerId && snapshot.characterId === local.characterId),
+    )
+    .map((snapshot) => {
+      const entityId = remotePlayerEntityId(snapshot.playerId, snapshot.characterId);
+      const display = displayById.get(entityId);
+      return {
+        playerId: snapshot.playerId,
+        characterId: snapshot.characterId,
+        displayName: snapshot.displayName?.trim() || 'Jogador',
+        feetX: display?.feetX ?? snapshot.feetX,
+        feetY: display?.feetY ?? snapshot.feetY,
+        facing: display?.facing ?? snapshot.facing,
+        ...(snapshot.skinBundleId ? { skinBundleId: snapshot.skinBundleId } : {}),
+        ...(snapshot.level !== undefined ? { level: snapshot.level } : {}),
+        ...(snapshot.companion ? { companion: snapshot.companion } : {}),
+      };
+    });
+}
+
+function resolveLocalIdentityForRemotes(): { playerId: string; characterId: number } | null {
+  try {
+    const creds = resolveWorldLoreCredentials();
+    return { playerId: creds.playerId, characterId: creds.characterId };
+  } catch {
+    return null;
+  }
 }
 
 export function clearRemoteEntitySyncBridge(): void {

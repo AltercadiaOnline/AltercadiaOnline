@@ -7,7 +7,7 @@ Legado = **1 mensagem por personagem** (perfil), não por tile. Todos os pixos d
 | Ação | HUD |
 |------|-----|
 | Botão direito no pixo **do colega** no chão | Mini HUD só: nome, Lv, recado personalizado, Fechar, **Adicione como amigo**. Sem online, sem editor, sem duelo. |
-| Botão direito no **player** (sprite na tela 640×360) | **Outra HUD** (`PlayerInspectHud`): SET, **Adicione como amigo**, **Desafiar para batalha**, **Fazer trade**. Não fecha se o alvo andar. Pixo tem prioridade no mesmo pixel. |
+| Botão direito no **player** (sprite ou nametag sob o cursor) | Só o direito. Player **antes** do pixo. Ficha `#player-inspect-hud-dom` no `document.body` (não depende do React). Abre no pick; ACK preenche SET. Trade 3 tiles; duelo 6 + fora da fila ranqueada. |
 | Botão direito na lata no inventário | Editor do próprio legado → `UPDATE_SPRAY_LEGACY` |
 | Tecla G | só `PLACE_SPRAY` (não consome no cliente) |
 
@@ -21,7 +21,7 @@ Proximidade: overlap AABB > 30% com pixo de **outro** = rejeita `"Este pixo est�
 | Overlap 40px / pick 64px | `src/shared/social/sprayOverlap.ts` |
 | Store autoridade | `src/shared/social/tacticalSprayStore.ts` (server + Mock **somente**) |
 | Place / inspect / legado | `src/server/handlers/social/PlaceSprayHandler.ts` etc. |
-| Persist mundo | `src/server/persistence/worldSprayPersistence.ts` → `data/{shard}/world-sprays.json` |
+| Persist mundo | `src/server/persistence/worldSprayPersistence.ts` → `data/{serverId}/world-sprays.json` (promove `data/world-sprays.json`) |
 | Tick | `GameLoop` + `spraySyncDirty.ts` |
 | Mirror render | `src/client/world/worldSpraySyncBridge.ts` |
 | HUD store/actions | `sprayInspectStore.ts`, `spraySocialActions.ts` |

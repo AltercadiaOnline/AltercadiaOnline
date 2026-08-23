@@ -35,6 +35,61 @@ export async function listProfilesForUserOnServer(
   return (data ?? []) as ProfileRow[];
 }
 
+/** Fase 3 — todos os personagens da conta (qualquer shard). */
+export async function listProfilesForUserAccount(
+  client: SupabaseClient,
+  userId: string,
+): Promise<ProfileRow[]> {
+  const { data, error } = await client
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .order('slot_index', { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as ProfileRow[];
+}
+
+export async function findProfileForUserCharacter(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+): Promise<ProfileRow | null> {
+  const { data, error } = await client
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('character_id', characterId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data as ProfileRow | null) ?? null;
+}
+
+export async function updateProfileLastWorldId(
+  client: SupabaseClient,
+  userId: string,
+  characterId: number,
+  serverId: string,
+): Promise<void> {
+  const scopedServerId = requireServerId(serverId);
+  const { error } = await client
+    .from('profiles')
+    .update({ server_id: scopedServerId })
+    .eq('user_id', userId)
+    .eq('character_id', characterId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 /** @deprecated Bloqueado — use listProfilesForUserOnServer(userId, serverId). */
 export async function listProfilesForUser(
   _client: SupabaseClient,

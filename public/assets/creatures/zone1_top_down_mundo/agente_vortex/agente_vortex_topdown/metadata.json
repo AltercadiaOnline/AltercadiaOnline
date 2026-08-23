@@ -1,0 +1,36 @@
+{
+  "group_id": "6b21a7bd-6fed-4ebd-a3c8-dac932a0219d",
+  "states": [
+    {
+      "character": {
+        "id": "a514d951-447b-43a0-aa27-8382a83f69c0",
+        "name": "Idle",
+        "prompt": "A game character asset sprite concept, 2D top-down 32x56, a bald secret agent character wearing a sharp black suit, a black tie, and dark sunglasses, serious assassin or operative style resembling Agent 47, dark tactical cyberpunk atmosphere, clean pixel art or detailed vector game sprite sheet style, isolated on a neutral dark background, high contrast, sharp details.",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-23T06:05:41.118712+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-23T06:07:09.288279"
+}

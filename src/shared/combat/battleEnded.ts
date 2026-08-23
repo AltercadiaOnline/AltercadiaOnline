@@ -26,6 +26,10 @@ export type BattleEndedPayload = {
   readonly rankingResult?: BattleRankingResult;
   /** Penalidade de derrota — espelho de COMBAT_FINISHED (cliente só exibe). */
   readonly deathPenaltyOutcome?: DeathPenaltyOutcome;
+  /** HP/MP de mundo pós-combate — SSOT para HUD (evita barra em 100 após derrota). */
+  readonly worldVitals?: import('../character/equipmentState.js').PlayerWorldVitals;
+  /** Duelo do card — derrota usa respawn/HP mínimo como PVE. */
+  readonly casualPvp?: boolean;
 };
 
 export function isBattleEndedPayload(value: unknown): value is BattleEndedPayload {

@@ -17,8 +17,11 @@ import { getPlayerItemStore } from '../../ui/items/playerItemStore.js';
 import { getPlayerPetStore } from '../../ui/pet/playerPetStore.js';
 import { getPlayerProgressionStore } from '../../progression/playerProgressionStore.js';
 import { getDataStore } from '../../economy/economyLayer.js';
+import { getMutableDataStore } from '../../PlayerDataStore.js';
 import { resolveClientCombatEquipmentSnapshot } from '../resolveClientCombatEquipment.js';
 import { listEquipmentUiGridItemIds } from '../../../shared/character/equipmentUiSlots.js';
+import { getActivePlayerSkinBundleId } from '../../entities/player/activePlayerSkinBundle.js';
+import { resolvePlayerSkinBundleId } from '../../../shared/character/playerSkinBundle.js';
 
 export function resolveLocalCombatLoadoutFromClient(): PlayerCombatLoadout | null {
   const selected = AppScreens.getSelectedCharacter();
@@ -42,6 +45,7 @@ export function resolveLocalCombatLoadoutFromClient(): PlayerCombatLoadout | nul
   const equipmentGrid = getPlayerItemStore().toEquipmentGrid();
   const inventory = getPlayerItemStore().toInventoryStacks();
   const progression = getPlayerProgressionStore().getSnapshot();
+  const allocated = getMutableDataStore().getCharacterStatPoints();
   // equipment.level já lê PlayerDataStore — hub selected.level fica stale (ex.: 1 → 112 HP).
   const level = Math.max(1, Math.floor(equipment.level));
 
@@ -63,6 +67,12 @@ export function resolveLocalCombatLoadoutFromClient(): PlayerCombatLoadout | nul
     displayName: selected?.name ?? equipment.displayName ?? 'Operative',
     worldVitals: vitals,
     movesetMastery: { ...(progression.movesetMastery ?? {}) },
+    allocatedAtk: allocated.atk,
+    allocatedDef: allocated.def,
+    allocatedHp: allocated.hp,
+    skinBundleId: resolvePlayerSkinBundleId({
+      skinBundleId: selected?.skinBundleId ?? getActivePlayerSkinBundleId(),
+    }),
     ...(pet && canPetEnterBattle(pet) ? { pet } : {}),
   };
 }

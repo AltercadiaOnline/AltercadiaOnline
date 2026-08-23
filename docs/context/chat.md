@@ -16,6 +16,8 @@ Texto no mundo depois do enter-world. Servidor valida e faz fanout; cliente só 
 | Lista amigos | `friendListStore.ts` (save) + clique duplo no chat / clique no Hub Social abre aba |
 | Controller | `src/client/world/globalChatController.ts` / `whisperChatActions.ts` |
 
+`initGlobalChatController` no enter-world corre **antes** de `connectSocket`. Sem `rebindActiveGlobalChatSocket` depois do WS (e no reconnect / `onOpen`), o peer nunca recebe `chat-global` — só o eco local do remetente.
+
 ## Regras
 
 - Enviar = intent com `intentId`. Mensagem `chat-global` / `chat-whisper` é o espelho, não a autoridade.
@@ -24,6 +26,7 @@ Texto no mundo depois do enter-world. Servidor valida e faz fanout; cliente só 
 - Whisper **não** persiste texto. O que sobrevive ao restart é o **nome** na lista de amigos.
 - Clique duplo no nome abre aba. Offline = intent falha.
 - Pedido de amigo **não** é chat — ver [spray-social.md](spray-social.md).
+- Stack de chat/log: 248px à esquerda (não cobre o centro da câmera). Direito no peer **atravessa** o feed do chat; só `input`/botões do composer bloqueiam.
 
 ## Proibido
 

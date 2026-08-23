@@ -3,10 +3,11 @@ import {
   getStaticDistrictDef,
   type StaticDistrictId,
 } from './staticDistrictCatalog.js';
-import type {
-  StaticDistrictHudSlice,
-  StaticHeat,
-  StaticNetworkHudSnapshot,
+import {
+  resolveStaticLiveHeat,
+  type StaticDistrictHudSlice,
+  type StaticHeat,
+  type StaticNetworkHudSnapshot,
 } from './staticNetworkTypes.js';
 
 export type StaticDistrictRuntime = {
@@ -89,7 +90,12 @@ export class StaticDistrictStore {
         : 0;
       return {
         id: row.districtId,
-        heat: row.heat,
+        heat: resolveStaticLiveHeat({
+          blackoutRemainMs,
+          agentCount: row.agentInstanceIds.length,
+          sabotage: row.sabotage,
+          hotThreshold: def.hotThreshold,
+        }),
         sabotage: row.sabotage,
         goal: def.sabotageGoal,
         blackoutRemainMs,
@@ -98,6 +104,24 @@ export class StaticDistrictStore {
       };
     });
     return { revision: this.revision, districts };
+  }
+
+  applyAgentWave(
+    districtId: StaticDistrictId,
+    agentInstanceIds: readonly string[],
+    nextWaveAtMs: number,
+  ): void {
+    const row = this.byId.get(districtId);
+    if (!row) return;
+    const sameIds = row.agentInstanceIds.length === agentInstanceIds.length
+      && row.agentInstanceIds.every((id, index) => id === agentInstanceIds[index]);
+    if (sameIds && row.nextWaveAtMs === nextWaveAtMs) return;
+    this.byId.set(districtId, {
+      ...row,
+      agentInstanceIds: [...agentInstanceIds],
+      nextWaveAtMs,
+    });
+    this.markDirty();
   }
 
   resetForTests(): void {

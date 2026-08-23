@@ -69,7 +69,9 @@ export class ContextMenuService {
     return this.activeMenu !== null;
   }
 
-  /** Bloqueia `contextmenu` globalmente; abre painel customizado em alvos declarativos. */
+  /** Menu in-game só em alvos `data-context-menu-kind` (inventário/equip).
+   * Direito no mapa = WorldMapRenderer (`#world-input-hit`, botão 2). Não bloquear o evento globalmente.
+   */
   installGlobalBlock(root: Document | HTMLElement = document): () => void {
     this.teardownGlobal?.();
 
@@ -78,12 +80,11 @@ export class ContextMenuService {
     if (!view) return () => undefined;
 
     const onContextMenu = (event: MouseEvent) => {
-      event.preventDefault();
-
       const targetEl = event.target instanceof Element
         ? event.target.closest(`[${CONTEXT_MENU_KIND_ATTR}], [${LEGACY_KIND_ATTR}]`)
         : null;
       if (!targetEl) return;
+      event.preventDefault();
 
       const kind = targetEl.getAttribute(CONTEXT_MENU_KIND_ATTR)
         ?? targetEl.getAttribute(LEGACY_KIND_ATTR);

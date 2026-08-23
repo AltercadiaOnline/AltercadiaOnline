@@ -17,7 +17,7 @@ export function WorldPetMemorialPanel({ zIndex, focused }: WorldPetMemorialPanel
       title="Livro de Memórias"
       zIndex={zIndex}
       focused={focused}
-      panelClassName="ui-panel--pet-memorial"
+      panelClassName="ui-panel--pet-memorial ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{ width: 'min(420px, 92vw)', maxHeight: 'min(520px, 88vh)' }}
       onFocus={() => tryFocusReactWorldPanel('petMemorial')}
       onClose={() => tryCloseReactWorldPanel('petMemorial')}

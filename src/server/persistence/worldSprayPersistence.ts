@@ -1,9 +1,8 @@
-import path from 'node:path';
 import type { TacticalSpray } from '../../shared/types/tacticalSpray.js';
 import { tacticalSprayService } from '../../shared/social/tacticalSprayStore.js';
 import { shouldApplyWorldSprayWeeklyReset, resolveLatestElapsedWorldSprayResetAtMs } from '../../shared/social/worldSprayWeeklyReset.js';
-import { readJsonFile, writeJsonFileAtomic } from './DatabaseUtils.js';
-import { getPersistenceRuntimeConfig, isDurablePersistence } from './PersistenceGateway.js';
+import { readWorldScopedJson, writeWorldScopedJson } from './scopedPersistenceFiles.js';
+import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
 
 type WorldSpraySnapshotFile = {
   readonly sprays: readonly TacticalSpray[];
@@ -12,10 +11,6 @@ type WorldSpraySnapshotFile = {
 };
 
 let lastWeeklyResetAtMs: number | null = null;
-
-function worldSprayFilePath(dataDir: string): string {
-  return path.join(dataDir, 'world-sprays.json');
-}
 
 function isTacticalSprayRecord(value: unknown): value is TacticalSpray {
   if (!value || typeof value !== 'object') return false;
@@ -41,10 +36,9 @@ export function stampWorldSprayWeeklyReset(atMs: number): void {
 }
 
 export async function loadWorldSprayPersistence(): Promise<void> {
-  if (!isDurablePersistence()) return;
+  if (!getActivePersistenceStorage().isDurable()) return;
 
-  const { dataDir } = getPersistenceRuntimeConfig();
-  const snapshot = await readJsonFile<WorldSpraySnapshotFile>(worldSprayFilePath(dataDir));
+  const snapshot = await readWorldScopedJson<WorldSpraySnapshotFile>('world-sprays.json');
   const sprays = snapshot?.sprays?.filter(isTacticalSprayRecord) ?? [];
   tacticalSprayService.hydrateSprays(sprays);
 
@@ -69,10 +63,9 @@ export async function loadWorldSprayPersistence(): Promise<void> {
 }
 
 export async function persistWorldSpraySnapshot(): Promise<void> {
-  if (!isDurablePersistence()) return;
+  if (!getActivePersistenceStorage().isDurable()) return;
 
-  const { dataDir } = getPersistenceRuntimeConfig();
-  await writeJsonFileAtomic(worldSprayFilePath(dataDir), {
+  await writeWorldScopedJson('world-sprays.json', {
     sprays: tacticalSprayService.exportSprays(),
     updatedAt: Date.now(),
     ...(lastWeeklyResetAtMs !== null ? { lastWeeklyResetAtMs } : {}),

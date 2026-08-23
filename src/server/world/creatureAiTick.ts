@@ -10,6 +10,7 @@ import {
   type TickCreatureWanderAiOptions,
 } from '../../shared/world/creatureAiTick.js';
 import { isMonsterEncounterClaimed } from './pveMonsterClaim.js';
+import { markCreatureSyncDirty } from './creatureSyncDirty.js';
 
 export type { CreatureAiPlayerProbe, TickCreatureWanderAiOptions };
 export { clearCreatureAiRuntime, __resetCreatureAiForTests };
@@ -20,5 +21,6 @@ export function tickCreatureWanderAi(
 ): number {
   return tickSharedCreatureWanderAi(nowMs, players, {
     isEncounterClaimed: isMonsterEncounterClaimed,
+    onCreatureMoved: markCreatureSyncDirty,
   });
 }

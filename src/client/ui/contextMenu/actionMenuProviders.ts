@@ -32,8 +32,8 @@ export type BattleOpponentMenuTarget = {
 
 let providersRegistered = false;
 
-/** Registra providers padrão — extensível adicionando itens ao array de cada kind.
- * Entidades do mundo (NPC/jogador) usam clique duplo → InteractionCard, não context menu.
+/** Inventário/equip usam menu in-game (`data-context-menu-kind`).
+ * Mundo: esquerdo = andar/NPC; direito (`pointerdown` button 2) = inspect pixo/player.
  */
 export function registerDefaultActionMenuProviders(): () => void {
   if (providersRegistered) {

@@ -10,7 +10,7 @@ export const WORLD_TERMINAL_IDS = {
   ARENA: 'computador_arena',
   /** Púlpito de fila PvP ranqueada (2 slots → batalha). Marker Construct: `combate_pvp`. */
   COMBATE_PVP: 'combate_pvp',
-  /** Domínio / HUD da zona 1 (bypass + painel de quem está dominando). */
+  /** Entrada zona 1 — libera Z1A. Gates seguintes: `zoneDomainTerminals.ts`. */
   ZONE_1: 'computador_zona1',
   /** Domínio / HUD da zona 2 (futuro). */
   ZONE_2: 'computador_zona2',
@@ -43,7 +43,7 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     role: 'pvp_hub',
     constructMarker: WORLD_TERMINAL_IDS.ARENA,
     status: 'active',
-    notes: 'Ranking PvP e hub da central. Fila de combate fica em combate_pvp.',
+    notes: 'Só board pvp_ranked + HUD da estrutura ranqueada. Vitrine level/moveset/PvE = login. Fila = combate_pvp.',
   },
   {
     id: WORLD_TERMINAL_IDS.COMBATE_PVP,
@@ -55,11 +55,12 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
   },
   {
     id: WORLD_TERMINAL_IDS.ZONE_1,
-    label: 'Computador Zona 1',
+    label: 'Terminal Zona 1 — Entrada',
     role: 'zone_domain',
     constructMarker: WORLD_TERMINAL_IDS.ZONE_1,
     status: 'active',
-    notes: 'Minigame de memória (código 2s embaralhado). Após o bypass, E abre a HUD de domínio.',
+    notes:
+      'Gate Z1→Z1A. Cadeia: computador_zona1a/b/c em cada subzona (só liberam a trava seguinte). Ver zoneDomainTerminals.ts.',
   },
   {
     id: WORLD_TERMINAL_IDS.ZONE_2,
@@ -67,7 +68,7 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     role: 'zone_domain',
     constructMarker: WORLD_TERMINAL_IDS.ZONE_2,
     status: 'planned',
-    notes: 'Mesmo padrão de domínio para a zona 2.',
+    notes: 'Mesmo padrão de domínio para a zona 2 (um terminal por gate).',
   },
   {
     id: WORLD_TERMINAL_IDS.MARKETPLACE,

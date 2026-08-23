@@ -65,6 +65,11 @@ import {
   executePetFeedSpecialRation,
 } from '../pet/caelPetActions.js';
 import { getMutableDataStore } from '../PlayerDataStore.js';
+import {
+  allocatedStatsFromProfile,
+  allocatedStatsToProfileFields,
+  tryAllocateStatPoints,
+} from '../../shared/character/characterStatPoints.js';
 import type { IDevMockEconomyService, IntentHandleResult } from '../economy/IEconomyService.js';
 import {
   clearLocalCharacterSave,
@@ -90,6 +95,10 @@ import {
 } from '../../shared/progression/moveProgression.js';
 import { createEmptyPetRoster } from '../../shared/pet/petRoster.js';
 import { isLocalGameMode } from '../runtime/gameMode.js';
+import { ZoneBypassService } from '../../shared/world/zoneBypassStore.js';
+import { zoneBypassPlayerKey } from '../../shared/world/zoneBypassPlayerKey.js';
+import { applyZoneDomainSnapshot } from '../world/zoneBypassSyncBridge.js';
+import { handleIntentResultPayload } from '../intent/intentAckClient.js';
 import { equippedToEquipmentUiGrid } from '../../shared/character/equipmentUiSlots.js';
 import {
   readMoveProgression,
@@ -155,7 +164,10 @@ import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
 import {
   abandonMercenaryQuest,
   acceptMercenaryQuest,
+  completeMercenaryQuest,
 } from '../../shared/quests/mercenaryQuestProgress.js';
+import { getMercenaryQuestById } from '../../shared/quests/mercenaryQuestCatalog.js';
+import { applyCharacterXpGain } from '../../shared/character/characterLevelProgression.js';
 import { getPlayerWalletStore, resetPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
 import { getGameStore } from '../state/GameStore.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
@@ -256,6 +268,7 @@ export class MockEconomyService implements IDevMockEconomyService {
   private readonly movesProgressionListeners = new Set<
     (snapshot: MovesProgressionSnapshot) => void
   >();
+  private readonly zoneBypass = new ZoneBypassService();
 
   setNetworkDelayMs(ms: number): void {
     this.networkDelayMs = Math.max(0, ms);
@@ -392,11 +405,14 @@ export class MockEconomyService implements IDevMockEconomyService {
       || action.type === 'SELECT_MARCO_BRANCH'
       || action.type === 'CHOOSE_MARCO'
       || action.type === 'RESET_MARCO_TRAIL'
+      || action.type === 'ALLOCATE_STAT_POINTS'
       || action.type === 'DEV_GRANT_ITEM'
       || action.type === 'DEV_GRANT_CURRENCY'
       || action.type === 'DEV_SET_LEVEL'
       || action.type === 'DEV_SET_MOVESET_MASTERY'
       || action.type === 'DEV_RESET_PLAYER'
+      || action.type === 'ZONE_BYPASS_INIT'
+      || action.type === 'ZONE_BYPASS_SUBMIT'
     ) {
       this.applyIntentNow(action, intentId);
       return;
@@ -441,6 +457,15 @@ export class MockEconomyService implements IDevMockEconomyService {
 
     const result = this.processAction(action);
     if (result.ok) {
+      if (action.type === 'ZONE_BYPASS_INIT' || action.type === 'ZONE_BYPASS_SUBMIT') {
+        handleIntentResultPayload({
+          intentId,
+          correlationId: intentId,
+          success: true,
+          data: result.data,
+        });
+        return;
+      }
       this.syncLegacyStores();
       this.notifyAll();
       this.persistLocalSave();
@@ -523,6 +548,10 @@ export class MockEconomyService implements IDevMockEconomyService {
     }
 
     this.applyPersistenceRecord(record);
+    this.zoneBypass.hydratePlayerUnlocks(
+      zoneBypassPlayerKey(playerId, characterId),
+      record.zoneBypassUnlocks ?? [],
+    );
     this.hydrateLocalWorldSprays();
     this.ensurePetCharacterPersistBridge();
     this.ensurePetMemorialPersistBridge();
@@ -688,6 +717,7 @@ export class MockEconomyService implements IDevMockEconomyService {
         xpCurrent: Math.max(0, levelState.xpCurrent),
         displayName: equipment.displayName,
         classId: equipment.classId,
+        ...allocatedStatsToProfileFields(getMutableDataStore().getCharacterStatPoints()),
         ...(this.legacyMessage ? { legacyMessage: this.legacyMessage } : {}),
       },
       petRoster: getPlayerPetStore().getRoster(),
@@ -701,7 +731,49 @@ export class MockEconomyService implements IDevMockEconomyService {
         displayName: row.displayName,
         addedAt: row.addedAt,
       })),
+      zoneBypassUnlocks: this.resolveZoneBypassKey()
+        ? this.zoneBypass.exportPlayerUnlocks(this.resolveZoneBypassKey()!)
+        : [],
     };
+  }
+
+  private resolveZoneBypassKey(): string | null {
+    if (!this.boundPlayerId || this.boundCharacterId === null) return null;
+    return zoneBypassPlayerKey(this.boundPlayerId, this.boundCharacterId);
+  }
+
+  private zoneBypassInit(
+    transitionId: import('../../shared/types/zoneBypass.js').SubZoneTransitionId,
+  ): IntentHandleResult {
+    const key = this.resolveZoneBypassKey();
+    if (!key) return { ok: false, reason: 'Personagem não ligado ao mock.' };
+    try {
+      const result = this.zoneBypass.initTerminalSession(key, transitionId);
+      applyZoneDomainSnapshot(this.zoneBypass.getDomainSnapshot(key, Date.now(), transitionId));
+      return { ok: true, data: result };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Falha ao iniciar terminal.';
+      return { ok: false, reason: message };
+    }
+  }
+
+  private zoneBypassSubmit(sessionId: string, inputCode: string): IntentHandleResult {
+    const key = this.resolveZoneBypassKey();
+    if (!key) return { ok: false, reason: 'Personagem não ligado ao mock.' };
+    const displayName = getPlayerEquipmentStore().getSnapshot().displayName || 'Operador';
+    const result = this.zoneBypass.submitTerminalAnswer(
+      sessionId,
+      key,
+      inputCode,
+      1000,
+      displayName,
+    );
+    const domain = this.zoneBypass.getDomainSnapshot(key, Date.now());
+    applyZoneDomainSnapshot(domain);
+    if (!result.success) {
+      return { ok: false, reason: result.errorMessage ?? 'Falha no terminal.' };
+    }
+    return { ok: true, data: { ...result, zoneDomain: domain } };
   }
 
   /**
@@ -725,52 +797,26 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   /**
-   * Migra pets do localStorage global legado (`altercadia.playerPetRoster.v1`)
-   * para o save por personagem — evita perda após a unificação.
+   * Isolamento: personagem novo NUNCA herda pets do localStorage global.
+   * Consome o legado só para limpar a chave — sem colar no roster.
    */
-  private migrateLegacyPetRosterIfNeeded(record: CharacterPersistenceRecord): boolean {
-    const current = getPlayerPetStore().getRoster();
-    if (current.pets.length > 0) return false;
-    if (record.petRoster && record.petRoster.pets.length > 0) return false;
-
-    const legacy = getPlayerPetStore().consumeLegacyRosterMirror();
-    if (!legacy || legacy.pets.length === 0) return false;
-
-    getPlayerPetStore().hydrateFromStorage(legacy);
-    getPlayerPetStore().notifyHydrated();
-    return true;
+  private migrateLegacyPetRosterIfNeeded(_record: CharacterPersistenceRecord): boolean {
+    getPlayerPetStore().consumeLegacyRosterMirror();
+    return false;
   }
 
-  /** Migra afinidade/rações globais legadas → slice do personagem. */
-  private migrateLegacyPetAffinityIfNeeded(record: CharacterPersistenceRecord): boolean {
-    const slice = record.petAffinity;
-    const recordHasAffinity = Boolean(
-      slice
-      && (slice.rationCharges > 0
-        || slice.lastPetAffectionAtMs !== null
-        || slice.lastPetRationFeedAtMs !== null),
-    );
-    if (recordHasAffinity) return false;
-
-    const legacy = getPlayerPetStore().consumeLegacyAffinityMirror();
-    if (!legacy) return false;
-    getPlayerPetStore().applyPetAffinityFromServer(legacy);
-    return true;
+  /** Isolamento: afinidade global legada não entra em ficha vazia. */
+  private migrateLegacyPetAffinityIfNeeded(_record: CharacterPersistenceRecord): boolean {
+    getPlayerPetStore().consumeLegacyAffinityMirror();
+    return false;
   }
 
   /**
-   * Migra livro de memórias global legado (`altercadia.petMemorialBook.v1`)
-   * para o save do personagem ligado — um companion = um personagem.
+   * Isolamento: memorial global legado não entra em ficha vazia.
    */
-  private migrateLegacyPetMemorialIfNeeded(record: CharacterPersistenceRecord): boolean {
-    if (getPetMemorialStore().getEntries().length > 0) return false;
-    if (record.petMemorial && record.petMemorial.length > 0) return false;
-
-    const legacy = consumeLegacyPetMemorialMirror();
-    if (!legacy || legacy.length === 0) return false;
-
-    getPetMemorialStore().hydrateFromEntries(legacy);
-    return true;
+  private migrateLegacyPetMemorialIfNeeded(_record: CharacterPersistenceRecord): boolean {
+    consumeLegacyPetMemorialMirror();
+    return false;
   }
 
   private applyPersistenceRecord(record: CharacterPersistenceRecord): void {
@@ -818,6 +864,7 @@ export class MockEconomyService implements IDevMockEconomyService {
     });
     getPlayerProfileStore().setProfile(name, level);
     getMutableDataStore().applyCharacterLevelState(level, xpCurrent, 'server_sync');
+    getMutableDataStore().applyCharacterStatPoints(allocatedStatsFromProfile(record.characterProfile));
 
     const safeWorld = sanitizePlayerWorldProfile(record.world);
     this.cachedWorldProfile = {
@@ -969,12 +1016,18 @@ export class MockEconomyService implements IDevMockEconomyService {
         return this.acceptMercenaryTask(action.payload.taskId);
       case 'ABANDON_MERCENARY_TASK':
         return this.abandonMercenaryTask(action.payload.taskId);
+      case 'COMPLETE_MERCENARY_TASK':
+        return this.completeMercenaryTask(action.payload.taskId);
       case 'GIFT_TRANSFER':
         return { ok: false, reason: 'Presentes requerem servidor online.' };
       case 'REFRACTION_BOOTH_QUOTE':
       case 'REFRACTION_BOOTH_START':
       case 'REFRACTION_BOOTH_COMPLETE':
         return { ok: false, reason: 'Estande de Refração requer servidor online.' };
+      case 'ZONE_BYPASS_INIT':
+        return this.zoneBypassInit(action.payload.transitionId);
+      case 'ZONE_BYPASS_SUBMIT':
+        return this.zoneBypassSubmit(action.payload.sessionId, action.payload.inputCode);
       case 'STAGE_BATTLE_LOOT':
         return this.stageBattleLoot(
           action.payload.battleId,
@@ -1084,6 +1137,19 @@ export class MockEconomyService implements IDevMockEconomyService {
         this.bumpRevision('characterLevel');
         return { ok: true };
       }
+      case 'ALLOCATE_STAT_POINTS': {
+        const dataStore = getMutableDataStore();
+        const result = tryAllocateStatPoints(
+          dataStore.getCharacterLevel().level,
+          dataStore.getCharacterStatPoints(),
+          action.payload,
+        );
+        if (!result.ok) return { ok: false, reason: result.reason };
+        dataStore.applyCharacterStatPoints(result.allocated);
+        refreshHudPlayerHpMax();
+        this.bumpRevision('characterLevel');
+        return { ok: true };
+      }
       case 'DEV_SET_MOVESET_MASTERY': {
         const moveId = action.payload.moveId.trim();
         if (!moveId) return { ok: false, reason: 'Informe o moveId.' };
@@ -1116,6 +1182,7 @@ export class MockEconomyService implements IDevMockEconomyService {
           { resetVitals: true },
         );
         getPlayerProfileStore().setLevel(1);
+        getMutableDataStore().applyCharacterStatPoints({ atk: 0, def: 0, hp: 0 });
         resetFriendListStore();
         this.persistLocalSave();
         return { ok: true };
@@ -1273,6 +1340,44 @@ export class MockEconomyService implements IDevMockEconomyService {
     getMercenaryQuestStore().applyAuthoritative(result.progress);
     this.persistLocalSave();
     alertSystem('Contrato abandonado.');
+    return { ok: true };
+  }
+
+  private completeMercenaryTask(taskId?: string): IntentHandleResult {
+    const snapshot = getMercenaryQuestStore().getSnapshot();
+    const activeId = snapshot.activeQuestId;
+    if (!activeId) return { ok: false, reason: 'Nenhum contrato ativo para entregar.' };
+    const quest = getMercenaryQuestById(activeId);
+    if (!quest) return { ok: false, reason: 'Contrato inexistente no quadro.' };
+    const result = completeMercenaryQuest(snapshot, taskId);
+    if (!result.ok) return { ok: false, reason: result.message };
+
+    const levelState = getMutableDataStore().getCharacterLevel();
+    const xpApplied = applyCharacterXpGain(
+      { level: levelState.level, xpCurrent: levelState.xpCurrent },
+      quest.rewardExp,
+    );
+    getMutableDataStore().applyCharacterLevelState(
+      xpApplied.level,
+      xpApplied.xpCurrent,
+      'server_sync',
+    );
+
+    if (quest.rewardVolts > 0) {
+      this.state = {
+        ...this.state,
+        wallet: {
+          dollarVolt: this.state.wallet.dollarVolt + quest.rewardVolts,
+          alterCoins: this.state.wallet.alterCoins,
+        },
+      };
+      this.commitWallet(this.state.wallet);
+      this.bumpRevision('wallet');
+    }
+
+    getMercenaryQuestStore().applyAuthoritative(result.progress);
+    this.persistLocalSave();
+    alertSystem(`Contrato entregue: +${quest.rewardExp} XP · +${quest.rewardVolts} VOLTS`);
     return { ok: true };
   }
 

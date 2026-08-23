@@ -49,9 +49,8 @@ export function applyBattleProgressionGrant(
     }
   }
 
-  const milestoneTotalProgress = clampMilestoneProgress(
-    player.milestoneTotalProgress + grant.milestoneProgressGain,
-  );
+  // Medidor de marco legado: não altera — grants sempre gain 0; morte não corta mais.
+  const milestoneTotalProgress = clampMilestoneProgress(player.milestoneTotalProgress);
 
   return {
     level: levelResult.level,

@@ -7,7 +7,7 @@ import { isMapId } from '../../shared/world/mapRegistry.js';
 import { buildNearbyPlayerSnapshots, type NearbyPlayerPeerInput } from '../../shared/world/buildNearbyPlayerSnapshots.js';
 import type { Player } from '../models/Player.js';
 import type { MovementIntentHandler } from './MovementIntentHandler.js';
-import { selectPeersInInterest } from './InterestManager.js';
+import { selectPeersInInterestFromCandidates } from './SpatialInterestGrid.js';
 import type { ActivePlayerState, WorldGameState } from './WorldGameState.js';
 import { resolveNearbyPeerAppearance, type NearbyPeerAppearance } from './nearbyPlayerAppearance.js';
 import { getWorldProfile } from './worldProfileStore.js';
@@ -24,6 +24,15 @@ import {
 } from './spraySyncDirty.js';
 import { staticDistrictStore } from '../../shared/static/staticDistrictStore.js';
 import { shouldSendStaticNetwork } from '../static/staticNetworkSyncDirty.js';
+import { getAuthoritativeZoneBypassGateway } from './AuthoritativeZoneBypassGateway.js';
+import {
+  buildZoneBypassSyncSignature,
+  getZoneBypassHoldersRevision,
+  getZoneBypassPlayerRevision,
+  shouldSendZoneBypassSnapshot,
+} from './zoneBypassSyncDirty.js';
+import { zoneBypassPlayerKey } from '../../shared/world/zoneBypassPlayerKey.js';
+import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
 
 export type GameLoopWorldSession = {
   readonly connectionId: string;
@@ -120,7 +129,7 @@ export class GameLoop {
       const peersOnMap = deps.gameState.listExploringOnMap(profile.currentMapId);
       const nearbyPlayers = observer
         ? buildNearbyPlayerSnapshots(
-          selectPeersInInterest(observer, peersOnMap).map((peer) =>
+          selectPeersInInterestFromCandidates(observer, peersOnMap).map((peer) =>
             toNearbyPeerInput(peer, appearanceByPeer),
           ),
           envelope.serverTimeMs,
@@ -137,6 +146,21 @@ export class GameLoop {
         String(staticNetwork.revision),
       );
 
+      const playerKey = zoneBypassPlayerKey(world.playerId, world.characterId);
+      const zoneBypassSig = buildZoneBypassSyncSignature(
+        getZoneBypassHoldersRevision(),
+        playerKey,
+        getZoneBypassPlayerRevision(playerKey),
+      );
+      const sendZoneDomain = profile.currentMapId === FARM_ZONE_01_ID
+        && shouldSendZoneBypassSnapshot(session.connectionId, zoneBypassSig);
+      const zoneDomain = sendZoneDomain
+        ? getAuthoritativeZoneBypassGateway().getDomainSnapshot(
+          world.playerId,
+          world.characterId,
+        )
+        : undefined;
+
       deps.sendStateSync(session.connectionId, envelope, {
         mode: 'tick',
         delta: {
@@ -145,6 +169,7 @@ export class GameLoop {
           ...(sendCreatures ? { creatures: aoiCreatures } : {}),
           nearbyPlayers,
           ...(sendSprays ? { sprays: zoneSprays } : {}),
+          ...(zoneDomain ? { zoneDomain } : {}),
           ...(sendStatic ? { staticNetwork } : {}),
         },
       });

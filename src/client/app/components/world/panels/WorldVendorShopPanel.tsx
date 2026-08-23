@@ -285,7 +285,7 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
       title={vendor.vendorName}
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--vendor-shop ui-panel--vendor-shop"
+      panelClassName="world-panel--vendor-shop ui-panel--vendor-shop ui-panel--npc-hybrid ui-skin-hybrid"
       bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('vendorShop')}
       onClose={() => tryCloseReactWorldPanel('vendorShop')}

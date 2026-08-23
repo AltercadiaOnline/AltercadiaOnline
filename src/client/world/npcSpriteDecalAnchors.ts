@@ -5,6 +5,7 @@ import {
 } from '../../config/spriteDimensions.js';
 import type { NPC } from '../entities/NPC.js';
 import type { DomNametagEntry } from './domNametagLayer.js';
+import { isZoneDomainTerminalId } from '../../shared/world/zoneDomainTerminals.js';
 
 function resolveUniformFigureY(bounds: EntitySpriteBounds, localOffsetFromFeet: number): number {
   const { feetY } = resolveEntitySpriteCenter(bounds);
@@ -60,7 +61,7 @@ export function resolveFeaturedStarAnchor(bounds: EntitySpriteBounds): {
 export function buildNpcSpriteDecalEntries(npc: NPC, bounds: EntitySpriteBounds): DomNametagEntry[] {
   const entries: DomNametagEntry[] = [];
 
-  if (npc.sprite === 'terminal') {
+  if (npc.sprite === 'terminal' && !isZoneDomainTerminalId(npc.id)) {
     const isArenaComputer = npc.id === 'computador_arena';
     const isMarketplace = npc.id === 'computador_marketplace';
     const isPvpQueue = npc.id === 'combate_pvp';
@@ -76,7 +77,7 @@ export function buildNpcSpriteDecalEntries(npc: NPC, bounds: EntitySpriteBounds)
     });
   }
 
-  if (npc.featured) {
+  if (npc.featured && !isZoneDomainTerminalId(npc.id)) {
     const anchor = resolveFeaturedStarAnchor(bounds);
     entries.push({
       id: `sprite-decal-star-${npc.id}`,

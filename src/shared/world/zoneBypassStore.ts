@@ -6,8 +6,9 @@ import {
   TerminalSubmitResponse,
   ZoneDomainSnapshot,
 } from '../types/zoneBypass.js';
+import { getZoneBypassPrerequisiteZone } from './zoneDomainTerminals.js';
 
-interface ZoneHolderRecord {
+export interface ZoneHolderRecord {
   readonly userId: string;
   readonly displayName: string;
   readonly unlockedAtMs: number;
@@ -45,6 +46,13 @@ export class ZoneBypassService {
     if (lockdownUntil && now < lockdownUntil) {
       const remainingMs = lockdownUntil - now;
       throw new Error(`Terminal em lockdown por falha recente. Tente novamente em ${Math.ceil(remainingMs / 1000)}s.`);
+    }
+
+    const prerequisite = getZoneBypassPrerequisiteZone(transitionId);
+    if (prerequisite && !this.isZoneUnlocked(userId, prerequisite)) {
+      throw new Error(
+        `Acesso negado — libere ${prerequisite} no terminal anterior antes de usar esta trava.`,
+      );
     }
 
     if (this.isZoneUnlocked(userId, config.toZone)) {
@@ -85,7 +93,11 @@ export class ZoneBypassService {
     };
   }
 
-  public getDomainSnapshot(userId: string, nowMs: number = Date.now()): ZoneDomainSnapshot {
+  public getDomainSnapshot(
+    userId: string,
+    nowMs: number = Date.now(),
+    boundTransitionId?: SubZoneTransitionId,
+  ): ZoneDomainSnapshot {
     const unlocks = this.playerUnlocks.get(userId) ?? new Set<string>();
     const lockdownUntil = this.playerLockdowns.get(userId) ?? 0;
     const lanes = SUB_ZONE_TRANSITION_ORDER.map((transitionId) => {
@@ -101,11 +113,17 @@ export class ZoneBypassService {
         holderName: holder?.displayName ?? null,
       };
     });
-    const next = lanes.find((lane) => !lane.unlocked) ?? null;
+    const nextGlobal = lanes.find((lane) => !lane.unlocked) ?? null;
+    const boundLane = boundTransitionId
+      ? lanes.find((lane) => lane.transitionId === boundTransitionId) ?? null
+      : null;
+    /** Neste POI: só a trava deste terminal, se ainda fechada. */
+    const nextAtTerminal =
+      boundLane && !boundLane.unlocked ? boundLane.transitionId : null;
     return {
       unlockedZones: [...unlocks],
       lanes,
-      nextTransitionId: next?.transitionId ?? null,
+      nextTransitionId: nextAtTerminal ?? (boundTransitionId ? null : nextGlobal?.transitionId ?? null),
       lockdownRemainingMs: Math.max(0, lockdownUntil - nowMs),
     };
   }
@@ -172,6 +190,41 @@ export class ZoneBypassService {
   private triggerFailureLockdown(userId: string): void {
     this.playerLockdowns.set(userId, Date.now() + 10000);
   }
+
+  /** Hidrata unlocks persistidos após load do personagem. */
+  hydratePlayerUnlocks(playerKey: string, unlockedZones: readonly string[]): void {
+    if (unlockedZones.length === 0) return;
+    const set = this.playerUnlocks.get(playerKey) ?? new Set<string>();
+    for (const zone of unlockedZones) {
+      if (zone.trim().length > 0) set.add(zone);
+    }
+    this.playerUnlocks.set(playerKey, set);
+  }
+
+  exportPlayerUnlocks(playerKey: string): readonly string[] {
+    const unlocks = this.playerUnlocks.get(playerKey);
+    return unlocks ? [...unlocks] : [];
+  }
+
+  hydrateZoneHolders(holders: Readonly<Record<string, ZoneHolderRecord>>): void {
+    for (const [zone, holder] of Object.entries(holders)) {
+      if (!holder?.userId || !holder.displayName) continue;
+      this.zoneHolders.set(zone, {
+        userId: holder.userId,
+        displayName: holder.displayName,
+        unlockedAtMs: holder.unlockedAtMs,
+      });
+    }
+  }
+
+  exportZoneHolders(): Record<string, ZoneHolderRecord> {
+    const out: Record<string, ZoneHolderRecord> = {};
+    for (const [zone, holder] of this.zoneHolders.entries()) {
+      out[zone] = { ...holder };
+    }
+    return out;
+  }
 }
 
+/** @deprecated Online usa AuthoritativeZoneBypassGateway; local/Mock instancia próprio. */
 export const zoneBypassService = new ZoneBypassService();

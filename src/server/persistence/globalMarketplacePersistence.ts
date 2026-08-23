@@ -1,28 +1,22 @@
-import path from 'node:path';
 import {
   exportGlobalMarketplaceListings,
   hydrateGlobalMarketplaceListings,
   type GlobalMarketListingRecord,
 } from '../../Economy/globalMarketplaceStore.js';
-import { readJsonFile, writeJsonFileAtomic } from './DatabaseUtils.js';
-import { getPersistenceRuntimeConfig, isDurablePersistence } from './PersistenceGateway.js';
+import { readAccountScopedJson, writeAccountScopedJson } from './scopedPersistenceFiles.js';
+import { getActivePersistenceStorage } from './storage/persistenceStorageRegistry.js';
 
 type GlobalMarketplaceSnapshot = {
   readonly listings: readonly GlobalMarketListingRecord[];
   readonly updatedAt: number;
 };
 
-function globalMarketplaceFilePath(dataDir: string): string {
-  return path.join(dataDir, 'global-marketplace.json');
-}
-
 /** Carrega livro global de anúncios P2P (startup). */
 export async function loadGlobalMarketplacePersistence(): Promise<void> {
-  if (!isDurablePersistence()) return;
+  if (!getActivePersistenceStorage().isDurable()) return;
 
-  const { dataDir } = getPersistenceRuntimeConfig();
-  const snapshot = await readJsonFile<GlobalMarketplaceSnapshot>(
-    globalMarketplaceFilePath(dataDir),
+  const snapshot = await readAccountScopedJson<GlobalMarketplaceSnapshot>(
+    'global-marketplace.json',
   );
   if (!snapshot?.listings?.length) return;
   hydrateGlobalMarketplaceListings(snapshot.listings);
@@ -30,10 +24,9 @@ export async function loadGlobalMarketplacePersistence(): Promise<void> {
 
 /** Persiste livro global após mutações de marketplace. */
 export async function persistGlobalMarketplaceSnapshot(): Promise<void> {
-  if (!isDurablePersistence()) return;
+  if (!getActivePersistenceStorage().isDurable()) return;
 
-  const { dataDir } = getPersistenceRuntimeConfig();
-  await writeJsonFileAtomic(globalMarketplaceFilePath(dataDir), {
+  await writeAccountScopedJson('global-marketplace.json', {
     listings: exportGlobalMarketplaceListings(),
     updatedAt: Date.now(),
   });

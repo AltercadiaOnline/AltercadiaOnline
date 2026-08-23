@@ -22,6 +22,7 @@ import {
   getActiveMonstersForMap,
   getWorldMonsterEntry,
 } from '../../shared/world/worldMonsterInstances.js';
+import { isVortexAgentCreatureId, noteVortexHuntBattleStarted } from '../../shared/static/vortexAgentWave.js';
 import {
   isMonsterClaimedByOther,
   markMonsterClaimInCombat,
@@ -223,6 +224,7 @@ function beginForcedBattle(
   forceJoinInFlightByPlayerKey.add(key);
   markMonsterClaimInCombat(monster.id, player.playerId, player.characterId);
   issuePveCombatGrant(player.playerId, player.characterId, monster.id, nowMs);
+  noteVortexHuntBattleStarted(monster.id);
   forceBattles.push({
     connectionId: player.connectionId,
     playerId: player.playerId,
@@ -279,14 +281,15 @@ export function tickPveEncounterOffers(
     const mustForce = hasForceBattleNextEncounter(player.playerId, player.characterId);
 
     for (const monster of candidates) {
-      if (!mustForce) {
+      const vortexHunt = isVortexAgentCreatureId(monster.creatureId);
+      if (!mustForce && !vortexHunt) {
         const cd = fleeCooldownByPair.get(
           pairKey(player.playerId, player.characterId, monster.id),
         );
         if (cd && nowMs < cd.untilMs) continue;
       }
 
-      if (mustForce) {
+      if (vortexHunt || mustForce) {
         if (isMonsterClaimedByOther(monster.id, player.playerId, player.characterId)) {
           continue;
         }

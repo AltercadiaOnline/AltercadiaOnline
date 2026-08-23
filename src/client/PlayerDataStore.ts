@@ -53,6 +53,7 @@ import { getPlayerItemStore } from './ui/items/playerItemStore.js';
 import { getPlayerMarcosStore } from './ui/marcos/playerMarcosStore.js';
 import { getMercenaryQuestStore } from './ui/quests/mercenaryQuestStore.js';
 import { applyAuthoritativeFriendList } from './world/friendListStore.js';
+import { applyAuthoritativeWorldVitals } from './world/applyAuthoritativeWorldVitals.js';
 import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
 import { setOwnSprayLegacyMessage } from './world/sprayInspectStore.js';
@@ -64,10 +65,15 @@ export type {
   CharacterLevelListenerMeta,
   CharacterXpSource,
 } from '../shared/character/characterLevelTypes.js';
-import type {
-  CharacterLevelListenerMeta,
-  CharacterXpSource,
-} from '../shared/character/characterLevelTypes.js';
+import type { CharacterLevelListenerMeta, CharacterXpSource } from '../shared/character/characterLevelTypes.js';
+import {
+  allocatedStatsFromProfile,
+  profileHasAllocatedStatFields,
+  resolveCharacterStatPointsView,
+  sanitizeAllocatedCharacterStats,
+  type AllocatedCharacterStats,
+  type CharacterStatPointsView,
+} from '../shared/character/characterStatPoints.js';
 
 /** Implementação local — delega aos stores; valida revision em snapshots autoritativos. */
 export class PlayerDataStore implements IAuthoritativeDataStore {
@@ -83,6 +89,18 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
   private characterLevel = 1;
 
   private characterXpCurrent = 0;
+
+  private allocatedAtk = 0;
+
+  private allocatedDef = 0;
+
+  private allocatedHp = 0;
+
+  private cachedStatPointsKey = '';
+
+  private cachedStatPointsView: CharacterStatPointsView | null = null;
+
+  private readonly characterStatPointsListeners = new Set<() => void>();
 
   private readonly characterLevelListeners = new Set<
     (snapshot: CharacterLevelSnapshot, meta: CharacterLevelListenerMeta) => void
@@ -143,6 +161,46 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
       },
       this.sliceRevisions.characterLevel,
     );
+  }
+
+  getCharacterStatPoints(): CharacterStatPointsView {
+    const key = `${this.characterLevel}|${this.allocatedAtk}|${this.allocatedDef}|${this.allocatedHp}`;
+    if (this.cachedStatPointsView && this.cachedStatPointsKey === key) {
+      return this.cachedStatPointsView;
+    }
+    const view = resolveCharacterStatPointsView(this.characterLevel, {
+      atk: this.allocatedAtk,
+      def: this.allocatedDef,
+      hp: this.allocatedHp,
+    });
+    this.cachedStatPointsKey = key;
+    this.cachedStatPointsView = view;
+    return view;
+  }
+
+  applyCharacterStatPoints(allocated: AllocatedCharacterStats): CharacterStatPointsView {
+    const safe = sanitizeAllocatedCharacterStats(allocated);
+    this.allocatedAtk = safe.atk;
+    this.allocatedDef = safe.def;
+    this.allocatedHp = safe.hp;
+    const view = this.getCharacterStatPoints();
+    this.notifyCharacterStatPoints(view);
+    return view;
+  }
+
+  /** HUD da Ficha — mesmo singleton do PDS, mesmo com uiEvents em outro bundle. */
+  subscribeCharacterStatPoints(listener: () => void): () => void {
+    this.characterStatPointsListeners.add(listener);
+    return () => {
+      this.characterStatPointsListeners.delete(listener);
+    };
+  }
+
+  private notifyCharacterStatPoints(view: CharacterStatPointsView): void {
+    uiEvents.emit(UIEventType.CHARACTER_STAT_POINTS_UPDATED, { view });
+    for (const listener of this.characterStatPointsListeners) {
+      listener();
+    }
   }
 
   /**
@@ -468,6 +526,9 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
         state.characterProfile.xpCurrent,
         'server_sync',
       );
+      if (profileHasAllocatedStatFields(state.characterProfile)) {
+        this.applyCharacterStatPoints(allocatedStatsFromProfile(state.characterProfile));
+      }
       const displayName = state.characterProfile.displayName?.trim();
       if (displayName) {
         getPlayerProfileStore().setDisplayName(displayName);
@@ -487,6 +548,10 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
 
     if (state.friends) {
       applyAuthoritativeFriendList(state.friends);
+    }
+
+    if (state.worldVitals) {
+      applyAuthoritativeWorldVitals(state.worldVitals);
     }
 
     this.globalRevision = state.revision;
@@ -682,6 +747,7 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
     this.notifyCharacterLevel(snapshot, meta);
 
     uiEvents.emit(UIEventType.CHARACTER_LEVEL_UPDATED, { snapshot, meta });
+    this.notifyCharacterStatPoints(this.getCharacterStatPoints());
     if (meta.levelsGained > 0) {
       uiEvents.emit(UIEventType.CHARACTER_LEVEL_UP, {
         previousLevel: meta.previousLevel,
@@ -749,6 +815,11 @@ export function initDataStore(): void {
     g.__ALTERCADIA_PLAYER_DATA_STORE__ = new PlayerDataStore();
   }
   activeStore = g.__ALTERCADIA_PLAYER_DATA_STORE__;
+  // Cross-bundle: se o singleton global for de build antigo sem bolsa, troca pela classe atual.
+  if (typeof activeStore.getCharacterStatPoints !== 'function') {
+    g.__ALTERCADIA_PLAYER_DATA_STORE__ = new PlayerDataStore();
+    activeStore = g.__ALTERCADIA_PLAYER_DATA_STORE__;
+  }
 }
 
 export function getDataStore(): IDataStore {

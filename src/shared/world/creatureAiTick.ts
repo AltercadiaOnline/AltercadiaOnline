@@ -22,6 +22,10 @@ import {
 import type { MonsterRegistryEntry } from './monsterRegistry.js';
 import { isMapId } from './mapRegistry.js';
 import { tileCenterToWorldPixel, worldPixelToTile } from './portals.js';
+import {
+  isStaticDistrictId,
+  isTileInStaticDistrict,
+} from '../static/staticDistrictCatalog.js';
 
 type CreatureAiRuntime = {
   nextStepAtMs: number;
@@ -42,6 +46,8 @@ export type CreatureAiPlayerProbe = {
 export type TickCreatureWanderAiOptions = {
   /** Online: claim HUD/combate. Local: pending offer. */
   readonly isEncounterClaimed?: (monsterInstanceId: string) => boolean;
+  /** Servidor: marca AOI dirty quando a criatura se move. */
+  readonly onCreatureMoved?: (monsterInstanceId: string) => void;
 };
 
 function ensureRuntime(entry: MonsterRegistryEntry, nowMs: number): CreatureAiRuntime {
@@ -71,6 +77,10 @@ function facingToward(dTileX: number, dTileY: number, fallback: CreatureCardinal
   return fallback;
 }
 
+function isVortexHuntEntry(entry: MonsterRegistryEntry): boolean {
+  return entry.creatureId === 'vortex_agent';
+}
+
 function applyStep(
   entry: MonsterRegistryEntry,
   runtime: CreatureAiRuntime,
@@ -78,8 +88,13 @@ function applyStep(
   nextTileY: number,
   facing: CreatureCardinalFacing,
   leashTiles: number,
+  options?: TickCreatureWanderAiOptions,
+  unleashed = false,
 ): boolean {
-  if (!isWithinCreatureLeash(runtime.homeTileX, runtime.homeTileY, nextTileX, nextTileY, leashTiles)) {
+  if (
+    !unleashed
+    && !isWithinCreatureLeash(runtime.homeTileX, runtime.homeTileY, nextTileX, nextTileY, leashTiles)
+  ) {
     return false;
   }
   if (!isMapId(entry.mapId)) return false;
@@ -96,6 +111,7 @@ function applyStep(
     worldY: feet.y,
     facing,
   });
+  options?.onCreatureMoved?.(entry.id);
   return true;
 }
 
@@ -115,10 +131,36 @@ function findNearestPlayerOnMap(
   return best;
 }
 
+function findNearestHuntTarget(
+  entry: MonsterRegistryEntry,
+  players: readonly CreatureAiPlayerProbe[],
+): { readonly tileX: number; readonly tileY: number; readonly distance: number } | null {
+  const rawDistrict = entry.id.startsWith('vortex_agent:')
+    ? entry.id.slice('vortex_agent:'.length)
+    : '';
+  if (!isStaticDistrictId(rawDistrict)) {
+    return findNearestPlayerOnMap(entry, players);
+  }
+  let best: { tileX: number; tileY: number; distance: number } | null = null;
+  for (const player of players) {
+    if (player.mapId !== entry.mapId) continue;
+    const tile = worldPixelToTile(player.worldX, player.worldY);
+    if (!isTileInStaticDistrict(rawDistrict, player.mapId, tile.tileX, tile.tileY)) continue;
+    const distance = chebyshevTileDistance(entry.tileX, entry.tileY, tile.tileX, tile.tileY);
+    if (!best || distance < best.distance) {
+      best = { tileX: tile.tileX, tileY: tile.tileY, distance };
+    }
+  }
+  return best;
+}
+
 function isMonsterNearAnyPlayer(
   entry: MonsterRegistryEntry,
   players: readonly CreatureAiPlayerProbe[],
 ): boolean {
+  if (isVortexHuntEntry(entry)) {
+    return players.some((player) => player.mapId === entry.mapId);
+  }
   for (const player of players) {
     if (player.mapId !== entry.mapId) continue;
     const tile = worldPixelToTile(player.worldX, player.worldY);
@@ -148,17 +190,46 @@ export function tickCreatureWanderAi(
     if (!isMonsterNearAnyPlayer(entry, players)) continue;
 
     const profile = resolveCreatureWanderProfile(entry.creatureId);
+    const hunt = isVortexHuntEntry(entry);
     const runtime = ensureRuntime(entry, nowMs);
     if (nowMs < runtime.nextStepAtMs) continue;
 
+    const jitterRange = hunt ? 80 : CREATURE_WANDER_STEP_JITTER_MS;
     const interval =
       profile.wanderStepIntervalMs
-      + Math.floor(Math.random() * CREATURE_WANDER_STEP_JITTER_MS)
-      - CREATURE_WANDER_STEP_JITTER_MS / 2;
-    runtime.nextStepAtMs = nowMs + Math.max(800, interval);
+      + Math.floor(Math.random() * jitterRange)
+      - jitterRange / 2;
+    runtime.nextStepAtMs = nowMs + Math.max(hunt ? 160 : 800, interval);
 
-    const nearest = findNearestPlayerOnMap(entry, players);
+    const nearest = hunt
+      ? findNearestHuntTarget(entry, players)
+      : findNearestPlayerOnMap(entry, players);
     const currentFacing = entry.facing ?? 'south';
+
+    if (hunt) {
+      if (!nearest || nearest.distance <= profile.encounterRadiusTiles) {
+        continue;
+      }
+      const step = pickCreatureStepToward(
+        nearest.tileX - entry.tileX,
+        nearest.tileY - entry.tileY,
+      );
+      if (
+        applyStep(
+          entry,
+          runtime,
+          entry.tileX + step.dTileX,
+          entry.tileY + step.dTileY,
+          facingToward(step.dTileX, step.dTileY, currentFacing),
+          profile.leashTiles,
+          options,
+          true,
+        )
+      ) {
+        stepped += 1;
+      }
+      continue;
+    }
 
     if (
       nearest
@@ -177,6 +248,7 @@ export function tickCreatureWanderAi(
           entry.tileY + step.dTileY,
           facingToward(step.dTileX, step.dTileY, currentFacing),
           profile.leashTiles,
+          options,
         )
       ) {
         stepped += 1;
@@ -199,6 +271,7 @@ export function tickCreatureWanderAi(
         entry.tileY + wander.dTileY,
         wander.facing,
         profile.leashTiles,
+        options,
       )
     ) {
       stepped += 1;

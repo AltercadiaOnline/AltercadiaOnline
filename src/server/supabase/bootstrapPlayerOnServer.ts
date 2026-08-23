@@ -1,11 +1,13 @@
 import {
   applyAuthoritativeEquippedSlots,
   applyAuthoritativeWalletBalances,
+  resetAuthoritativePlayerEconomyToEmpty,
   setCharacterInventoryStacks,
 } from '../../Economy/economyStore.js';
 import { hydratePetAffinityPersistence } from '../../Economy/petAffinityStore.js';
 import { hydratePetRosterPersistence } from '../../Economy/petRosterStore.js';
 import { seedAuthoritativePlayerEconomyIfEmpty } from '../economy/seedAuthoritativePlayerEconomy.js';
+import { resetNewCharacterEconomy } from '../net/purgeCharacterRuntimeState.js';
 import { loadServerEnv } from '../config/env.js';
 import { getServerInstanceContext } from '../instance/ServerInstanceContext.js';
 import { ensureCharacterDataOnServer } from './loadCharacterData.js';
@@ -23,11 +25,19 @@ export type ServerPlayerBootstrapResult = {
 };
 
 export type ServerPlayerBootstrapOptions = {
-  /** Personagem recém-criado — nunca hidrata leftover de pets. */
+  /** Personagem recém-criado — wipe total; nunca hidrata leftover de inventário/pets. */
   readonly newCharacter?: boolean;
 };
 
-/** Espelha Supabase → economyStore/pet stores; seed só via seedAuthoritativePlayerEconomyIfEmpty. */
+function forceEmptyPets(userId: string, characterId: number): void {
+  hydratePetRosterPersistence(userId, characterId, createEmptyPetRoster());
+  hydratePetAffinityPersistence(userId, characterId, emptyPersistedPetAffinity());
+}
+
+/**
+ * Espelha Supabase → economyStore/pet stores.
+ * `newCharacter: true` = isolamento absoluto (itens/pets/volts zerados).
+ */
 export async function ensureServerPlayerBootstrap(
   userId: string,
   characterId: number,
@@ -51,10 +61,26 @@ export async function ensureServerPlayerBootstrap(
 
   const result = loaded.data;
   const newCharacter = options?.newCharacter === true;
+  const hubClassId = parseHubClassId(result.profile?.class_id);
+
+  if (newCharacter) {
+    // Defesa definitiva: nunca aplicar stacks/roster do Supabase em ficha nova.
+    resetNewCharacterEconomy(userId, characterId);
+    forceEmptyPets(userId, characterId);
+    resetAuthoritativePlayerEconomyToEmpty(userId, characterId);
+    return {
+      profileReady: true,
+      supabaseConfigured: true,
+      ...(loaded.created ? { created: true } : {}),
+      ...(hubClassId ? { classId: hubClassId } : {}),
+    };
+  }
+
   const hasCurrency = Boolean(result.currency);
   const hasInventory = Boolean(result.inventory?.stacks?.length);
+  const hasPets = Boolean(result.pets?.roster?.pets?.length);
 
-  if (!newCharacter && hasCurrency) {
+  if (hasCurrency) {
     applyAuthoritativeWalletBalances(
       userId,
       characterId,
@@ -63,25 +89,25 @@ export async function ensureServerPlayerBootstrap(
     );
   }
 
-  if (!newCharacter && hasInventory) {
+  if (hasInventory) {
     setCharacterInventoryStacks(userId, characterId, result.inventory!.stacks);
     applyAuthoritativeEquippedSlots(userId, characterId, result.inventory!.equipped ?? {});
+  } else {
+    // Sem stacks no Supabase: zera inventário/equip em RAM (não toca carteira/banco).
+    setCharacterInventoryStacks(userId, characterId, []);
+    applyAuthoritativeEquippedSlots(userId, characterId, {});
   }
 
-  if (newCharacter) {
-    hydratePetRosterPersistence(userId, characterId, createEmptyPetRoster());
-    hydratePetAffinityPersistence(userId, characterId, emptyPersistedPetAffinity());
-  } else if (result.pets) {
+  if (hasPets && result.pets) {
     hydratePetRosterPersistence(userId, characterId, result.pets.roster);
     hydratePetAffinityPersistence(userId, characterId, result.pets.affinity);
+  } else {
+    forceEmptyPets(userId, characterId);
   }
 
-  // Sem dados no Supabase: inicializa vazio (não injeta demo/VOLTS).
-  if (newCharacter || !hasCurrency || !hasInventory) {
+  if (!hasCurrency || !hasInventory) {
     seedAuthoritativePlayerEconomyIfEmpty(userId, characterId);
   }
-
-  const hubClassId = parseHubClassId(result.profile?.class_id);
 
   return {
     profileReady: true,

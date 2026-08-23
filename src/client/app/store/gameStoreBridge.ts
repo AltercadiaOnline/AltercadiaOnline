@@ -6,6 +6,7 @@ import { getPlayerEquipmentStore } from '../../ui/equipment/playerEquipmentStore
 import { getAppScreenBridge } from '../bridge/appScreenBridge.js';
 import { getHudBridge } from '../bridge/hudBridge.js';
 import { getRenderLayerBridge } from '../bridge/renderLayerBridge.js';
+import { getWorldVitalsBridge } from '../bridge/worldVitalsBridge.js';
 import { getBattleHudController } from '../battle/BattleHudController.js';
 import { resetBattleHudStoreSession } from '../battle/battleHudStore.js';
 import {
@@ -31,13 +32,22 @@ function closeWorldPanelsIfLeavingExploration(state: GameState): void {
 
 function syncPlayerDataFromAuthoritativeStores(): void {
   const equipment = getPlayerEquipmentStore().getSnapshot();
+  const vitals = getWorldVitalsBridge().snapshot().vitals;
   const player = getGameStore().getState().player;
+
+  // Espelha bridge → store do app-ui (mesmo HP que a barra React).
+  if (
+    equipment.vitals.hpCurrent !== vitals.hpCurrent
+    || equipment.vitals.hpMax !== vitals.hpMax
+  ) {
+    getPlayerEquipmentStore().setVitals(vitals);
+  }
 
   useGameStore.getState().patchPlayerData({
     displayName: equipment.displayName,
     level: equipment.level,
-    hpCurrent: equipment.vitals.hpCurrent,
-    hpMax: equipment.vitals.hpMax,
+    hpCurrent: vitals.hpCurrent,
+    hpMax: vitals.hpMax,
     inventory: player.inventory,
     gold: player.gold,
   });
@@ -114,6 +124,12 @@ export function initGameStoreBridge(): void {
 
   teardownFns.push(
     getPlayerEquipmentStore().subscribe(() => {
+      syncPlayerDataFromAuthoritativeStores();
+    }),
+  );
+
+  teardownFns.push(
+    getWorldVitalsBridge().subscribe(() => {
       syncPlayerDataFromAuthoritativeStores();
     }),
   );
