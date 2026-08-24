@@ -9,9 +9,10 @@ import {
   patchAuthoritativeProgression,
 } from '../../progression/authoritativeProgressionStore.js';
 
-export const PVP_RANKED_DEFAULT_RATING = 1000;
-export const PVP_RANKED_WIN_DELTA = 15;
-export const PVP_RANKED_LOSS_DELTA = -10;
+/** Placar de vitórias líquidas (não Elo). Começa em 0. */
+export const PVP_RANKED_DEFAULT_RATING = 0;
+export const PVP_RANKED_WIN_DELTA = 1;
+export const PVP_RANKED_LOSS_DELTA = -1;
 
 export type PvpRankedRatingSlice = {
   readonly pvpRating: number;
@@ -63,7 +64,7 @@ export function applyPvpRankedRatingDelta(
     rankBefore: before.pvpRating,
     rankAfter: afterRating,
     summaryLabel: victory
-      ? `Vitória rankeada ${sign}${delta} pts (${before.pvpRating} → ${afterRating})`
-      : `Derrota rankeada ${sign}${delta} pts (${before.pvpRating} → ${afterRating})`,
+      ? `Vitória rankeada ${sign}${delta} (${before.pvpRating} → ${afterRating})`
+      : `Derrota rankeada ${sign}${delta} (${before.pvpRating} → ${afterRating})`,
   };
 }

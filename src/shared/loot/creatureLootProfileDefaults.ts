@@ -141,5 +141,10 @@ export function mergeCreatureLootProfilePatch(
     };
   }
 
+  const guaranteedItemIds = override.guaranteedItemIds ?? base.guaranteedItemIds;
+  if (guaranteedItemIds !== undefined) {
+    merged = { ...merged, guaranteedItemIds };
+  }
+
   return merged;
 }

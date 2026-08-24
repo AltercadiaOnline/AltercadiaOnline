@@ -138,6 +138,11 @@ export type AuthoritativePlayerSnapshot = {
     readonly activeQuestId: string | null;
     readonly completedQuestIds: readonly string[];
   };
+  /** Livro I do Cael — capítulos já ouvidos neste personagem. */
+  readonly caelChronicles?: {
+    readonly unlockedChapterIds: readonly string[];
+    readonly unlockedQuestHookIds: readonly string[];
+  };
   /** Amigos do personagem. `online` é da sessão atual. */
   readonly friends?: readonly import('./social/friendListTypes.js').FriendListViewEntry[];
   /** HP/MP persistidos do mapa — SSOT para HUD e gate de duelo. */

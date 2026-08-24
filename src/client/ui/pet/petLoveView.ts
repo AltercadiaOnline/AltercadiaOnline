@@ -136,7 +136,7 @@ export function renderPetLoveRationControls(options: PetLoveRationControlsOption
   const errorHint = inlineError
     ? `<p class="pet-love__feed-error" role="alert">${inlineError}</p>`
     : noCharges && canFeedPet && !onCooldown
-      ? `<p class="pet-love__feed-error" role="alert">Sem cargas de ração — compre no Ancião Cael.</p>`
+      ? `<p class="pet-love__feed-error" role="alert">Sem cargas de ração — compre no Vendedor.</p>`
       : '';
 
   const chargeLabel = rationCharges === 1 ? 'carga' : 'cargas';

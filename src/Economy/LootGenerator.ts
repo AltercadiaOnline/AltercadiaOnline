@@ -2,6 +2,7 @@ import { resolveCreatureLootConfig, type ResolvedCreatureLootConfig } from '../s
 import type { DropChancesConfig } from '../shared/loot/dropChances.js';
 import {
   applyEquipDropPass,
+  applyGuaranteedItemPass,
   outcomeToRevealSlot,
   type SlotOutcome,
 } from '../shared/loot/creatureLootRoll.js';
@@ -185,6 +186,7 @@ export function generateBattleLoot(options: LootGeneratorOptions): BattleLootGen
 
   const lootReveal = revealSlotsFromOutcomes(outcomes, config, totalVolts, rng);
   applyEquipDropPass(lootReveal, config, rng);
+  applyGuaranteedItemPass(lootReveal, config);
 
   const bundle = bundleFromReveal(lootReveal, options.sourceId, options.winnerId);
   const preview = battleLootPreviewFromBundle(bundle);

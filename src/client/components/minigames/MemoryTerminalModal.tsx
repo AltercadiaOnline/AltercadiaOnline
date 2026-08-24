@@ -1,20 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  SubZoneTransitionId,
-  ZONE_BYPASS_DIFFICULTIES,
   scrambleMemorizeSequence,
+  ZONE_BYPASS_DIFFICULTIES,
+  type SubZoneTransitionId,
 } from '../../../shared/types/zoneBypass.js';
+import { ZoneTerminalHudChrome } from './ZoneTerminalHudChrome.js';
 
 const SCRAMBLE_TICK_MS = 45;
 
-interface MemoryTerminalModalProps {
+type MemoryTerminalModalProps = {
   readonly transitionId: SubZoneTransitionId;
   readonly sequencePreview: string;
   readonly displayTimeMs: number;
   readonly timeLimitMs: number;
   readonly onClose: () => void;
   readonly onSubmit: (code: string) => void;
-}
+};
 
 export const MemoryTerminalModal: React.FC<MemoryTerminalModalProps> = ({
   transitionId,
@@ -26,16 +27,15 @@ export const MemoryTerminalModal: React.FC<MemoryTerminalModalProps> = ({
 }) => {
   const config = ZONE_BYPASS_DIFFICULTIES[transitionId];
   const [phase, setPhase] = useState<'MEMORIZE' | 'INPUT'>('MEMORIZE');
-  const [inputCode, setInputCode] = useState<string>('');
-  const [timeLeft, setTimeLeft] = useState<number>(Math.ceil(timeLimitMs / 1000));
-  const [displayTimer, setDisplayTimer] = useState<number>(Math.ceil(displayTimeMs / 1000));
-  const [scrambledPreview, setScrambledPreview] = useState<string>(() =>
+  const [inputCode, setInputCode] = useState('');
+  const [timeLeft, setTimeLeft] = useState(Math.ceil(timeLimitMs / 1000));
+  const [displayTimer, setDisplayTimer] = useState(Math.ceil(displayTimeMs / 1000));
+  const [scrambledPreview, setScrambledPreview] = useState(() =>
     scrambleMemorizeSequence(sequencePreview, 0, displayTimeMs),
   );
 
   useEffect(() => {
     if (phase !== 'MEMORIZE') return;
-
     const startedAt = Date.now();
     const tick = () => {
       const elapsed = Date.now() - startedAt;
@@ -46,267 +46,113 @@ export const MemoryTerminalModal: React.FC<MemoryTerminalModalProps> = ({
       }
       setScrambledPreview(scrambleMemorizeSequence(sequencePreview, elapsed, displayTimeMs));
     };
-
     tick();
     const interval = window.setInterval(tick, SCRAMBLE_TICK_MS);
     return () => window.clearInterval(interval);
   }, [phase, sequencePreview, displayTimeMs]);
 
-  // 2. Timer de Resolução
   useEffect(() => {
     if (phase !== 'INPUT') return;
-
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
-          onSubmit('TIMEOUT'); // Força submissão por timeout
+          window.clearInterval(timer);
+          onSubmit('TIMEOUT');
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-
-    return () => clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, [phase, onSubmit]);
 
-  // Embaralhamento (Shuffle) visual dos botões numéricos (0-9) para impedir auto-clickers estáticos
   const shuffledKeys = useMemo(() => {
     const digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-    for (let i = digits.length - 1; i > 0; i--) {
+    for (let i = digits.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
-      const temp = digits[i];
+      const temp = digits[i]!;
       digits[i] = digits[j]!;
-      digits[j] = temp!;
+      digits[j] = temp;
     }
     return digits;
   }, [phase]);
 
   const handleKeyPress = (num: string) => {
     if (inputCode.length >= config.digitCount) return;
-    const newCode = inputCode + num;
-    setInputCode(newCode);
-
-    // Submete automaticamente ao atingir o tamanho de dígitos da zona
-    if (newCode.length === config.digitCount) {
-      onSubmit(newCode);
+    const next = inputCode + num;
+    setInputCode(next);
+    if (next.length === config.digitCount) {
+      onSubmit(next);
     }
   };
 
-  const handleBackspace = () => {
-    setInputCode((prev) => prev.slice(0, -1));
-  };
-
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        {/* Header do Terminal */}
-        <div style={styles.header}>
-          <h2 style={styles.title}>TERMINAL DE TRANSITION // {config.fromZone} &rarr; {config.toZone}</h2>
-          <button style={styles.closeBtn} onClick={onClose}>✕</button>
-        </div>
+    <ZoneTerminalHudChrome
+      title={`${config.fromZone} → ${config.toZone}`}
+      titleMeta="TERMINAL"
+      onClose={onClose}
+      wide
+      blockWorld
+    >
+      <p className="zone-terminal-hud__tag">
+        {config.digitCount} dígitos
+      </p>
+      <div className="zone-terminal-hud__meta">
+        <span>
+          {phase === 'MEMORIZE' ? `Observação ${displayTimer}s` : `Tempo ${timeLeft}s`}
+        </span>
+        <span>Teclado embaralhado</span>
+      </div>
 
-        <div style={styles.subHeader}>
-          <span>DIFICULDADE: {config.digitCount} DÍGITOS</span>
-          <span>
-            {phase === 'MEMORIZE' ? `OBSERVAÇÃO: ${displayTimer}s` : `TEMPO RESTANTE: ${timeLeft}s`}
-          </span>
-        </div>
-
-        {/* Display Central */}
-        <div style={styles.displayArea}>
-          {phase === 'MEMORIZE' ? (
-            <div style={styles.memorizeDisplay}>
-              <div style={styles.scrambleRow} aria-live="off">
-                {Array.from({ length: config.digitCount }).map((_, idx) => (
-                  <span key={idx} style={styles.scrambleGlyph}>
-                    {scrambledPreview[idx] ?? '·'}
-                  </span>
-                ))}
-              </div>
-              <p style={styles.hint}>Código embaralhado — memorize os dígitos reais no flash.</p>
-            </div>
-          ) : (
-            <div style={styles.inputDisplay}>
-              <div style={styles.codeSlots}>
-                {Array.from({ length: config.digitCount }).map((_, idx) => (
-                  <div key={idx} style={styles.slot}>
-                    {inputCode[idx] ? '*' : '_'}
-                  </div>
-                ))}
-              </div>
-              <p style={styles.hint}>Digite o código correspondente:</p>
-            </div>
-          )}
-        </div>
-
-        {/* Teclado Numérico com Shuffle Visual */}
-        {phase === 'INPUT' && (
-          <div style={styles.numpadContainer}>
-            <div style={styles.numpadGrid}>
-              {shuffledKeys.map((digit) => (
-                <button
-                  key={digit}
-                  style={styles.numKey}
-                  onClick={() => handleKeyPress(digit)}
-                >
-                  {digit}
-                </button>
+      <div className="zone-terminal-hud__display">
+        {phase === 'MEMORIZE' ? (
+          <>
+            <div className="zone-terminal-hud__glyphs" aria-live="off">
+              {Array.from({ length: config.digitCount }).map((_, idx) => (
+                <span key={idx} className="zone-terminal-hud__glyph">
+                  {scrambledPreview[idx] ?? '·'}
+                </span>
               ))}
-              <button style={styles.backspaceKey} onClick={handleBackspace}>
-                ⌫ APAGAR
-              </button>
             </div>
-          </div>
+            <p className="zone-terminal-hud__hint">
+              Código embaralhado — memorize os dígitos no flash.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="zone-terminal-hud__slots">
+              {Array.from({ length: config.digitCount }).map((_, idx) => (
+                <div key={idx} className="zone-terminal-hud__slot">
+                  {inputCode[idx] ? '*' : '_'}
+                </div>
+              ))}
+            </div>
+            <p className="zone-terminal-hud__hint">Digite o código correspondente.</p>
+          </>
         )}
       </div>
-    </div>
-  );
-};
 
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10000,
-    pointerEvents: 'auto',
-    fontFamily: `'Inter', 'Roboto', sans-serif`,
-  },
-  modal: {
-    width: 'min(520px, 94vw)',
-    backgroundColor: '#0a0d14',
-    border: '2px solid #00f0ff',
-    borderRadius: '12px',
-    padding: '20px',
-    boxShadow: '0 0 30px rgba(0, 240, 255, 0.25)',
-    color: '#e2e8f0',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottom: '1px solid #1e293b',
-    paddingBottom: '10px',
-  },
-  title: {
-    margin: 0,
-    fontSize: '16px',
-    color: '#00f0ff',
-    letterSpacing: '1px',
-  },
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#94a3b8',
-    fontSize: '20px',
-    cursor: 'pointer',
-  },
-  subHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '12px',
-    color: '#94a3b8',
-    marginTop: '12px',
-    marginBottom: '16px',
-  },
-  displayArea: {
-    backgroundColor: '#030712',
-    border: '1px solid #1e293b',
-    borderRadius: '8px',
-    padding: '20px',
-    textAlign: 'center',
-    marginBottom: '20px',
-  },
-  memorizeDisplay: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  scrambleRow: {
-    display: 'flex',
-    gap: '8px',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  scrambleGlyph: {
-    width: '28px',
-    height: '40px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '26px',
-    fontWeight: 700,
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-    color: '#7dffb3',
-    textShadow: '0 0 8px rgba(125, 255, 179, 0.55)',
-    border: '1px solid #134e4a',
-    borderRadius: '4px',
-    backgroundColor: '#022c22',
-  },
-  inputDisplay: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  codeSlots: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '10px',
-  },
-  slot: {
-    width: '32px',
-    height: '40px',
-    border: '1px solid #00f0ff',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '24px',
-    color: '#00f0ff',
-    backgroundColor: '#091522',
-  },
-  hint: {
-    margin: '8px 0 0 0',
-    fontSize: '12px',
-    color: '#64748b',
-  },
-  numpadContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-  },
-  numpadGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '10px',
-    width: '100%',
-  },
-  numKey: {
-    padding: '14px',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    backgroundColor: '#0f172a',
-    border: '1px solid #334155',
-    borderRadius: '6px',
-    color: '#f8fafc',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-  },
-  backspaceKey: {
-    gridColumn: 'span 2',
-    padding: '14px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    backgroundColor: '#7f1d1d',
-    border: '1px solid #991b1b',
-    borderRadius: '6px',
-    color: '#fef2f2',
-    cursor: 'pointer',
-  },
+      {phase === 'INPUT' ? (
+        <div className="zone-terminal-hud__pad">
+          {shuffledKeys.map((digit) => (
+            <button
+              key={digit}
+              type="button"
+              className="zone-terminal-hud__key"
+              onClick={() => handleKeyPress(digit)}
+            >
+              {digit}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="zone-terminal-hud__key zone-terminal-hud__key--back"
+            onClick={() => setInputCode((prev) => prev.slice(0, -1))}
+          >
+            Apagar
+          </button>
+        </div>
+      ) : null}
+    </ZoneTerminalHudChrome>
+  );
 };

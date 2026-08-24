@@ -74,6 +74,10 @@ const SKILL_LABEL_OVERRIDES: Readonly<Record<string, string>> = {
   specter_wail: 'Lamento',
   specter_phase: 'Deslocamento',
   specter_chill: 'Frio do Véu',
+  vortex_baton: 'Bastão de Contenção',
+  vortex_freq_shock: 'Choque de Frequência',
+  vortex_signature_drain: 'Dreno de Assinatura',
+  vortex_extraction_pulse: 'Pulso de Extração',
 };
 
 export function createBattleNarratorContext(

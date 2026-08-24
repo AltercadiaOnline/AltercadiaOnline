@@ -39,7 +39,7 @@ export function ensureHubSocialCluster(layer: HTMLElement): HTMLElement {
   cluster = document.createElement('div');
   cluster.id = CLUSTER_ID;
   cluster.className = 'ui-hub-social-cluster';
-  cluster.setAttribute('aria-label', 'Hub Social e relógio do mundo');
+  cluster.setAttribute('aria-label', 'Hub Central e relógio do mundo');
 
   const launcher = layer.querySelector<HTMLButtonElement>(`#${LAUNCHER_ID}`);
   if (launcher?.parentElement === layer) {

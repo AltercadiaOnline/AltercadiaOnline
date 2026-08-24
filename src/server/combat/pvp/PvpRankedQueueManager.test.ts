@@ -57,8 +57,8 @@ describe('PvpRankedQueueManager 1x1', () => {
       matches.push(match);
     });
 
-    queue.join(member('c-a', 'user-a', 1, 'Alpha'));
-    queue.join(member('c-b', 'user-b', 2, 'Bravo'));
+    queue.join({ ...member('c-a', 'user-a', 1, 'Alpha'), stakeVolts: 50 });
+    queue.join({ ...member('c-b', 'user-b', 2, 'Bravo'), stakeVolts: 50 });
     expect(queue.setReady('c-a', true).ok).toBe(true);
     expect(queue.getSnapshot().phase).toBe('waiting');
     expect(queue.setReady('c-b', true).ok).toBe(true);
@@ -82,14 +82,25 @@ describe('PvpRankedQueueManager 1x1', () => {
     expect(snap.slots[1]).toBeNull();
   });
 
-  it('ready exige a mesma aposta nos dois slots', () => {
+  it('ready aceita apostas diferentes e soma o pote', () => {
     const queue = getPvpRankedQueueManager();
     queue.join({ ...member('c-a', 'user-a', 1, 'Alpha'), stakeVolts: 100 });
     queue.join({ ...member('c-b', 'user-b', 2, 'Bravo'), stakeVolts: 50 });
-    expect(queue.setReady('c-a', true).ok).toBe(false);
-    queue.setStake('c-b', 100);
     expect(queue.setReady('c-a', true).ok).toBe(true);
     expect(queue.setReady('c-b', true).ok).toBe(true);
-    expect(queue.getSnapshot().potVolts).toBe(200);
+    expect(queue.getSnapshot().potVolts).toBe(150);
+    expect(queue.getSnapshot().phase).toBe('countdown');
+  });
+
+  it('cancelar ready tira os dois slots', () => {
+    const queue = getPvpRankedQueueManager();
+    queue.join({ ...member('c-a', 'user-a', 1, 'Alpha'), stakeVolts: 50 });
+    queue.join({ ...member('c-b', 'user-b', 2, 'Bravo'), stakeVolts: 50 });
+    expect(queue.setReady('c-a', true).ok).toBe(true);
+    expect(queue.setReady('c-a', false).ok).toBe(true);
+    const snap = queue.getSnapshot();
+    expect(snap.phase).toBe('idle');
+    expect(snap.slots[0]).toBeNull();
+    expect(snap.slots[1]).toBeNull();
   });
 });

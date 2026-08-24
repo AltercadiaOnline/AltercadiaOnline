@@ -20,7 +20,11 @@ import {
   PVP_RANKED_STATION_ID,
   PVP_RANKED_STATION_LABEL,
 } from '../../../../../shared/combat/pvp/pvpRankedQueueConfig.js';
-import { PVP_RANKED_STAKE_PRESETS } from '../../../../../shared/combat/pvp/pvpRankedDuelStake.js';
+import {
+  PVP_RANKED_STAKE_MAX_VOLTS,
+  PVP_RANKED_STAKE_MIN_VOLTS,
+  PVP_RANKED_STAKE_PRESETS,
+} from '../../../../../shared/combat/pvp/pvpRankedDuelStake.js';
 import { resolvePlayerSkinBundleSouthPreviewUrl } from '../../../../../shared/character/playerSkinBundle.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
 import { getGameStore } from '../../../../state/GameStore.js';
@@ -90,7 +94,7 @@ function PvpFighterCard({
         {slot?.displayName ?? (side === 'left' ? 'Você' : 'Aguardando…')}
       </p>
       <p className="pvp-queue__fighter-state">
-        {!slot ? 'Vazio' : slot.ready ? 'Pronto' : 'Na fila'}
+        {!slot ? 'Vazio' : slot.ready || slot.stakeLocked ? 'Travado' : 'Na fila'}
       </p>
       {slot ? (
         <p className="pvp-queue__fighter-stake">
@@ -117,7 +121,7 @@ export function WorldPvpQueuePanel({
     () => getPlayerWalletStore().getSnapshot(),
     () => getPlayerWalletStore().getSnapshot(),
   );
-  const [selectedStakeVolts, setSelectedStakeVolts] = useState(0);
+  const [selectedStakeVolts, setSelectedStakeVolts] = useState(PVP_RANKED_STAKE_MIN_VOLTS);
   const identity = useMemo(() => resolveLocalPvpIdentity(), []);
   const localPlayerId = identity.playerId;
   const profile = getPlayerProfileStore().getSnapshot();
@@ -136,11 +140,16 @@ export function WorldPvpQueuePanel({
     snapshot.phase === 'countdown'
     || snapshot.phase === 'starting'
     || snapshot.phase === 'in_battle';
-  const stakesAgree =
-    Boolean(leftSlot && rightSlot && leftSlot.stakeVolts === rightSlot.stakeVolts);
-  const tableStake = snapshot.tableStakeVolts;
   const potVolts = snapshot.potVolts;
+  const displayedStake = localSlot?.stakeVolts ?? selectedStakeVolts;
   const canChangeStake = inQueue && !countdownActive && !localSlot?.ready;
+  const canLockStake =
+    inQueue
+    && !localSlot?.ready
+    && !countdownActive
+    && displayedStake >= PVP_RANKED_STAKE_MIN_VOLTS
+    && displayedStake <= PVP_RANKED_STAKE_MAX_VOLTS
+    && displayedStake <= wallet.dollarVolt;
   const countdownLabel =
     snapshot.countdownSecondsRemaining !== null
       ? String(snapshot.countdownSecondsRemaining)
@@ -150,7 +159,7 @@ export function WorldPvpQueuePanel({
     store.setLocalPlayerId(localPlayerId, identity.characterId ?? undefined);
     store.openStation(station.objectId, station.label);
     // Autoridade decide slots — front só pede join.
-    sendPvpRankedJoin(station.objectId, profile.displayName || 'Você', selectedStakeVolts);
+    sendPvpRankedJoin(station.objectId, profile.displayName || 'Você', 0);
     return () => {
       queueMicrotask(() => {
         if (isWorldPanelOpen('pvpQueue')) return;
@@ -174,8 +183,6 @@ export function WorldPvpQueuePanel({
       tryCloseReactWorldPanel('pvpQueue');
     });
   }, [store]);
-
-  const displayedStake = localSlot?.stakeVolts ?? selectedStakeVolts;
 
   return (
     <MovablePanelFrame
@@ -213,14 +220,12 @@ export function WorldPvpQueuePanel({
         <div className="pvp-queue__stake" aria-label="Aposta em VOLTS">
           <p className="pvp-queue__stake-label">
             {potVolts > 0
-              ? `Pote ${formatVoltsShort(potVolts)} · ${formatVoltsShort(tableStake)} cada`
-              : tableStake > 0
-                ? `Aposta proposta: ${formatVoltsShort(tableStake)} (os dois precisam igualar)`
-                : 'Sem aposta — só rating. Vencedor leva o pote se ambos apostarem o mesmo valor.'}
+              ? `Pote ${formatVoltsShort(potVolts)} (soma das apostas). Casa: 5%.`
+              : 'Escolha e trave sua aposta (mín. 50 V). Cada um pode apostar um valor diferente.'}
           </p>
           <div className="pvp-queue__stake-chips">
             {PVP_RANKED_STAKE_PRESETS.map((value) => {
-              const unaffordable = value > 0 && wallet.dollarVolt < value;
+              const unaffordable = wallet.dollarVolt < value;
               return (
                 <button
                   key={value}
@@ -232,11 +237,30 @@ export function WorldPvpQueuePanel({
                     sendPvpRankedSetStake(station.objectId, value);
                   }}
                 >
-                  {value === 0 ? '0 V' : formatVoltsShort(value)}
+                  {formatVoltsShort(value)}
                 </button>
               );
             })}
           </div>
+          <label className="pvp-queue__stake-custom">
+            Valor
+            <input
+              type="number"
+              min={PVP_RANKED_STAKE_MIN_VOLTS}
+              max={PVP_RANKED_STAKE_MAX_VOLTS}
+              step={50}
+              disabled={!canChangeStake}
+              value={displayedStake || ''}
+              onChange={(event) => {
+                const next = Math.floor(Number(event.target.value));
+                if (!Number.isFinite(next)) return;
+                setSelectedStakeVolts(next);
+                if (next >= PVP_RANKED_STAKE_MIN_VOLTS && next <= PVP_RANKED_STAKE_MAX_VOLTS) {
+                  sendPvpRankedSetStake(station.objectId, next);
+                }
+              }}
+            />
+          </label>
         </div>
 
         <div className="pvp-queue__actions">
@@ -244,24 +268,27 @@ export function WorldPvpQueuePanel({
             <button
               type="button"
               className="pvp-queue__btn pvp-queue__btn--primary pvp-queue__btn--enter"
-              disabled={!leftSlot || !rightSlot || !stakesAgree}
+              disabled={!canLockStake}
               onClick={() => sendPvpRankedReady(station.objectId)}
             >
-              Entrar na batalha rankeada
+              Travar aposta
             </button>
           ) : null}
 
-          {inQueue && localSlot?.ready && snapshot.phase === 'waiting' ? (
+          {inQueue && (localSlot?.ready || countdownActive) && snapshot.phase !== 'in_battle' ? (
             <button
               type="button"
               className="pvp-queue__btn"
-              onClick={() => sendPvpRankedUnready(station.objectId)}
+              onClick={() => {
+                sendPvpRankedUnready(station.objectId);
+                tryCloseReactWorldPanel('pvpQueue');
+              }}
             >
-              Cancelar aceite
+              Cancelar
             </button>
           ) : null}
 
-          {inQueue && !countdownActive ? (
+          {inQueue && !localSlot?.ready && !countdownActive ? (
             <button
               type="button"
               className="pvp-queue__btn"

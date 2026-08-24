@@ -13,7 +13,7 @@ export type VendorShopView = {
   readonly vendorName: string;
 };
 
-export type VendorTradeMode = 'catalog' | 'inventory';
+export type VendorTradeMode = 'catalog' | 'inventory' | 'ration';
 
 export function resolveVendorFromContext(
   context: WorldPanelContext,
@@ -84,6 +84,12 @@ export function useVendorShopPanelState(vendor: VendorShopView) {
     setTradeQuantity(1);
   };
 
+  const selectRation = () => {
+    setSelectedItemId(null);
+    setTradeMode('ration');
+    setTradeQuantity(1);
+  };
+
   const selectInventoryItem = (itemId: string) => {
     setSelectedItemId(itemId);
     setTradeMode('inventory');
@@ -131,6 +137,7 @@ export function useVendorShopPanelState(vendor: VendorShopView) {
     selectedListing,
     selectedInventoryRow,
     selectCatalogItem,
+    selectRation,
     selectInventoryItem,
     cancelSelection,
     setClampedTradeQuantity,

@@ -35,6 +35,8 @@ export type PersistWorldVitalsOptions = {
   readonly defeatRespawn?: boolean;
   /** Derrota → reposiciona o perfil de mundo (centro da cidade). */
   readonly respawn?: PostCombatRespawn;
+  /** Rankeado: devolve HP/MP de antes da luta. */
+  readonly keepPreBattleVitals?: boolean;
 };
 
 /** Persiste vitals de mundo pós-combate e emite `WorldVitalsUpdated`. */
@@ -50,6 +52,40 @@ export function persistWorldVitalsAfterCombat(
   const level = progression.characterProfile.level ?? 1;
   const defaultMp = mpVitalsForLevel(level);
   const allocatedHp = allocatedStatsFromProfile(progression.characterProfile).hp;
+
+  if (options?.keepPreBattleVitals) {
+    const hpMax = Math.max(
+      1,
+      Math.floor(existing?.hpMax ?? playerCombatant.hpMax ?? playerCombatant.maxHp ?? computePlayerHpMax(level, 0, allocatedHp)),
+    );
+    const vitals: PlayerWorldVitals = existing
+      ? { ...existing }
+      : {
+          hpCurrent: hpMax,
+          hpMax,
+          mpCurrent: defaultMp.mpCurrent,
+          mpMax: defaultMp.mpMax,
+        };
+    saveWorldProfile(playerId, characterId, {
+      ...profile,
+      sessionSync: {
+        ...profile.sessionSync,
+        worldVitals: vitals,
+      },
+    });
+    touchCharacterPersistenceDirty(playerId, characterId, 'combat');
+    globalEventBus.emit({
+      type: EconomyEventType.WorldVitalsUpdated,
+      payload: {
+        playerId,
+        characterId,
+        vitals,
+        message: '',
+        revision: Date.now(),
+      },
+    });
+    return vitals;
+  }
 
   const hpMax = Math.max(
     1,

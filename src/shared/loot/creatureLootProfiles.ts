@@ -13,6 +13,8 @@ export type CreatureLootProfilePatch = {
   readonly equipDropChance?: number;
   /** Pesos relativos por item genérico da criatura (default: peso do catálogo ou 1). */
   readonly itemWeights?: Readonly<Partial<Record<string, number>>>;
+  /** Itens do pool genérico que entram em pelo menos 1 slot, mesmo se o cassino sair vazio. */
+  readonly guaranteedItemIds?: readonly string[];
 };
 
 export const ZONE_LOOT_PROFILES: Partial<Record<ZoneId, CreatureLootProfilePatch>> = {
@@ -100,6 +102,9 @@ const CREATURE_LOOT_MANUAL_OVERRIDES: Readonly<
     itemWeights: {
       minotaur_horn: 3,
     },
+  },
+  vortex_agent: {
+    guaranteedItemIds: ['soul_fragment'],
   },
 };
 

@@ -13,6 +13,7 @@ import type { MemorialEntry } from '../pet/petMemorial.js';
 import type { SkinSlotId } from '../character/playerSkin.js';
 import type { ClassType } from '../types/classes.js';
 import type { MercenaryQuestProgress } from '../quests/mercenaryQuestTypes.js';
+import type { CaelChronicleProgress } from '../world/caelChronicleBook.js';
 import type { FriendListEntry } from '../social/friendListTypes.js';
 
 /** Versão do schema JSON — incrementar ao mudar formato. */
@@ -129,6 +130,8 @@ export type CharacterPersistenceRecord = {
   readonly marketplace?: PersistedMarketplaceSlice;
   /** Quadro de Agente — contratos aceitos/concluídos (catálogo em mercenaryQuestCatalog). */
   readonly mercenaryQuests?: MercenaryQuestProgress;
+  /** Capítulos do Livro I ouvidos com o Ancião Cael. */
+  readonly caelChronicles?: CaelChronicleProgress;
   /** Lista unilateral de amigos (nomes). Mensagens privadas não entram no save. */
   readonly friends?: readonly FriendListEntry[];
   /** Subzonas liberadas via terminal de domínio (Z1A, Z1B…). */

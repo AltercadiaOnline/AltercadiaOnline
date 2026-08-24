@@ -35,7 +35,7 @@ export type PvpRankedQueueSnapshot = {
   readonly countdownEndsAtMs: number | null;
   readonly exclusive: boolean;
   readonly matchId: string | null;
-  /** Valor combinado quando os dois apostam o mesmo; 0 se divergir ou mesa vazia. */
+  /** Soma das apostas escolhidas (podem divergir). */
   readonly tableStakeVolts: number;
   readonly potVolts: number;
 };

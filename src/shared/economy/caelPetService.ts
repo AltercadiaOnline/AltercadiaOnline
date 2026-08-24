@@ -1,4 +1,5 @@
 import { NPC_HEAL_PROVIDER_ANCIAO_CAEL } from '../world/npcHealService.js';
+import { VENDEDOR_NPC } from '../world/npcBuildingAnchors.js';
 import {
   formatPetRationFeedCooldown,
   resolvePetRationFeedAvailability,
@@ -20,6 +21,11 @@ export function isAnciaoCaelNpc(npcId: string): boolean {
   return npcId === ANCIAO_CAEL_NPC_ID || npcId === PET_REVIVE_NPC_ID;
 }
 
+/** Ração especial — loja do Vendedor (cargas na HUD Pet Love, não inventário). */
+export function isPetRationVendorNpc(npcId: string): boolean {
+  return npcId === VENDEDOR_NPC;
+}
+
 export type CaelPetRationQuote = {
   readonly itemId: typeof PET_SPECIAL_RATION_ITEM_ID;
   readonly itemLabel: string;
@@ -30,7 +36,7 @@ export type CaelPetRationQuote = {
 export function resolveCaelPetRationQuote(): CaelPetRationQuote {
   return {
     itemId: PET_SPECIAL_RATION_ITEM_ID,
-    itemLabel: 'Ração Especial Cael',
+    itemLabel: 'Ração Especial',
     priceVolts: CAEL_PET_RATION_PRICE_VOLTS,
     chargesPerStack: PET_SPECIAL_RATION_CHARGES_PER_PURCHASE,
   };
@@ -46,8 +52,8 @@ export function validateCaelRationPurchase(
 ):
   | { readonly ok: true; readonly priceVolts: number; readonly chargesGranted: number }
   | { readonly ok: false; readonly reason: string } {
-  if (!isAnciaoCaelNpc(input.npcId)) {
-    return { ok: false, reason: 'Somente o Ancião Cael vende ração especial.' };
+  if (!isPetRationVendorNpc(input.npcId)) {
+    return { ok: false, reason: 'Somente o Vendedor vende ração especial.' };
   }
   if (input.walletVolts < CAEL_PET_RATION_PRICE_VOLTS) {
     return { ok: false, reason: 'Volts insuficientes' };
@@ -79,7 +85,7 @@ export function validatePetFeedSpecialRation(
     return { ok: false, reason: 'Companheiro ferido — não é possível alimentar agora.' };
   }
   if (input.rationCharges <= 0) {
-    return { ok: false, reason: 'Sem cargas de ração — compre no Ancião Cael.' };
+    return { ok: false, reason: 'Sem cargas de ração — compre no Vendedor.' };
   }
 
   const availability = resolvePetRationFeedAvailability(input.lastFeedAtMs ?? null, now);

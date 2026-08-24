@@ -12,7 +12,7 @@ function row(overrides: Partial<LeaderboardStatRow> & Pick<LeaderboardStatRow, '
     levelReachedAt: 100,
     movesetXp: 0,
     movesetReachedAt: 100,
-    pvpRating: 1000,
+    pvpRating: 0,
     pvpWins: 0,
     pvpLosses: 0,
     pvpMatches: 0,
@@ -43,11 +43,21 @@ describe('leaderboardSort', () => {
     expect(compareLeaderboardRows('moveset', more, less)).toBeLessThan(0);
   });
 
-  it('PvP exige 10 partidas rankeadas', () => {
-    const ready = row({ playerId: 'a', pvpMatches: 10 });
-    const short = row({ playerId: 'b', pvpMatches: 9 });
+  it('PvP entra no board na primeira partida rankeada', () => {
+    const ready = row({ playerId: 'a', pvpMatches: 1, pvpRating: 1 });
+    const fresh = row({ playerId: 'b', pvpMatches: 0 });
     expect(rowQualifiesForBoard(ready, 'pvp_ranked', null)).toBe(true);
-    expect(rowQualifiesForBoard(short, 'pvp_ranked', null)).toBe(false);
+    expect(rowQualifiesForBoard(fresh, 'pvp_ranked', null)).toBe(false);
+  });
+
+  it('PvP desempata por vitórias e depois por quem chegou primeiro', () => {
+    const moreWins = row({ playerId: 'a', pvpMatches: 2, pvpRating: 1, pvpWins: 2, pvpRatingReachedAt: 90 });
+    const fewerWins = row({ playerId: 'b', pvpMatches: 2, pvpRating: 1, pvpWins: 1, pvpRatingReachedAt: 10 });
+    expect(compareLeaderboardRows('pvp_ranked', moreWins, fewerWins)).toBeLessThan(0);
+
+    const first = row({ playerId: 'a', pvpMatches: 2, pvpRating: 1, pvpWins: 1, pvpRatingReachedAt: 10 });
+    const later = row({ playerId: 'b', pvpMatches: 2, pvpRating: 1, pvpWins: 1, pvpRatingReachedAt: 90 });
+    expect(compareLeaderboardRows('pvp_ranked', first, later)).toBeLessThan(0);
   });
 
   it('PvE ordena masmorra → chefe → kills', () => {

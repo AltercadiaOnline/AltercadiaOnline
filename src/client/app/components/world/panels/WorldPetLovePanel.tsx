@@ -401,7 +401,7 @@ function PetLoveDetail({
                 <p className="pet-love__feed-error" role="alert">{feedInlineError}</p>
               ) : noCharges && canFeed && !onCooldown ? (
                 <p className="pet-love__feed-error" role="alert">
-                  Sem cargas de ração — compre no Ancião Cael.
+                  Sem cargas de ração — compre no Vendedor.
                 </p>
               ) : null}
             </div>

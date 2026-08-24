@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { PVP_RANKED_LEADERBOARD_MIN_MATCHES } from '../../../../../shared/leaderboard/leaderboardTypes.js';
 import type { WorldPanelContext } from '../../../store/worldPanelContext.js';
 import { tryCloseReactWorldPanel, tryFocusReactWorldPanel } from '../../../panels/initWorldPanelsBridge.js';
 import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
@@ -48,10 +47,10 @@ export function WorldRankingMonitorPanel({
         <section className="ranking-monitor__structure" aria-label="Estrutura do PvP ranqueado">
           <h3 className="ranking-monitor__section-title">Estrutura</h3>
           <ul className="ranking-monitor__structure-list">
-            <li>Fila 1x1 no púlpito (<strong>combate_pvp</strong>) — aceite mútuo e countdown.</li>
-            <li>Rating e vitórias/derrotas só deste modo ranqueado.</li>
+            <li>Fila 1x1 no púlpito (<strong>combate_pvp</strong>) — aposta livre (mín. 50 V), trava e countdown 10s.</li>
+            <li>Placar: +1 vitória / −1 derrota (mín. 0). Pote: vencedor leva a soma menos 5% da casa.</li>
             <li>
-              Board: mínimo {PVP_RANKED_LEADERBOARD_MIN_MATCHES} duelos ranqueados para aparecer.
+              Board: Top 10. Entra na primeira luta; depois só sobe quem tem mais pontos.
             </li>
             <li>PvP casual / batalha normal e ranks de nível/moveset/PvE — fora deste terminal.</li>
           </ul>
@@ -65,7 +64,7 @@ export function WorldRankingMonitorPanel({
             <div className="ranking-monitor__table-head">
               <span>#</span>
               <span>Jogador</span>
-              <span>{state.snapshot?.scoreHeader ?? 'Rating'}</span>
+              <span>{state.snapshot?.scoreHeader ?? 'Pontos'}</span>
             </div>
             <div className="ranking-monitor__rows">
               {entries.map((entry) => (

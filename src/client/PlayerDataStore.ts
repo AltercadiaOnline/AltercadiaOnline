@@ -52,6 +52,7 @@ import {
 import { getPlayerItemStore } from './ui/items/playerItemStore.js';
 import { getPlayerMarcosStore } from './ui/marcos/playerMarcosStore.js';
 import { getMercenaryQuestStore } from './ui/quests/mercenaryQuestStore.js';
+import { getCaelChronicleStore } from './ui/world/caelChronicleStore.js';
 import { applyAuthoritativeFriendList } from './world/friendListStore.js';
 import { applyAuthoritativeWorldVitals } from './world/applyAuthoritativeWorldVitals.js';
 import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
@@ -544,6 +545,10 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
 
     if (state.mercenaryQuests) {
       getMercenaryQuestStore().applyAuthoritative(state.mercenaryQuests);
+    }
+
+    if (state.caelChronicles) {
+      getCaelChronicleStore().applyAuthoritative(state.caelChronicles);
     }
 
     if (state.friends) {

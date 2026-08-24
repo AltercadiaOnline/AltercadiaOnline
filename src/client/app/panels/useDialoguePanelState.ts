@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import {
+  CAEL_CHRONICLE_BOOK_TITLE,
+  getNextLockedCaelChapter,
+  listUnlockedCaelChapters,
+} from '../../../shared/world/caelChronicleBook.js';
+import { getCaelChronicleStore } from '../../ui/world/caelChronicleStore.js';
 import {
   HEAL_FREE_MAX_LEVEL,
   HEAL_VOLT_COST,
@@ -12,11 +18,9 @@ import {
 import { MESTRE_TRILHAS_NPC_ID } from '../../../shared/world/marcosTrailResetPolicy.js';
 import type { WorldChroniclesSnapshot } from '../../../shared/world/worldLoreTypes.js';
 import {
-  consumeChroniclesAbsencePriority,
   fetchWorldChronicles,
 } from '../../services/worldLoreClient.js';
 import { resolveWorldLoreCredentials } from '../../services/worldLoreCredentials.js';
-import { resolveCaelPetRationQuote } from '../../../shared/economy/caelPetService.js';
 import { formatVolts } from '../../../shared/economy/premiumCurrency.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
 import { usePlayerLevel } from '../store/gameStore.js';
@@ -57,26 +61,31 @@ export function useDialoguePanelState(dialogue: DialogueView) {
   const [chroniclesLoading, setChroniclesLoading] = useState(false);
   const [chroniclesError, setChroniclesError] = useState<string | null>(null);
   const [chroniclesSnapshot, setChroniclesSnapshot] = useState<WorldChroniclesSnapshot | null>(null);
+  const chronicleProgress = useSyncExternalStore(
+    getCaelChronicleStore().subscribe,
+    getCaelChronicleStore().getSnapshot,
+    getCaelChronicleStore().getSnapshot,
+  );
+  const unlockedChapters = listUnlockedCaelChapters(chronicleProgress);
+  const nextChapter = getNextLockedCaelChapter(chronicleProgress);
 
   const isCael = isAnciaoCaelDialogue(dialogue);
   const isRefractionInstructor = isRefractionInstructorDialogue(dialogue);
   const isMarcosTrailMaster = isMarcosTrailMasterDialogue(dialogue);
   const voltsCost = resolveHealVoltsCost(level);
   const healSub = voltsCost > 0 ? formatVolts(HEAL_VOLT_COST) : 'Grátis (novatos)';
-  const rationQuote = resolveCaelPetRationQuote();
 
   const loadChronicles = useCallback(async () => {
     setChroniclesLoading(true);
     setChroniclesError(null);
 
     const creds = resolveWorldLoreCredentials();
-    const prioritizeAbsence = consumeChroniclesAbsencePriority();
 
     try {
       const snapshot = await fetchWorldChronicles({
         playerId: creds.playerId,
         characterId: creds.characterId,
-        prioritizeAbsence,
+        prioritizeAbsence: false,
       });
       setChroniclesSnapshot(snapshot);
       setChroniclesError(null);
@@ -106,11 +115,14 @@ export function useDialoguePanelState(dialogue: DialogueView) {
     isMarcosTrailMaster,
     level,
     healSub,
-    rationQuote,
     refractionEntryCost: REFRACTION_BOOTH_CONFIG.entryCostVolts,
     chroniclesLoading,
     chroniclesError,
     chroniclesSnapshot,
+    chronicleBookTitle: CAEL_CHRONICLE_BOOK_TITLE,
+    unlockedChapters,
+    nextChapter,
+    chronicleTomeComplete: nextChapter === null && unlockedChapters.length > 0,
     healFreeHint: level <= HEAL_FREE_MAX_LEVEL,
   };
 }

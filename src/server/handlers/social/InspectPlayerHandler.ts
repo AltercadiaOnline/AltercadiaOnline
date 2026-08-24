@@ -65,7 +65,7 @@ function resolveInspectPvp(profile: PersistedCharacterProfileSlice): PlayerInspe
     ? Math.max(0, Math.floor(profile.pvpMatches))
     : ranked.pvpWins + ranked.pvpLosses;
   return {
-    rating: ranked.pvpRating || PVP_RANKED_DEFAULT_RATING,
+    rating: ranked.pvpRating ?? PVP_RANKED_DEFAULT_RATING,
     wins: ranked.pvpWins,
     losses: ranked.pvpLosses,
     matches,

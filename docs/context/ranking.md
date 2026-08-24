@@ -29,7 +29,8 @@ PvP casual / batalha normal **não** alimenta nem aparece no PC da Arena.
 
 - Snapshot vem do servidor. Cliente faz poll / intent e **desenha**.
 - Arena: sem abas level / moveset / PvE.
-- Board ranqueado: mínimo `PVP_RANKED_LEADERBOARD_MIN_MATCHES` duelos.
+- Board ranqueado (`pvp_ranked`): Top 10 de **pontos** (+1 vitória / −1 derrota, piso 0). Entra na 1ª luta; empate de pontos → mais vitórias → quem chegou primeiro.
+- Colunas da arena: posição, nome, pontos (sem linha “você”).
 - Persistência atual = file. Não inventar rank no Zustand.
 - XP/nível que alimenta boards de progressão: [progressao-pets-quests.md](progressao-pets-quests.md) — só na vitrine do login.
 

@@ -84,15 +84,15 @@ export function WorldDialoguePanel({
     });
   }, [dialogue.npcId]);
 
-  const handleRation = useCallback(() => {
+  const handleHearChronicle = useCallback(() => {
     return getActionDispatcher().dispatch({
-      type: 'CAEL_BUY_PET_RATION',
+      type: 'CAEL_HEAR_CHRONICLE',
       payload: { npcId: dialogue.npcId },
     });
   }, [dialogue.npcId]);
 
   const healGateway = useActionGatewaySubmit({ onClick: handleHeal });
-  const rationGateway = useActionGatewaySubmit({ onClick: handleRation });
+  const hearGateway = useActionGatewaySubmit({ onClick: handleHearChronicle });
 
   const handleResetMarcosTrail = useCallback(() => {
     return getActionDispatcher().dispatch({
@@ -159,23 +159,6 @@ export function WorldDialoguePanel({
                 </button>
                 <button
                   type="button"
-                  className="cael-panel__action cael-panel__action--pet"
-                  disabled={rationGateway.pending}
-                  aria-busy={rationGateway.pending}
-                  onClick={rationGateway.submit}
-                >
-                  <span className="cael-panel__action-icon" aria-hidden="true">🍖</span>
-                  <span className="cael-panel__action-text">
-                    <strong>{rationGateway.pending ? 'Comprando…' : 'Comprar Ração Especial'}</strong>
-                    <small>
-                      {rationGateway.pending
-                        ? 'Aguardando servidor…'
-                        : `${formatVolts(state.rationQuote.priceVolts)} · ${state.rationQuote.chargesPerStack} cargas na HUD Pet Love`}
-                    </small>
-                  </span>
-                </button>
-                <button
-                  type="button"
                   className="cael-panel__action"
                   onClick={() => openSurvivalGuideCard()}
                 >
@@ -187,7 +170,7 @@ export function WorldDialoguePanel({
                 </button>
               </div>
               <p className="cael-panel__tools-hint">
-                Companheiros vivem 15 meses (25 anos). Compre ração aqui e alimente na HUD Pet Love.
+                Companheiros vivem 15 meses (25 anos). Compre ração no Vendedor e alimente na HUD Pet Love.
                 {state.healFreeHint
                   ? ' Novatos até nível 5 curam gratuitamente.'
                   : ' Serviço de cura — desconto automático em VOLTS.'}
@@ -195,39 +178,73 @@ export function WorldDialoguePanel({
             </aside>
 
             <section className="cael-panel__chronicles" aria-label="Crônicas de Altercadia">
-              <h3 className="cael-panel__section-label">Crônicas de Altercadia</h3>
+              <h3 className="cael-panel__section-label">{state.chronicleBookTitle}</h3>
               <div className="cael-panel__scroll">
-                {state.chroniclesLoading ? (
-                  <p className="cael-panel__chronicles-status">Cael consulta os pergaminhos…</p>
-                ) : state.chroniclesError ? (
-                  <p className="cael-panel__chronicles-status cael-panel__chronicles-status--error">
-                    {state.chroniclesError}
-                  </p>
-                ) : !state.chroniclesSnapshot || state.chroniclesSnapshot.lines.length === 0 ? (
-                  <p className="cael-panel__chronicles-status">
-                    Nenhum rumor novo chegou aos ouvidos do Ancião.
-                  </p>
-                ) : (
-                  <>
-                    {state.chroniclesSnapshot.absenceIntro ? (
-                      <p className="cael-panel__chronicles-intro">
-                        {state.chroniclesSnapshot.absenceIntro}
-                      </p>
-                    ) : null}
+                <div className="cael-panel__journal">
+                  <p className="cael-panel__book-kicker">O que ouvi</p>
+                  {state.chroniclesLoading ? (
+                    <p className="cael-panel__chronicles-status">Cael consulta os pergaminhos…</p>
+                  ) : state.chroniclesError ? (
+                    <p className="cael-panel__chronicles-status cael-panel__chronicles-status--error">
+                      {state.chroniclesError}
+                    </p>
+                  ) : !state.chroniclesSnapshot || state.chroniclesSnapshot.lines.length === 0 ? (
+                    <p className="cael-panel__chronicles-status">
+                      Nenhum rumor novo chegou aos ouvidos do Ancião.
+                    </p>
+                  ) : (
                     <div className="cael-panel__chronicles-feed">
                       {state.chroniclesSnapshot.lines.map((line) => (
                         <article
                           key={line.entryId}
-                          className={`cael-panel__chronicle${line.missedWhileAway ? ' cael-panel__chronicle--missed' : ''}`}
+                          className="cael-panel__chronicle"
                           data-hud-priority={resolveChroniclePriority(line)}
                         >
                           <p className="cael-panel__chronicle-text">{line.narrative}</p>
                         </article>
                       ))}
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
+
+                <div className="cael-panel__book">
+                  <p className="cael-panel__book-kicker">Livro I</p>
+                  {state.unlockedChapters.length === 0 ? (
+                    <p className="cael-panel__chronicles-status">
+                      O tomo está fechado. Pede ao Cael que leia a primeira passagem.
+                    </p>
+                  ) : (
+                    state.unlockedChapters.map((chapter) => (
+                      <article key={chapter.id} className="cael-panel__book-chapter">
+                        <h4 className="cael-panel__book-title">{chapter.title}</h4>
+                        {chapter.body.split('\n\n').map((paragraph) => (
+                          <p key={paragraph.slice(0, 24)} className="cael-panel__book-body">
+                            {paragraph}
+                          </p>
+                        ))}
+                        {chapter.questHookNote ? (
+                          <p className="cael-panel__book-hook">{chapter.questHookNote}</p>
+                        ) : null}
+                      </article>
+                    ))
+                  )}
+                </div>
               </div>
+              <button
+                type="button"
+                className="cael-panel__hear"
+                disabled={hearGateway.pending || state.chronicleTomeComplete}
+                aria-busy={hearGateway.pending}
+                onClick={hearGateway.submit}
+              >
+                {hearGateway.pending
+                  ? 'Cael abre o tomo…'
+                  : state.chronicleTomeComplete
+                    ? 'O tomo, por ora, já foi lido.'
+                    : state.nextChapter
+                      ? `Ouvir: ${state.nextChapter.title}`
+                      : 'Ouvir o próximo capítulo'}
+              </button>
             </section>
           </div>
         </div>

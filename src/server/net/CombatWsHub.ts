@@ -81,7 +81,11 @@ import {
   refundPvpRankedStakeMembers,
   settleQueuedPvpRankedPot,
 } from '../combat/pvp/pvpRankedDuelStakeService.js';
-import { parsePvpRankedStakeVolts } from '../../shared/combat/pvp/pvpRankedDuelStake.js';
+import {
+  isLockablePvpRankedStakeVolts,
+  parsePvpRankedLockStakeVolts,
+  parsePvpRankedStakeVolts,
+} from '../../shared/combat/pvp/pvpRankedDuelStake.js';
 import { getCasualDuelInviteStore, type CasualDuelMatchPair } from '../social/casualDuelInviteStore.js';
 import { canPlayerEnterCasualDuel } from '../social/casualDuelHpGate.js';
 import { getPlayerTradeStore } from '../social/playerTradeStore.js';
@@ -1075,7 +1079,7 @@ export class CombatWsHub implements CombatWsRouteHost {
   ): Promise<void> {
     const world = this.requireVerifiedWorldSession(ws, connectionId);
     if (!world) return;
-    const stakeVolts = parsePvpRankedStakeVolts(payload.stakeVolts);
+    const stakeVolts = parsePvpRankedLockStakeVolts(payload.stakeVolts);
     if (stakeVolts === null) {
       this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: 'INVALID_STAKE' } });
       return;
@@ -1101,6 +1105,11 @@ export class CombatWsHub implements CombatWsRouteHost {
     const member = queue.getMember(connectionId);
     if (!member) {
       this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: 'NOT_IN_QUEUE' } });
+      return;
+    }
+
+    if (!isLockablePvpRankedStakeVolts(member.stakeVolts)) {
+      this.send(ws, { type: 'pvp-ranked-queue-error', payload: { reason: 'INVALID_STAKE' } });
       return;
     }
 
@@ -1186,6 +1195,7 @@ export class CombatWsHub implements CombatWsRouteHost {
           characterId: memberA.characterId,
           actorId: bootstrap.actorAId,
           loadout: loadoutA,
+          stakeVolts: memberA.stakeVolts ?? 0,
         },
         peerB: {
           connectionId: memberB.connectionId,
@@ -1193,8 +1203,8 @@ export class CombatWsHub implements CombatWsRouteHost {
           characterId: memberB.characterId,
           actorId: bootstrap.actorBId,
           loadout: loadoutB,
+          stakeVolts: memberB.stakeVolts ?? 0,
         },
-        stakeVolts: memberA.stakeVolts ?? 0,
       });
 
       const battleId = session.getBattleId();
@@ -1337,6 +1347,7 @@ export class CombatWsHub implements CombatWsRouteHost {
           characterId: memberA.characterId,
           actorId: bootstrap.actorAId,
           loadout: loadoutA,
+          stakeVolts: 0,
         },
         peerB: {
           connectionId: memberB.connectionId,
@@ -1344,6 +1355,7 @@ export class CombatWsHub implements CombatWsRouteHost {
           characterId: memberB.characterId,
           actorId: bootstrap.actorBId,
           loadout: loadoutB,
+          stakeVolts: 0,
         },
       });
 
@@ -1509,7 +1521,7 @@ export class CombatWsHub implements CombatWsRouteHost {
         session.listPeers().map((peer) => ({
           playerId: peer.playerId,
           characterId: peer.characterId,
-          stakeVolts: session.getStakeVolts(),
+          stakeVolts: session.getStakeVoltsFor(peer.connectionId),
         })),
       );
       this.cleanupRankedBattle(session);
@@ -1555,17 +1567,29 @@ export class CombatWsHub implements CombatWsRouteHost {
 
   private async settleRankedPvpStake(
     session: RankedPvpCombatSession,
-    finalized: { readonly peers: readonly { readonly peer: { readonly playerId: string; readonly characterId: number }; readonly victory: boolean }[] },
+    finalized: {
+      readonly peers: readonly {
+        readonly peer: {
+          readonly connectionId: string;
+          readonly playerId: string;
+          readonly characterId: number;
+        };
+        readonly victory: boolean;
+      }[];
+    },
   ): Promise<void> {
     const stakeVolts = session.getStakeVolts();
     if (stakeVolts <= 0) return;
     const winners = finalized.peers.filter((entry) => entry.victory);
     const losers = finalized.peers.filter((entry) => !entry.victory);
     if (winners.length === 1 && losers.length === 1) {
+      const winnerPeer = winners[0]!.peer;
+      const loserPeer = losers[0]!.peer;
       await settleQueuedPvpRankedPot({
-        winner: winners[0]!.peer,
-        loser: losers[0]!.peer,
-        stakeVolts,
+        winner: winnerPeer,
+        loser: loserPeer,
+        winnerStakeVolts: session.getStakeVoltsFor(winnerPeer.connectionId),
+        loserStakeVolts: session.getStakeVoltsFor(loserPeer.connectionId),
       });
       return;
     }
@@ -1573,7 +1597,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       session.listPeers().map((peer) => ({
         playerId: peer.playerId,
         characterId: peer.characterId,
-        stakeVolts,
+        stakeVolts: session.getStakeVoltsFor(peer.connectionId),
       })),
     );
   }

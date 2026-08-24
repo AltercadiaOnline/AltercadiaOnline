@@ -10,8 +10,8 @@ export const LEADERBOARD_BOARD_IDS = [
 
 export type LeaderboardBoardId = (typeof LEADERBOARD_BOARD_IDS)[number];
 
-/** Mínimo de duelos rankeados de arena para aparecer no board PvP. */
-export const PVP_RANKED_LEADERBOARD_MIN_MATCHES = 10;
+/** Entra no board na 1ª luta; a query corta no Top 10. */
+export const PVP_RANKED_LEADERBOARD_MIN_MATCHES = 1;
 
 export const LEADERBOARD_DEFAULT_LIMIT = 10;
 export const LEADERBOARD_MAX_LIMIT = 50;

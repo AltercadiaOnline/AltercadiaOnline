@@ -43,6 +43,9 @@ import {
 import type { EquipmentUiSlotId } from '../shared/character/equipmentUiSlots.js';
 import { getPlayerMarcosStore } from './ui/marcos/playerMarcosStore.js';
 import { getMercenaryQuestStore } from './ui/quests/mercenaryQuestStore.js';
+import { getCaelChronicleStore } from './ui/world/caelChronicleStore.js';
+import { hearNextCaelChronicle } from '../shared/world/caelChronicleBook.js';
+import { isAnciaoCaelNpc } from '../shared/economy/caelPetService.js';
 import {
   abandonMercenaryQuest,
   acceptMercenaryQuest,
@@ -156,6 +159,7 @@ export type ClientAction =
     };
   }
   | { readonly type: 'CAEL_BUY_PET_RATION'; readonly payload: { readonly npcId: string } }
+  | { readonly type: 'CAEL_HEAR_CHRONICLE'; readonly payload: { readonly npcId: string } }
   | { readonly type: 'PET_FEED_SPECIAL_RATION'; readonly payload: { readonly slotIndex?: number } }
   | { readonly type: 'PET_SELECT_SLOT'; readonly payload: { readonly slotIndex: number } }
   | { readonly type: 'PET_ACTIVATE_SLOT'; readonly payload: { readonly slotIndex: number } }
@@ -574,7 +578,8 @@ export class ActionDispatcher {
       this.mode === 'online'
       && (action.type === 'ACCEPT_MERCENARY_TASK'
         || action.type === 'ABANDON_MERCENARY_TASK'
-        || action.type === 'COMPLETE_MERCENARY_TASK')
+        || action.type === 'COMPLETE_MERCENARY_TASK'
+        || action.type === 'CAEL_HEAR_CHRONICLE')
     ) {
       return this.dispatchPending(action);
     }
@@ -1076,6 +1081,7 @@ export class ActionDispatcher {
         || isVendorClientAction(action)
         || action.type === 'PURCHASE_SKIN'
         || action.type === 'CAEL_BUY_PET_RATION'
+        || action.type === 'CAEL_HEAR_CHRONICLE'
         || action.type === 'PET_FEED_SPECIAL_RATION')
     ) {
       this.persistLocalEconomyMirror();
@@ -1268,6 +1274,19 @@ export class ActionDispatcher {
         const result = executeCaelBuyPetRation(action.payload.npcId);
         if (!result.ok) return { ok: false, reason: result.reason };
         alertSystem(result.message);
+        return { ok: true, status: 'applied' };
+      }
+
+      case 'CAEL_HEAR_CHRONICLE': {
+        if (!isAnciaoCaelNpc(action.payload.npcId)) {
+          return { ok: false, reason: 'Somente o Ancião Cael lê este tomo.' };
+        }
+        const heard = hearNextCaelChronicle(getCaelChronicleStore().getSnapshot());
+        if (!heard.ok) {
+          return { ok: false, reason: heard.message };
+        }
+        getCaelChronicleStore().applyAuthoritative(heard.progress);
+        alertSystem(`Cael lê: ${heard.chapter.title}`);
         return { ok: true, status: 'applied' };
       }
 

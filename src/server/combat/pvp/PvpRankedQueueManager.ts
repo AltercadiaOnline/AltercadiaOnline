@@ -13,6 +13,7 @@ import {
   PVP_RANKED_STATION_ID,
   PVP_RANKED_STATION_LABEL,
 } from '../../../shared/combat/pvp/pvpRankedQueueConfig.js';
+import { isLockablePvpRankedStakeVolts } from '../../../shared/combat/pvp/pvpRankedDuelStake.js';
 import {
   createEmptyPvpRankedQueueSnapshot,
   type PvpRankedQueueErrorCode,
@@ -235,22 +236,16 @@ export class PvpRankedQueueManager {
 
     const qty = Math.max(0, Math.floor(stakeVolts));
     const slot = this.slots[index]!;
-    if (slot.stakeVolts === qty && !slot.ready && !slot.stakeLocked) {
+    if (slot.ready || slot.stakeLocked) {
+      return { ok: false, reason: 'EXCLUSIVE_LOCKED' };
+    }
+    if (slot.stakeVolts === qty) {
       return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
     }
 
-    const unlockMembers = this.collectLockedMembers();
-    this.clearCountdown();
-    this.countdownEndsAtMs = null;
-    this.phase = 'waiting';
     this.patchSlot(index, { ...slot, stakeVolts: qty, ready: false, stakeLocked: false });
-    for (let i = 0; i < this.slots.length; i += 1) {
-      const peer = this.slots[i];
-      if (!peer || i === index) continue;
-      this.patchSlot(i, { ...peer, ready: false, stakeLocked: false });
-    }
     this.emit();
-    return { ok: true, snapshot: this.buildSnapshot(), unlockMembers };
+    return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
   }
 
   /** Copia a aposta para o outro slot sem cancelar aceites (bot de prática). */
@@ -271,20 +266,23 @@ export class PvpRankedQueueManager {
       return { ok: false, reason: 'EXCLUSIVE_LOCKED' };
     }
 
-    if (ready && this.bothSeated() && !this.stakesAgree()) {
-      return { ok: false, reason: 'STAKE_MISMATCH' };
+    if (!ready) {
+      return this.leave(connectionId);
+    }
+
+    if (!isLockablePvpRankedStakeVolts(this.slots[index]!.stakeVolts)) {
+      return { ok: false, reason: 'INVALID_STAKE' };
     }
 
     const slot = this.slots[index]!;
-    const unlockMembers = !ready && slot.stakeLocked ? [{ ...slot }] : [];
-    this.patchSlot(index, { ...slot, ready, stakeLocked: ready ? slot.stakeLocked : false });
+    this.patchSlot(index, { ...slot, ready: true, stakeLocked: slot.stakeLocked });
 
     if (!this.bothReady()) {
       this.clearCountdown();
       this.phase = 'waiting';
       this.countdownEndsAtMs = null;
       this.emit();
-      return { ok: true, snapshot: this.buildSnapshot(), unlockMembers };
+      return { ok: true, snapshot: this.buildSnapshot(), unlockMembers: [] };
     }
 
     this.beginCountdown();
@@ -388,8 +386,7 @@ export class PvpRankedQueueManager {
     const filled = this.slots.filter(Boolean) as PvpRankedQueueMember[];
     return (
       filled.length === PVP_RANKED_QUEUE_SLOT_COUNT
-      && filled.every((s) => s.ready)
-      && this.stakesAgree()
+      && filled.every((s) => s.ready && isLockablePvpRankedStakeVolts(s.stakeVolts))
     );
   }
 
@@ -446,18 +443,15 @@ export class PvpRankedQueueManager {
       statusMessage = 'Aguardando oponente no púlpito…';
     } else if (filled === 1) {
       statusMessage = 'Aguardando oponente… Ninguém mais entra enquanto a sessão estiver ativa.';
-    } else if (this.bothSeated() && !this.stakesAgree()) {
-      statusMessage = 'As apostas precisam ser iguais antes de entrar na batalha.';
     } else if (this.bothReady()) {
-      statusMessage = 'Ambos aceitaram — entrando na batalha rankeada…';
+      statusMessage = 'Apostas travadas — countdown para a batalha rankeada…';
     } else {
-      statusMessage = 'Os dois estão aqui — ambos devem clicar em Entrar na batalha rankeada.';
+      statusMessage = 'Cada um escolhe e trava a própria aposta (mín. 50 V). Vencedor leva o pote menos 5%.';
     }
 
-    const tableStakeVolts = this.stakesAgree()
-      ? this.slots[0]!.stakeVolts
-      : (this.slots[0]?.stakeVolts ?? this.slots[1]?.stakeVolts ?? 0);
-    const potVolts = this.stakesAgree() ? tableStakeVolts * 2 : 0;
+    const tableStakeVolts =
+      (this.slots[0]?.stakeVolts ?? 0) + (this.slots[1]?.stakeVolts ?? 0);
+    const potVolts = tableStakeVolts;
 
     return {
       stationId: this.stationId,

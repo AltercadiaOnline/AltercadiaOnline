@@ -145,6 +145,39 @@ export function applyEquipDropPass(
   return true;
 }
 
+function slotsAlreadyContainItem(slots: readonly LootRevealSlot[], itemId: string): boolean {
+  return slots.some((slot) => slot.kind === 'ITEM' && slot.itemId === itemId);
+}
+
+/**
+ * Garante 1× cada item listado no perfil — substitui o slot de menor valor se o cassino não dropou.
+ */
+export function applyGuaranteedItemPass(
+  slots: LootRevealSlot[],
+  config: ResolvedCreatureLootConfig,
+): boolean {
+  const ids = config.guaranteedItemIds;
+  if (!ids || ids.length === 0) return false;
+
+  const allowed = new Set(listAllowedItemIds(config));
+  let changed = false;
+
+  for (const itemId of ids) {
+    if (!allowed.has(itemId)) continue;
+    if (slotsAlreadyContainItem(slots, itemId)) continue;
+
+    const replaceIndex = pickReplaceIndexForEquip(slots);
+    slots[replaceIndex] = {
+      kind: 'ITEM',
+      itemId,
+      rarity: resolveItemLootRarity(itemId),
+    };
+    changed = true;
+  }
+
+  return changed;
+}
+
 export function listAllowedItemIds(config: ResolvedCreatureLootConfig): readonly string[] {
   const ids = config.genericItems.map((candidate) => candidate.itemId);
   const pool = config.equipableItemIds.length > 0

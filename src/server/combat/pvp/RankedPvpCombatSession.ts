@@ -10,6 +10,7 @@ import { CombatEventType, type ActionRequest, type CombatEvent, type ResolvedCom
 import { sanitizeCombatActionIntent } from '../../../shared/combat/combatActionIntent.js';
 import type { PlayerCombatLoadout } from '../../../shared/character/equipmentState.js';
 import type { CombatState } from '../../../shared/types.js';
+import { resolveCombatantHp } from '../../../shared/pet/petCombatRules.js';
 import { isReactiveConsumableAction } from '../../../shared/combat/potionSaturation.js';
 import { isClassMoveId } from '../../../shared/combat/classMovesetCatalog.js';
 import { CombatGateway, type DispatchResult } from '../CombatGateway.js';
@@ -36,6 +37,7 @@ export type RankedPvpPeer = {
   readonly characterId: number;
   readonly actorId: string;
   readonly loadout: PlayerCombatLoadout;
+  readonly stakeVolts: number;
 };
 
 export type RankedPvpSessionRejectReason =
@@ -62,7 +64,7 @@ export type RankedPvpCombatSessionOptions = {
   /** false = duelo social (sem rating). Default rankeado. */
   readonly appliesRankedRating?: boolean;
   readonly casualInviteId?: string;
-  /** Aposta 1x1 (cada lado). 0 = só rating. */
+  /** Aposta por lado. 0 = sem VOLTS (casual). */
   readonly stakeVolts?: number;
 };
 
@@ -85,15 +87,25 @@ export class RankedPvpCombatSession {
   } | null = null;
   private runeSpeedApplied: { readonly actorId: string; readonly turn: number } | null = null;
 
+  private lastStrikerActorId: string | null = null;
+
   constructor(initial: CombatState, options: RankedPvpCombatSessionOptions) {
     this.matchId = options.matchId;
     this.appliesRankedRatingFlag = options.appliesRankedRating !== false;
     this.casualInviteIdValue = options.casualInviteId ?? null;
-    this.stakeVoltsValue = Math.max(0, Math.floor(options.stakeVolts ?? 0));
-    this.peersByConnection.set(options.peerA.connectionId, options.peerA);
-    this.peersByConnection.set(options.peerB.connectionId, options.peerB);
-    this.peersByActor.set(options.peerA.actorId, options.peerA);
-    this.peersByActor.set(options.peerB.actorId, options.peerB);
+    const peerA: RankedPvpPeer = {
+      ...options.peerA,
+      stakeVolts: Math.max(0, Math.floor(options.peerA.stakeVolts ?? 0)),
+    };
+    const peerB: RankedPvpPeer = {
+      ...options.peerB,
+      stakeVolts: Math.max(0, Math.floor(options.peerB.stakeVolts ?? 0)),
+    };
+    this.stakeVoltsValue = peerA.stakeVolts + peerB.stakeVolts;
+    this.peersByConnection.set(peerA.connectionId, peerA);
+    this.peersByConnection.set(peerB.connectionId, peerB);
+    this.peersByActor.set(peerA.actorId, peerA);
+    this.peersByActor.set(peerB.actorId, peerB);
     this.ruleManifest = cloneManifest(options.ruleManifest ?? []);
     this.gateway = CombatGateway.create(initial, options.peerA.actorId);
     this.battleManager = new BattleManager(options.peerA.actorId);
@@ -118,6 +130,14 @@ export class RankedPvpCombatSession {
 
   getStakeVolts(): number {
     return this.stakeVoltsValue;
+  }
+
+  getStakeVoltsFor(connectionId: string): number {
+    return Math.max(0, Math.floor(this.peersByConnection.get(connectionId)?.stakeVolts ?? 0));
+  }
+
+  getLastStrikerActorId(): string | null {
+    return this.lastStrikerActorId;
   }
 
   getBattleId(): string {
@@ -207,7 +227,9 @@ export class RankedPvpCombatSession {
     const opponent = this.getOpponentPeer(connectionId);
     if (!opponent) return { ok: false, reason: 'UNKNOWN_PEER' };
 
+    const hpBefore = this.snapshotCombatantHp();
     const round = this.resolveAlternatingRound(resolvedAction, opponent.actorId);
+    this.noteLastStriker(peer.actorId, hpBefore, round.state);
     return {
       ok: true,
       payloads: this.toPeerPayloads({
@@ -225,6 +247,30 @@ export class RankedPvpCombatSession {
     if (state.phase === 'ENDED') return { ok: false, reason: 'BATTLE_ENDED' };
     const last = this.gateway.forfeit(peer.actorId);
     return { ok: true, payloads: this.toPeerPayloads(last) };
+  }
+
+  private snapshotCombatantHp(): ReadonlyMap<string, number> {
+    const map = new Map<string, number>();
+    for (const [id, combatant] of Object.entries(this.gateway.getState().combatants)) {
+      map.set(id, resolveCombatantHp(combatant));
+    }
+    return map;
+  }
+
+  private noteLastStriker(
+    actorId: string,
+    hpBefore: ReadonlyMap<string, number>,
+    after: CombatState,
+  ): void {
+    for (const [id, combatant] of Object.entries(after.combatants)) {
+      if (id === actorId) continue;
+      const prev = hpBefore.get(id);
+      if (prev === undefined) continue;
+      if (resolveCombatantHp(combatant) < prev) {
+        this.lastStrikerActorId = actorId;
+        return;
+      }
+    }
   }
 
   private resolveAlternatingRound(

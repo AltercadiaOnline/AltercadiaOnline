@@ -9,6 +9,8 @@ import {
   resolveNpcSellQuote,
 } from '../../../../../shared/economy/npcVendorService.js';
 import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.js';
+import { resolveCaelPetRationQuote } from '../../../../../shared/economy/caelPetService.js';
+import { VENDEDOR_NPC } from '../../../../../shared/world/npcBuildingAnchors.js';
 import { resolveNpcVendorRarityBlockReason } from '../../../../../shared/economy/npcSellRarityPolicy.js';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
 import { MercenaryQuestBoard } from './MercenaryQuestBoard.js';
@@ -162,6 +164,48 @@ function CatalogTradeHub({
   );
 }
 
+function RationTradeHub({
+  purchasePending,
+  onPurchase,
+  onCancel,
+}: {
+  purchasePending: boolean;
+  onPurchase: () => void;
+  onCancel: () => void;
+}) {
+  const quote = resolveCaelPetRationQuote();
+  return (
+    <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--active">
+      <span className="vendor-shop__trade-tag">NODE::RAÇÃO</span>
+      <div className="vendor-shop__trade-item">
+        <span className="vendor-shop__trade-icon" aria-hidden="true">🍖</span>
+        <div className="vendor-shop__trade-meta">
+          <p className="vendor-shop__trade-name">{quote.itemLabel}</p>
+          <p className="vendor-shop__market-value">
+            {quote.chargesPerStack} cargas na HUD Pet Love — não vai ao inventário.
+          </p>
+        </div>
+      </div>
+      <div className="vendor-shop__trade-actions">
+        <button
+          type="button"
+          className="vendor-shop__trade-btn vendor-shop__trade-btn--buy"
+          disabled={purchasePending}
+          aria-busy={purchasePending}
+          onClick={onPurchase}
+        >
+          {purchasePending
+            ? 'Comprando…'
+            : <>Comprar por <strong>{formatVoltsShort(quote.priceVolts)}</strong></>}
+        </button>
+      </div>
+      <button type="button" className="vendor-shop__trade-cancel" onClick={onCancel}>
+        Cancelar seleção
+      </button>
+    </div>
+  );
+}
+
 function InventoryTradeHub({
   row,
   tradeQuantity,
@@ -269,6 +313,16 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
     });
   }, [state.selectedItemId, state.tradeMode, state.tradeQuantity, vendor.vendorId]);
 
+  const handleRationPurchase = useCallback(() => {
+    return getActionDispatcher().dispatch({
+      type: 'CAEL_BUY_PET_RATION',
+      payload: { npcId: vendor.vendorId },
+    });
+  }, [vendor.vendorId]);
+
+  const sellsRation = vendor.vendorId === VENDEDOR_NPC;
+  const rationQuote = sellsRation ? resolveCaelPetRationQuote() : null;
+
   const purchaseGateway = useActionGatewaySubmit({
     onClick: handlePurchase,
     onResolved: state.resetAfterPurchase,
@@ -277,6 +331,10 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
   const sellGateway = useActionGatewaySubmit({
     onClick: handleSell,
     onResolved: state.resetAfterSell,
+  });
+
+  const rationGateway = useActionGatewaySubmit({
+    onClick: handleRationPurchase,
   });
 
   return (
@@ -311,7 +369,38 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
                 <span className="vendor-shop__col vendor-shop__col--sell">Preço Revenda</span>
               </div>
               <ul className="vendor-shop__list">
-                {state.listings.length === 0 ? (
+                {sellsRation && rationQuote ? (
+                  <li>
+                    <button
+                      type="button"
+                      className={[
+                        'vendor-shop__row',
+                        state.tradeMode === 'ration' ? 'is-selected' : '',
+                      ].filter(Boolean).join(' ')}
+                      aria-pressed={state.tradeMode === 'ration'}
+                      onClick={state.selectRation}
+                    >
+                      <span className="vendor-shop__col vendor-shop__col--item">
+                        <span className="vendor-shop__icon" aria-hidden="true">🍖</span>
+                        <span className="vendor-shop__item-text">
+                          <span className="vendor-shop__name">{rationQuote.itemLabel}</span>
+                          <span className="vendor-shop__market-value vendor-shop__market-value--inline">
+                            {rationQuote.chargesPerStack} cargas na HUD Pet Love
+                          </span>
+                        </span>
+                      </span>
+                      <span className="vendor-shop__col vendor-shop__col--buy">
+                        <span className="vendor-shop__price vendor-shop__price--buy">
+                          {formatVoltsShort(rationQuote.priceVolts)}
+                        </span>
+                      </span>
+                      <span className="vendor-shop__col vendor-shop__col--sell">
+                        <span className="vendor-shop__price vendor-shop__price--sell">—</span>
+                      </span>
+                    </button>
+                  </li>
+                ) : null}
+                {state.listings.length === 0 && !sellsRation ? (
                   <li className="ui-empty">Este vendedor não tem itens no momento.</li>
                 ) : (
                   state.listings.map((listing) => {
@@ -459,6 +548,12 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
                   </div>
                 )}
               </>
+            ) : state.tradeMode === 'ration' && sellsRation ? (
+              <RationTradeHub
+                purchasePending={rationGateway.pending}
+                onPurchase={rationGateway.submit}
+                onCancel={state.cancelSelection}
+              />
             ) : state.selectedListing ? (
               <CatalogTradeHub
                 listing={state.selectedListing}
@@ -484,7 +579,9 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
               <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--idle">
                 <span className="vendor-shop__trade-tag">NODE::IDLE</span>
                 <p className="vendor-shop__trade-idle">
-                  Selecione um drop na lista e confirme a venda aqui.
+                  {sellsRation
+                    ? 'Selecione a ração especial ou um drop para negociar.'
+                    : 'Selecione um drop na lista e confirme a venda aqui.'}
                 </p>
               </div>
             )}

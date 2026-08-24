@@ -14,7 +14,7 @@ export const PET_LIFESPAN_MS = PET_LIFESPAN_DAYS * MS_PER_DAY;
 
 
 
-/** Preço da pilha de ração no Ancião Cael (débito em VOLTS). */
+/** Preço da pilha de ração no Vendedor (débito em VOLTS). */
 export const CAEL_PET_RATION_PRICE_VOLTS = 380;
 
 /** Cargas creditadas na HUD Pet Love por compra (não vai ao inventário). */

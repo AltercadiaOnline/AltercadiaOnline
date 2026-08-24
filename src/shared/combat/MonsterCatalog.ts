@@ -121,6 +121,13 @@ const HANDCRAFTED_ENTRIES: Record<string, MonsterCatalogEntry> = {
     ...resolveMonsterZoneStats(ZoneId.Zone1),
     skillIds: resolveMonsterCombatSkillIds('spider'),
   },
+  vortex_agent: {
+    creatureId: 'vortex_agent',
+    name: 'Agente Vórtex',
+    behavior: MonsterBehaviorType.Aggressive,
+    ...resolveMonsterZoneStats(ZoneId.Zone1),
+    skillIds: ['vortex_baton', 'vortex_freq_shock', 'vortex_signature_drain', 'vortex_extraction_pulse'],
+  },
 };
 
 function resolveDefaultBehavior(creatureId: string): MonsterBehaviorTypeId {

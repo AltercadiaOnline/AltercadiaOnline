@@ -28,7 +28,7 @@ export function getPetRationCharges(): number {
 /** @deprecated Use getPetRationCharges */
 export const countOwnedPetRations = getPetRationCharges;
 
-/** Compra pilha de ração no Ancião Cael — credita cargas na HUD Pet Love. */
+/** Compra pilha de ração no Vendedor — credita cargas na HUD Pet Love. */
 export function executeCaelBuyPetRation(npcId: string): PetFeedActionResult {
   const wallet = getPlayerWalletStore().getSnapshot();
   const validation = validateCaelRationPurchase({
@@ -67,7 +67,7 @@ export function executePetFeedSpecialRation(slotIndex?: number): PetFeedActionRe
   if (!validation.ok) return validation;
 
   if (!petStore.consumeRationCharge()) {
-    return { ok: false, reason: 'Sem cargas de ração — compre no Ancião Cael.' };
+    return { ok: false, reason: 'Sem cargas de ração — compre no Vendedor.' };
   }
 
   const care = getPetStateStore().applyDirectFeed(index);

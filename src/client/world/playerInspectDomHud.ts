@@ -74,7 +74,7 @@ function syncPlayerInspectDomHud(): void {
     ? ''
     : `
       <ul class="player-inspect-hud__pvp" aria-label="PvP ranqueado">
-        <li><span>Rating</span><strong>${view.pvp.rating}</strong></li>
+        <li><span>Pontos</span><strong>${view.pvp.rating}</strong></li>
         <li><span>Partidas</span><strong>${view.pvp.matches}</strong></li>
         <li><span>Vitórias</span><strong>${view.pvp.wins}</strong></li>
         <li><span>Derrotas</span><strong>${view.pvp.losses}</strong></li>

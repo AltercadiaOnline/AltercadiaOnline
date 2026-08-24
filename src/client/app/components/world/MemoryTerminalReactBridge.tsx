@@ -4,6 +4,7 @@ import { SubZoneTransitionId, ZONE_BYPASS_DIFFICULTIES } from '../../../../share
 import type { TerminalInitResponse } from '../../../../shared/types/zoneBypass.js';
 import { MemoryTerminalModal } from '../../../components/minigames/MemoryTerminalModal.js';
 import { ZoneDomainHud } from '../../../components/minigames/ZoneDomainHud.js';
+import { ZoneTerminalHudChrome } from '../../../components/minigames/ZoneTerminalHudChrome.js';
 import {
   getZoneDomainTerminalById,
   getZoneDomainTerminalByTransition,
@@ -13,7 +14,6 @@ import { hideInteractionCard } from '../../../world/interactionCardController.js
 import { registerMemoryTerminalHudCloser } from '../../../world/memoryTerminalHudBridge.js';
 import { releaseWorldHudInteractionIfIdle } from '../../../world/worldHudInteractionSession.js';
 import { PENDING_INTENT_TIMEOUT_MS } from '../../../ActionDispatcher.js';
-import { UI_LAYER_Z_INDEX } from '../../shell/uiLayers.js';
 import {
   onZoneBypassInit,
   onZoneBypassSubmit,
@@ -93,52 +93,11 @@ function TerminalBootOverlay(props: {
   readonly onClose: () => void;
 }): React.ReactElement {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: UI_LAYER_Z_INDEX.overlay,
-        pointerEvents: 'auto',
-        fontFamily: `'Inter', 'Roboto', sans-serif`,
-      }}
-    >
-      <div
-        style={{
-          width: 'min(420px, 92vw)',
-          backgroundColor: '#0a0d14',
-          border: '2px solid #00f0ff',
-          borderRadius: 12,
-          padding: 20,
-          boxShadow: '0 0 30px rgba(0, 240, 255, 0.25)',
-          color: '#e2e8f0',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: 16, color: '#00f0ff', letterSpacing: 1 }}>
-            TERMINAL // {props.zoneName}
-          </h2>
-          <button
-            type="button"
-            onClick={props.onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#94a3b8',
-              fontSize: 20,
-              cursor: 'pointer',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-        <p style={{ margin: '18px 0 8px', color: '#00f0ff', fontSize: 14 }}>Ligando…</p>
-        <p style={{ margin: 0, color: '#94a3b8', fontSize: 12 }}>Aguardando sessão do servidor.</p>
-      </div>
-    </div>
+    <ZoneTerminalHudChrome title={props.zoneName} titleMeta="TERMINAL" onClose={props.onClose}>
+      <p className="zone-terminal-hud__tag">Sessão</p>
+      <p className="zone-terminal-hud__copy">Ligando o terminal…</p>
+      <p className="zone-terminal-hud__hint">Aguardando o servidor. ESC ou × cancela.</p>
+    </ZoneTerminalHudChrome>
   );
 }
 
@@ -181,6 +140,13 @@ export const MemoryTerminalReactBridge: React.FC = () => {
         return;
       }
       const initData = payload as TerminalInitResponse;
+      const current = overlayRef.current;
+      if (!current || (current.kind !== 'booting' && current.kind !== 'domain')) {
+        return;
+      }
+      if (current.transitionId !== initData.transitionId) {
+        return;
+      }
       const gate = getZoneDomainTerminalByTransition(initData.transitionId);
       if (!gate) {
         postSystemNotification('Terminal de domínio desconhecido.');

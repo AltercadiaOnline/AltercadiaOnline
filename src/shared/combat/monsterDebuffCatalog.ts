@@ -116,6 +116,31 @@ export const MONSTER_DEBUFF_PROFILES: Readonly<Record<string, MonsterDebuffProfi
       },
     ],
   },
+  vortex_agent: {
+    creatureId: 'vortex_agent',
+    zoneId: ZoneId.Zone1,
+    recommendedPlayerLevelMax: 10,
+    candidates: [
+      {
+        skillId: 'vortex_freq_shock',
+        statusId: RuntimeStatusId.Paralyze,
+        effectKind: MoveEffectKind.ApplyParalyze,
+        loreLabel: 'Choque de frequência — paralisia',
+      },
+      {
+        skillId: 'vortex_signature_drain',
+        statusId: RuntimeStatusId.MovesetWeaken,
+        effectKind: MoveEffectKind.MovesetWeaken,
+        loreLabel: 'Dreno de assinatura — enfraquece o moveset',
+      },
+      {
+        skillId: 'vortex_extraction_pulse',
+        statusId: RuntimeStatusId.Burn,
+        effectKind: MoveEffectKind.ApplyBurn,
+        loreLabel: 'Pulso de extração — DoT (Burn)',
+      },
+    ],
+  },
 
   // ── Zone 2 (Metrô) — até 2 slots ─────────────────────────────────────
   centipede: {
@@ -349,6 +374,7 @@ export const ZONE1_BASIC_ATTACK_SKILL_IDS: Readonly<Record<string, string>> = {
   bat: 'bat_strike',
   crow: 'crow_slash',
   wild_dog: 'wild_dog_snap',
+  vortex_agent: 'vortex_baton',
 };
 
 export function getMonsterDebuffProfile(creatureId: string): MonsterDebuffProfile | null {

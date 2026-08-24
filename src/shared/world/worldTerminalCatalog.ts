@@ -43,7 +43,7 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     role: 'pvp_hub',
     constructMarker: WORLD_TERMINAL_IDS.ARENA,
     status: 'active',
-    notes: 'Só board pvp_ranked + HUD da estrutura ranqueada. Vitrine level/moveset/PvE = login. Fila = combate_pvp.',
+    notes: 'Só board pvp_ranked + HUD da estrutura ranqueada (Top 10 de pontos). Vitrine level/moveset/PvE = login. Fila = combate_pvp.',
   },
   {
     id: WORLD_TERMINAL_IDS.COMBATE_PVP,
@@ -51,7 +51,7 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     role: 'pvp_queue',
     constructMarker: WORLD_TERMINAL_IDS.COMBATE_PVP,
     status: 'active',
-    notes: 'Púlpito (pulpito.pvp.png): HUD React 1x1 — dois slots, aceite mútuo, countdown 10s → batalha rankeada autoritativa.',
+    notes: 'Púlpito: HUD React 1x1 — dois slots, aposta livre ≥50 V, trava, countdown 10s → batalha rankeada. Sem bot.',
   },
   {
     id: WORLD_TERMINAL_IDS.ZONE_1,

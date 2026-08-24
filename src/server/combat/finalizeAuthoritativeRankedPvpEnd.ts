@@ -72,6 +72,16 @@ export function finalizeAuthoritativeRankedPvpEnd(
   /** FORFEIT / DC: ninguém ganha progressão (pacote produto). */
   const skipProgression = Boolean(options?.forfeitingConnectionId);
 
+  const lastStrikerActorId = session.getLastStrikerActorId();
+  let anyKoVictory = false;
+  if (!options?.forfeitingConnectionId) {
+    for (const peer of session.listPeers()) {
+      const basePayload = payloadsByConnection.get(peer.connectionId);
+      if (!basePayload) continue;
+      if (didPlayerWinBattle(basePayload.state, peer.actorId)) anyKoVictory = true;
+    }
+  }
+
   for (const peer of session.listPeers()) {
     const basePayload = payloadsByConnection.get(peer.connectionId);
     if (!basePayload) continue;
@@ -82,7 +92,9 @@ export function finalizeAuthoritativeRankedPvpEnd(
       ? false
       : options?.forfeitingConnectionId
         ? options.forfeitingConnectionId !== peer.connectionId
-        : didPlayerWinBattle(basePayload.state, peer.actorId);
+        : anyKoVictory
+          ? didPlayerWinBattle(basePayload.state, peer.actorId)
+          : lastStrikerActorId === peer.actorId;
 
     const endReason = resolveEndReason(
       victory,
@@ -192,7 +204,10 @@ export function finalizeAuthoritativeRankedPvpEnd(
         peer.playerId,
         peer.characterId,
         combatant,
-        casualDefeatVitalsOptions,
+        {
+          ...casualDefeatVitalsOptions,
+          ...(!isCasual ? { keepPreBattleVitals: true } : {}),
+        },
       )
       : undefined;
 

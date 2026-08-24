@@ -27,8 +27,8 @@ export function WorldHubPanel({ zIndex, focused, onFocus }: WorldHubPanelProps) 
         <footer className="ui-hub-bar" data-hub-main-view aria-label="Hub Central">
           <div className="ui-hub-bar__toolbar">
             <div className="ui-hub-bar__heading">
-              <span className="ui-hub-bar__tag">LINK // SOCIAL</span>
-              <span className="ui-hub-bar__title">HUB SOCIAL</span>
+              <span className="ui-hub-bar__tag">LINK // CENTRAL</span>
+              <span className="ui-hub-bar__title">HUB CENTRAL</span>
             </div>
             <button
               type="button"

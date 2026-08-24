@@ -28,39 +28,26 @@ describe('aposta PVP 1x1 via economyGateway', () => {
     expect(getPlayerWallet(winner.playerId, winner.characterId).dollarVolt).toBe(400);
   });
 
-  it('vencedor leva o pote; perdedor perde a aposta', async () => {
+  it('vencedor leva o pote menos 5%; apostas podem divergir', async () => {
     applyAuthoritativeWalletBalances(winner.playerId, winner.characterId, 300, 0);
-    applyAuthoritativeWalletBalances(loser.playerId, loser.characterId, 300, 0);
-    expect((await lockPvpRankedDuelStake(winner, 100)).ok).toBe(true);
-    expect((await lockPvpRankedDuelStake(loser, 100)).ok).toBe(true);
+    applyAuthoritativeWalletBalances(loser.playerId, loser.characterId, 1200, 0);
+    expect((await lockPvpRankedDuelStake(winner, 50)).ok).toBe(true);
+    expect((await lockPvpRankedDuelStake(loser, 1000)).ok).toBe(true);
 
     const settled = await settlePvpRankedDuelStake({
       winner,
       loser,
-      stakeVolts: 100,
+      winnerStakeVolts: 50,
+      loserStakeVolts: 1000,
     });
     expect(settled.ok).toBe(true);
+    // pote 1050, rake 53, payout 997. Winner started 300: -50 locked spend +997 = 1247
     expect(getPlayerWallet(winner.playerId, winner.characterId)).toMatchObject({
-      dollarVolt: 400,
+      dollarVolt: 1247,
       lockedDollarVolt: 0,
     });
     expect(getPlayerWallet(loser.playerId, loser.characterId)).toMatchObject({
       dollarVolt: 200,
-      lockedDollarVolt: 0,
-    });
-  });
-
-  it('vitória contra bot de prática credita o equivalente da aposta', async () => {
-    applyAuthoritativeWalletBalances(winner.playerId, winner.characterId, 200, 0);
-    expect((await lockPvpRankedDuelStake(winner, 50)).ok).toBe(true);
-    const settled = await settlePvpRankedDuelStake({
-      winner,
-      loser: { playerId: 'pvp_practice_bot', characterId: 0 },
-      stakeVolts: 50,
-    });
-    expect(settled.ok).toBe(true);
-    expect(getPlayerWallet(winner.playerId, winner.characterId)).toMatchObject({
-      dollarVolt: 250,
       lockedDollarVolt: 0,
     });
   });

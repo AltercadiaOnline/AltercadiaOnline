@@ -154,7 +154,7 @@ export function leaderboardScoreHeader(boardId: LeaderboardBoardId): string {
     case 'moveset':
       return 'Domínio';
     case 'pvp_ranked':
-      return 'Rating';
+      return 'Pontos';
     case 'pve':
       return 'M/C/K';
     default: {

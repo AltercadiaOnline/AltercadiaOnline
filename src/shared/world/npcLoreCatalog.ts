@@ -42,14 +42,14 @@ const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
     npcId: 'anciao_cael',
     displayName: 'Ancião Cael',
     epithet: 'o Registrador de Crônicas',
-    role: 'Curador da cidade, cura de expedientes e fornecedor de ração dimensional para pets.',
+    role: 'Curador da cidade e cura de expedientes.',
     district: 'Arena Central — anel de espectadores',
     greeting:
       'Bem-vindo a Altercadia, viajante. A cidade respira em VOLTS e memórias — deixe-me ver o que mudou desde a tua última passagem.',
     biography: [
       'Cael chegou antes da primeira torre NexGrid ser erguida. Dizem que ele leu o contrato original da cidade — o documento que define quem pode alterar o chão de combate e quem apenas o atravessa.',
       'Hoje observa a arena do anel superior, registrando feitos, ausências e retornos. Suas crônicas não são poesia: são logs narrados do que o servidor autorizou acontecer enquanto você estava offline.',
-      'Vende ração especial para companheiros dimensionais — não é comida comum, mas carga de estabilização comprimida, forjada para pausar o envelhecimento biológico dos pets por um ciclo.',
+      'Revive companheiros feridos e guarda no Livro de Memórias os que completam o ciclo. A ração que pausa o envelhecimento, porém, está na loja do Vendedor.',
     ],
     motivation:
       'Evitar que novatos morram na primeira expedição e que a memória coletiva de Altercadia se perca entre patches e reinícios.',
@@ -91,13 +91,13 @@ const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
     npcId: 'vendedor',
     displayName: 'Vendedor',
     epithet: 'o Abridor de Caixas',
-    role: 'Compra e revende suprimentos; converte loot em VOLTS pelo valor base.',
+    role: 'Compra e revende suprimentos; vende ração especial de pets; converte loot em VOLTS pelo valor base.',
     district: 'Loja NPC — distrito sul comercial',
     greeting:
       'Ofertas do dia, preços do servidor. Compro teu loot a cinquenta por cento do valor base — sem drama.',
     biography: [
       'O vendedor não tem nome público. É um posto de troca licenciado pela cidade: interface humana para transações que o gateway já validaria sozinho.',
-      'Mantém estoque de poções e consumíveis para novatos, mas seu lucro real está na revenda de materiais dimensionais — o que você não quer carregar, ele transforma em VOLTS na hora.',
+      'Mantém estoque de poções, ração especial de companheiros e consumíveis para novatos, mas seu lucro real está na revenda de materiais dimensionais — o que você não quer carregar, ele transforma em VOLTS na hora.',
       'Trata raridade como política, não como emoção. Itens de crafting vão para o ferreiro; itens de valor direto ficam na prateleira até alguém precisar.',
     ],
     motivation: 'Girar estoque rápido e impedir que inventários travem por ganância de loot.',
@@ -129,7 +129,7 @@ const NPC_LORE_PROFILES: readonly NpcLoreProfile[] = [
       'Gato ou Cachorro Dimensional — escolhe o parceiro, assina o vínculo. Eu cuido do registro; o servidor cuida da verdade.',
     biography: [
       'Zena não domestica animais — estabiliza entidades que escaparam de mapas colapsados. Cada pet é um contrato de convivência: nome, cor, gênero, slot no roster.',
-      'Acredita que afinidade se constrói em combate e cuidado, não em comandos. Por isso insiste em ração especial do Ancião Cael para quem leva o vínculo a sério.',
+      'Acredita que afinidade se constrói em combate e cuidado, não em comandos. Por isso insiste em ração especial do Vendedor para quem leva o vínculo a sério.',
       'Marcou presença na cidade após o primeiro torneio aberto. Desde então, ninguém entra na arena sem perguntar se o companheiro pode seguir.',
     ],
     motivation: 'Garantir que nenhum dimensional órfão seja vendido à NexGrid como matéria-prima.',

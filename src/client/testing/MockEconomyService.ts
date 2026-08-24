@@ -161,6 +161,9 @@ import { getPlayerItemStore, resetPlayerItemStore } from '../ui/items/playerItem
 import { resetInventorySyncScheduler } from '../game/PlayerItemSession.js';
 import { getPlayerMarcosStore, resetPlayerMarcosStore } from '../ui/marcos/playerMarcosStore.js';
 import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
+import { getCaelChronicleStore } from '../ui/world/caelChronicleStore.js';
+import { hearNextCaelChronicle } from '../../shared/world/caelChronicleBook.js';
+import { isAnciaoCaelNpc } from '../../shared/economy/caelPetService.js';
 import {
   abandonMercenaryQuest,
   acceptMercenaryQuest,
@@ -725,6 +728,7 @@ export class MockEconomyService implements IDevMockEconomyService {
       petMemorial: getPetMemorialStore().getEntries(),
       ownedSkins: cloneOwnedSkins(this.state.ownedSkins),
       mercenaryQuests: getMercenaryQuestStore().getSnapshot(),
+      caelChronicles: getCaelChronicleStore().getSnapshot(),
       friends: getFriendList().map((row) => ({
         playerId: row.playerId,
         characterId: row.characterId,
@@ -922,6 +926,7 @@ export class MockEconomyService implements IDevMockEconomyService {
       record.petMemorial,
     );
     getMercenaryQuestStore().applyAuthoritative(record.mercenaryQuests);
+    getCaelChronicleStore().applyAuthoritative(record.caelChronicles);
     applyAuthoritativeFriendList(record.friends);
     getPlayerProgressionStore().loadFromProgressionData({
       ...createDefaultPlayerProgressionData(),
@@ -991,6 +996,8 @@ export class MockEconomyService implements IDevMockEconomyService {
         alertSystem(buyResult.message);
         return { ok: true };
       }
+      case 'CAEL_HEAR_CHRONICLE':
+        return this.hearCaelChronicle(action.payload.npcId);
       case 'PET_FEED_SPECIAL_RATION': {
         const feedResult = executePetFeedSpecialRation(action.payload.slotIndex);
         if (!feedResult.ok) return feedResult;
@@ -1318,6 +1325,20 @@ export class MockEconomyService implements IDevMockEconomyService {
       nodeProgression: emptyMarcosNodeProgression(),
     };
     this.bumpRevision('marcosState');
+    return { ok: true };
+  }
+
+  private hearCaelChronicle(npcId: string): IntentHandleResult {
+    if (!isAnciaoCaelNpc(npcId)) {
+      return { ok: false, reason: 'Somente o Ancião Cael lê este tomo.' };
+    }
+    const heard = hearNextCaelChronicle(getCaelChronicleStore().getSnapshot());
+    if (!heard.ok) {
+      return { ok: false, reason: heard.message };
+    }
+    getCaelChronicleStore().applyAuthoritative(heard.progress);
+    this.persistLocalSave();
+    alertSystem(`Cael lê: ${heard.chapter.title}`);
     return { ok: true };
   }
 

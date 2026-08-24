@@ -57,14 +57,17 @@ export async function refundPvpRankedStakeMembers(
 export async function settleQueuedPvpRankedPot(input: {
   readonly winner: PvpRankedStakePartyRef;
   readonly loser: PvpRankedStakePartyRef;
-  readonly stakeVolts: number;
+  readonly winnerStakeVolts: number;
+  readonly loserStakeVolts: number;
 }): Promise<void> {
-  const qty = Math.floor(input.stakeVolts);
-  if (qty <= 0) return;
+  const winnerStakeVolts = Math.max(0, Math.floor(input.winnerStakeVolts));
+  const loserStakeVolts = Math.max(0, Math.floor(input.loserStakeVolts));
+  if (winnerStakeVolts <= 0 && loserStakeVolts <= 0) return;
   const result = await settlePvpRankedDuelStake({
     winner: { playerId: input.winner.playerId, characterId: input.winner.characterId },
     loser: { playerId: input.loser.playerId, characterId: input.loser.characterId },
-    stakeVolts: qty,
+    winnerStakeVolts,
+    loserStakeVolts,
   });
   if (!result.ok) {
     console.error('[PvpRankedStake] falha ao liquidar pote', {

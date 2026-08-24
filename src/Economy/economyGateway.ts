@@ -23,6 +23,7 @@ import {
 import { BANK_TRANSACTION_SUCCESS_MESSAGE } from '../shared/bank/bankConstants.js';
 import type { BankCurrencyTypeId } from '../shared/bank/bankConstants.js';
 import { validateBankCurrencyRequest } from '../shared/bank/bankCurrencyRules.js';
+import { computePvpRankedPotSettlement } from '../shared/combat/pvp/pvpRankedDuelStake.js';
 import { validateInventoryDeleteIntent } from '../shared/economy/inventoryPolicy.js';
 import { resolveAvailableStackQuantity } from '../shared/bank/inventoryLockOps.js';
 import { getBankTransactionManager } from './BankTransactionManager.js';
@@ -1503,7 +1504,7 @@ export type BuyCaelPetRationResult =
   }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
-/** Compra ração especial no Ancião Cael — debita VOLTS e credita cargas (transação ACID). */
+/** Compra ração especial no Vendedor — debita VOLTS e credita cargas (transação ACID). */
 export async function buyCaelPetRationAtNpc(
   request: BuyCaelPetRationRequest,
 ): Promise<BuyCaelPetRationResult> {
@@ -2063,7 +2064,7 @@ export async function feedPetSpecialRation(
     return {
       ok: false,
       code: 'NO_RATION_CHARGES',
-      message: 'Sem cargas de ração — compre no Ancião Cael.',
+      message: 'Sem cargas de ração — compre no Vendedor.',
     };
   }
 
@@ -2627,25 +2628,28 @@ export async function unlockPvpRankedDuelStake(
 }
 
 /**
- * Vencedor recebe a aposta do perdedor; a própria trava é liberada.
+ * Vencedor recebe o pote menos 5% (casa). Apostas podem divergir.
  * Empate / aborto usam unlock, não esta função.
  */
 export async function settlePvpRankedDuelStake(input: {
   readonly winner: PvpRankedStakeParty;
   readonly loser: PvpRankedStakeParty;
-  readonly stakeVolts: number;
+  readonly winnerStakeVolts: number;
+  readonly loserStakeVolts: number;
 }): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
-  const qty = Math.floor(input.stakeVolts);
-  if (qty <= 0) return { ok: true };
+  const winnerQty = Math.max(0, Math.floor(input.winnerStakeVolts));
+  const loserQty = Math.max(0, Math.floor(input.loserStakeVolts));
+  const { payoutVolts } = computePvpRankedPotSettlement(winnerQty, loserQty);
+  if (winnerQty <= 0 && loserQty <= 0) return { ok: true };
 
   const winnerPlayable = isPlayablePvpStakeParty(input.winner);
   const loserPlayable = isPlayablePvpStakeParty(input.loser);
 
   if (winnerPlayable && loserPlayable) {
     const tx = await executeTwoPartyEconomyTransaction(input.winner, input.loser, (winStore, loseStore) => {
-      loseStore.spendLockedDollarVolt(qty);
-      winStore.unlockDollarVolt(qty);
-      winStore.addDollarVolt(qty);
+      if (loserQty > 0) loseStore.spendLockedDollarVolt(loserQty);
+      if (winnerQty > 0) winStore.spendLockedDollarVolt(winnerQty);
+      if (payoutVolts > 0) winStore.addDollarVolt(payoutVolts);
     });
     if (!tx.ok) return { ok: false, message: tx.message };
     const revision = Date.now();
@@ -2656,8 +2660,8 @@ export async function settlePvpRankedDuelStake(input: {
 
   if (winnerPlayable && !loserPlayable) {
     const tx = await executeEconomyTransaction(input.winner.playerId, input.winner.characterId, (store) => {
-      store.unlockDollarVolt(qty);
-      store.addDollarVolt(qty);
+      if (winnerQty > 0) store.spendLockedDollarVolt(winnerQty);
+      if (payoutVolts > 0) store.addDollarVolt(payoutVolts);
     });
     if (!tx.ok) return { ok: false, message: tx.message };
     publishWalletUpdated(input.winner.playerId, input.winner.characterId, tx);
@@ -2666,7 +2670,7 @@ export async function settlePvpRankedDuelStake(input: {
 
   if (!winnerPlayable && loserPlayable) {
     const tx = await executeEconomyTransaction(input.loser.playerId, input.loser.characterId, (store) => {
-      store.spendLockedDollarVolt(qty);
+      if (loserQty > 0) store.spendLockedDollarVolt(loserQty);
     });
     if (!tx.ok) return { ok: false, message: tx.message };
     publishWalletUpdated(input.loser.playerId, input.loser.characterId, tx);

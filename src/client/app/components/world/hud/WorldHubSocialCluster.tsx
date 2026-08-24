@@ -45,7 +45,7 @@ export function WorldHubSocialCluster() {
       id="ui-hub-social-cluster"
       className="ui-hub-social-cluster"
       data-ui-widget="world-hub-cluster"
-      aria-label="Hub Social, Agentes Vortex e relógio do mundo"
+      aria-label="Hub Central, Agentes Vortex e relógio do mundo"
       style={{
         position: 'absolute',
         top: 'var(--ui-hub-anchor-top, 12px)',

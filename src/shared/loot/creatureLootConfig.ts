@@ -39,6 +39,8 @@ export type ResolvedCreatureLootConfig = {
   /** @deprecated Prefer `equipableItemIds[0]` — mantido para leituras legadas. */
   readonly equipableItemId: string | null;
   readonly voltRange: { readonly min: number; readonly max: number };
+  /** Itens do pool genérico forçados em ≥1 slot após o cassino. */
+  readonly guaranteedItemIds: readonly string[];
 };
 
 function mergeProfilePatches(
@@ -48,6 +50,7 @@ function mergeProfilePatches(
     dropChances?: Partial<DropChancesConfig>;
     equipDropChance?: number;
     itemWeights?: Partial<Record<string, number>>;
+    guaranteedItemIds?: readonly string[];
   } = {};
 
   for (const patch of patches) {
@@ -63,6 +66,9 @@ function mergeProfilePatches(
     }
     if (patch.itemWeights) {
       merged.itemWeights = { ...merged.itemWeights, ...patch.itemWeights };
+    }
+    if (patch.guaranteedItemIds) {
+      merged.guaranteedItemIds = patch.guaranteedItemIds;
     }
   }
 
@@ -133,6 +139,11 @@ export function resolveCreatureLootConfig(
     ...(entry.alternateEquipableItemIds ?? []),
   ];
 
+  const allowedGeneric = new Set(entry.genericDropIds);
+  const guaranteedItemIds = (profile.guaranteedItemIds ?? []).filter((itemId) =>
+    allowedGeneric.has(itemId),
+  );
+
   return {
     creatureId,
     zoneId: entry.zoneId,
@@ -142,6 +153,7 @@ export function resolveCreatureLootConfig(
     equipableItemIds,
     equipableItemId: equipableItemIds[0] ?? null,
     voltRange: resolveScaledVoltRange(table, defeatedLevel),
+    guaranteedItemIds,
   };
 }
 

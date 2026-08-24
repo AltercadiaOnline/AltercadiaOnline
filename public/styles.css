@@ -9489,6 +9489,82 @@ body > .battle-result-overlay,
   margin: 0;
 }
 
+.cael-panel__journal,
+.cael-panel__book {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cael-panel__book {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(201, 168, 106, 0.28);
+}
+
+.cael-panel__book-kicker {
+  margin: 0;
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 106, 0.7);
+}
+
+.cael-panel__book-chapter {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed rgba(94, 74, 48, 0.4);
+}
+
+.cael-panel__book-chapter:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.cael-panel__book-title {
+  margin: 0 0 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #e8dcc4;
+}
+
+.cael-panel__book-body {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: rgba(220, 205, 175, 0.9);
+}
+
+.cael-panel__book-hook {
+  margin: 0;
+  font-size: 0.62rem;
+  font-style: italic;
+  color: rgba(201, 168, 106, 0.75);
+}
+
+.cael-panel__hear {
+  flex-shrink: 0;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(201, 168, 106, 0.45);
+  background: rgba(20, 15, 10, 0.92);
+  color: #e8dcc4;
+  font-family: inherit;
+  font-size: 0.7rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cael-panel__hear:hover:not(:disabled) {
+  border-color: rgba(201, 168, 106, 0.75);
+  background: rgba(201, 168, 106, 0.08);
+}
+
+.cael-panel__hear:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
 @media (max-width: 720px) {
   .ui-panel--dialogue-cael {
     min-width: min(94vw, 94vw);
@@ -21464,4 +21540,241 @@ html[data-perf='lite'] * {
 
 .interaction-card.ui-skin-hybrid {
   isolation: isolate;
+}
+
+/* Terminais de domínio da zona — chassis híbrido (depois de .ui-panel para ganhar o position). */
+.zone-terminal-hud {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.zone-terminal-hud__dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 10, 0.42);
+  pointer-events: auto;
+}
+
+.zone-terminal-hud--block-world .zone-terminal-hud__dim {
+  pointer-events: auto;
+}
+
+.zone-terminal-hud .zone-terminal-hud__panel.ui-panel {
+  position: relative;
+  inset: auto;
+  left: auto;
+  top: auto;
+  z-index: 1;
+  pointer-events: auto;
+  width: min(400px, 94vw);
+  max-width: min(400px, 94vw);
+  max-height: min(420px, 82vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.zone-terminal-hud .zone-terminal-hud__panel.ui-panel.zone-terminal-hud__panel--wide {
+  width: min(460px, 94vw);
+  max-width: min(460px, 94vw);
+}
+
+.zone-terminal-hud__header {
+  display: flex;
+  cursor: default;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+}
+
+.zone-terminal-hud__title {
+  min-width: 0;
+}
+
+.zone-terminal-hud__body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  font: 11px/1.45 "Courier New", Consolas, monospace;
+  color: var(--ui-text, #c8d4dc);
+}
+
+.zone-terminal-hud__tag {
+  margin: 0 0 10px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(58, 208, 214, 0.78);
+}
+
+.zone-terminal-hud__copy {
+  margin: 0 0 10px;
+  color: #a8b4bc;
+}
+
+.zone-terminal-hud__section {
+  margin-bottom: 12px;
+}
+
+.zone-terminal-hud__section-title {
+  margin: 0 0 6px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a969e;
+}
+
+.zone-terminal-hud__list {
+  margin: 0;
+  padding-left: 16px;
+  color: #b8c2c8;
+}
+
+.zone-terminal-hud__row-head,
+.zone-terminal-hud__row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.5fr 0.8fr 1fr;
+  gap: 6px;
+  font-size: 10px;
+}
+
+.zone-terminal-hud__row-head {
+  margin-bottom: 4px;
+  color: #7a8890;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.zone-terminal-hud__row {
+  padding: 4px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.zone-terminal-hud__row--bound {
+  background: rgba(58, 208, 214, 0.08);
+}
+
+.zone-terminal-hud__ok {
+  color: #7dffb3;
+}
+
+.zone-terminal-hud__locked {
+  color: #ff9a8a;
+}
+
+.zone-terminal-hud__warn {
+  margin: 0 0 10px;
+  color: #ffb080;
+}
+
+.zone-terminal-hud__next {
+  margin: 0 0 10px;
+  color: #9ad4ff;
+}
+
+.zone-terminal-hud__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.zone-terminal-hud__btn {
+  border: 1px solid rgba(58, 63, 68, 0.95);
+  background: transparent;
+  color: #c8d4dc;
+  padding: 6px 12px;
+  font: 10px/1 "Courier New", Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.zone-terminal-hud__btn--primary {
+  border-color: rgba(58, 208, 214, 0.55);
+  background: rgba(58, 208, 214, 0.14);
+  color: #d7f6f8;
+}
+
+.zone-terminal-hud__btn:hover {
+  border-color: rgba(58, 208, 214, 0.55);
+  color: #d7f6f8;
+}
+
+.zone-terminal-hud__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  color: #8a969e;
+}
+
+.zone-terminal-hud__display {
+  margin-bottom: 12px;
+  padding: 14px 10px;
+  border: 1px solid rgba(58, 63, 68, 0.95);
+  background: rgba(5, 8, 10, 0.55);
+  text-align: center;
+}
+
+.zone-terminal-hud__glyphs,
+.zone-terminal-hud__slots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.zone-terminal-hud__glyph,
+.zone-terminal-hud__slot {
+  width: 26px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(58, 208, 214, 0.35);
+  background: rgba(13, 14, 16, 0.9);
+  font: 700 18px/1 "Courier New", Consolas, monospace;
+  color: rgba(58, 208, 214, 0.92);
+}
+
+.zone-terminal-hud__hint {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: #7a8890;
+}
+
+.zone-terminal-hud__pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.zone-terminal-hud__key {
+  padding: 10px 0;
+  border: 1px solid rgba(58, 63, 68, 0.95);
+  background: rgba(13, 14, 16, 0.9);
+  color: #e8eef2;
+  font: 700 14px/1 "Courier New", Consolas, monospace;
+  cursor: pointer;
+}
+
+.zone-terminal-hud__key:hover {
+  border-color: rgba(58, 208, 214, 0.55);
+}
+
+.zone-terminal-hud__key--back {
+  grid-column: span 2;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #ffb0a8;
+  border-color: rgba(127, 29, 29, 0.8);
 }
