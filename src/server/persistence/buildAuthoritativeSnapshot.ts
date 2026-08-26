@@ -24,7 +24,6 @@ import { getPetAffinityRecord } from '../../Economy/petAffinityStore.js';
 import { getPetRosterSnapshot } from '../../Economy/petRosterStore.js';
 import { getOwnedSkinsRecord } from '../../Economy/skinOwnershipStore.js';
 import { exportMercenaryQuestPersistence } from '../quests/mercenaryQuestStore.js';
-import { exportCaelChroniclePersistence } from '../world/caelChronicleStore.js';
 import { exportFriendListPersistence } from '../social/friendListStore.js';
 import { getWorldGameState } from '../world/WorldGameState.js';
 import {
@@ -162,8 +161,8 @@ export function buildAuthoritativePlayerSnapshot(
     ownedSkins: getOwnedSkinsRecord(playerId, characterId),
     gameTime: getTimeManager().getGameTimeSeconds(),
     gameTimeServerMs: revision,
+    gameDayIndex: getTimeManager().getGameDayIndex(),
     mercenaryQuests: exportMercenaryQuestPersistence(playerId, characterId),
-    caelChronicles: exportCaelChroniclePersistence(playerId, characterId),
     friends: exportFriendListPersistence(playerId, characterId).map((entry) => ({
       ...entry,
       online: Boolean(getWorldGameState().getByPlayer(entry.playerId, entry.characterId)),

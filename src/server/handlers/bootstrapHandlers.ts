@@ -93,7 +93,6 @@ import {
   getAcceptMercenaryQuestHandler,
   getCompleteMercenaryQuestHandler,
 } from './world/MercenaryQuestHandlers.js';
-import { getCaelHearChronicleHandler } from './world/CaelHearChronicleHandler.js';
 import {
   getZoneBypassInitHandler,
   getZoneBypassSubmitHandler,
@@ -118,7 +117,6 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getZoneEnsureHandler());
   registerIntentHandler(getGetLeaderboardHandler());
   registerIntentHandler(getAcceptMercenaryQuestHandler());
-  registerIntentHandler(getCaelHearChronicleHandler());
   registerIntentHandler(getAbandonMercenaryQuestHandler());
   registerIntentHandler(getCompleteMercenaryQuestHandler());
   registerIntentHandler(getZoneBypassInitHandler());

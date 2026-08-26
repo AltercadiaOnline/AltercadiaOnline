@@ -22,8 +22,8 @@ export function useMercenaryQuestBoard() {
   );
 
   const rows = useMemo(
-    () => buildMercenaryQuestBoard(level, progress),
-    [level, progress],
+    () => buildMercenaryQuestBoard(progress),
+    [progress],
   );
   const activeQuest = progress.activeQuestId
     ? getMercenaryQuestById(progress.activeQuestId)

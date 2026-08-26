@@ -135,7 +135,14 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
   if (event.type === EconomyEventType.WorldVitalsUpdated) {
     applyAuthoritativeWorldVitals(event.payload.vitals);
     if (event.payload.intentId) {
-      dispatcher.confirmIntent(event.payload.intentId);
+      // Intents que fecham só no intent-result (bolsa / nível) — não confirmar aqui.
+      const pending = getPendingIntentRegistry().get(event.payload.intentId);
+      const ackViaIntentResultOnly =
+        pending?.action.type === 'ALLOCATE_STAT_POINTS'
+        || pending?.action.type === 'DEV_SET_LEVEL';
+      if (!ackViaIntentResultOnly) {
+        dispatcher.confirmIntent(event.payload.intentId);
+      }
     }
     if (event.payload.message.trim()) {
       alertSystem(event.payload.message);

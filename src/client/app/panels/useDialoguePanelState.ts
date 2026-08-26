@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import {
   CAEL_CHRONICLE_BOOK_TITLE,
-  getNextLockedCaelChapter,
-  listUnlockedCaelChapters,
+  resolveCaelDailyChapter,
 } from '../../../shared/world/caelChronicleBook.js';
-import { getCaelChronicleStore } from '../../ui/world/caelChronicleStore.js';
+import {
+  CAEL_SURVIVAL_GUIDE_TITLE,
+  resolveCaelDailySurvivalLesson,
+} from '../../../shared/world/caelSurvivalGuideBook.js';
 import {
   HEAL_FREE_MAX_LEVEL,
   HEAL_VOLT_COST,
@@ -16,14 +18,18 @@ import {
   REFRACTION_BOOTH_INSTRUCTOR_NPC,
 } from '../../../shared/cityMinigames/refractionBoothConfig.js';
 import { MESTRE_TRILHAS_NPC_ID } from '../../../shared/world/marcosTrailResetPolicy.js';
-import type { WorldChroniclesSnapshot } from '../../../shared/world/worldLoreTypes.js';
 import {
   fetchWorldChronicles,
 } from '../../services/worldLoreClient.js';
 import { resolveWorldLoreCredentials } from '../../services/worldLoreCredentials.js';
 import { formatVolts } from '../../../shared/economy/premiumCurrency.js';
+import { getGameTimeStore } from '../../world/gameTimeStore.js';
 import type { WorldPanelContext } from '../store/worldPanelContext.js';
 import { usePlayerLevel } from '../store/gameStore.js';
+
+/** Intro estática se o snapshot de lore do mundo não vier — só imersão, não mecânica. */
+export const CAEL_WORLD_LORE_FALLBACK_INTRO =
+  'A cidade murmura enquanto o tomo espera. Cael lê uma crônica por ciclo do mundo.';
 
 export type DialogueView = {
   readonly npcId: string;
@@ -56,18 +62,33 @@ export function isMarcosTrailMasterDialogue(dialogue: DialogueView): boolean {
   return dialogue.npcId === MESTRE_TRILHAS_NPC_ID;
 }
 
+function resolveWorldLoreIntroText(
+  absenceIntro: string | null | undefined,
+  firstNarrative: string | null | undefined,
+): string {
+  const absence = typeof absenceIntro === 'string' ? absenceIntro.trim() : '';
+  if (absence) return absence;
+  const line = typeof firstNarrative === 'string' ? firstNarrative.trim() : '';
+  if (line) return line;
+  return CAEL_WORLD_LORE_FALLBACK_INTRO;
+}
+
+function subscribeGameTime(listener: () => void): () => void {
+  return getGameTimeStore().subscribe(() => {
+    listener();
+  });
+}
+
 export function useDialoguePanelState(dialogue: DialogueView) {
   const level = usePlayerLevel();
-  const [chroniclesLoading, setChroniclesLoading] = useState(false);
-  const [chroniclesError, setChroniclesError] = useState<string | null>(null);
-  const [chroniclesSnapshot, setChroniclesSnapshot] = useState<WorldChroniclesSnapshot | null>(null);
-  const chronicleProgress = useSyncExternalStore(
-    getCaelChronicleStore().subscribe,
-    getCaelChronicleStore().getSnapshot,
-    getCaelChronicleStore().getSnapshot,
+  const [worldLoreIntro, setWorldLoreIntro] = useState(CAEL_WORLD_LORE_FALLBACK_INTRO);
+  const gameDayIndex = useSyncExternalStore(
+    subscribeGameTime,
+    () => getGameTimeStore().getInterpolatedGameDayIndex(),
+    () => getGameTimeStore().getInterpolatedGameDayIndex(),
   );
-  const unlockedChapters = listUnlockedCaelChapters(chronicleProgress);
-  const nextChapter = getNextLockedCaelChapter(chronicleProgress);
+  const dailyChapter = resolveCaelDailyChapter(gameDayIndex);
+  const dailySurvivalLesson = resolveCaelDailySurvivalLesson(gameDayIndex);
 
   const isCael = isAnciaoCaelDialogue(dialogue);
   const isRefractionInstructor = isRefractionInstructorDialogue(dialogue);
@@ -75,37 +96,30 @@ export function useDialoguePanelState(dialogue: DialogueView) {
   const voltsCost = resolveHealVoltsCost(level);
   const healSub = voltsCost > 0 ? formatVolts(HEAL_VOLT_COST) : 'Grátis (novatos)';
 
-  const loadChronicles = useCallback(async () => {
-    setChroniclesLoading(true);
-    setChroniclesError(null);
-
+  const loadWorldLoreIntro = useCallback(async () => {
     const creds = resolveWorldLoreCredentials();
-
     try {
       const snapshot = await fetchWorldChronicles({
         playerId: creds.playerId,
         characterId: creds.characterId,
         prioritizeAbsence: false,
       });
-      setChroniclesSnapshot(snapshot);
-      setChroniclesError(null);
+      setWorldLoreIntro(resolveWorldLoreIntroText(
+        snapshot.absenceIntro,
+        snapshot.lines[0]?.narrative,
+      ));
     } catch {
-      setChroniclesError('Os pergaminhos estão embaralhados… tente de novo em instantes.');
-      setChroniclesSnapshot(null);
-    } finally {
-      setChroniclesLoading(false);
+      setWorldLoreIntro(CAEL_WORLD_LORE_FALLBACK_INTRO);
     }
   }, []);
 
   useEffect(() => {
     if (!isCael) return;
-    void loadChronicles();
-  }, [isCael, dialogue.npcId, loadChronicles]);
+    void loadWorldLoreIntro();
+  }, [isCael, dialogue.npcId, loadWorldLoreIntro]);
 
   useEffect(() => {
-    setChroniclesLoading(false);
-    setChroniclesError(null);
-    setChroniclesSnapshot(null);
+    setWorldLoreIntro(CAEL_WORLD_LORE_FALLBACK_INTRO);
   }, [dialogue.npcId, dialogue.text]);
 
   return {
@@ -116,23 +130,12 @@ export function useDialoguePanelState(dialogue: DialogueView) {
     level,
     healSub,
     refractionEntryCost: REFRACTION_BOOTH_CONFIG.entryCostVolts,
-    chroniclesLoading,
-    chroniclesError,
-    chroniclesSnapshot,
+    worldLoreIntro,
     chronicleBookTitle: CAEL_CHRONICLE_BOOK_TITLE,
-    unlockedChapters,
-    nextChapter,
-    chronicleTomeComplete: nextChapter === null && unlockedChapters.length > 0,
+    dailyChapter,
+    survivalGuideTitle: CAEL_SURVIVAL_GUIDE_TITLE,
+    dailySurvivalLesson,
+    survivalGuideSub: dailySurvivalLesson.title,
     healFreeHint: level <= HEAL_FREE_MAX_LEVEL,
   };
-}
-
-export function resolveChroniclePriority(line: {
-  readonly missedWhileAway?: boolean;
-  readonly importance: 'minor' | 'notable' | 'major';
-}): number {
-  if (line.missedWhileAway) return 1;
-  if (line.importance === 'major') return 2;
-  if (line.importance === 'notable') return 3;
-  return 4;
 }

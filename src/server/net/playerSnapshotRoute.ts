@@ -16,6 +16,7 @@ import {
 } from '../supabase/persistAuthoritativeLoginSnapshot.js';
 import { resetNewCharacterEconomy } from './purgeCharacterRuntimeState.js';
 import { reconcileAuthoritativeCharacterClassLink } from '../progression/reconcileCharacterClassLink.js';
+import { ensureAuthoritativeProgressionSession } from '../progression/ensureAuthoritativeProgressionSession.js';
 
 function readDevBypassPlayerId(url: URL): string | null {
   return url.searchParams.get('playerId')?.trim() || null;
@@ -91,6 +92,13 @@ function readClientServerId(url: URL): string | null {
       loaded.scope.characterId,
       bootstrap.classId ?? null,
     );
+    ensureAuthoritativeProgressionSession(playerId, loaded.scope.characterId, {
+      hadPersistedSave,
+      classId: bootstrap.classId ?? null,
+      displayName: bootstrap.profileDisplayName,
+      level: bootstrap.profileLevel,
+      xpCurrent: bootstrap.profileXpCurrent,
+    });
     const snapshot = buildAuthoritativeSnapshotForCharacter(playerId, loaded.scope.characterId);
 
     await persistAuthoritativeLoginSnapshot(

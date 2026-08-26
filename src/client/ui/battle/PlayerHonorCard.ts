@@ -42,7 +42,7 @@ function formatMainHits(data: PlayerHonorCardData): string {
 
 function buildCardHtml(data: PlayerHonorCardData, honorDisabled: boolean): string {
   return `
-    <article class="${PLAYER_HONOR_CARD_CLASS}" role="dialog" aria-label="Cartão de honra — ${escapeHtml(data.opponentName)}" aria-modal="false" data-recipient-actor-id="${escapeHtml(data.opponentActorId)}">
+    <article class="${PLAYER_HONOR_CARD_CLASS} ui-skin-hybrid hud-overlay-card" role="dialog" aria-label="Cartão de honra — ${escapeHtml(data.opponentName)}" aria-modal="false" data-recipient-actor-id="${escapeHtml(data.opponentActorId)}">
       <header class="player-honor-card__header">
         <span class="player-honor-card__tag">ARENA // HONRA</span>
         <button type="button" class="player-honor-card__close" aria-label="Fechar cartão">×</button>

@@ -1,15 +1,22 @@
-import { CAEL_SURVIVAL_GUIDE_SECTIONS } from '../../../shared/world/caelSurvivalGuideContent.js';
+import {
+  CAEL_SURVIVAL_GUIDE_TITLE,
+  type CaelSurvivalLesson,
+} from '../../../shared/world/caelSurvivalGuideBook.js';
+import { CLIENT_ROOT_IDS } from '../../app/shell/uiLayers.js';
 
 let activeCard: SurvivalGuideCard | null = null;
 
 /**
- * Modal estético (estilo Diário) — sobrepõe o terminal do Cael sem fechá-lo.
+ * Modal estético (estilo Diário) — 1 lição do dia do shard.
  */
 export class SurvivalGuideCard {
   private readonly root: HTMLDivElement;
   private readonly panel: HTMLDivElement;
 
-  constructor(private readonly host: HTMLElement) {
+  constructor(
+    private readonly host: HTMLElement,
+    private readonly lesson: CaelSurvivalLesson,
+  ) {
     this.root = document.createElement('div');
     this.root.className = 'survival-guide-card ui-interactive';
     this.root.setAttribute('role', 'presentation');
@@ -22,13 +29,17 @@ export class SurvivalGuideCard {
     this.panel.className = 'survival-guide-card__panel ui-panel ui-panel--diary';
     this.panel.setAttribute('role', 'dialog');
     this.panel.setAttribute('aria-modal', 'true');
-    this.panel.setAttribute('aria-label', 'Guia de Sobrevivência');
-    this.panel.innerHTML = renderSurvivalGuideCardHtml();
+    this.panel.setAttribute('aria-label', CAEL_SURVIVAL_GUIDE_TITLE);
+    this.panel.innerHTML = renderSurvivalGuideCardHtml(lesson);
 
     this.root.append(backdrop, this.panel);
 
     backdrop.addEventListener('mousedown', (event) => {
       event.stopPropagation();
+    });
+    backdrop.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.destroy();
     });
 
     this.panel.addEventListener('mousedown', (event) => {
@@ -60,36 +71,43 @@ export class SurvivalGuideCard {
   }
 }
 
-function renderSurvivalGuideCardHtml(): string {
-  const entries = CAEL_SURVIVAL_GUIDE_SECTIONS.map(
-    (tip, index) => `
-      <article class="diary-book__entry survival-guide-card__entry">
-        <div class="diary-book__entry-head">
-          <span class="diary-book__entry-icon" aria-hidden="true">${index + 1}</span>
-          <div class="diary-book__entry-meta">
-            <span class="diary-book__entry-tag">DICA ${index + 1}</span>
-          </div>
-        </div>
-        <p class="diary-book__entry-content">${escapeHtml(tip)}</p>
-      </article>
-    `,
-  ).join('');
+function resolveSurvivalGuideMountHost(): HTMLElement {
+  return (
+    document.getElementById(CLIENT_ROOT_IDS.overlayRoot)
+    ?? document.getElementById(CLIENT_ROOT_IDS.hudRoot)
+    ?? document.body
+  );
+}
+
+function renderSurvivalGuideCardHtml(lesson: CaelSurvivalLesson): string {
+  const bodyHtml = lesson.body.split('\n\n').map((paragraph) => (
+    `<p class="diary-book__entry-content">${escapeHtml(paragraph)}</p>`
+  )).join('');
 
   return `
     <header class="ui-panel__header diary-panel__header">
       <div class="diary-panel__header-main">
         <span class="diary-panel__tag">ANCIÃO CAEL // SUPORTE</span>
-        <h2 class="ui-panel__title diary-panel__title">Guia de Sobrevivência</h2>
+        <h2 class="ui-panel__title diary-panel__title">${escapeHtml(CAEL_SURVIVAL_GUIDE_TITLE)}</h2>
       </div>
     </header>
     <div class="ui-panel__body diary-panel__body">
       <div class="diary-panel__scroll">
         <div class="diary-book__header">
-          <span class="diary-book__tag">EXPEDIÇÕES EM ALTERCADIA</span>
-          <p class="diary-book__subtitle">Dicas práticas para sobreviver nas ruas e dimensões.</p>
+          <span class="diary-book__tag">LIÇÃO DO CICLO</span>
+          <p class="diary-book__subtitle">Uma tip por ciclo do mundo. Todos leem a mesma.</p>
         </div>
         <div class="diary-book__feed survival-guide-card__feed">
-          ${entries}
+          <article class="diary-book__entry survival-guide-card__entry survival-guide-card__entry--new">
+            <div class="diary-book__entry-head">
+              <span class="diary-book__entry-icon" aria-hidden="true">${lesson.order}</span>
+              <div class="diary-book__entry-meta">
+                <span class="diary-book__entry-tag">LIÇÃO ${lesson.order}</span>
+                <strong class="survival-guide-card__entry-title">${escapeHtml(lesson.title)}</strong>
+              </div>
+            </div>
+            ${bodyHtml}
+          </article>
         </div>
       </div>
     </div>
@@ -101,15 +119,9 @@ function renderSurvivalGuideCardHtml(): string {
   `;
 }
 
-export function openSurvivalGuideCard(): void {
-  if (activeCard) return;
-
-  const mountHost =
-    document.getElementById('ui-layer')
-    ?? document.getElementById('game-stage')
-    ?? document.body;
-
-  activeCard = new SurvivalGuideCard(mountHost);
+export function openSurvivalGuideCard(lesson: CaelSurvivalLesson): void {
+  closeSurvivalGuideCard();
+  activeCard = new SurvivalGuideCard(resolveSurvivalGuideMountHost(), lesson);
   activeCard.open();
 }
 

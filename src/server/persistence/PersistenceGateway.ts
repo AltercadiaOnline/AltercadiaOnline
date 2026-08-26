@@ -28,10 +28,6 @@ import {
   hydrateMercenaryQuestPersistence,
 } from '../quests/mercenaryQuestStore.js';
 import {
-  exportCaelChroniclePersistence,
-  hydrateCaelChroniclePersistence,
-} from '../world/caelChronicleStore.js';
-import {
   exportFriendListPersistence,
   hydrateFriendListPersistence,
 } from '../social/friendListStore.js';
@@ -131,7 +127,6 @@ function buildRecordFromRuntime(
     ownedSkins: exportOwnedSkinsPersistence(playerId, characterId),
     marketplace: exportMarketplacePersistence(playerId, characterId),
     mercenaryQuests: exportMercenaryQuestPersistence(playerId, characterId),
-    caelChronicles: exportCaelChroniclePersistence(playerId, characterId),
     friends: exportFriendListPersistence(playerId, characterId),
     zoneBypassUnlocks: getAuthoritativeZoneBypassGateway().exportPlayerUnlocks(playerId, characterId),
   };
@@ -214,7 +209,6 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
     }
   }
   hydrateMercenaryQuestPersistence(record.playerId, record.characterId, record.mercenaryQuests);
-  hydrateCaelChroniclePersistence(record.playerId, record.characterId, record.caelChronicles);
   hydrateFriendListPersistence(record.playerId, record.characterId, record.friends);
   void getAuthoritativeZoneBypassGateway().ensureBootstrapped().then(() => {
     getAuthoritativeZoneBypassGateway().hydrateCharacterUnlocks(

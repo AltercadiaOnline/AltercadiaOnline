@@ -59,6 +59,7 @@ import {
   purgeCharacterRuntimeState,
   resetNewCharacterEconomy,
 } from './purgeCharacterRuntimeState.js';
+import { resolveHubSlotLevel } from './resolveHubSlotLevel.js';
 
 function resolveSlotIndex(profile: ProfileRow): number | null {
   const fromColumn = profile.slot_index;
@@ -76,6 +77,7 @@ function mapProfileToCharacter(
   playerId: string,
   profile: ProfileRow,
   slotIndex: number,
+  hadPersistedSave: boolean,
 ): AccountCharacter {
   const classId = reconcileAuthoritativeCharacterClassLink(
     playerId,
@@ -91,7 +93,11 @@ function mapProfileToCharacter(
     id: profile.character_id,
     name: displayName,
     class: classId,
-    level: progression.characterProfile.level ?? profile.level ?? 1,
+    level: resolveHubSlotLevel(
+      hadPersistedSave,
+      progression.characterProfile.level,
+      profile.level,
+    ),
     slotIndex,
     serverId: profile.server_id,
     skin: createDefaultPlayerSkin(),
@@ -121,8 +127,8 @@ export async function buildAuthoritativeCharacterHub(
     const slotIndex = resolveSlotIndex(profile);
     if (slotIndex === null) continue;
 
-    await hydrateCharacterSession(playerId, profile.character_id);
-    slots[slotIndex] = mapProfileToCharacter(playerId, profile, slotIndex);
+    const hadPersistedSave = await hydrateCharacterSession(playerId, profile.character_id);
+    slots[slotIndex] = mapProfileToCharacter(playerId, profile, slotIndex, hadPersistedSave);
   }
 
   return { userId: playerId, slots };

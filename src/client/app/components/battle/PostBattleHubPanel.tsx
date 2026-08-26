@@ -109,7 +109,7 @@ export function PostBattleHubPanel({ snapshot }: PostBattleHubPanelProps) {
       aria-label={isPvp ? 'Menu pós-duelo' : 'Menu pós-batalha'}
       data-battle-type={summary.battleType}
     >
-      <div className="post-battle-hub__panel">
+      <div className="post-battle-hub__panel ui-skin-hybrid hud-overlay-card">
         <h2 className="post-battle-hub__title">{resolvePostBattleTitleText(summary)}</h2>
         <p className="post-battle-hub__subtitle">{resolvePostBattleSubtitleText(summary)}</p>
 

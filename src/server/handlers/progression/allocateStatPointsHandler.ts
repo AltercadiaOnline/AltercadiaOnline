@@ -7,7 +7,6 @@ import {
 } from '../../../shared/character/characterStatPoints.js';
 import {
   getAuthoritativeProgression,
-  hasAuthoritativeProgressionEntry,
   patchAuthoritativeProgression,
 } from '../../progression/authoritativeProgressionStore.js';
 import { syncWorldVitalsHpMaxFromLoadout } from '../../world/syncWorldVitalsHpMaxFromLoadout.js';
@@ -16,16 +15,6 @@ export class AllocateStatPointsHandler extends BaseIntentHandler<AllocateStatPoi
   readonly actionType = 'ALLOCATE_STAT_POINTS';
 
   async execute(playerId: string, payload: AllocateStatPointsSpend, intentId: string): Promise<void> {
-    if (!hasAuthoritativeProgressionEntry(playerId, this.characterId)) {
-      this.sendResponse(
-        playerId,
-        intentId,
-        false,
-        'Personagem ainda não sincronizou — reentre no mundo.',
-      );
-      return;
-    }
-
     const progression = getAuthoritativeProgression(playerId, this.characterId);
     const level = Math.max(1, Math.floor(progression.characterProfile.level || 1));
     const current = allocatedStatsFromProfile(progression.characterProfile);
@@ -38,7 +27,9 @@ export class AllocateStatPointsHandler extends BaseIntentHandler<AllocateStatPoi
     patchAuthoritativeProgression(playerId, this.characterId, {
       characterProfile: allocatedStatsToProfileFields(result.allocated),
     });
-    const worldVitals = syncWorldVitalsHpMaxFromLoadout(playerId, this.characterId, intentId);
+    // Sem intentId: WorldVitalsUpdated não pode confirmIntent antes do intent-result
+    // (senão a bolsa characterStatPoints nunca chega na Ficha).
+    const worldVitals = syncWorldVitalsHpMaxFromLoadout(playerId, this.characterId);
     this.sendResponse(playerId, intentId, true, {
       characterStatPoints: result.view,
       worldVitals,

@@ -42,6 +42,7 @@ import { resetBattleHudStoreSession } from '../app/battle/battleHudStore.js';
 import { resetMarcoCombatTelemetry } from '../progression/marcoCombatTelemetry.js';
 import { resetDeathPenaltyMirrorGuard } from '../progression/deathPenaltyClient.js';
 import { resetBattleProgressionClientGuard } from '../progression/battleProgressionClient.js';
+import { resetLocalCityRestRegen } from '../world/localCityRestRegen.js';
 
 import { resetWorldAssetImageCache } from '../world/worldAssetImageLoader.js';
 import { resetWorldSprayMirror } from '../world/worldSpraySyncBridge.js';
@@ -114,6 +115,7 @@ function purgeSessionState(): void {
   resetMarcoCombatTelemetry();
   resetDeathPenaltyMirrorGuard();
   resetBattleProgressionClientGuard();
+  resetLocalCityRestRegen();
 }
 
 /** Imagens e atlas — evita acumular memória entre personagens/zonas. */

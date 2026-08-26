@@ -10,6 +10,8 @@ export type GameTimeAnchor = {
   /** Segundos no ciclo [0, 1800). */
   readonly gameTime: number;
   readonly serverTimeMs: number;
+  /** Dias in-game desde o boot do shard (1 ciclo = 1 dia). */
+  readonly gameDayIndex: number;
 };
 
 export type AmbientOverlayStyle = {
@@ -21,6 +23,11 @@ export type AmbientOverlayStyle = {
 export function normalizeGameTimeSeconds(seconds: number): number {
   const mod = seconds % GAME_CYCLE_DURATION_SECONDS;
   return mod < 0 ? mod + GAME_CYCLE_DURATION_SECONDS : mod;
+}
+
+export function sanitizeGameDayIndex(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.floor(value));
 }
 
 export function gameTimeToCycleProgress(gameTimeSeconds: number): number {
@@ -100,10 +107,15 @@ export function resolveAmbientOverlay(gameTimeSeconds: number): AmbientOverlaySt
   };
 }
 
-export function buildGameTimeAnchor(gameTimeSeconds: number, serverTimeMs: number): GameTimeAnchor {
+export function buildGameTimeAnchor(
+  gameTimeSeconds: number,
+  serverTimeMs: number,
+  gameDayIndex: number = 0,
+): GameTimeAnchor {
   return {
     gameTime: normalizeGameTimeSeconds(gameTimeSeconds),
     serverTimeMs,
+    gameDayIndex: sanitizeGameDayIndex(gameDayIndex),
   };
 }
 
@@ -111,6 +123,23 @@ export function buildGameTimeAnchor(gameTimeSeconds: number, serverTimeMs: numbe
 export function interpolateGameTimeSeconds(anchor: GameTimeAnchor, nowMs: number = Date.now()): number {
   const deltaSec = (nowMs - anchor.serverTimeMs) / 1000;
   return normalizeGameTimeSeconds(anchor.gameTime + deltaSec);
+}
+
+/**
+ * Dia in-game interpolado a partir da âncora (avança quando o ciclo completa).
+ * Cliente não inventa relógio — só projeta a âncora do servidor.
+ */
+export function interpolateGameDayIndex(anchor: GameTimeAnchor, nowMs: number = Date.now()): number {
+  const baseDay = sanitizeGameDayIndex(anchor.gameDayIndex);
+  if (!Number.isFinite(anchor.serverTimeMs) || anchor.serverTimeMs <= 0) {
+    return baseDay;
+  }
+  const deltaMs = Math.max(0, nowMs - anchor.serverTimeMs);
+  const totalMs =
+    baseDay * GAME_CYCLE_DURATION_MS
+    + normalizeGameTimeSeconds(anchor.gameTime) * 1000
+    + deltaMs;
+  return Math.floor(totalMs / GAME_CYCLE_DURATION_MS);
 }
 
 export function isGameTimeAnchor(value: unknown): value is GameTimeAnchor {
@@ -124,13 +153,24 @@ export function isGameTimeAnchor(value: unknown): value is GameTimeAnchor {
   return false;
 }
 
-/** Aceita número (segundos) ou âncora legada com serverTimeMs. */
-export function resolveGameTimeAnchor(raw: unknown, serverTimeMs: number): GameTimeAnchor | null {
+/** Aceita número (segundos) ou âncora com serverTimeMs (+ gameDayIndex opcional). */
+export function resolveGameTimeAnchor(
+  raw: unknown,
+  serverTimeMs: number,
+  gameDayIndex: unknown = 0,
+): GameTimeAnchor | null {
   if (typeof raw === 'number' && Number.isFinite(raw)) {
-    return buildGameTimeAnchor(raw, serverTimeMs);
+    return buildGameTimeAnchor(raw, serverTimeMs, sanitizeGameDayIndex(gameDayIndex));
   }
   if (isGameTimeAnchor(raw)) {
-    return raw;
+    const record = raw as GameTimeAnchor & { readonly gameDayIndex?: unknown };
+    return buildGameTimeAnchor(
+      raw.gameTime,
+      raw.serverTimeMs,
+      record.gameDayIndex !== undefined
+        ? sanitizeGameDayIndex(record.gameDayIndex)
+        : sanitizeGameDayIndex(gameDayIndex),
+    );
   }
   return null;
 }

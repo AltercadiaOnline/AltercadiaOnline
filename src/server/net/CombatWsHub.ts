@@ -179,6 +179,7 @@ import {
   touchCharacterPersistenceDirty,
 } from '../persistence/PersistenceGateway.js';
 import { reconcileAuthoritativeCharacterClassLink } from '../progression/reconcileCharacterClassLink.js';
+import { ensureAuthoritativeProgressionSession } from '../progression/ensureAuthoritativeProgressionSession.js';
 import { getSessionAuthGateway } from '../auth/SessionAuthGateway.js';
 import { resolveMinorAccountNotice, buildAvisoMenor } from '../../shared/auth/accountAgePolicy.js';
 import { SecurityGuard } from '../middleware/securityGuard.js';
@@ -1830,12 +1831,14 @@ export class CombatWsHub implements CombatWsRouteHost {
       )
       : [];
 
+    const timeAnchor = this.timeManager.getAnchor(envelope.serverTimeMs);
     this.sendStateSync(ws, envelope, {
       mode: 'tick',
       delta: {
         tick: this.syncAuthority.getCurrentTick(),
         serverTimeMs: envelope.serverTimeMs,
-        gameTime: this.timeManager.getAnchor(envelope.serverTimeMs).gameTime,
+        gameTime: timeAnchor.gameTime,
+        gameDayIndex: timeAnchor.gameDayIndex,
         position: {
           mapId: profile.currentMapId,
           x: profile.lastPosition.x,
@@ -2304,6 +2307,13 @@ export class CombatWsHub implements CombatWsRouteHost {
         payload.characterId,
         bootstrap.classId ?? null,
       );
+      ensureAuthoritativeProgressionSession(authUserId, payload.characterId, {
+        hadPersistedSave,
+        classId: bootstrap.classId ?? null,
+        displayName: payload.displayName?.trim() || bootstrap.profileDisplayName,
+        level: bootstrap.profileLevel,
+        xpCurrent: bootstrap.profileXpCurrent,
+      });
       // Save legado: trilha travada sem starter — repara antes do full-state-sync.
       repairTrailStarterIfNeeded(authUserId, payload.characterId);
 

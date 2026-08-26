@@ -32,7 +32,6 @@ import type { WorldSocket } from '../world/WorldSocket.js';
 import { isMonsterDefeated } from '../../shared/world/defeatedMonsterState.js';
 import { requestPortalConfirmation } from '../world/portalConfirmationController.js';
 import { getWorldObjectById, WorldObjectAction } from '../../shared/world/worldObjectRegistry.js';
-import { beginWorldHudInteractionSession } from '../world/worldHudInteractionSession.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 import type { InteractionCardTarget } from '../../shared/world/interactionCardTypes.js';
 import { InteractionTargetType } from '../../shared/world/interactionCardTypes.js';
@@ -582,11 +581,6 @@ export class PointClickController implements Disposable {
         if (!worldObject) break;
 
         if (worldObject.action === WorldObjectAction.OPEN_RANKING_MONITOR) {
-          beginWorldHudInteractionSession({
-            x: player.x,
-            y: player.y,
-            facing: player.facing,
-          });
           uiEvents.emit(UIEventType.SHOW_RANKING_MONITOR, {
             objectId: worldObject.id,
             label: worldObject.label,

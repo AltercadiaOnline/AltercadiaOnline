@@ -105,7 +105,7 @@ export function BattleStatisticsReportPanel({ report }: BattleStatisticsReportPa
         if (event.target === event.currentTarget) close();
       }}
     >
-      <div className="battle-stats-panel battle-stats-panel--terminal">
+      <div className="battle-stats-panel battle-stats-panel--terminal ui-skin-hybrid hud-overlay-card">
         <header className="battle-stats-panel__header">
           <p className="battle-stats-panel__eyebrow">Relatório de Batalha</p>
           <h3 className="battle-stats-panel__title">Estatísticas</h3>

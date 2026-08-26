@@ -13,32 +13,40 @@ export type TimeManagerOptions = {
 
 /**
  * Relógio global autoritativo — ciclo de 1800s (30 min).
+ * Conta dias monotônicos (gameDayIndex) para mecânicas de shard (ex.: crônica diária do Cael).
  * O cliente nunca avança o tempo; apenas interpola a partir das âncoras recebidas.
  */
 export class TimeManager {
-  private elapsedMs = 0;
+  /** Ms totais desde o boot (não modulo) — base do dayIndex. */
+  private totalElapsedMs = 0;
   private readonly cycleDurationMs: number;
 
   constructor(options: TimeManagerOptions = {}) {
     const initialSeconds = options.initialGameTimeSeconds ?? 525;
     this.cycleDurationMs = options.cycleDurationMs ?? GAME_CYCLE_DURATION_MS;
-    this.elapsedMs = normalizeGameTimeSeconds(initialSeconds) * 1000;
+    this.totalElapsedMs = normalizeGameTimeSeconds(initialSeconds) * 1000;
   }
 
   advance(deltaMs: number, serverTimeMs: number): GameTimeAnchor {
     if (deltaMs > 0) {
-      this.elapsedMs = (this.elapsedMs + deltaMs) % this.cycleDurationMs;
+      this.totalElapsedMs += deltaMs;
     }
     return this.getAnchor(serverTimeMs);
   }
 
   getAnchor(serverTimeMs: number = Date.now()): GameTimeAnchor {
-    const gameTimeSeconds = this.elapsedMs / 1000;
-    return buildGameTimeAnchor(gameTimeSeconds, serverTimeMs);
+    const cycleMs = this.totalElapsedMs % this.cycleDurationMs;
+    const gameTimeSeconds = cycleMs / 1000;
+    const gameDayIndex = Math.floor(this.totalElapsedMs / this.cycleDurationMs);
+    return buildGameTimeAnchor(gameTimeSeconds, serverTimeMs, gameDayIndex);
   }
 
   getGameTimeSeconds(): number {
-    return this.elapsedMs / 1000;
+    return (this.totalElapsedMs % this.cycleDurationMs) / 1000;
+  }
+
+  getGameDayIndex(): number {
+    return Math.floor(this.totalElapsedMs / this.cycleDurationMs);
   }
 }
 

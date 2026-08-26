@@ -27,6 +27,14 @@ Visual = **Construct 3**. Lógica = servidor + `src/shared/world`. Overlay canva
 
 Tick leva identidade **do peer**, não do observador: pose + `skinBundleId` + `level` + `companion` (pet convocado). Contrato: `remotePlayerSync.ts`. Servidor preenche em `nearbyPlayerAppearance.ts` (progressão + roster). Overlay: sprite **por** `skinBundleId`; pet ancora atrás do dono (`remoteCompanionPose.ts`). Nametag: `Nome (Nível: N)` via `formatRemotePlayerNametag`. Campo omitido → não inventar no cliente (sem copiar skin/pet local).
 
+### Descanso na cidade (HP/MP)
+
+- Só `city_01`, **parado** (sem passo aceito no tick).
+- HP e MP, inclusive a partir de 0.
+- Taxa flat (~99 pontos / 60 s) → teto maior demora mais.
+- Sai da cidade / anda → pausa; volta / para → continua do valor atual.
+- Shared: `cityRestRegen.ts` · Servidor: `cityRestRegenTick` no `GameLoop` · Local: `localCityRestRegen`.
+
 ### Multiplayer ao vivo (contrato)
 
 | Peça | Path / regra |

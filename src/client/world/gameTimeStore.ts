@@ -1,12 +1,13 @@
 import {
   buildGameTimeAnchor,
+  interpolateGameDayIndex,
   interpolateGameTimeSeconds,
   type GameTimeAnchor,
 } from '../../shared/world/gameTime.js';
 
 type GameTimeListener = (interpolatedSeconds: number) => void;
 
-const DEFAULT_ANCHOR = buildGameTimeAnchor(525, 0);
+const DEFAULT_ANCHOR = buildGameTimeAnchor(525, 0, 0);
 
 export class GameTimeStore {
   private anchor: GameTimeAnchor = DEFAULT_ANCHOR;
@@ -16,15 +17,20 @@ export class GameTimeStore {
     return this.anchor;
   }
 
-  /** Âncora autoritativa recebida do Gateway (gameTime + serverTimeMs). */
-  applyAnchor(gameTimeSeconds: number, serverTimeMs: number): void {
-    this.anchor = buildGameTimeAnchor(gameTimeSeconds, serverTimeMs);
+  /** Âncora autoritativa recebida do Gateway (gameTime + dayIndex + serverTimeMs). */
+  applyAnchor(gameTimeSeconds: number, serverTimeMs: number, gameDayIndex: number = 0): void {
+    this.anchor = buildGameTimeAnchor(gameTimeSeconds, serverTimeMs, gameDayIndex);
     this.notify();
   }
 
   /** Tempo interpolado com base no timestamp de recepção — não gera relógio próprio. */
   getInterpolatedGameTime(nowMs: number = Date.now()): number {
     return interpolateGameTimeSeconds(this.anchor, nowMs);
+  }
+
+  /** Dia in-game interpolado a partir da âncora do servidor. */
+  getInterpolatedGameDayIndex(nowMs: number = Date.now()): number {
+    return interpolateGameDayIndex(this.anchor, nowMs);
   }
 
   subscribe(listener: GameTimeListener): () => void {

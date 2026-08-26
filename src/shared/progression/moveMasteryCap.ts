@@ -7,8 +7,11 @@ import {
   type MoveProgressionSnapshot,
 } from './moveProgression.js';
 
-/** Teto de domínio: moveLevel < charLevel × fator para continuar ganhando XP. */
-export const MOVE_MASTERY_CAP_FACTOR = 1.5;
+/**
+ * Teto de domínio: moveLevel < charLevel × fator para continuar ganhando XP.
+ * 2.0 → char 30 pode chegar a domínio ~50–59 (moveset na frente no mid).
+ */
+export const MOVE_MASTERY_CAP_FACTOR = 2;
 
 /** Verifica se o move pode subir de nível ou ganhar XP de domínio. */
 export function canMoveGainXp(charLevel: number, moveLevel: number): boolean {

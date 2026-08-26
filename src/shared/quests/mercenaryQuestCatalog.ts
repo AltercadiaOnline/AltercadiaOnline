@@ -7,8 +7,8 @@ import {
 } from './mercenaryQuestTypes.js';
 
 /**
- * Piloto: 3 faixas exclusivas × 5 contratos.
- * Nv. 10 → só faixa 1; Nv. 11+ → faixa 2; Nv. 30 → faixa 2; Nv. 31+ → faixa 3.
+ * Piloto: 3 faixas × 5 contratos.
+ * Unlock: tier 1 sempre; próximo tier só após completar as 5 do anterior.
  */
 export const MERCENARY_QUEST_BANDS: readonly MercenaryQuestBand[] = [
   {
@@ -326,15 +326,57 @@ export function getMercenaryQuestBand(tier: MercenaryQuestDefinition['tier']): M
   return MERCENARY_QUEST_BANDS.find((band) => band.tier === tier) ?? MERCENARY_QUEST_BANDS[0]!;
 }
 
-/** Faixa estrita do quadro — o nível do personagem precisa caber em min/max da missão. */
-export function getAvailableMercenaryQuests(
-  playerLevel: number,
+export function getMercenaryQuestsByTier(
+  tier: MercenaryQuestDefinition['tier'],
   catalog: readonly MercenaryQuestDefinition[] = QUESTS,
 ): readonly MercenaryQuestDefinition[] {
-  const level = Math.max(1, Math.floor(playerLevel));
-  return catalog.filter((quest) => level >= quest.minLevel && level <= quest.maxLevel);
+  return catalog.filter((quest) => quest.tier === tier);
 }
 
+export function isMercenaryTierComplete(
+  tier: MercenaryQuestDefinition['tier'],
+  progress: MercenaryQuestProgress,
+  catalog: readonly MercenaryQuestDefinition[] = QUESTS,
+): boolean {
+  const inTier = getMercenaryQuestsByTier(tier, catalog);
+  if (inTier.length === 0) return false;
+  const completed = new Set(progress.completedQuestIds);
+  return inTier.every((quest) => completed.has(quest.id));
+}
+
+/** Maior tier liberado: 1 sempre; N+1 só se as 5 do N estão concluídas. */
+export function resolveHighestUnlockedMercenaryTier(
+  progress: MercenaryQuestProgress,
+  catalog: readonly MercenaryQuestDefinition[] = QUESTS,
+): MercenaryQuestDefinition['tier'] {
+  let unlocked: MercenaryQuestDefinition['tier'] = 1;
+  for (const band of MERCENARY_QUEST_BANDS) {
+    if (band.tier === 1) continue;
+    const previous = (band.tier - 1) as MercenaryQuestDefinition['tier'];
+    if (!isMercenaryTierComplete(previous, progress, catalog)) break;
+    unlocked = band.tier;
+  }
+  return unlocked;
+}
+
+export function isMercenaryQuestUnlocked(
+  quest: MercenaryQuestDefinition,
+  progress: MercenaryQuestProgress,
+  catalog: readonly MercenaryQuestDefinition[] = QUESTS,
+): boolean {
+  return quest.tier <= resolveHighestUnlockedMercenaryTier(progress, catalog);
+}
+
+/** Quadro disponível = contratos do maior unlock (e tiers anteriores, se pedido). */
+export function getAvailableMercenaryQuests(
+  progress: MercenaryQuestProgress = EMPTY_MERCENARY_QUEST_PROGRESS,
+  catalog: readonly MercenaryQuestDefinition[] = QUESTS,
+): readonly MercenaryQuestDefinition[] {
+  const unlocked = resolveHighestUnlockedMercenaryTier(progress, catalog);
+  return catalog.filter((quest) => quest.tier <= unlocked);
+}
+
+/** Flavor de nível no card — não libera unlock. */
 export function isMercenaryQuestInLevelBand(
   quest: MercenaryQuestDefinition,
   playerLevel: number,
@@ -344,14 +386,31 @@ export function isMercenaryQuestInLevelBand(
 }
 
 export function buildMercenaryQuestBoard(
-  playerLevel: number,
   progress: MercenaryQuestProgress = EMPTY_MERCENARY_QUEST_PROGRESS,
+  options: { readonly tier?: MercenaryQuestDefinition['tier'] } = {},
 ): readonly MercenaryQuestBoardRow[] {
   const completed = new Set(progress.completedQuestIds);
-  return getAvailableMercenaryQuests(playerLevel).map((quest) => {
+  const unlocked = resolveHighestUnlockedMercenaryTier(progress);
+  const pool = options.tier != null
+    ? getMercenaryQuestsByTier(options.tier)
+    : getAvailableMercenaryQuests(progress);
+  return pool.map((quest) => {
     let status: MercenaryQuestBoardRow['status'] = 'available';
     if (completed.has(quest.id)) status = 'completed';
     else if (progress.activeQuestId === quest.id) status = 'active';
+    else if (quest.tier > unlocked) status = 'available';
     return { ...quest, status };
   });
+}
+
+/** Primeiro tier desbloqueado ainda incompleto; se todos ok, o maior unlock. */
+export function resolveDefaultMercenaryViewTier(
+  progress: MercenaryQuestProgress,
+): MercenaryQuestDefinition['tier'] {
+  const unlocked = resolveHighestUnlockedMercenaryTier(progress);
+  for (const band of MERCENARY_QUEST_BANDS) {
+    if (band.tier > unlocked) break;
+    if (!isMercenaryTierComplete(band.tier, progress)) return band.tier;
+  }
+  return unlocked;
 }

@@ -23,7 +23,34 @@ export function resolveLootCasinoHintForPhase(
         return `${giroPrefix}Giro revelado. Puxe de novo para o próximo.`;
       }
       return allLootRevealSlotsEmpty(slots)
-        ? 'Nenhum drop desta vez. Colete ou saia — sair sem coletar perde o loot.'
-        : 'Toque em Coletar para enviar ao inventário, ou saia sem coletar.';
+        ? 'Nenhum drop desta vez. Toque em Coletar para encerrar (sair sem coletar também encerra).'
+        : 'Toque em Coletar para o inventário — sair sem coletar perde estes itens.';
   }
+}
+
+export function resolveLootCasinoTitle(readyToCollect: boolean): string {
+  return readyToCollect ? 'Recompensas prontas' : 'Recompensas';
+}
+
+export function resolveLootCasinoCollectLabel(pending: boolean): string {
+  return pending ? 'Coletando…' : 'Coletar para o inventário';
+}
+
+export function resolveLootCasinoDiscardPrompt(slotsEmpty: boolean): {
+  readonly title: string;
+  readonly body: string;
+  readonly confirmLabel: string;
+} {
+  if (slotsEmpty) {
+    return {
+      title: 'Sair sem coletar?',
+      body: 'Não há itens nesta rodada. Sair encerra o pacote de recompensas.',
+      confirmLabel: 'Sair',
+    };
+  }
+  return {
+    title: 'Descartar loot?',
+    body: 'Itens e VOLTS desta luta serão perdidos. Confirme só se quiser abrir mão das recompensas.',
+    confirmLabel: 'Descartar loot',
+  };
 }

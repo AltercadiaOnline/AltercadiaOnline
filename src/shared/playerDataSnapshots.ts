@@ -133,15 +133,12 @@ export type AuthoritativePlayerSnapshot = {
   readonly gameTime?: number;
   /** Timestamp do servidor ao capturar gameTime (interpolação no cliente). */
   readonly gameTimeServerMs?: number;
+  /** Dias in-game desde o boot do shard (crônica diária do Cael, etc.). */
+  readonly gameDayIndex?: number;
   /** Quadro de Agente — espelho do progresso de contratos. */
   readonly mercenaryQuests?: {
     readonly activeQuestId: string | null;
     readonly completedQuestIds: readonly string[];
-  };
-  /** Livro I do Cael — capítulos já ouvidos neste personagem. */
-  readonly caelChronicles?: {
-    readonly unlockedChapterIds: readonly string[];
-    readonly unlockedQuestHookIds: readonly string[];
   };
   /** Amigos do personagem. `online` é da sessão atual. */
   readonly friends?: readonly import('./social/friendListTypes.js').FriendListViewEntry[];

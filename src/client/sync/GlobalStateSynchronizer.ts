@@ -62,13 +62,17 @@ export type StateSyncApplyResult = SyncApplyDecision | 'invalid';
 
 
 
-function applyAuthoritativeGameTime(raw: unknown, serverTimeMs: number): void {
+function applyAuthoritativeGameTime(
+  raw: unknown,
+  serverTimeMs: number,
+  gameDayIndex: unknown = 0,
+): void {
 
-  const anchor = resolveGameTimeAnchor(raw, serverTimeMs);
+  const anchor = resolveGameTimeAnchor(raw, serverTimeMs, gameDayIndex);
 
   if (!anchor) return;
 
-  getGameTimeStore().applyAnchor(anchor.gameTime, anchor.serverTimeMs);
+  getGameTimeStore().applyAnchor(anchor.gameTime, anchor.serverTimeMs, anchor.gameDayIndex);
 
 }
 
@@ -83,6 +87,8 @@ function applyGameTimeFromPlayerSnapshot(snapshot: AuthoritativePlayerSnapshot):
     snapshot.gameTime,
 
     snapshot.gameTimeServerMs ?? snapshot.revision,
+
+    snapshot.gameDayIndex,
 
   );
 
@@ -224,6 +230,8 @@ export class GlobalStateSynchronizer {
         payload.body.delta.gameTime,
 
         payload.body.delta.serverTimeMs,
+
+        payload.body.delta.gameDayIndex,
 
       );
 

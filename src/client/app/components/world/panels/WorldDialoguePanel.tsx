@@ -14,7 +14,6 @@ import { requestReactRefractionNpcStart } from '../../../panels/refractionBoothB
 import { useActionGatewaySubmit } from '../../../panels/useActionGatewaySubmit.js';
 import { useReleaseWorldHudOnPanelClose } from '../../../panels/useReleaseWorldHudOnPanelClose.js';
 import {
-  resolveChroniclePriority,
   resolveDialogueFromContext,
   useDialoguePanelState,
 } from '../../../panels/useDialoguePanelState.js';
@@ -84,15 +83,11 @@ export function WorldDialoguePanel({
     });
   }, [dialogue.npcId]);
 
-  const handleHearChronicle = useCallback(() => {
-    return getActionDispatcher().dispatch({
-      type: 'CAEL_HEAR_CHRONICLE',
-      payload: { npcId: dialogue.npcId },
-    });
-  }, [dialogue.npcId]);
-
   const healGateway = useActionGatewaySubmit({ onClick: handleHeal });
-  const hearGateway = useActionGatewaySubmit({ onClick: handleHearChronicle });
+
+  const handleOpenSurvivalGuide = useCallback(() => {
+    openSurvivalGuideCard(state.dailySurvivalLesson);
+  }, [state.dailySurvivalLesson]);
 
   const handleResetMarcosTrail = useCallback(() => {
     return getActionDispatcher().dispatch({
@@ -120,8 +115,10 @@ export function WorldDialoguePanel({
     : 'world-panel--dialogue ui-panel--dialogue ui-panel--dialogue-generic ui-panel--dialogue-hybrid ui-skin-hybrid';
 
   const panelStyle = state.isCael
-    ? { width: 'min(720px, 98vw)' }
+    ? { width: 'min(880px, 94vw)', height: 'auto', maxHeight: 'min(92vh, 720px)' }
     : { width: 'min(420px, 96vw)' };
+
+  const chapter = state.dailyChapter;
 
   return (
     <MovablePanelFrame
@@ -132,6 +129,7 @@ export function WorldDialoguePanel({
       focused={focused}
       panelClassName={panelClassName}
       panelStyle={panelStyle}
+      bodyOverflow={state.isCael ? 'hidden' : 'auto'}
       onFocus={onFocus ?? (() => tryFocusReactWorldPanel('dialogue'))}
       onClose={handleClose}
     >
@@ -160,12 +158,12 @@ export function WorldDialoguePanel({
                 <button
                   type="button"
                   className="cael-panel__action"
-                  onClick={() => openSurvivalGuideCard()}
+                  onClick={handleOpenSurvivalGuide}
                 >
                   <span className="cael-panel__action-icon" aria-hidden="true">?</span>
                   <span className="cael-panel__action-text">
-                    <strong>Guia de Sobrevivência</strong>
-                    <small>Dicas práticas para expedições</small>
+                    <strong>{state.survivalGuideTitle}</strong>
+                    <small>{state.survivalGuideSub}</small>
                   </span>
                 </button>
               </div>
@@ -177,74 +175,29 @@ export function WorldDialoguePanel({
               </p>
             </aside>
 
-            <section className="cael-panel__chronicles" aria-label="Crônicas de Altercadia">
+            <section className="cael-panel__chronicles" aria-label={state.chronicleBookTitle}>
+              <p className="cael-panel__chronicles-intro">{state.worldLoreIntro}</p>
+
               <h3 className="cael-panel__section-label">{state.chronicleBookTitle}</h3>
               <div className="cael-panel__scroll">
-                <div className="cael-panel__journal">
-                  <p className="cael-panel__book-kicker">O que ouvi</p>
-                  {state.chroniclesLoading ? (
-                    <p className="cael-panel__chronicles-status">Cael consulta os pergaminhos…</p>
-                  ) : state.chroniclesError ? (
-                    <p className="cael-panel__chronicles-status cael-panel__chronicles-status--error">
-                      {state.chroniclesError}
+                <article className="cael-panel__book-chapter cael-panel__book-chapter--new">
+                  <p className="cael-panel__book-title">{chapter.title}</p>
+                  {chapter.body.split('\n\n').map((paragraph, index) => (
+                    <p
+                      key={`${chapter.id}-${index}`}
+                      className="cael-panel__book-body"
+                    >
+                      {paragraph}
                     </p>
-                  ) : !state.chroniclesSnapshot || state.chroniclesSnapshot.lines.length === 0 ? (
-                    <p className="cael-panel__chronicles-status">
-                      Nenhum rumor novo chegou aos ouvidos do Ancião.
-                    </p>
-                  ) : (
-                    <div className="cael-panel__chronicles-feed">
-                      {state.chroniclesSnapshot.lines.map((line) => (
-                        <article
-                          key={line.entryId}
-                          className="cael-panel__chronicle"
-                          data-hud-priority={resolveChroniclePriority(line)}
-                        >
-                          <p className="cael-panel__chronicle-text">{line.narrative}</p>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="cael-panel__book">
-                  <p className="cael-panel__book-kicker">Livro I</p>
-                  {state.unlockedChapters.length === 0 ? (
-                    <p className="cael-panel__chronicles-status">
-                      O tomo está fechado. Pede ao Cael que leia a primeira passagem.
-                    </p>
-                  ) : (
-                    state.unlockedChapters.map((chapter) => (
-                      <article key={chapter.id} className="cael-panel__book-chapter">
-                        <h4 className="cael-panel__book-title">{chapter.title}</h4>
-                        {chapter.body.split('\n\n').map((paragraph) => (
-                          <p key={paragraph.slice(0, 24)} className="cael-panel__book-body">
-                            {paragraph}
-                          </p>
-                        ))}
-                        {chapter.questHookNote ? (
-                          <p className="cael-panel__book-hook">{chapter.questHookNote}</p>
-                        ) : null}
-                      </article>
-                    ))
-                  )}
-                </div>
+                  ))}
+                  {chapter.questHookNote ? (
+                    <p className="cael-panel__book-hook">{chapter.questHookNote}</p>
+                  ) : null}
+                </article>
               </div>
-              <button
-                type="button"
-                className="cael-panel__hear"
-                disabled={hearGateway.pending || state.chronicleTomeComplete}
-                aria-busy={hearGateway.pending}
-                onClick={hearGateway.submit}
-              >
-                {hearGateway.pending
-                  ? 'Cael abre o tomo…'
-                  : state.chronicleTomeComplete
-                    ? 'O tomo, por ora, já foi lido.'
-                    : state.nextChapter
-                      ? `Ouvir: ${state.nextChapter.title}`
-                      : 'Ouvir o próximo capítulo'}
-              </button>
+              <p className="cael-panel__chronicles-status">
+                A crônica muda a cada ciclo do mundo (~30 min). Todos ouvem o mesmo capítulo.
+              </p>
             </section>
           </div>
         </div>

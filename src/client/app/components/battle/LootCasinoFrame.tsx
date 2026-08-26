@@ -21,7 +21,7 @@ export function LootCasinoFrame({
       aria-label={ariaLabel}
       {...(ariaModal ? { 'aria-modal': true as const } : {})}
     >
-      <div className="loot-casino-screen__panel">
+      <div className="loot-casino-screen__panel ui-skin-hybrid hud-overlay-card">
         {children}
       </div>
     </div>

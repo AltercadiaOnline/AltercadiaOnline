@@ -35,6 +35,7 @@ Progressão e social de mapa. Só abrir estas fichas se o bug for **desse** POI.
 | Ordem | Você está mexendo em… | Ficha | Pasta âncora |
 |------:|-----------------------|-------|----------------|
 | 8 | Marcos, pets, missões mercenário | [progressao-pets-quests.md](progressao-pets-quests.md) | `src/server/progression/` `pets/` `quests/` |
+| 8b | Cronograma 15 quests (steps, itens, POIs) | [mercenary-quests-cronograma.md](mercenary-quests-cronograma.md) | Quadro de Agente — implementação quest a quest |
 | 9 | Chat global | [chat.md](chat.md) | `src/server/handlers/social/ChatGlobalSendHandler.ts` |
 | 10 | Ranking / placar da arena | [ranking.md](ranking.md) | `src/server/leaderboard/` |
 | 11 | Refração, terminal zona 1, lazer cidade | [minigames-cidade.md](minigames-cidade.md) | `src/shared/cityMinigames/` `worldTerminalCatalog.ts` |

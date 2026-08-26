@@ -33,6 +33,7 @@ import {
 } from './zoneBypassSyncDirty.js';
 import { zoneBypassPlayerKey } from '../../shared/world/zoneBypassPlayerKey.js';
 import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
+import { tickCityRestRegen } from './cityRestRegenTick.js';
 
 export type GameLoopWorldSession = {
   readonly connectionId: string;
@@ -75,6 +76,7 @@ export class GameLoop {
       tick,
       serverTimeMs: envelope.serverTimeMs,
       gameTime: timeAnchor.gameTime,
+      gameDayIndex: timeAnchor.gameDayIndex,
     };
     const appearanceByPeer = new Map<string, NearbyPeerAppearance>();
 
@@ -103,6 +105,15 @@ export class GameLoop {
       const profile = moveResult
         ? (moveResult.ok ? moveResult.profile : getWorldProfile(world.playerId, world.characterId))
         : getWorldProfile(world.playerId, world.characterId);
+
+      const standingStill = moveResult?.ok !== true;
+      tickCityRestRegen({
+        playerId: world.playerId,
+        characterId: world.characterId,
+        mapId: profile.currentMapId,
+        standingStill,
+        elapsedMs: WORLD_TICK_MS,
+      });
 
       deps.gameState.syncFromProfile(session.connectionId, profile, 'exploring', tick);
 

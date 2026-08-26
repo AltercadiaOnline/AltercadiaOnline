@@ -22,6 +22,10 @@ export type ServerPlayerBootstrapResult = {
   readonly supabaseConfigured: true;
   readonly created?: boolean;
   readonly classId?: ClassType;
+  /** Perfil Supabase — reidrata progressão quando não há save em disco. */
+  readonly profileLevel?: number;
+  readonly profileXpCurrent?: number;
+  readonly profileDisplayName?: string;
 };
 
 export type ServerPlayerBootstrapOptions = {
@@ -63,6 +67,16 @@ export async function ensureServerPlayerBootstrap(
   const newCharacter = options?.newCharacter === true;
   const hubClassId = parseHubClassId(result.profile?.class_id);
 
+  const profileSnapshot = result.profile
+    ? {
+        profileLevel: Math.max(1, Math.floor(result.profile.level || 1)),
+        profileXpCurrent: Math.max(0, Math.floor(result.profile.xp_current || 0)),
+        ...(result.profile.display_name?.trim()
+          ? { profileDisplayName: result.profile.display_name.trim() }
+          : {}),
+      }
+    : {};
+
   if (newCharacter) {
     // Defesa definitiva: nunca aplicar stacks/roster do Supabase em ficha nova.
     resetNewCharacterEconomy(userId, characterId);
@@ -71,6 +85,7 @@ export async function ensureServerPlayerBootstrap(
     return {
       profileReady: true,
       supabaseConfigured: true,
+      ...profileSnapshot,
       ...(loaded.created ? { created: true } : {}),
       ...(hubClassId ? { classId: hubClassId } : {}),
     };
@@ -112,6 +127,7 @@ export async function ensureServerPlayerBootstrap(
   return {
     profileReady: true,
     supabaseConfigured: true,
+    ...profileSnapshot,
     ...(loaded.created ? { created: true } : {}),
     ...(hubClassId ? { classId: hubClassId } : {}),
   };

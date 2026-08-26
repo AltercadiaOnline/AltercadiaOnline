@@ -34,8 +34,6 @@ import { grantMarketTerminalAccess } from '../../shared/economy/marketAccessGate
 import { MESTRE_TRILHAS_NPC_ID } from '../../shared/world/marcosTrailResetPolicy.js';
 import { getZoneDomainTerminalById } from '../../shared/world/zoneDomainTerminals.js';
 import { setPlayerAtMarcosResetNpc } from '../ui/marcos/marcosTrailResetGate.js';
-import { ARENA_COMPUTER_FACING } from '../../shared/world/maps/city01LayoutConstants.js';
-import { tileCenterToWorldPixel } from '../../shared/world/portals.js';
 import { beginWorldHudInteractionSession } from '../world/worldHudInteractionSession.js';
 import { isWorldHudInteractionLocked } from '../world/worldHudInteractionSession.js';
 import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
@@ -252,24 +250,14 @@ export class NPCManager {
     }
 
     if (isArenaComputerNpcAction(npc.actionType)) {
-      if (player) {
-        const center = tileCenterToWorldPixel(npc.position.tileX, npc.position.tileY);
-        beginWorldHudInteractionSession({
-          x: player.x,
-          y: player.y,
-          facing: player.facing,
-          pose: {
-            x: center.x,
-            y: center.y,
-            facing: ARENA_COMPUTER_FACING,
-          },
-        });
-        player.forceAuthoritativePosition({
-          x: center.x,
-          y: center.y,
-          facing: ARENA_COMPUTER_FACING,
-        });
-      }
+      // Igual púlpito / inventário: abre HUD sem trava nem teleporte para o PC.
+      windowManager.close('dialogue');
+      hideInteractionCard();
+      windowManager.open('rankingMonitor', {
+        kind: 'rankingMonitor',
+        objectId: npc.id,
+        label: npc.name,
+      });
       uiEvents.emit(UIEventType.SHOW_RANKING_MONITOR, {
         objectId: npc.id,
         label: npc.name,

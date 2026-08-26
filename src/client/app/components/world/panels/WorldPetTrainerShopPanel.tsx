@@ -130,90 +130,108 @@ export function WorldPetTrainerShopPanel({
     <MovablePanelFrame
       windowId="petTrainerShop"
       title={customize ? 'Nome e Sexo' : vendor.vendorName}
+      titleMeta="// NPC // ZENA"
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--pet-trainer-shop ui-panel--pet-trainer-shop ui-panel--npc-hybrid ui-skin-hybrid"
-      panelStyle={{ width: customize ? 'min(420px, 96vw)' : 'min(520px, 96vw)' }}
+      panelStyle={{
+        width: customize ? 'min(640px, 96vw)' : 'min(780px, 96vw)',
+        height: customize ? 'auto' : 'min(420px, 78vh)',
+        maxHeight: 'min(88vh, 560px)',
+      }}
+      bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('petTrainerShop')}
       onClose={handleClose}
     >
       {customize && state.selectedKind && def ? (
-        <div className="pet-trainer-shop pet-trainer-shop__body--customize">
-          <p className="pet-trainer-shop__tag">
-            PERSONALIZAR // {def.shopTitle.toUpperCase()}
-          </p>
-          <button
-            type="button"
-            className="pet-trainer-shop__back"
-            onClick={state.backToCatalog}
-          >
-            ← Voltar ao catálogo
-          </button>
-
-          <div className="pet-trainer-customize__preview">
-            <PetPreviewImage kindId={state.selectedKind} label={def.shopTitle} />
-          </div>
-
-          <label className="pet-trainer-customize__field">
-            <span className="pet-trainer-customize__label">Nome do companheiro</span>
-            <input
-              type="text"
-              className="pet-trainer-customize__input"
-              maxLength={16}
-              placeholder={def.name}
-              value={state.petName}
-              disabled={purchaseGateway.pending}
-              onChange={(event) => state.setPetName(event.target.value)}
-            />
-          </label>
-
-          <div className="pet-trainer-customize__gender">
-            <span className="pet-trainer-customize__label">Sexo</span>
-            <div className="pet-trainer-customize__gender-options">
-              {PET_GENDER_ORDER.map((genderId) => {
-                const selected = state.selectedGender === genderId;
-                const symbol = genderId === 'male' ? '♂' : '♀';
-                return (
-                  <button
-                    key={genderId}
-                    type="button"
-                    className={`pet-trainer-gender${selected ? ' pet-trainer-gender--selected' : ''}`}
-                    aria-pressed={selected}
-                    disabled={purchaseGateway.pending}
-                    onClick={() => state.setSelectedGender(genderId)}
-                  >
-                    {symbol} {getPetGenderLabel(genderId)}
-                  </button>
-                );
-              })}
+        <div className="pet-trainer-shop pet-trainer-shop--customize">
+          <div className="pet-trainer-shop__intro">
+            <div className="pet-trainer-shop__intro-main">
+              <p className="pet-trainer-shop__tag">
+                PERSONALIZAR // {def.shopTitle.toUpperCase()}
+              </p>
+              <button
+                type="button"
+                className="pet-trainer-shop__back"
+                onClick={state.backToCatalog}
+              >
+                ← Catálogo
+              </button>
             </div>
           </div>
 
-          <footer className="pet-trainer-shop__footer">
-            <p className="pet-trainer-shop__selection">
-              {def.shopTitle} — {formatVolts(quote?.priceVolts ?? 0)}
-            </p>
-            <button
-              type="button"
-              className="pet-trainer-shop__buy"
-              disabled={purchaseGateway.pending}
-              aria-busy={purchaseGateway.pending}
-              onClick={purchaseGateway.submit}
-            >
-              {purchaseGateway.buttonLabel}
-            </button>
-          </footer>
+          <div className="pet-trainer-customize">
+            <div className="pet-trainer-customize__preview">
+              <PetPreviewImage kindId={state.selectedKind} label={def.shopTitle} />
+            </div>
+
+            <div className="pet-trainer-customize__form">
+              <label className="pet-trainer-customize__field">
+                <span className="pet-trainer-customize__label">Nome do companheiro</span>
+                <input
+                  type="text"
+                  className="pet-trainer-customize__input"
+                  maxLength={16}
+                  placeholder={def.name}
+                  value={state.petName}
+                  disabled={purchaseGateway.pending}
+                  onChange={(event) => state.setPetName(event.target.value)}
+                />
+              </label>
+
+              <div className="pet-trainer-customize__gender">
+                <span className="pet-trainer-customize__label">Sexo</span>
+                <div className="pet-trainer-customize__gender-options">
+                  {PET_GENDER_ORDER.map((genderId) => {
+                    const selected = state.selectedGender === genderId;
+                    const symbol = genderId === 'male' ? '♂' : '♀';
+                    return (
+                      <button
+                        key={genderId}
+                        type="button"
+                        className={`pet-trainer-gender${selected ? ' pet-trainer-gender--selected' : ''}`}
+                        aria-pressed={selected}
+                        disabled={purchaseGateway.pending}
+                        onClick={() => state.setSelectedGender(genderId)}
+                      >
+                        {symbol} {getPetGenderLabel(genderId)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <footer className="pet-trainer-shop__footer">
+                <p className="pet-trainer-shop__selection">
+                  {def.shopTitle} — {formatVolts(quote?.priceVolts ?? 0)}
+                </p>
+                <button
+                  type="button"
+                  className="pet-trainer-shop__buy"
+                  disabled={purchaseGateway.pending}
+                  aria-busy={purchaseGateway.pending}
+                  onClick={purchaseGateway.submit}
+                >
+                  {purchaseGateway.buttonLabel}
+                </button>
+              </footer>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="pet-trainer-shop">
-          <p className="pet-trainer-shop__tag">COMPANHEIROS // DIMENSIONAIS</p>
-          <p className="pet-trainer-shop__balance">
-            Saldo: <strong>{state.gold.voltsFormatted}</strong>
-          </p>
-          <p className="pet-trainer-shop__hint">
-            Adote até 3 companheiros. Ative qual segue você em Pet Love (
-            {state.roster.pets.length}/3).
-          </p>
+          <div className="pet-trainer-shop__intro">
+            <div className="pet-trainer-shop__intro-main">
+              <p className="pet-trainer-shop__tag">COMPANHEIROS // DIMENSIONAIS</p>
+              <p className="pet-trainer-shop__balance">
+                Saldo: <strong>{state.gold.voltsFormatted}</strong>
+              </p>
+            </div>
+            <p className="pet-trainer-shop__hint">
+              Adote até 3 companheiros. Ative qual segue você em Pet Love (
+              {state.roster.pets.length}/3).
+            </p>
+          </div>
 
           <div className="pet-trainer-shop__grid">
             {state.kindOrder.map((kindId) => {
@@ -237,15 +255,19 @@ export function WorldPetTrainerShopPanel({
                   disabled={owned}
                   onClick={() => state.selectKind(kindId)}
                 >
-                  <PetPreviewImage kindId={kindId} label={kindDef.shopTitle} />
-                  <header className="pet-trainer-card__head">
-                    <span className="pet-trainer-card__role">{roleTag}</span>
-                    {owned ? <span className="pet-trainer-card__owned">SEU</span> : null}
-                  </header>
-                  <h3 className="pet-trainer-card__title">{kindDef.shopTitle}</h3>
-                  <p className="pet-trainer-card__pitch">{kindDef.shopPitch}</p>
-                  <p className="pet-trainer-card__stats">{stats}</p>
-                  <p className="pet-trainer-card__price">{formatVolts(kindDef.priceVolts)}</p>
+                  <div className="pet-trainer-card__media">
+                    <PetPreviewImage kindId={kindId} label={kindDef.shopTitle} />
+                  </div>
+                  <div className="pet-trainer-card__body">
+                    <header className="pet-trainer-card__head">
+                      <span className="pet-trainer-card__role">{roleTag}</span>
+                      {owned ? <span className="pet-trainer-card__owned">SEU</span> : null}
+                    </header>
+                    <h3 className="pet-trainer-card__title">{kindDef.shopTitle}</h3>
+                    <p className="pet-trainer-card__pitch">{kindDef.shopPitch}</p>
+                    <p className="pet-trainer-card__stats">{stats}</p>
+                    <p className="pet-trainer-card__price">{formatVolts(kindDef.priceVolts)}</p>
+                  </div>
                 </button>
               );
             })}

@@ -9,7 +9,13 @@ import {
   type LootCasinoController,
   type LootCasinoPhase,
 } from '../../../ui/battle/LootCasinoController.js';
-import { resolveLootCasinoHintForPhase } from '../../../ui/battle/lootCasinoView.js';
+import {
+  resolveLootCasinoCollectLabel,
+  resolveLootCasinoDiscardPrompt,
+  resolveLootCasinoHintForPhase,
+  resolveLootCasinoTitle,
+} from '../../../ui/battle/lootCasinoView.js';
+import { allLootRevealSlotsEmpty } from '../../../../shared/loot/lootRevealSlots.js';
 import {
   runLootCasinoConfirm,
   triggerLootCasinoDismiss,
@@ -39,9 +45,10 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
   const [isAnimating, setIsAnimating] = useState(false);
   const [showCollect, setShowCollect] = useState(false);
   const [collectPending, setCollectPending] = useState(false);
-  const [collectLabel, setCollectLabel] = useState('Coletar');
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [blockedHintVisible, setBlockedHintVisible] = useState(false);
   const collectRef = useRef<HTMLButtonElement>(null);
+  const discardConfirmRef = useRef<HTMLButtonElement>(null);
 
   const reveals = snapshot.lootReveals.length > 0
     ? snapshot.lootReveals
@@ -49,10 +56,13 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
   const spinCount = Math.max(1, snapshot.spinCount || reveals.length);
   const clampedIndex = Math.min(spinIndex, spinCount - 1);
   const slots = reveals[clampedIndex] ?? snapshot.slots;
+  const slotsEmpty = allLootRevealSlotsEmpty(slots);
   const hint = resolveLootCasinoHintForPhase(phase, slots, {
     index: clampedIndex,
     count: spinCount,
   });
+  const discardPrompt = resolveLootCasinoDiscardPrompt(slotsEmpty);
+  const collectLabel = resolveLootCasinoCollectLabel(collectPending);
 
   const syncAnimatingFlag = useCallback((active: boolean) => {
     setIsAnimating(active);
@@ -62,6 +72,7 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
   useEffect(() => {
     setSpinIndex(0);
     setShowCollect(false);
+    setDiscardConfirmOpen(false);
     pendingAutoRunRef.current = false;
     setRemainingSpins(Math.max(1, snapshot.spinCount || 1));
   }, [snapshot.battleId, snapshot.lootId, snapshot.spinCount]);
@@ -72,7 +83,7 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
 
     setPhase('idle');
     setCollectPending(false);
-    setCollectLabel('Coletar');
+    setDiscardConfirmOpen(false);
 
     const controller = createLootCasinoController({
       slots,
@@ -118,10 +129,16 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
   }, [slots, snapshot.battleId, snapshot.lootId, clampedIndex, spinCount, syncAnimatingFlag]);
 
   useEffect(() => {
-    if (showCollect) {
+    if (showCollect && !discardConfirmOpen) {
       collectRef.current?.focus();
     }
-  }, [showCollect]);
+  }, [showCollect, discardConfirmOpen]);
+
+  useEffect(() => {
+    if (discardConfirmOpen) {
+      discardConfirmRef.current?.focus();
+    }
+  }, [discardConfirmOpen]);
 
   useEffect(() => () => window.clearTimeout(blockedTimerRef.current), []);
 
@@ -136,27 +153,31 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
     getLootCasinoHudBridge().dismiss();
   }, [syncAnimatingFlag]);
 
-  const dismissWithoutCollect = useCallback(() => {
+  const executeDismissWithoutCollect = useCallback(() => {
+    setDiscardConfirmOpen(false);
+    triggerLootCasinoDismiss();
+    finishScreen();
+  }, [finishScreen]);
+
+  const requestDismissWithoutCollect = useCallback(() => {
     if (isAnimating || collectPending) {
       showBlockedFeedback();
       return;
     }
-    triggerLootCasinoDismiss();
-    finishScreen();
-  }, [collectPending, finishScreen, isAnimating, showBlockedFeedback]);
+    setDiscardConfirmOpen(true);
+  }, [collectPending, isAnimating, showBlockedFeedback]);
 
   const confirmLoot = useCallback(() => {
     if (isAnimating || collectPending) {
       showBlockedFeedback();
       return;
     }
+    setDiscardConfirmOpen(false);
     setCollectPending(true);
-    setCollectLabel('Coletando…');
     void runLootCasinoConfirm()
       .then((result) => {
         if (result === false) {
           setCollectPending(false);
-          setCollectLabel('Coletar');
           return;
         }
         finishScreen();
@@ -164,7 +185,6 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
       .catch((error) => {
         console.error('[LootCasino] Coleta falhou:', error);
         setCollectPending(false);
-        setCollectLabel('Coletar');
       });
   }, [collectPending, finishScreen, isAnimating, showBlockedFeedback]);
 
@@ -177,6 +197,7 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
       pendingAutoRunRef.current = true;
       leverRef.current?.resetHandle();
       setShowCollect(false);
+      setDiscardConfirmOpen(false);
       setSpinIndex((current) => current + 1);
       return;
     }
@@ -196,17 +217,21 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
-      dismissWithoutCollect();
+      if (discardConfirmOpen) {
+        setDiscardConfirmOpen(false);
+        return;
+      }
+      requestDismissWithoutCollect();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [dismissWithoutCollect]);
+  }, [discardConfirmOpen, requestDismissWithoutCollect]);
 
   const actionsLocked = isAnimating || collectPending;
 
   return (
     <LootCasinoFrame role="dialog" ariaLabel="Recompensas da batalha" ariaModal>
-      <h2 className="loot-casino-screen__title">Recompensas</h2>
+      <h2 className="loot-casino-screen__title">{resolveLootCasinoTitle(showCollect)}</h2>
       <p className="loot-casino-screen__hint">{hint}</p>
       {blockedHintVisible ? (
         <p className="loot-casino-screen__hint loot-casino-screen__hint--blocked">
@@ -218,7 +243,7 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
 
       <LootCasinoLever
         ref={leverRef}
-        disabled={(phase !== 'idle' && phase !== 'ready') || isAnimating || showCollect}
+        disabled={(phase !== 'idle' && phase !== 'ready') || isAnimating || showCollect || discardConfirmOpen}
         remainingSpins={remainingSpins}
         onPull={handleLeverPull}
       />
@@ -226,17 +251,10 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
       <div
         className={[
           'loot-casino-screen__actions',
+          showCollect ? 'loot-casino-screen__actions--ready' : '',
           actionsLocked ? 'loot-casino-screen__actions--locked' : '',
         ].filter(Boolean).join(' ')}
       >
-        <button
-          type="button"
-          className="loot-casino-screen__exit"
-          disabled={actionsLocked}
-          onClick={dismissWithoutCollect}
-        >
-          Sair sem coletar
-        </button>
         {showCollect ? (
           <button
             ref={collectRef}
@@ -248,7 +266,53 @@ export function LootCasinoScreenPanel({ snapshot }: LootCasinoScreenPanelProps) 
             {collectLabel}
           </button>
         ) : null}
+        {showCollect ? (
+          <button
+            type="button"
+            className="loot-casino-screen__exit loot-casino-screen__exit--link"
+            disabled={actionsLocked}
+            onClick={requestDismissWithoutCollect}
+          >
+            Sair sem coletar
+          </button>
+        ) : null}
       </div>
+
+      {discardConfirmOpen ? (
+        <div
+          className="loot-casino-screen__confirm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="loot-casino-discard-title"
+          aria-describedby="loot-casino-discard-body"
+        >
+          <p id="loot-casino-discard-title" className="loot-casino-screen__confirm-title">
+            {discardPrompt.title}
+          </p>
+          <p id="loot-casino-discard-body" className="loot-casino-screen__confirm-body">
+            {discardPrompt.body}
+          </p>
+          <div className="loot-casino-screen__confirm-actions">
+            <button
+              type="button"
+              className="loot-casino-screen__confirm-cancel"
+              disabled={actionsLocked}
+              onClick={() => setDiscardConfirmOpen(false)}
+            >
+              Voltar
+            </button>
+            <button
+              ref={discardConfirmRef}
+              type="button"
+              className="loot-casino-screen__confirm-discard"
+              disabled={actionsLocked}
+              onClick={executeDismissWithoutCollect}
+            >
+              {discardPrompt.confirmLabel}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </LootCasinoFrame>
   );
 }

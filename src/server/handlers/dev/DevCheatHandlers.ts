@@ -108,7 +108,8 @@ export class DevSetLevelHandler extends BaseIntentHandler<{ readonly level: numb
     patchAuthoritativeProgression(playerId, this.characterId, {
       characterProfile: { level, xpCurrent: 0 },
     });
-    syncWorldVitalsHpMaxFromLoadout(playerId, this.characterId, intentId);
+    // Sem intentId — ACK só via intent-result (evita race com economy-event).
+    syncWorldVitalsHpMaxFromLoadout(playerId, this.characterId);
 
     this.sendResponse(playerId, intentId, true, { level });
   }

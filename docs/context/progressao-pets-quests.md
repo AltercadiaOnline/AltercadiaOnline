@@ -1,5 +1,20 @@
 # Progressão, pets, missões
 
+## Domínio de moveset
+
+Curva piecewise em `CharacterProgressionService.resolveDomainRequiredXp` (não a do personagem).
+
+| Fase | Domínio | Ritmo |
+|------|---------|--------|
+| Early–mid | 1→50 | barato — moveset sobe **na frente** do nível |
+| Mid | 50→70 | médio |
+| Late | 70→85 | caro |
+| End | 85→99 | muro |
+
+Âncoras alvo (main move, loadout ~4): char ~30 → domínio ~50; char ~50 → ~65; char ~100 → ~85.  
+Teto: `MOVE_MASTERY_CAP_FACTOR = 2` (`moveMasteryCap.ts`) — char 30 pode investir até domínio 60.  
+Grant: [combate-pve.md](combate-pve.md) / [combate-pvp.md](combate-pvp.md).
+
 ## Bolsa de atributos (Ficha)
 
 Cada nível concede **2 pontos**. O jogador gasta na Ficha (`WorldCharactersPanel`) em ATK (+1), DEF (+1) ou Vida (+8 na base). Classe só dá o start (Impetus 6/4, Cogitor 5/5, Tutator 4/6, Dissolutus 4/6). ATK/DEF **não** sobem sozinhos com o nível.
@@ -7,6 +22,7 @@ Cada nível concede **2 pontos**. O jogador gasta na Ficha (`WorldCharactersPane
 - Contrato: `src/shared/character/characterStatPoints.ts`
 - Intent: `ALLOCATE_STAT_POINTS` → `src/server/handlers/progression/allocateStatPointsHandler.ts`
 - Persistência: `allocatedAtk` / `allocatedDef` / `allocatedHp` no profile; bolsa = `(nível − 1) × 2 − gastos`
+- ACK: só `intent-result` (não passar `intentId` em `syncWorldVitalsHpMaxFromLoadout` — evita race com `WorldVitalsUpdated`)
 - Combate: linha `ficha` no breakdown, **depois** dos % de SET
 
 Marcos / pets / missões abaixo. Não misturar pontos da Ficha com a árvore de marcos.
@@ -39,7 +55,9 @@ Marcos / pets / missões abaixo. Não misturar pontos da Ficha com a árvore de 
 | Abandono | Livre (pode reassinar) |
 | Reward | XP + VOLTS (`rewardExp` / `rewardVolts`) |
 | Rep / item / moral branch | Fora do piloto (flavor / campos dormem) |
-| Faixas | 1–10 · 11–30 · 31–50 (5 quests cada = 15) |
+| Faixas (piloto) | 3 tiers × 5 quests. Unlock: completar as 5 do tier anterior (não por nível). |
+
+**Próximo:** design de 15 quests com steps no mapa (faixas **1–10 / 11–20 / 21–30**), itens e POIs — cronograma e checklist em [mercenary-quests-cronograma.md](mercenary-quests-cronograma.md). Implementar **Fase 0** depois **Q1…Q15** uma a uma.
 
 - Shared: `mercenaryQuestCatalog.ts`, `mercenaryQuestProgress.ts` (`completeMercenaryQuest`)
 - Server: `MercenaryQuestHandlers.ts` + `creditMercenaryQuestVolts` (economyGateway)

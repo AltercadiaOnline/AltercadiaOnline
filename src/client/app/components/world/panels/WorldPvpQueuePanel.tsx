@@ -30,6 +30,7 @@ import { alertSystem } from '../../../../ui/alertSystem.js';
 import { getGameStore } from '../../../../state/GameStore.js';
 import { getPlayerWalletStore } from '../../../../ui/wallet/playerWalletStore.js';
 import { formatVoltsShort } from '../../../../../shared/economy/premiumCurrency.js';
+import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 
 type WorldPvpQueuePanelProps = {
   context: WorldPanelContext;
@@ -116,11 +117,20 @@ export function WorldPvpQueuePanel({
 }: WorldPvpQueuePanelProps) {
   const station = resolveStation(context);
   const snapshot = usePvpQueueSnapshot();
-  const wallet = useSyncExternalStore(
-    (onStoreChange) => getPlayerWalletStore().subscribe(() => onStoreChange()),
-    () => getPlayerWalletStore().getSnapshot(),
-    () => getPlayerWalletStore().getSnapshot(),
+  /** Revision estável — getSnapshot() do wallet cria objeto novo e dispara React #185. */
+  const walletRevision = useSyncExternalStore(
+    (onChange) =>
+      subscribeExternalStore(
+        (listener) => getPlayerWalletStore().subscribe(() => listener()),
+        onChange,
+      ),
+    () => {
+      const s = getPlayerWalletStore().getSnapshot();
+      return `${s.dollarVolt}|${s.alterCoins}`;
+    },
+    () => '0|0',
   );
+  const walletDollarVolt = Number(walletRevision.split('|')[0] ?? 0);
   const [selectedStakeVolts, setSelectedStakeVolts] = useState(PVP_RANKED_STAKE_MIN_VOLTS);
   const identity = useMemo(() => resolveLocalPvpIdentity(), []);
   const localPlayerId = identity.playerId;
@@ -149,7 +159,7 @@ export function WorldPvpQueuePanel({
     && !countdownActive
     && displayedStake >= PVP_RANKED_STAKE_MIN_VOLTS
     && displayedStake <= PVP_RANKED_STAKE_MAX_VOLTS
-    && displayedStake <= wallet.dollarVolt;
+    && displayedStake <= walletDollarVolt;
   const countdownLabel =
     snapshot.countdownSecondsRemaining !== null
       ? String(snapshot.countdownSecondsRemaining)
@@ -225,7 +235,7 @@ export function WorldPvpQueuePanel({
           </p>
           <div className="pvp-queue__stake-chips">
             {PVP_RANKED_STAKE_PRESETS.map((value) => {
-              const unaffordable = wallet.dollarVolt < value;
+              const unaffordable = walletDollarVolt < value;
               return (
                 <button
                   key={value}

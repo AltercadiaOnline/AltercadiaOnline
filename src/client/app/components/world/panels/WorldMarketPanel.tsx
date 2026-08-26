@@ -182,6 +182,7 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
     <MovablePanelFrame
       windowId="market"
       title="Monitor do Mercado"
+      titleMeta="// TERMINAL // P2P"
       zIndex={zIndex}
       focused={focused}
       bodyOverflow="hidden"
@@ -189,22 +190,25 @@ export function WorldMarketPanel({ zIndex, focused }: WorldMarketPanelProps) {
       panelStyle={{
         width: 'min(1040px, 97vw)',
         minWidth: 'min(760px, 94vw)',
-        minHeight: 'min(560px, 82vh)',
+        height: 'min(640px, 88vh)',
         maxHeight: 'min(720px, 92vh)',
       }}
       onFocus={() => tryFocusReactWorldPanel('market')}
       onClose={() => tryCloseReactWorldPanel('market')}
     >
       <div className="ui-panel__body market-terminal__body">
-        <p className="market-terminal__balance">
-          <span className="market-terminal__tag">MERCADO // TERMINAL P2P</span>
-          {' '}
-          Saldo: <strong data-market-wallet>{wallet.voltsFormatted}</strong>
-          <span className="market-terminal__fee">Taxa P2P: {formatMarketplaceFeePercent()}</span>
-        </p>
-        <p className="market-terminal__stall-hint">
-          Itens que você listou saem da mochila e ficam retidos neste terminal até cancelar ou vender. A oferta pública continua valendo mesmo offline.
-        </p>
+        <div className="market-terminal__intro">
+          <div className="market-terminal__intro-main">
+            <span className="market-terminal__tag">MERCADO // TERMINAL P2P</span>
+            <p className="market-terminal__balance">
+              Saldo: <strong data-market-wallet>{wallet.voltsFormatted}</strong>
+              <span className="market-terminal__fee">Taxa P2P: {formatMarketplaceFeePercent()}</span>
+            </p>
+          </div>
+          <p className="market-terminal__stall-hint">
+            Itens listados saem da mochila e ficam retidos até cancelar ou vender — a oferta segue valendo offline.
+          </p>
+        </div>
 
         <div className="market-terminal__workspace">
           <aside className="market-terminal__sidebar" aria-label="Categorias e itens">

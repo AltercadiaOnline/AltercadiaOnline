@@ -9,7 +9,7 @@
  * | Trilha | Store / persistência | Curva | Como ganha em batalha |
  * |--------|----------------------|-------|------------------------|
  * | Nível do personagem | `PlayerDataStore` (`characterLevel`) | `characterXpCurve` (sem teto; ritmo em lutas) | PVE/PvP × `BATTLE_LEVEL_XP_RATIO` × `BATTLE_LEVEL_XP_PACE` (35% mais lento) |
- * | Domínio de moveset | `movesetMastery` → `moveProgression.ts` | `CharacterProgressionService.getRequiredXp` (1.15^n) | PVE/PvP × `BATTLE_MOVESET_XP_RATIO` × `BATTLE_MOVESET_XP_PACE` (25% mais rápido); +10% se ≥8 usos; catch-up ×1.5 |
+ * | Domínio de moveset | `movesetMastery` → `moveProgression.ts` | `resolveDomainRequiredXp` (barato→50, muro 85+) | PVE/PvP × `BATTLE_MOVESET_XP_RATIO` × `BATTLE_MOVESET_XP_PACE`; +10% se ≥8 usos; catch-up ×1.5; teto `MOVE_MASTERY_CAP_FACTOR` 2.0 |
  * | Habilidades Marco | `nodeProgression` via `marcoProgressEngine` | Triggers por uso | **Separado** — telemetria de combate (`marcoCombatTelemetry`) |
  *
  * PvP: pool = nível do oponente (`battlePvpXpPool`); vitória 100% / derrota KO 40% / FORFEIT = 0; sem loot.

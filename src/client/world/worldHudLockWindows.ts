@@ -7,7 +7,7 @@ export const WORLD_HUD_LOCK_WINDOW_IDS: readonly UiWindowId[] = [
   'laboratoryShop',
   'petTrainerShop',
   'tournamentBet',
-  'rankingMonitor',
+  // rankingMonitor: sem trava — PC da Arena abre como HUD normal (espelho do board).
   // pvpQueue: sem trava — jogador fica livre perto do púlpito (pose emparelhada depois).
   'refractionBooth',
   'market',

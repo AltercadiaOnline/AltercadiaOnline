@@ -84,6 +84,7 @@ import {
 } from '../world/minimap/collectMinimapMarkers.js';
 import { PetFollowEntity } from '../entities/pet/PetFollowEntity.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
+import { tickLocalCityRestRegen } from '../world/localCityRestRegen.js';
 import { getSpeechBubbleManager } from '../world/speech/SpeechBubbleManager.js';
 import {
   collectRemotePlayersForRender,
@@ -769,6 +770,12 @@ export class ExplorationScene implements Disposable {
       this.player.getExplorationMoveSpeedPxPerSec(),
     );
     getPlayerPetStore().tickExplorationAffinity(frameMs);
+
+    tickLocalCityRestRegen({
+      mapId: this.mapManager.currentMapId,
+      standingStill: !this.player.isMoving && !this.player.isGridAnimating(),
+      elapsedMs: frameMs,
+    });
 
     if (!getPortalConfirmationController()?.getIsTransitioning()) {
       this.zonePreloader.tick(this.player.x, this.player.y, this.mapManager.portals);

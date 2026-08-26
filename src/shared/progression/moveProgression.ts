@@ -29,7 +29,8 @@ export const MOVE_POWER_GROWTH_PER_LEVEL = 0.05;
 export const MOVE_PP_BONUS_INTERVAL = 10;
 
 /**
- * XP para subir o domínio do move — curva `CharacterProgressionService` (não a do personagem).
+ * XP para subir o domínio do move — curva piecewise em `CharacterProgressionService`
+ * (não a do personagem).
  */
 export function getRequiredXpForLevel(level: number): number {
   return CharacterProgressionService.getRequiredXp(level);

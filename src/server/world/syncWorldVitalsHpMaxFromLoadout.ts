@@ -12,6 +12,10 @@ const DEFAULT_MP_MAX = 48;
 /**
  * Recalcula hpMax do SET e preenche HP atual com o delta do buff
  * (100/100 → 112/112). Emite WorldVitalsUpdated para a HUD.
+ *
+ * `intentId` opcional: só passe se o economy-event for o **único** ACK da ação.
+ * Se o handler também manda `intent-result` (ex.: ALLOCATE_STAT_POINTS), omita —
+ * senão o cliente confirma cedo e descarta o payload da bolsa.
  */
 export function syncWorldVitalsHpMaxFromLoadout(
   playerId: string,

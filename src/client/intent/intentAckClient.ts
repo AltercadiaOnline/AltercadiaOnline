@@ -55,7 +55,6 @@ import type {
 } from '../../shared/cityMinigames/refractionBoothTypes.js';
 import type { MarcosStateSnapshot } from '../../shared/playerDataSnapshots.js';
 import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
-import { getCaelChronicleStore } from '../ui/world/caelChronicleStore.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import { upsertFriend } from '../world/friendListStore.js';
 import { isFriendListViewEntry } from '../../shared/social/friendListTypes.js';
@@ -106,11 +105,20 @@ function tryApplyStatPointsFromIntentData(intentId: string, data: unknown): bool
   const view = (data as { characterStatPoints?: unknown }).characterStatPoints;
   if (!view || typeof view !== 'object') return false;
   const record = view as Record<string, unknown>;
+  if (
+    typeof record.atk !== 'number'
+    || typeof record.def !== 'number'
+    || typeof record.hp !== 'number'
+  ) {
+    return false;
+  }
+
   getMutableDataStore().applyCharacterStatPoints({
-    atk: typeof record.atk === 'number' ? record.atk : 0,
-    def: typeof record.def === 'number' ? record.def : 0,
-    hp: typeof record.hp === 'number' ? record.hp : 0,
+    atk: Math.max(0, Math.floor(record.atk)),
+    def: Math.max(0, Math.floor(record.def)),
+    hp: Math.max(0, Math.floor(record.hp)),
   });
+
   const vitals = (data as { worldVitals?: unknown }).worldVitals;
   if (vitals && typeof vitals === 'object') {
     const v = vitals as Record<string, unknown>;
@@ -128,6 +136,11 @@ function tryApplyStatPointsFromIntentData(intentId: string, data: unknown): bool
       });
     }
   }
+
+  void import('../ui/equipment/playerHudHpMax.js').then(({ refreshHudPlayerHpMax }) => {
+    refreshHudPlayerHpMax();
+  });
+
   return true;
 }
 
@@ -181,18 +194,6 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
       alertSystem(`Contrato entregue: +${xp} XP · +${volts} VOLTS`);
     }
   }
-  return true;
-}
-
-function tryApplyCaelChroniclesFromIntentData(intentId: string, data: unknown): boolean {
-  const pending = getPendingIntentRegistry().get(intentId);
-  if (!pending || pending.action.type !== 'CAEL_HEAR_CHRONICLE') {
-    return false;
-  }
-  if (!data || typeof data !== 'object') return false;
-  const record = data as { caelChronicles?: unknown; heardChapterId?: unknown };
-  if (!record.caelChronicles) return false;
-  getCaelChronicleStore().applyAuthoritative(record.caelChronicles);
   return true;
 }
 
@@ -756,7 +757,6 @@ export function handleIntentResultPayload(raw: unknown): void {
     tryApplyMarcosFromIntentData(raw.intentId, raw.data);
     const statPointsApplied = tryApplyStatPointsFromIntentData(raw.intentId, raw.data);
     tryApplyMercenaryQuestsFromIntentData(raw.intentId, raw.data);
-    tryApplyCaelChroniclesFromIntentData(raw.intentId, raw.data);
     tryApplyMovesetMasteryFromIntentData(raw.intentId, raw.data);
     tryApplyHealVitalsFromIntentData(raw.intentId, raw.data);
     tryApplyMarketplaceFromIntentData(raw.intentId, raw.data);

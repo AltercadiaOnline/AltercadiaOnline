@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useAbandonMercenaryQuest,
   useAcceptMercenaryQuest,
@@ -6,13 +6,18 @@ import {
   useMercenaryQuestBoard,
 } from '../../../panels/useMercenaryQuestBoard.js';
 import {
+  buildMercenaryQuestBoard,
   getMercenaryQuestBand,
+  isMercenaryTierComplete,
   MERCENARY_QUEST_BANDS,
   MERCENARY_QUEST_COUNT,
+  resolveDefaultMercenaryViewTier,
+  resolveHighestUnlockedMercenaryTier,
 } from '../../../../../shared/quests/mercenaryQuestCatalog.js';
 import type {
   MercenaryQuestBand,
   MercenaryQuestBoardRow,
+  MercenaryQuestTier,
 } from '../../../../../shared/quests/mercenaryQuestTypes.js';
 
 type MercenaryQuestBoardProps = {
@@ -112,6 +117,9 @@ function MercenaryQuestRow({
           Pronto para entregar — Completar paga {formatQuestRewards(quest)}.
         </p>
       ) : null}
+      {compact && quest.status === 'available' ? (
+        <p className="mercenary-board__meta">{formatQuestRewards(quest)}</p>
+      ) : null}
       <div className="mercenary-board__actions">
         {quest.status === 'active' ? (
           <>
@@ -150,35 +158,54 @@ function MercenaryQuestRow({
   );
 }
 
-/** Hub Social → Contratos: só o ativo. Compacto (mercenário): ofertas da faixa de nível. */
+/** Hub Social → Contratos: só o ativo. Compacto (mercenário): 5 do tier atual. */
 export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProps) {
-  const { level, progress, rows, activeQuest } = useMercenaryQuestBoard();
+  const { level, progress, activeQuest } = useMercenaryQuestBoard();
   const agentBand = useMemo(() => resolveBandForLevel(level), [level]);
+  const unlockedTier = useMemo(
+    () => resolveHighestUnlockedMercenaryTier(progress),
+    [progress],
+  );
+  const defaultViewTier = useMemo(
+    () => resolveDefaultMercenaryViewTier(progress),
+    [progress],
+  );
+  const [viewedTier, setViewedTier] = useState<MercenaryQuestTier>(defaultViewTier);
+
+  useEffect(() => {
+    setViewedTier((current) => {
+      if (current > unlockedTier) return unlockedTier;
+      if (current < defaultViewTier && defaultViewTier <= unlockedTier) {
+        return defaultViewTier;
+      }
+      return current;
+    });
+  }, [defaultViewTier, unlockedTier]);
+
   const activeRow = useMemo((): MercenaryQuestBoardRow | null => {
-    const fromBoard = rows.find((quest) => quest.status === 'active');
-    if (fromBoard) return fromBoard;
     if (!activeQuest) return null;
     return { ...activeQuest, status: 'active' };
-  }, [rows, activeQuest]);
-  const groups = useMemo(() => {
-    const byTier = new Map<MercenaryQuestBoardRow['tier'], MercenaryQuestBoardRow[]>();
-    for (const quest of rows) {
-      const list = byTier.get(quest.tier) ?? [];
-      list.push(quest);
-      byTier.set(quest.tier, list);
-    }
-    return [...byTier.entries()].map(([tier, quests]) => ({
-      band: getMercenaryQuestBand(tier),
-      quests,
-    }));
-  }, [rows]);
+  }, [activeQuest]);
 
-  /** Ativo fora da faixa atual (ex.: upou) — ainda precisa Completar no NPC. */
+  const tierRows = useMemo(
+    () => buildMercenaryQuestBoard(progress, { tier: viewedTier }),
+    [progress, viewedTier],
+  );
+  const viewedBand = useMemo(() => getMercenaryQuestBand(viewedTier), [viewedTier]);
+  const tierComplete = useMemo(
+    () => isMercenaryTierComplete(viewedTier, progress),
+    [viewedTier, progress],
+  );
+  const nextTier = (viewedTier + 1) as MercenaryQuestTier;
+  const canAdvanceTier = tierComplete
+    && nextTier <= 3
+    && nextTier <= unlockedTier;
+
   const orphanActive = useMemo((): MercenaryQuestBoardRow | null => {
     if (!activeQuest) return null;
-    if (rows.some((row) => row.id === activeQuest.id)) return null;
+    if (activeQuest.tier === viewedTier) return null;
     return { ...activeQuest, status: 'active' };
-  }, [activeQuest, rows]);
+  }, [activeQuest, viewedTier]);
 
   if (!compact) {
     return (
@@ -207,7 +234,9 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
 
   return (
     <div className="mercenary-board mercenary-board--compact">
-      <p className="mercenary-board__tag">NODE::BOUNTY · AGENTE NV. {level}</p>
+      <p className="mercenary-board__tag">
+        NODE::BOUNTY · TIER {viewedTier} · AGENTE NV. {level}
+      </p>
       {activeQuest ? (
         <p className="mercenary-board__active">
           Ativo: {activeQuest.title}
@@ -215,39 +244,63 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
         </p>
       ) : (
         <p className="mercenary-board__active mercenary-board__active--idle">
-          Nenhum contrato assinado. Escolha um da sua faixa.
+          Nenhum contrato assinado. Escolha um das 5 do tier.
         </p>
       )}
       {orphanActive ? (
-        <div className="mercenary-board__list">
-          <section className="mercenary-board__group">
-            <p className="mercenary-board__band-title">Contrato ativo (fora da faixa atual)</p>
-            <MercenaryQuestRow quest={orphanActive} compact slotBusy={false} />
-          </section>
+        <div className="mercenary-board__orphan">
+          <p className="mercenary-board__band-title">Contrato ativo (outro tier)</p>
+          <MercenaryQuestRow quest={orphanActive} compact slotBusy={false} />
         </div>
       ) : null}
-      {groups.length === 0 && !orphanActive ? (
-        <p className="mercenary-board__empty">Nenhum contrato nesta faixa de nível.</p>
-      ) : (
-        <div className="mercenary-board__list">
-          {groups.map(({ band, quests }) => (
-            <section key={band.tier} className="mercenary-board__group">
-              <p className="mercenary-board__band-title">
-                {band.title}
-                <span> · Nv. {band.minLevel}–{band.maxLevel}</span>
-              </p>
-              {quests.map((quest) => (
-                <MercenaryQuestRow
-                  key={quest.id}
-                  quest={quest}
-                  compact
-                  slotBusy={Boolean(activeQuest) && quest.status === 'available'}
-                />
-              ))}
-            </section>
+      <section className="mercenary-board__group" aria-label={viewedBand.title}>
+        <p className="mercenary-board__band-title">
+          {viewedBand.title}
+          <span>
+            {' '}
+            · {tierRows.filter((row) => row.status === 'completed').length}/{tierRows.length}
+          </span>
+        </p>
+        <p className="mercenary-board__band-brief">{viewedBand.brief}</p>
+        <div className="mercenary-board__grid">
+          {tierRows.map((quest) => (
+            <MercenaryQuestRow
+              key={quest.id}
+              quest={quest}
+              compact
+              slotBusy={Boolean(activeQuest) && quest.status === 'available'}
+            />
           ))}
         </div>
-      )}
+      </section>
+      <div className="mercenary-board__tier-nav">
+        {viewedTier > 1 ? (
+          <button
+            type="button"
+            className="mercenary-board__btn mercenary-board__btn--ghost"
+            onClick={() => setViewedTier((viewedTier - 1) as MercenaryQuestTier)}
+          >
+            Tier {viewedTier - 1}
+          </button>
+        ) : (
+          <span />
+        )}
+        {canAdvanceTier ? (
+          <button
+            type="button"
+            className="mercenary-board__btn"
+            onClick={() => setViewedTier(nextTier)}
+          >
+            Ir para TIER {nextTier}
+          </button>
+        ) : viewedTier >= 3 && tierComplete ? (
+          <p className="mercenary-board__tier-hint">Todos os tiers liberados neste piloto.</p>
+        ) : (
+          <p className="mercenary-board__tier-hint">
+            Conclua as 5 missões deste tier para liberar o próximo.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

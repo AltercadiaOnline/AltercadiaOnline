@@ -24,6 +24,8 @@ export type WorldTickDelta = {
   readonly serverTimeMs: number;
   /** Segundos no ciclo dia/noite [0, 1800) — SSOT do TimeManager. */
   readonly gameTime: number;
+  /** Dias in-game desde o boot do shard (1 ciclo = 1 dia). */
+  readonly gameDayIndex: number;
   readonly position?: AuthoritativePositionDelta;
   /** Criaturas ativas no mapa atual do jogador — coordenadas autoritativas do servidor. */
   readonly creatures?: readonly WorldCreatureSnapshot[];

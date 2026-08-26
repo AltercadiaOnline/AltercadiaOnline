@@ -322,6 +322,7 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
 
   const sellsRation = vendor.vendorId === VENDEDOR_NPC;
   const rationQuote = sellsRation ? resolveCaelPetRationQuote() : null;
+  const isMercenary = vendor.vendorId === 'mercenario';
 
   const purchaseGateway = useActionGatewaySubmit({
     onClick: handlePurchase,
@@ -341,28 +342,51 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
     <MovablePanelFrame
       windowId="vendorShop"
       title={vendor.vendorName}
+      titleMeta={isMercenary ? '// NPC // AGENTE' : '// NPC // LOJA'}
       zIndex={zIndex}
       focused={focused}
-      panelClassName="world-panel--vendor-shop ui-panel--vendor-shop ui-panel--npc-hybrid ui-skin-hybrid"
+      panelClassName={[
+        'world-panel--vendor-shop',
+        'ui-panel--vendor-shop',
+        'ui-panel--npc-hybrid',
+        'ui-skin-hybrid',
+        isMercenary ? 'ui-panel--vendor-shop--mercenary' : '',
+      ].filter(Boolean).join(' ')}
+      panelStyle={isMercenary
+        ? { width: 'min(980px, 98vw)', maxHeight: 'min(92vh, 720px)' }
+        : { width: 'min(960px, 98vw)', height: 'min(620px, 86vh)', maxHeight: 'min(620px, 86vh)' }}
       bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('vendorShop')}
       onClose={() => tryCloseReactWorldPanel('vendorShop')}
     >
-      <div className="vendor-shop">
+      <div className={['vendor-shop', isMercenary ? 'vendor-shop--mercenary' : ''].filter(Boolean).join(' ')}>
         <div className="vendor-shop__intro">
-          <p className="vendor-shop__tag">LOJA NPC // SUPRIMENTOS</p>
-          <p className="vendor-shop__balance">
-            Saldo: <strong>{state.gold.voltsFormatted}</strong>
-          </p>
+          <div className="vendor-shop__intro-main">
+            <p className="vendor-shop__tag">
+              {isMercenary ? 'QUADRO // CONTRATOS + SPRAY' : 'LOJA NPC // SUPRIMENTOS'}
+            </p>
+            <p className="vendor-shop__balance">
+              Saldo: <strong>{state.gold.voltsFormatted}</strong>
+            </p>
+          </div>
           <p className="vendor-shop__hint">
-            Revenda drops Comum/Incomum (50% valor base). Set, poções e Raros+ → Marketplace.
+            {isMercenary
+              ? 'Assine 1 contrato por vez. Complete as 5 do tier para liberar o próximo. Spray à esquerda.'
+              : 'Revenda drops Comum/Incomum (50% valor base). Set, poções e Raros+ → Marketplace.'}
           </p>
         </div>
 
-        <div className="vendor-shop__layout">
+        <div
+          className={[
+            'vendor-shop__layout',
+            isMercenary ? 'vendor-shop__layout--mercenary' : '',
+          ].filter(Boolean).join(' ')}
+        >
           <div className="vendor-shop__lists">
             <section className="vendor-shop__list-wrap" aria-label="Comprar suprimentos">
-              <h3 className="vendor-shop__section-title">Comprar</h3>
+              <h3 className="vendor-shop__section-title">
+                {isMercenary ? 'Spray / Suprimentos' : 'Comprar'}
+              </h3>
               <div className="vendor-shop__list-head" aria-hidden="true">
                 <span className="vendor-shop__col vendor-shop__col--item">Item</span>
                 <span className="vendor-shop__col vendor-shop__col--buy">Preço Venda</span>

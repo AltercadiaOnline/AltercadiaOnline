@@ -70,21 +70,31 @@ export function WorldLaboratoryShopPanel({
     <MovablePanelFrame
       windowId="laboratoryShop"
       title={vendor.vendorName}
+      titleMeta="// NPC // LAB"
       zIndex={zIndex}
       focused={focused}
       panelClassName="world-panel--laboratory-shop ui-panel--laboratory-shop ui-panel--npc-hybrid ui-skin-hybrid"
-      panelStyle={{ width: 'min(640px, 96vw)' }}
+      panelStyle={{
+        width: 'min(920px, 98vw)',
+        height: 'min(560px, 84vh)',
+        maxHeight: 'min(560px, 84vh)',
+      }}
+      bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('laboratoryShop')}
       onClose={() => tryCloseReactWorldPanel('laboratoryShop')}
     >
       <div className="laboratory-shop">
-        <p className="laboratory-shop__tag">LABORATÓRIO // CONSUMÍVEIS</p>
-        <p className="laboratory-shop__balance">
-          Saldo: <strong>{state.gold.voltsFormatted}</strong>
-        </p>
-        <p className="laboratory-shop__hint">
-          Prepare-se antes da jornada — poções, runas e livros vão direto ao inventário e ao combate.
-        </p>
+        <div className="laboratory-shop__intro">
+          <div className="laboratory-shop__intro-main">
+            <p className="laboratory-shop__tag">LABORATÓRIO // CONSUMÍVEIS</p>
+            <p className="laboratory-shop__balance">
+              Saldo: <strong>{state.gold.voltsFormatted}</strong>
+            </p>
+          </div>
+          <p className="laboratory-shop__hint">
+            Poções, runas e livros — escolha a categoria, veja efeitos e compre em pilha.
+          </p>
+        </div>
 
         <nav className="laboratory-shop__tabs" aria-label="Categorias do laboratório">
           {state.tabs.map((tab) => (

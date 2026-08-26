@@ -7,10 +7,10 @@ import { clearPetRosterForCharacter } from '../../Economy/petRosterStore.js';
 import { clearOwnedSkinsForCharacter } from '../../Economy/skinOwnershipStore.js';
 import { clearMarketplaceForCharacter } from '../../Economy/marketplaceStore.js';
 import { clearMercenaryQuestProgress } from '../quests/mercenaryQuestStore.js';
-import { clearCaelChronicleProgress } from '../world/caelChronicleStore.js';
 import { clearAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { removeLeaderboardRow } from '../leaderboard/leaderboardMemoryStore.js';
 import { clearWorldProfile } from '../world/worldProfileStore.js';
+import { clearCityRestRegenCarry } from '../world/cityRestRegenTick.js';
 
 /**
  * Limpa estado autoritativo em RAM do personagem.
@@ -23,8 +23,8 @@ export function purgeCharacterRuntimeState(playerId: string, characterId: number
   clearOwnedSkinsForCharacter(playerId, characterId);
   clearMarketplaceForCharacter(playerId, characterId);
   clearMercenaryQuestProgress(playerId, characterId);
-  clearCaelChronicleProgress(playerId, characterId);
   clearWorldProfile(playerId, characterId);
+  clearCityRestRegenCarry(playerId, characterId);
   clearAuthoritativeProgression(playerId, characterId);
   removeLeaderboardRow(playerId, characterId);
 }
@@ -37,7 +37,7 @@ export function resetNewCharacterEconomy(playerId: string, characterId: number):
   clearOwnedSkinsForCharacter(playerId, characterId);
   clearMarketplaceForCharacter(playerId, characterId);
   clearMercenaryQuestProgress(playerId, characterId);
-  clearCaelChronicleProgress(playerId, characterId);
   clearWorldProfile(playerId, characterId);
+  clearCityRestRegenCarry(playerId, characterId);
   clearAuthoritativeProgression(playerId, characterId);
 }

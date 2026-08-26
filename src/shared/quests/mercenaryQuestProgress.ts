@@ -1,4 +1,7 @@
-import { getMercenaryQuestById, isMercenaryQuestInLevelBand } from './mercenaryQuestCatalog.js';
+import {
+  getMercenaryQuestById,
+  isMercenaryQuestUnlocked,
+} from './mercenaryQuestCatalog.js';
 import {
   EMPTY_MERCENARY_QUEST_PROGRESS,
   type MercenaryQuestProgress,
@@ -40,17 +43,17 @@ export function sanitizeMercenaryQuestProgress(raw: unknown): MercenaryQuestProg
 export function acceptMercenaryQuest(
   progress: MercenaryQuestProgress,
   questId: string,
-  playerLevel: number,
+  _playerLevel?: number,
 ): MercenaryQuestMutationResult {
   const quest = getMercenaryQuestById(questId);
   if (!quest) {
     return { ok: false, code: 'QUEST_NOT_FOUND', message: 'Contrato inexistente no quadro.' };
   }
-  if (!isMercenaryQuestInLevelBand(quest, playerLevel)) {
+  if (!isMercenaryQuestUnlocked(quest, progress)) {
     return {
       ok: false,
-      code: 'QUEST_LEVEL_BAND',
-      message: `Este contrato exige nível ${quest.minLevel}–${quest.maxLevel}.`,
+      code: 'QUEST_TIER_LOCKED',
+      message: 'Complete as 5 missões do tier anterior para liberar este contrato.',
     };
   }
   if (progress.completedQuestIds.includes(quest.id)) {

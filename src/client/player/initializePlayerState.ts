@@ -7,7 +7,6 @@ import { resetPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { resetPlayerProgressionStore } from '../progression/playerProgressionStore.js';
 import { resetPlayerMarcosStore } from '../ui/marcos/playerMarcosStore.js';
 import { resetMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
-import { resetCaelChronicleStore } from '../ui/world/caelChronicleStore.js';
 import { resetFriendListStore } from '../world/friendListStore.js';
 import { resetInventorySyncScheduler } from '../game/PlayerItemSession.js';
 import { getGlobalStateSynchronizer } from '../sync/GlobalStateSynchronizer.js';
@@ -33,7 +32,6 @@ export function initializePlayerState(options: InitializePlayerStateOptions = {}
   resetPlayerProgressionStore();
   resetPlayerMarcosStore();
   resetMercenaryQuestStore();
-  resetCaelChronicleStore();
   resetFriendListStore();
   resetPlayerWalletStore();
   getPlayerWalletStore().applyBalances({ dollarVolt: 0, alterCoins: 0 });
