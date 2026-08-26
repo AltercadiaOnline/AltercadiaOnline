@@ -1,18 +1,18 @@
-/** Progressão de Pet Love — meta ~150 dias com 1 ração/dia (rendimento decrescente). */
+/** Progressão de Pet Love — meta ~50 dias com 1 ração/dia (rendimento decrescente). */
 export const PET_AFFINITY_CONFIG = {
   maxPercent: 100,
-  /** Ganho base por alimentação (~1,2% no início) — reduzido por rendimento decrescente. */
-  baseGainPerFeed: 0.012,
+  /** Ganho base por alimentação (~3,5% no início) — reduzido por rendimento decrescente. */
+  baseGainPerFeed: 0.035,
   /** +ATK plano por degrau de 10% (10% = +2, 100% = +20). */
   atkBuffPerTenPercent: 2,
   /** Intervalo de bônus passivo com pet convocado no mundo aberto. */
   explorationIntervalMs: 5 * 60 * 1000,
-  /** Bônus planos de afinidade (fração 0–1) — bem menores que a ração. */
+  /** Bônus planos de afinidade (fração 0–1). */
   rewards: {
-    battleVictoryPetAlive: 0.001,
-    battleVictoryPetFainted: 0.0004,
-    explorationSummonedTick: 0.00025,
-    revivalAtCaelBonus: 0.002,
+    battleVictoryPetAlive: 0.006,
+    battleVictoryPetFainted: 0.0024,
+    explorationSummonedTick: 0.0015,
+    revivalAtCaelBonus: 0.012,
   },
 } as const;
 

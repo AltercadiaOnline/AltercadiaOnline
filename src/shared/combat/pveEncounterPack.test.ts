@@ -9,6 +9,7 @@ import {
   resolvePveEnemyPackIndex,
   resolvePveLootSpinCount,
   rollPveEncounterPackSize,
+  rollPveEncounterPackSizeForPlayer,
   stripPveEnemyPackSuffix,
 } from './pveEncounterPack.js';
 import { resolveBattleXpGain } from './battleXpRewards.js';
@@ -16,12 +17,12 @@ import { resolveBattleProgressionGrant } from '../progression/battleProgressionG
 import { BattleType } from './battleType.js';
 
 describe('rollPveEncounterPackSize', () => {
-  it('1 monstro em 70%, 2 em 20%, 3 em 10%', () => {
+  it('1 monstro em 20%, 2 em 50%, 3 em 30%', () => {
     expect(rollPveEncounterPackSize(() => 0)).toBe(1);
-    expect(rollPveEncounterPackSize(() => 0.699)).toBe(1);
-    expect(rollPveEncounterPackSize(() => 0.70)).toBe(2);
-    expect(rollPveEncounterPackSize(() => 0.899)).toBe(2);
-    expect(rollPveEncounterPackSize(() => 0.90)).toBe(3);
+    expect(rollPveEncounterPackSize(() => 0.199)).toBe(1);
+    expect(rollPveEncounterPackSize(() => 0.20)).toBe(2);
+    expect(rollPveEncounterPackSize(() => 0.699)).toBe(2);
+    expect(rollPveEncounterPackSize(() => 0.70)).toBe(3);
     expect(rollPveEncounterPackSize(() => 0.999)).toBe(3);
   });
 
@@ -36,12 +37,12 @@ describe('rollPveEncounterPackSize', () => {
 });
 
 describe('capPveEncounterPackSizeForPlayerLevel', () => {
-  it('nv 1–3 só solo, 4–6 sem trio, 7+ curva cheia', () => {
-    expect(capPveEncounterPackSizeForPlayerLevel(3, 1)).toBe(1);
-    expect(capPveEncounterPackSizeForPlayerLevel(3, 3)).toBe(1);
-    expect(capPveEncounterPackSizeForPlayerLevel(3, 4)).toBe(2);
+  it('curva 20/50/30 vale desde o nv 1 — cap por nível desligado', () => {
+    expect(capPveEncounterPackSizeForPlayerLevel(3, 1)).toBe(3);
+    expect(capPveEncounterPackSizeForPlayerLevel(3, 3)).toBe(3);
     expect(capPveEncounterPackSizeForPlayerLevel(2, 5)).toBe(2);
-    expect(capPveEncounterPackSizeForPlayerLevel(3, 7)).toBe(3);
+    expect(capPveEncounterPackSizeForPlayerLevel(1, 2)).toBe(1);
+    expect(rollPveEncounterPackSizeForPlayer(1, () => 0.70)).toBe(3);
   });
 });
 

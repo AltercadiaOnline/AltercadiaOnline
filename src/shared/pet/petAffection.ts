@@ -1,9 +1,7 @@
-import { PET_AFFINITY_CONFIG } from './petAffinityConfig.js';
-
-/** Carinho na HUD Pet Love — recompensa leve com cooldown longo. */
+/** Carinho na HUD Pet Love — 1,5% de afinidade com cooldown de 1h. */
 export const PET_AFFECTION_CONFIG = {
   cooldownMs: 60 * 60 * 1000,
-  affinityReward: PET_AFFINITY_CONFIG.rewards.explorationSummonedTick + 0.001,
+  affinityReward: 0.015,
 } as const;
 
 export type PetAffectionAvailability = {

@@ -27,18 +27,18 @@ function onSkinPreviewImgError(event: SyntheticEvent<HTMLImageElement>, bundleId
 const CLASS_ORDER: ClassType[] = ['IMPETUS', 'COGITOR', 'TUTATOR', 'DISSOLUTUS'];
 
 /**
- * Mini-lore de estilo — como a classe age para vencer.
+ * Como a classe joga no combate — foco (ATK / controle / DEF / AGI), sem nome de golpe.
  * Só UX da criação; moveset real continua no catálogo do servidor.
  */
-const CLASS_PLAYSTYLE_LORE: Record<ClassType, string> = {
+const CLASS_COMBAT_PLAYSTYLE: Record<ClassType, string> = {
   IMPETUS:
-    'Avança sem hesitar. Acumula pressão, força erros e quebra a defesa com impacto bruto.',
+    'Classe focada em ataque bruto. Você joga na frente, acumula pressão e tenta encerrar rápido. Pouco controle; se errar o ritmo, fica exposto.',
   COGITOR:
-    'Lê o campo antes do golpe. Controla o ritmo, prepara armadilhas e vence pela precisão.',
+    'Classe focada em controle e precisão. Você não explode no primeiro turno: marca o oponente, dita o ritmo e ganha quando o plano fecha.',
   TUTATOR:
-    'Segura a linha e desgasta o oponente. Absorve a investida e responde no momento certo.',
+    'Classe focada em defesa. Você absorve, desgasta e responde. Combate mais longo; o dano vem depois de aguentar.',
   DISSOLUTUS:
-    'Nunca fica parado. Alterna ritmo, abre ângulos e transforma o caos em vantagem.',
+    'Classe focada em agilidade e ruptura. Você troca o ritmo, fura guarda e interrompe o outro. Menos muro que Tutator, menos face-tank que Impetus.',
 };
 
 type CreateStep = 'class' | 'skin' | 'confirm';
@@ -239,9 +239,9 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
             </div>
             {selectedClass && (
               <p className="char-create-step__hint" aria-live="polite">
-                {CLASS_CATALOG[selectedClass].trait}
+                <strong>{CLASS_CATALOG[selectedClass].name}</strong>
                 {' — '}
-                {CLASS_PLAYSTYLE_LORE[selectedClass]}
+                {CLASS_COMBAT_PLAYSTYLE[selectedClass]}
               </p>
             )}
             <div className="auth-actions char-create-actions">
@@ -347,7 +347,7 @@ export function CharacterCreateModal({ open, slotIndex, onClose }: CharacterCrea
                 </div>
                 <div>
                   <dt>Estilo</dt>
-                  <dd>{CLASS_PLAYSTYLE_LORE[selectedClass]}</dd>
+                  <dd>{CLASS_COMBAT_PLAYSTYLE[selectedClass]}</dd>
                 </div>
               </dl>
             </div>

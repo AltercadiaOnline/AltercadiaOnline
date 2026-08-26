@@ -245,35 +245,35 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
   potion(
     'potion_suporte_menor',
     'Poção de Suporte Menor',
-    [pct('HP', 45)],
+    [pct('HP', 30)],
     {
       maxStack: 20,
       description:
-        'Reativa no seu turno (não gasta a ação). 1ª cura: 45% HP. Cada uso na batalha: −10% cura e −10% PP em cada move (até 100% — evite spammar).',
+        'Reativa no seu turno (não gasta a ação). Cura 30% HP. Cada uso na batalha: −10% cura e −10% PP em cada move (até 100% — evite spammar).',
     },
   ),
   potion(
     'potion_suporte_media',
     'Poção de Suporte Média',
-    [pct('HP', 14)],
+    [pct('HP', 50)],
     {
-      weight: 0.6,
+      weight: 2.2,
       maxStack: 15,
       requiresLevel: 6,
       description:
-        'Reativa no turno. Cura 14% HP. Saturação +10% por uso (cura e PP do moveset). Nível 6+.',
+        'Reativa no turno. Cura 50% HP. Saturação +10% por uso (cura e PP do moveset). Nível 6+.',
     },
   ),
   potion(
     'potion_suporte_maior',
     'Poção de Suporte Maior',
-    [pct('HP', 22)],
+    [pct('HP', 78)],
     {
-      weight: 0.8,
+      weight: 2.5,
       maxStack: 10,
       requiresLevel: 12,
       description:
-        'Reativa no turno. Cura 22% HP. Saturação +10% por uso na batalha. Nível 12+.',
+        'Reativa no turno. Cura 78% HP. Saturação +10% por uso na batalha. Nível 12+.',
     },
   ),
   potion(
@@ -291,7 +291,7 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
     'Tônico de Fluxo Maior',
     [flat('AGI', 10)],
     {
-      weight: 0.7,
+      weight: 2.4,
       maxStack: 8,
       requiresLevel: 10,
       description:

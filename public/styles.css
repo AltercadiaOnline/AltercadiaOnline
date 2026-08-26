@@ -2137,6 +2137,11 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   text-align: center;
 }
 
+.char-create-step__hint {
+  max-width: 38rem;
+  margin-inline: auto;
+}
+
 .char-create-step__meta strong {
   color: #00ffcc;
 }

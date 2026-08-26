@@ -11,6 +11,6 @@ export const EQUIPMENT_SLOT_WEIGHT: Record<EquipmentSlotId, number> = {
   [EquipmentSlot.Rune]: 1,
 };
 
-export const DEFAULT_ITEM_WEIGHT = 0.15;
-export const DEFAULT_CONSUMABLE_WEIGHT = 0.5;
+export const DEFAULT_ITEM_WEIGHT = 2;
+export const DEFAULT_CONSUMABLE_WEIGHT = 2;
 export const DEFAULT_CURRENCY_WEIGHT = 0.001;

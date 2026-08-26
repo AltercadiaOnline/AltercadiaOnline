@@ -2,9 +2,9 @@ import type { EquipmentUiGridState, EquipmentUiSlotId } from './equipmentUiSlots
 import type { InventorySlotState } from './inventorySlots.js';
 import { resolveItemWeight, stackWeight } from '../items/itemWeight.js';
 
-/** CAP base + bônus por nível: 400 + (level - 1) × 20. */
-export const BASE_CARRY_CAPACITY = 400;
-export const CARRY_CAPACITY_PER_LEVEL = 20;
+/** CAP base + bônus por nível: 100 + (level - 1) × 5. */
+export const BASE_CARRY_CAPACITY = 100;
+export const CARRY_CAPACITY_PER_LEVEL = 5;
 
 /** A partir de 70% da CAP, UI entra em alerta âmbar (peso alto). */
 export const CAPACITY_WARNING_RATIO = 0.7;

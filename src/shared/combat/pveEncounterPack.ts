@@ -7,23 +7,23 @@ export type PveEncounterPackSize = 1 | 2 | 3;
 export const PVE_PACK_SIZE_MIN = 1;
 export const PVE_PACK_SIZE_MAX = 3;
 
-/** 1 monstro 70% · 2 monstros 20% · 3 monstros 10%. */
+/** 1 monstro 20% · 2 monstros 50% · 3 monstros 30%. Independente de zona e nível. */
 export const PVE_PACK_SIZE_WEIGHTS = {
-  1: 70,
-  2: 20,
-  3: 10,
+  1: 20,
+  2: 50,
+  3: 30,
 } as const;
 
 const PACK_SUFFIX = /__(\d+)$/;
 
-/** Nv 1–3: só solo. O beco não abre em trio no primeiro contato. */
+/** Cap por nível — produto pendente; hoje a curva 20/50/30 vale desde o nv 1. */
 export const PVE_PACK_SOLO_MAX_PLAYER_LEVEL = 3;
-/** Nv 4–6: no máximo dupla. */
+/** Cap por nível — produto pendente; hoje a curva 20/50/30 vale desde o nv 1. */
 export const PVE_PACK_DUO_MAX_PLAYER_LEVEL = 6;
 
 /**
  * Sorteio ponderado O(1). `rng` ∈ [0, 1) — injetável em testes.
- * Faixas: [0, 70) → 1 · [70, 90) → 2 · [90, 100] → 3.
+ * Faixas: [0, 20) → 1 · [20, 70) → 2 · [70, 100] → 3.
  */
 export function rollPveEncounterPackSize(rng: () => number = Math.random): PveEncounterPackSize {
   const roll = rng() * 100;
@@ -34,13 +34,8 @@ export function rollPveEncounterPackSize(rng: () => number = Math.random): PveEn
 
 export function capPveEncounterPackSizeForPlayerLevel(
   rolled: PveEncounterPackSize,
-  playerLevel: number,
+  _playerLevel: number,
 ): PveEncounterPackSize {
-  const level = Number.isFinite(playerLevel) ? Math.max(1, Math.floor(playerLevel)) : 1;
-  if (level <= PVE_PACK_SOLO_MAX_PLAYER_LEVEL) return 1;
-  if (level <= PVE_PACK_DUO_MAX_PLAYER_LEVEL) {
-    return rolled === 3 ? 2 : rolled;
-  }
   return rolled;
 }
 
