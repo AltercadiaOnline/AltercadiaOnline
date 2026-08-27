@@ -68,7 +68,7 @@ export type PlayerSpawn = {
  */
 export class Player {
   private readonly locomotion: PlayerHybridLocomotion;
-  private lastAnimDirection: PlayerAnimDirection = 'DOWN';
+  private lastAnimDirection: PlayerAnimDirection = 'south';
 
   public mapId: string | undefined;
   public displayName: string;

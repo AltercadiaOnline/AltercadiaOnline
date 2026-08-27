@@ -1,25 +1,23 @@
 import { composeKeyboardMoveVector } from './worldMovementAxis.js';
 
-/** Vetor de movimento — só cardinais (N/S/L/O). */
+/** Vetor de movimento — cardinais ou diagonal unitária. */
 export type MoveVector = {
   readonly dx: number;
   readonly dy: number;
 };
 
-/** @deprecated Diagonal desligada — mantido por compat; sempre cardinaliza. */
-export const DIAGONAL_SPEED_NORMALIZER = 1;
+/** 1/√2 — W+D não fica mais rápido que W. SnapEngine também normaliza. */
+export const DIAGONAL_SPEED_NORMALIZER = 1 / Math.SQRT2;
 
 export function normalizeMoveVector(rawDx: number, rawDy: number): MoveVector {
   if (rawDx === 0 && rawDy === 0) {
     return { dx: 0, dy: 0 };
   }
-  if (rawDx !== 0 && rawDy !== 0) {
-    if (Math.abs(rawDy) >= Math.abs(rawDx)) {
-      return { dx: 0, dy: rawDy > 0 ? 1 : -1 };
-    }
-    return { dx: rawDx > 0 ? 1 : -1, dy: 0 };
+  const length = Math.hypot(rawDx, rawDy);
+  if (length < 1e-6) {
+    return { dx: 0, dy: 0 };
   }
-  return { dx: rawDx, dy: rawDy };
+  return { dx: rawDx / length, dy: rawDy / length };
 }
 
 /** Vetor contínuo para point-and-click (qualquer ângulo). */
@@ -36,7 +34,7 @@ export type CardinalInput = {
   readonly right: boolean;
 };
 
-/** Combina eixos cardeais (WASD, setas ou Numpad) em vetor unitário — eixos fixos do mundo. */
+/** Combina WASD/setas/numpad em vetor unitário (8 vias). Q/E não movem. */
 export function composeMoveVector(input: CardinalInput): MoveVector | null {
   return composeKeyboardMoveVector(input);
 }
@@ -104,13 +102,14 @@ export function axisContributionFromKeyboard(key: string, code = ''): AxisContri
       return { left: true };
     case 'Numpad6':
       return { right: true };
-    // Numpad diagonais → cardinal dominante (sem passo diagonal).
     case 'Numpad7':
+      return { up: true, left: true };
     case 'Numpad9':
-      return { up: true };
+      return { up: true, right: true };
     case 'Numpad1':
+      return { down: true, left: true };
     case 'Numpad3':
-      return { down: true };
+      return { down: true, right: true };
     default:
       return null;
   }

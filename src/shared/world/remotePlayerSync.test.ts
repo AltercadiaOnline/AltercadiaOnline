@@ -88,4 +88,19 @@ describe('parseRemotePlayerSnapshots', () => {
       },
     });
   });
+
+  it('aceita facing diagonal no nearbyPlayers', () => {
+    const parsed = parseRemotePlayerSnapshots([
+      {
+        playerId: 'peer-4',
+        characterId: 9,
+        mapId: 'city_01',
+        feetX: 4,
+        feetY: 8,
+        facing: 'north-east',
+        serverTimeMs: 20,
+      },
+    ]);
+    expect(parsed?.[0]?.facing).toBe('north-east');
+  });
 });

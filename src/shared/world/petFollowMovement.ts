@@ -1,6 +1,6 @@
 import { TILE_SIZE } from './mapConstants.js';
 import type { PlayerFacing } from './playerFacing.js';
-import { moveVectorToFacing } from './playerFacing.js';
+import { moveVectorToFacing, toCardinalFacing } from './playerFacing.js';
 import { getPetCollisionPoint } from './petEntity.js';
 import {
   clampFrameDeltaMs,
@@ -119,7 +119,7 @@ export function resolvePetFollowAnchor(
   offsetMult = 1,
 ): WorldPosition {
   const offset = PET_FOLLOW_OFFSET_PX * offsetMult;
-  switch (playerFacing) {
+  switch (toCardinalFacing(playerFacing)) {
     case 'north':
       return { x: playerPosition.x, y: playerPosition.y + offset };
     case 'south':

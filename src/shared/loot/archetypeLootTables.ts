@@ -30,7 +30,7 @@ export const ARCHETYPE_LOOT_TABLES: readonly ArchetypeLootTable[] = [
     zoneId: ZoneId.Zone1,
     sharedGenericDropIds: ['bones'],
     genericDropChance: 0.35,
-    equipDropChance: 0.03,
+    equipDropChance: 0.05,
   },
   {
     archetypeId: CreatureArchetypeId.MetroAnomaly,

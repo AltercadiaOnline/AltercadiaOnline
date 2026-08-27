@@ -99,7 +99,7 @@ export class PetSpriteLoader {
       const rotations: Partial<Record<PlayerFacing, SpriteFrame>> = {};
 
       for (const [direction, relativePath] of Object.entries(state.frames.rotations)) {
-        if (!isPlayerFacing(direction)) continue;
+        if (!isCardinalFacing(direction)) continue;
         try {
           rotations[direction] = await this.loadFrame(bundle.bundleFolder, relativePath);
         } catch (error) {
@@ -161,7 +161,7 @@ export class PetSpriteLoader {
   }
 }
 
-function isPlayerFacing(value: string): value is PlayerFacing {
+function isCardinalFacing(value: string): value is PlayerFacing {
   return value === 'north' || value === 'south' || value === 'east' || value === 'west';
 }
 

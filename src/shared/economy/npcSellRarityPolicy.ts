@@ -1,3 +1,4 @@
+import { isZone1EquipableItemId } from '../items/creatureDrops.js';
 import { resolveItemLootRarity } from '../loot/lootRarity.js';
 import { LootRarity, type LootRarityId } from '../loot/lootTypes.js';
 
@@ -16,6 +17,7 @@ export function isHighValueLootRarity(rarity: LootRarityId): boolean {
 }
 
 export function isNpcVendorSellableByRarity(itemId: string): boolean {
+  if (isZone1EquipableItemId(itemId)) return true;
   return !isHighValueLootRarity(resolveItemLootRarity(itemId));
 }
 

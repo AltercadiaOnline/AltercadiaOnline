@@ -31,7 +31,8 @@ export const MONSTER_ZONE_SCALING: Readonly<Record<ZoneIdType, MonsterZoneScalin
     name: 'Beco dos Fundos',
     levelMin: 1,
     levelMax: 10,
-    baseHp: 55,
+    /** 85: teto Z1 ~2 hits; volta no 20 ainda one-shot. Player/PvP intactos. */
+    baseHp: 85,
     baseAtk: 7,
     baseDef: 3,
     debuffSlots: 1,

@@ -20,7 +20,7 @@ export {
 
 export type PlayerRenderState = PlayerRenderSnapshot;
 
-/** Snapshot de animação para o RenderEngine — IDLE/WALK + direção cardinal. */
+/** Snapshot de animação para o RenderEngine — IDLE/WALK + direção 8 vias. */
 export function resolvePlayerAnimationState(player: Player): PlayerAnimationSnapshot {
   return player.getAnimationState();
 }

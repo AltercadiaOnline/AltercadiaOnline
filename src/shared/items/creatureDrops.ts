@@ -7,7 +7,7 @@ import {
 
 /** Drops oficiais — loot de batalha via `LootGenerator.generateBattleLoot`. */
 export const CREATURE_DROP_TABLE: readonly CreatureDropEntry[] = [
-  { creatureId: 'rat', creatureName: 'Rato', zoneId: ZoneId.Zone1, archetypeId: CreatureArchetypeId.UrbanScavenger, genericDropIds: ['bones'], equipableItemId: null },
+  { creatureId: 'rat', creatureName: 'Rato', zoneId: ZoneId.Zone1, archetypeId: CreatureArchetypeId.UrbanScavenger, genericDropIds: ['bones'], equipableItemId: 'gnawed_bone_helm' },
   { creatureId: 'crow', creatureName: 'Corvo', zoneId: ZoneId.Zone1, archetypeId: CreatureArchetypeId.UrbanScavenger, genericDropIds: ['black_feather', 'crow_eye'], equipableItemId: 'black_feather_pants' },
   { creatureId: 'wild_dog', creatureName: 'Cão Selvagem', zoneId: ZoneId.Zone1, archetypeId: CreatureArchetypeId.UrbanScavenger, genericDropIds: ['dog_fur', 'wild_claw'], equipableItemId: 'rawhide_boots' },
   { creatureId: 'bat', creatureName: 'Morcego', zoneId: ZoneId.Zone1, archetypeId: CreatureArchetypeId.UrbanScavenger, genericDropIds: ['bat_wing', 'bat_tooth'], equipableItemId: 'shadow_wing_cape' },
@@ -83,6 +83,29 @@ export const CREATURE_DROP_TABLE: readonly CreatureDropEntry[] = [
 ];
 
 const creatureById = new Map(CREATURE_DROP_TABLE.map((entry) => [entry.creatureId, entry]));
+
+function collectEquipableItemIds(entry: CreatureDropEntry): readonly string[] {
+  const ids = [
+    ...(entry.equipableItemId ? [entry.equipableItemId] : []),
+    ...(entry.alternateEquipableItemIds ?? []),
+  ];
+  return ids;
+}
+
+const ZONE1_EQUIPABLE_ITEM_ID_SET = new Set(
+  CREATURE_DROP_TABLE.flatMap((entry) =>
+    entry.zoneId === ZoneId.Zone1 ? collectEquipableItemIds(entry) : [],
+  ),
+);
+
+/** Peças de SET da Zona 1 — vitrine do vendedor + dump no NPC. */
+export function listZone1EquipableItemIds(): readonly string[] {
+  return [...ZONE1_EQUIPABLE_ITEM_ID_SET];
+}
+
+export function isZone1EquipableItemId(itemId: string): boolean {
+  return ZONE1_EQUIPABLE_ITEM_ID_SET.has(itemId);
+}
 
 export function getCreatureDropEntry(creatureId: string): CreatureDropEntry | undefined {
   return creatureById.get(creatureId);

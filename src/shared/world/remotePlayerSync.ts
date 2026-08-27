@@ -6,7 +6,7 @@ import type { PetColorId } from '../pet/petColorPalette.js';
 import { isPetColorId } from '../pet/petColorPalette.js';
 import type { PetGenderId } from '../pet/petGender.js';
 import { isPetGenderId } from '../pet/petGender.js';
-import type { PlayerFacing } from './playerFacing.js';
+import { parsePlayerFacing, type PlayerFacing } from './playerFacing.js';
 
 /** Companheiro convocado do peer — só identidade visual; pose deriva do dono no cliente. */
 export type RemotePlayerCompanionSnapshot = {
@@ -96,7 +96,7 @@ export function normalizeRemotePlayerSnapshot(value: unknown): RemotePlayerSnaps
     mapId: record.mapId as string,
     feetX: record.feetX as number,
     feetY: record.feetY as number,
-    facing: record.facing as PlayerFacing,
+    facing: parsePlayerFacing(record.facing),
     serverTimeMs: record.serverTimeMs as number,
     ...(displayName ? { displayName } : {}),
     ...(skinBundleId ? { skinBundleId } : {}),

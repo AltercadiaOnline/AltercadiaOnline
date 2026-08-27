@@ -72,7 +72,7 @@ export type ItemMechanicalDefinition = {
   readonly requiresLevel?: number;
   readonly maxStack?: number;
   readonly combatTrigger?: ItemCombatTrigger;
-  /** Preço piso de mercado (Volts) — NPC revende a valorBase × 0.8. */
+  /** Preço piso de mercado (Volts) — NPC paga valorBase × 50% (`ShopManager`). */
   readonly valorBase?: number;
   /** Drop de loot — crafting (forja) ou valor direto (revenda NPC). */
   readonly lootKind?: ItemLootKind;

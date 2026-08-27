@@ -146,7 +146,7 @@ export class PlayerSprite {
     this.animator.setLocomotionActive(moving);
   }
 
-  /** Aplica snapshot IDLE/WALK/RUN + direção cardinal na máquina de animação. */
+  /** Aplica snapshot IDLE/WALK + direção (8 vias) na máquina de animação. */
   applyAnimationSnapshot(snapshot: PlayerAnimationSnapshot): void {
     this.setFacing(animDirectionToFacing(snapshot.direction));
     this.animator.applyLocomotionState(mapAnimStateToClip(snapshot.state));

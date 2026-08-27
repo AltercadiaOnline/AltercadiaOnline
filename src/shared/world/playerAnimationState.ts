@@ -1,8 +1,9 @@
 import type { PlayerFacing } from './playerFacing.js';
+import { moveVectorToFacing } from './playerFacing.js';
 
 export type PlayerAnimState = 'IDLE' | 'WALK';
 
-export type PlayerAnimDirection = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+export type PlayerAnimDirection = PlayerFacing;
 
 export type PlayerAnimationSnapshot = {
   readonly state: PlayerAnimState;
@@ -17,29 +18,11 @@ export type ResolvePlayerAnimationOptions = {
 export const PLAYER_ANIM_IDLE_EPSILON = 0.1;
 
 export function facingToAnimDirection(facing: PlayerFacing): PlayerAnimDirection {
-  switch (facing) {
-    case 'north':
-      return 'UP';
-    case 'south':
-      return 'DOWN';
-    case 'west':
-      return 'LEFT';
-    case 'east':
-      return 'RIGHT';
-  }
+  return facing;
 }
 
 export function animDirectionToFacing(direction: PlayerAnimDirection): PlayerFacing {
-  switch (direction) {
-    case 'UP':
-      return 'north';
-    case 'DOWN':
-      return 'south';
-    case 'LEFT':
-      return 'west';
-    case 'RIGHT':
-      return 'east';
-  }
+  return direction;
 }
 
 export function resolveAnimDirectionFromVelocity(
@@ -50,10 +33,7 @@ export function resolveAnimDirectionFromVelocity(
   if (Math.abs(velocityX) < 1e-6 && Math.abs(velocityY) < 1e-6) {
     return fallback;
   }
-  if (Math.abs(velocityX) >= Math.abs(velocityY)) {
-    return velocityX < 0 ? 'LEFT' : 'RIGHT';
-  }
-  return velocityY < 0 ? 'UP' : 'DOWN';
+  return moveVectorToFacing(velocityX, velocityY);
 }
 
 export function resolvePlayerAnimationState(

@@ -3,6 +3,7 @@ import { resolvePetFollowAnchor } from '../../shared/world/petFollowMovement.js'
 import type { RemotePlayerCompanionSnapshot } from '../../shared/world/remotePlayerSync.js';
 import type { PetRenderSnapshot } from '../entities/pet/PetFollowEntity.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
+import { toCardinalFacing } from '../../shared/world/playerFacing.js';
 
 /** Pose visual do pet remoto — ancora atrás do dono interpolado; identidade vem do snapshot. */
 export function buildRemoteCompanionRenderSnapshot(
@@ -23,7 +24,7 @@ export function buildRemoteCompanionRenderSnapshot(
   return {
     x: anchor.x,
     y: anchor.y,
-    facing: owner.facing,
+    facing: toCardinalFacing(owner.facing),
     southIdleMs: 0,
     visible: true,
     name: companion.name,

@@ -103,9 +103,6 @@ const CREATURE_LOOT_MANUAL_OVERRIDES: Readonly<
       minotaur_horn: 3,
     },
   },
-  vortex_agent: {
-    guaranteedItemIds: ['soul_fragment'],
-  },
 };
 
 function buildMergedCreatureLootProfiles(): Readonly<

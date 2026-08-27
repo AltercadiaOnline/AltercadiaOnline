@@ -26,7 +26,7 @@ export function tileKey(tile: GridTileCoord): string {
   return `${tile.tileX},${tile.tileY}`;
 }
 
-/** Converte input WASD/Numpad em passo discreto de 1 tile (só cardinais). */
+/** Converte input WASD/Numpad em passo de 1 tile (cardinal ou diagonal). */
 export function composeGridStep(input: CardinalInput): GridStep | null {
   return composeKeyboardGridStep(input);
 }
@@ -51,24 +51,23 @@ export function gridStepBetween(from: GridTileCoord, to: GridTileCoord): GridSte
   if (Math.abs(to.tileX - from.tileX) > 1 || Math.abs(to.tileY - from.tileY) > 1) {
     return null;
   }
-  // Só adjacência cardinal (sem diagonal).
-  if (stepX !== 0 && stepY !== 0) return null;
   return { stepX: stepX as -1 | 0 | 1, stepY: stepY as -1 | 0 | 1 };
 }
 
-/** Um passo cardinal em direção ao tile alvo (pathfinding / follow). */
+/** Um passo (cardinal ou diagonal) em direção ao tile alvo. */
 export function stepTowardTile(from: GridTileCoord, to: GridTileCoord): GridStep | null {
   const dx = to.tileX - from.tileX;
   const dy = to.tileY - from.tileY;
   if (dx === 0 && dy === 0) return null;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return { stepX: Math.sign(dx) as -1 | 0 | 1, stepY: 0 };
-  }
-  return { stepX: 0, stepY: Math.sign(dy) as -1 | 0 | 1 };
+  return {
+    stepX: Math.sign(dx) as -1 | 0 | 1,
+    stepY: Math.sign(dy) as -1 | 0 | 1,
+  };
 }
 
 /**
- * Tenta avançar exatamente 1 SQM na grade (só N/S/L/O).
+ * Tenta avançar 1 SQM na grade (N/S/L/O ou diagonal).
+ * Diagonal bloqueada em canto → `canPlayerStepTo` rejeita (não fura vértice).
  */
 export function tryGridStep(
   from: WorldPosition,
@@ -76,7 +75,6 @@ export function tryGridStep(
   mapData: number[][],
 ): WorldPosition | null {
   if (step.stepX === 0 && step.stepY === 0) return null;
-  if (step.stepX !== 0 && step.stepY !== 0) return null;
 
   const fromSnapped = snapWorldToTileCenter(from.x, from.y);
   const fromTile = worldPixelToTile(fromSnapped.x, fromSnapped.y);

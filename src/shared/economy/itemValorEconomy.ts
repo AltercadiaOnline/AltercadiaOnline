@@ -1,3 +1,4 @@
+import { isZone1EquipableItemId } from '../items/creatureDrops.js';
 import { getItemMechanicalById } from '../items/itemCatalog.js';
 import { ItemCategory } from '../items/itemSchema.js';
 import { isNpcVendorSellableByRarity } from './npcSellRarityPolicy.js';
@@ -56,8 +57,18 @@ export function isNpcVendorDropMaterial(itemId: string): boolean {
   return resolveItemValorBase(itemId) !== null;
 }
 
-/** Item revendável ao NPC — Generic Common/Uncommon com valorBase. */
+/** SET da Zona 1 — dump no NPC (50% do valorBase). Z2+ continua só no Marketplace. */
+export function isNpcVendorDumpableEquipable(itemId: string): boolean {
+  if (!isZone1EquipableItemId(itemId)) return false;
+  const item = getItemMechanicalById(itemId);
+  if (!item || item.category !== ItemCategory.Equipable) return false;
+  if (item.isTradable === false) return false;
+  return resolveItemValorBase(itemId) !== null;
+}
+
+/** Item revendável ao NPC — material comum/uncommon ou SET da Zona 1. */
 export function isNpcVendorSellableItem(itemId: string): boolean {
+  if (isNpcVendorDumpableEquipable(itemId)) return true;
   if (!isNpcVendorDropMaterial(itemId)) return false;
   return isNpcVendorSellableByRarity(itemId);
 }

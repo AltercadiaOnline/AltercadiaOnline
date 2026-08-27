@@ -18,6 +18,10 @@ import {
   type LootItemRoll,
 } from '../shared/loot/lootTypes.js';
 import { LootRarity } from '../shared/loot/lootTypes.js';
+import {
+  isVortexAgentLootSource,
+  rollVortexAgentLootReveal,
+} from '../shared/loot/vortexAgentLoot.js';
 
 export type LootGeneratorOptions = {
   readonly sourceId: string;
@@ -167,11 +171,22 @@ function bundleFromReveal(
 
 /**
  * Gera 4 slots do loot cassino pós-batalha + bundle pendente (autoritativo).
+ * Agente Vórtex usa gerador próprio (só fragmentos, 0–4 slots) — não o cassino de criatura.
  */
 export function generateBattleLoot(options: LootGeneratorOptions): BattleLootGeneration | null {
   const rng = options.rng ?? Math.random;
   const defeatedLevel = options.defeatedLevel ?? 1;
   const lootBonus = options.lootBonusMultiplier ?? 1;
+
+  if (isVortexAgentLootSource(options.sourceId)) {
+    const lootReveal = rollVortexAgentLootReveal(rng, lootBonus);
+    const bundle = bundleFromReveal(lootReveal, options.sourceId, options.winnerId);
+    return {
+      bundle,
+      preview: battleLootPreviewFromBundle(bundle),
+      lootReveal,
+    };
+  }
 
   const config = resolveCreatureLootConfig(options.sourceId, defeatedLevel, lootBonus);
   if (!config) return null;

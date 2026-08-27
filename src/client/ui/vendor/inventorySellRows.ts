@@ -15,8 +15,8 @@ export type InventorySellRow = {
 };
 
 /**
- * Drops/materiais do inventário revendáveis ao NPC (Generic Common/Uncommon).
- * Não inclui set, poções, runas nem livros — evita poluir a HUD de revenda.
+ * Drops revendáveis ao NPC: materiais Generic Common/Uncommon + SET da Zona 1.
+ * Poções, runas, livros e SET Z2+ ficam de fora (Marketplace).
  */
 export function listInventorySellRows(inventory: InventorySnapshot): readonly InventorySellRow[] {
   const byItemId = new Map<string, InventorySellRow>();

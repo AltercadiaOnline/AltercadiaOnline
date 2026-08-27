@@ -1,4 +1,5 @@
 import type { PlayerFacing } from './playerFacing.js';
+import { isPlayerFacing } from './playerFacing.js';
 import { DEFAULT_MAP_ID, getMapDefinition, type MapId } from './mapRegistry.js';
 import { TILE_SIZE } from './mapConstants.js';
 import { tileCenterToWorldPixel } from './portals.js';
@@ -78,10 +79,8 @@ export function isValidWorldPosition(position: WorldPosition): boolean {
   return Number.isFinite(position.x) && Number.isFinite(position.y);
 }
 
-const VALID_FACINGS = new Set<PlayerFacing>(['north', 'south', 'east', 'west']);
-
 function isValidFacing(value: unknown): value is PlayerFacing {
-  return typeof value === 'string' && VALID_FACINGS.has(value as PlayerFacing);
+  return isPlayerFacing(value);
 }
 
 /**

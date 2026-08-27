@@ -9,6 +9,7 @@
 | Gateway | `src/Economy/economyGateway.ts` |
 | Store runtime | `src/Economy/economyStore.ts` |
 | Catálogo | `src/shared/items/itemCatalog.ts` |
+| Preço de drop (farm) | `src/shared/economy/dropItemValor.ts` — piso por zona × tipo × raridade |
 | Preço servidor | handlers em `src/server/handlers/economy/` + `src/shared/economy/ShopManager.ts` |
 | Banco | `BankTransactionHandlers.ts`, `src/shared/bank/` |
 | Market (global) | `MarketplaceHandlers.ts`, `globalMarketplaceStore.ts`, `globalMarketplacePersistence.ts` |

@@ -209,6 +209,7 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
   generic('black_mist', 'Névoa Negra', 'Drop temático do Wraith.'),
   generic('wraith_echo', 'Eco de Wraith', 'Drop temático do Wraith.'),
 
+  equip('gnawed_bone_helm', 'Elmo de Osso Roído', 'H', [pct('DEF', 5)], EQUIPMENT_SLOT_WEIGHT.head),
   equip('black_feather_pants', 'Calças de Penas Negras', 'P', [pct('DEF', 5)], EQUIPMENT_SLOT_WEIGHT.bottom),
   equip('rawhide_boots', 'Botas de Pele Bruta', 'B', [pct('HP', 5)], EQUIPMENT_SLOT_WEIGHT.bottom),
   equip('shadow_wing_cape', 'Capa de Asa Sombria', 'A', [pct('STR', 5)], EQUIPMENT_SLOT_WEIGHT.top),

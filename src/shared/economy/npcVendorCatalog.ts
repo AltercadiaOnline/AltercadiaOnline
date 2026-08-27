@@ -1,7 +1,28 @@
 import { ALQUIMISTA_NPC, VENDEDOR_NPC } from '../world/npcBuildingAnchors.js';
 import { ANCIAO_CAEL_NPC_ID } from './caelPetService.js';
 import { getAuthoritativeItemById } from '../items/itemCatalogAuthoritative.js';
+import { EQUIPABLE_VALOR_BASE } from '../items/lootItemEconomyRegistry.js';
 import { ItemCategory } from '../items/itemSchema.js';
+import { calculateTradePrice } from './ShopManager.js';
+
+/** Ordem da vitrine Z1 — elmo, peito, perna, bota, anel. */
+export const ZONE1_SET_VENDOR_ITEM_IDS = [
+  'gnawed_bone_helm',
+  'shadow_wing_cape',
+  'black_feather_pants',
+  'rawhide_boots',
+  'black_chitin_ring',
+] as const;
+
+function zone1SetListing(itemId: (typeof ZONE1_SET_VENDOR_ITEM_IDS)[number]): NpcVendorListing {
+  const valorBase = EQUIPABLE_VALOR_BASE.zone1;
+  return {
+    itemId,
+    npcBuyPriceVolts: calculateTradePrice(valorBase, 'BUY'),
+    npcSellPriceVolts: calculateTradePrice(valorBase, 'SELL'),
+    marketValueVolts: valorBase,
+  };
+}
 
 /** Tabela de preços do NPC — compra, revenda e âncora de mercado (editável). */
 export type NpcVendorListing = {
@@ -61,7 +82,7 @@ export const NPC_VENDOR_CATALOG: readonly NpcVendorCatalogEntry[] = [
   },
   {
     vendorId: VENDEDOR_NPC,
-    listings: [],
+    listings: ZONE1_SET_VENDOR_ITEM_IDS.map(zone1SetListing),
   },
   {
     vendorId: ANCIAO_CAEL_NPC_ID,
@@ -150,7 +171,7 @@ export const NPC_VENDOR_CATALOG: readonly NpcVendorCatalogEntry[] = [
       },
     ],
   },
-] as const;
+];
 
 export function getNpcVendorListings(vendorId: string): readonly NpcVendorListing[] {
   return NPC_VENDOR_CATALOG.find((entry) => entry.vendorId === vendorId)?.listings ?? [];

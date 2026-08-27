@@ -1,6 +1,7 @@
 import type { PetSnapshot } from '../pet/petModel.js';
 import type { MapTransitionPayload } from './protocol.js';
 import type { PlayerFacing } from './playerFacing.js';
+import { parsePlayerFacing } from './playerFacing.js';
 import { CITY_01_ID } from './maps/city01.js';
 import type { Portal } from './portals.js';
 import {
@@ -234,7 +235,7 @@ export function parsePortalTransitionRequestPayload(
     characterId,
     currentMapId,
     lastPosition: { x: pos.x, y: pos.y },
-    facing: facing as PlayerFacing,
+    facing: parsePlayerFacing(facing),
     playerLevel,
   };
 

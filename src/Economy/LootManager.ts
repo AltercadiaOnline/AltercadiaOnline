@@ -12,7 +12,8 @@ export type LootRollOptions = {
 };
 
 /**
- * Motor de drop autoritativo — delega ao LootGenerator (4 slots hardcore).
+ * Motor de drop autoritativo — delega ao LootGenerator (4 slots).
+ * Agente Vórtex: gerador próprio em vortexAgentLoot (só fragmentos).
  */
 export class LootManager {
   generateBattleLoot(

@@ -17,7 +17,7 @@ describe('monsterZoneScaling', () => {
     const stats = resolveMonsterStats(ZoneId.Zone1, 1, false);
     expect(stats.level).toBe(1);
     expect(stats.relativeLevel).toBe(0);
-    expect(stats.maxHp).toBe(55);
+    expect(stats.maxHp).toBe(85);
     expect(stats.attack).toBe(7);
     expect(stats.defense).toBe(3);
     expect(stats.debuffSlots).toBe(1);
@@ -25,7 +25,7 @@ describe('monsterZoneScaling', () => {
 
   it('cresce HP/Atk/Def com (1.05)^nívelRelativo', () => {
     const stats = resolveMonsterStats(ZoneId.Zone1, 10, false);
-    const expectedHp = Math.floor(55 * (1 + MONSTER_ZONE_LEVEL_GROWTH) ** 9);
+    const expectedHp = Math.floor(85 * (1 + MONSTER_ZONE_LEVEL_GROWTH) ** 9);
     const expectedAtk = Math.floor(7 * (1 + MONSTER_ZONE_LEVEL_GROWTH) ** 9);
     const expectedDef = Math.floor(3 * (1 + MONSTER_ZONE_LEVEL_GROWTH) ** 9);
     expect(stats.maxHp).toBe(expectedHp);

@@ -409,24 +409,26 @@ export class PlayerHybridLocomotion {
       const stepYRaw = Math.sign(target.tileY - this.tileY) as -1 | 0 | 1;
       if (stepXRaw === 0 && stepYRaw === 0) break;
 
-      let stepX = stepXRaw;
-      let stepY = stepYRaw;
-      if (stepX !== 0 && stepY !== 0) {
-        if (Math.abs(target.tileX - this.tileX) >= Math.abs(target.tileY - this.tileY)) {
-          stepY = 0;
-        } else {
-          stepX = 0;
-        }
-      }
-
       const origin = tileCenterToWorldPixel(this.tileX, this.tileY);
-      const next = tryGridStep(origin, { stepX, stepY }, mapData);
+      const diagonal = tryGridStep(origin, { stepX: stepXRaw, stepY: stepYRaw }, mapData);
+      const next = diagonal
+        ?? (stepXRaw !== 0 && stepYRaw !== 0
+          ? tryGridStep(origin, { stepX: stepXRaw, stepY: 0 }, mapData)
+            ?? tryGridStep(origin, { stepX: 0, stepY: stepYRaw }, mapData)
+          : null);
       if (!next) break;
+
+      const committed: GridStep = diagonal
+        ? { stepX: stepXRaw, stepY: stepYRaw }
+        : {
+          stepX: Math.sign(next.x - origin.x) as -1 | 0 | 1,
+          stepY: Math.sign(next.y - origin.y) as -1 | 0 | 1,
+        };
 
       const nextTile = worldPixelToTile(next.x, next.y);
       this.tileX = nextTile.tileX;
       this.tileY = nextTile.tileY;
-      onStepCommitted({ stepX, stepY });
+      onStepCommitted(committed);
     }
   }
 

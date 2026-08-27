@@ -46,6 +46,7 @@ const SLOT_CODE_TO_EQUIPMENT: Record<string, EquipableItemDefinition['slot']> = 
 };
 
 const CREATURE_BY_EQUIP_ID: Record<string, { creatureId: string; zoneId: ZoneId }> = {
+  gnawed_bone_helm: { creatureId: 'rat', zoneId: ZoneId.Zone1 },
   black_feather_pants: { creatureId: 'crow', zoneId: ZoneId.Zone1 },
   rawhide_boots: { creatureId: 'wild_dog', zoneId: ZoneId.Zone1 },
   shadow_wing_cape: { creatureId: 'bat', zoneId: ZoneId.Zone1 },

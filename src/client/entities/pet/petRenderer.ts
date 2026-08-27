@@ -1,5 +1,6 @@
 import { getPetVisualBounds } from '../../../shared/world/petEntity.js';
 import type { PlayerFacing } from '../../../shared/world/playerFacing.js';
+import { toCardinalFacing } from '../../../shared/world/playerFacing.js';
 import type { PetKindId } from '../../../shared/pet/petCatalog.js';
 import { getPetColorPalette, type PetColorId } from '../../../shared/pet/petColorPalette.js';
 import { getDefaultPetGenderId, type PetGenderId } from '../../../shared/pet/petGender.js';
@@ -22,7 +23,7 @@ function facingMirrorScale(facing: PlayerFacing): number {
 }
 
 function resolvePetFacing(snapshot: PetRenderSnapshot): PlayerFacing {
-  return snapshot.facing;
+  return toCardinalFacing(snapshot.facing);
 }
 
 function renderPetPngSprite(

@@ -2,7 +2,7 @@ import type { UiWindowId } from './uiEvents.js';
 
 /**
  * Teclas reservadas para locomoção — nunca mapear atalhos HUD aqui.
- * Só cardinais WASD (sem Q/E diagonal).
+ * WASD (acordes diagonais ok). Q/E não movem.
  */
 export const MOVEMENT_RESERVED_KEY_CODES = [
   'KeyW',

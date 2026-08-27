@@ -31,7 +31,7 @@ function isHudShortcutContextActive(): boolean {
 }
 
 /**
- * Atalhos globais de HUD (toggle). Ignora teclas de movimento (WASD, Q/E diagonais).
+ * Atalhos globais de HUD (toggle). Ignora teclas de movimento (WASD; Q/E não movem).
  */
 export class KeyboardManager {
   private attached = false;

@@ -10,6 +10,7 @@ import type { MoveDirection } from '../shared/world/protocol.js';
 import { composeGridStep } from '../shared/world/gridMovement.js';
 import {
   axisContributionFromKeyboard,
+  composeMoveVector,
   isMovementKey as isMovementKeyShared,
   normalizeMovementKeyCode,
   resolvePivotDirection,
@@ -284,7 +285,12 @@ export class PlayerController {
     this.syncMovementKeys();
     const direction = this.getActiveDirection();
     const authority = getWorldMovementAuthority();
-    if (direction) {
+    const moveVector = composeMoveVector(this.keys);
+    if (moveVector) {
+      authority.lockPredictionFromInput({
+        facing: moveVectorToFacing(moveVector.dx, moveVector.dy),
+      });
+    } else if (direction) {
       authority.lockPredictionFromInput({
         facing: moveDirectionToFacing(direction),
       });
