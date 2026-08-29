@@ -16,6 +16,7 @@ import { renderPetSprite } from '../../entities/pet/petRenderer.js';
 import { PetSpriteLoader } from '../../entities/pet/PetSpriteLoader.js';
 import { buildRemoteCompanionRenderSnapshot } from '../../world/remoteCompanionPose.js';
 import { getWorldSpraysForMap } from '../../world/worldSpraySyncBridge.js';
+import { renderPvpJumbotronOverlay, resetPvpJumbotronOverlaySprites } from './pvpJumbotronOverlay.js';
 import { OFFICIAL_SPRAY_STENCILS } from '../../../shared/types/tacticalSpray.js';
 
 const VIEWPORT_W = DESIGN_CONFIG.VIEWPORT.WIDTH;
@@ -74,6 +75,7 @@ export class ConstructEntityOverlay {
     this.canvas = null;
     this.ctx = null;
     this.remotePlayerSprites.clear();
+    resetPvpJumbotronOverlaySprites();
   }
 
   /** Batalha / pause — apaga o canvas sem o loop de exploração. */
@@ -145,6 +147,8 @@ export class ConstructEntityOverlay {
     } catch {
       // no-op: render loop must not throw
     }
+
+    renderPvpJumbotronOverlay(ctx, frame);
 
     const depthLayer: Array<{ readonly depthY: number; readonly draw: () => void }> = [];
     const remotes = frame.remotePlayers;

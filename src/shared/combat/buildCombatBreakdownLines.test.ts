@@ -44,17 +44,31 @@ describe('buildDefenseBreakdownLines', () => {
     expect(sumDefenseBreakdownTotal(breakdown)).toBe(classDef);
   });
 
-  it('DEF% do SET aplica sobre o golpe recebido, não só a defesa de classe', () => {
+  it('DEF% do SET aplica sobre classe + ficha, não sobre o golpe recebido', () => {
     const classDef = 2;
-    const incomingStrike = 40;
     const breakdown = buildDefenseBreakdownLines(
       minimalSources({
         equipByBuff: { [ItemBuffType.Defense]: 15 },
+        allocatedDefenseFlat: 12,
       }),
       classDef,
-      incomingStrike,
     );
-    expect(sumDefenseBreakdownTotal(breakdown)).toBe(classDef + Math.floor(incomingStrike * 15 / 100));
+    const characterDef = classDef + 12;
+    expect(sumDefenseBreakdownTotal(breakdown)).toBe(
+      characterDef + Math.ceil(characterDef * 15 / 100),
+    );
+  });
+
+  it('soma os % do SET e arredonda para cima uma vez', () => {
+    const classDef = 5;
+    const breakdown = buildDefenseBreakdownLines(
+      minimalSources({
+        equipByBuff: { [ItemBuffType.Defense]: 5 },
+        amuletByBuff: { [ItemBuffType.Defense]: 5 },
+      }),
+      classDef,
+    );
+    expect(sumDefenseBreakdownTotal(breakdown)).toBe(classDef + Math.ceil(classDef * 10 / 100));
   });
 });
 
@@ -62,7 +76,9 @@ describe('buildAttackBreakdownLines', () => {
   it('strength from equip, amulet, ring, book and rune sum into attack total', () => {
     const classAtk = 100;
     const movePower = 25;
+    const characterAtk = classAtk;
     const strikeBase = classAtk + movePower;
+    const gearPercent = 10 + 5 + 5 + 10 + 10;
     const breakdown = buildAttackBreakdownLines(
       minimalSources({
         equipByBuff: { [ItemBuffType.Strength]: 10 },
@@ -76,22 +92,16 @@ describe('buildAttackBreakdownLines', () => {
       movePower,
     );
 
-    // % aplica sobre (classe + moveset), não só ATK de classe.
     expect(sumAttackBreakdownTotal(breakdown)).toBe(
       strikeBase
-      + Math.floor(strikeBase * 10 / 100)
-      + Math.floor(strikeBase * 5 / 100)
-      + Math.floor(strikeBase * 5 / 100)
-      + Math.floor(strikeBase * 10 / 100)
-      + Math.floor(strikeBase * 10 / 100)
+      + Math.ceil(characterAtk * gearPercent / 100)
       + Math.floor(strikeBase * 20 / 100),
     );
   });
 
-  it('low class ATK still shows visible equip bonus from move power', () => {
-    const classAtk = 3; // COGITOR
+  it('STR% do SET ignora o poder do move', () => {
+    const classAtk = 3;
     const movePower = 30;
-    const strikeBase = 33;
     const breakdown = buildAttackBreakdownLines(
       minimalSources({
         equipByBuff: { [ItemBuffType.Strength]: 8 },
@@ -102,33 +112,32 @@ describe('buildAttackBreakdownLines', () => {
     );
 
     expect(sumAttackBreakdownTotal(breakdown)).toBe(
-      strikeBase
-      + Math.floor(strikeBase * 8 / 100)
-      + Math.floor(strikeBase * 8 / 100),
+      classAtk + movePower + Math.ceil(classAtk * 16 / 100),
     );
-    expect(breakdown.lines.some((line) => line.source === 'equip' && line.value > 0)).toBe(true);
-    expect(breakdown.lines.some((line) => line.source === 'amuleto' && line.value > 0)).toBe(true);
+    expect(breakdown.lines.some((line) => line.source === 'equip' && line.percent === 8)).toBe(true);
+    expect(breakdown.lines.some((line) => line.source === 'amuleto' && line.percent === 8)).toBe(true);
   });
 
-  it('ficha ATK is a flat add after SET percent', () => {
+  it('ficha ATK entra na base da % do SET, não no poder do move', () => {
     const classAtk = 6;
     const movePower = 10;
-    const strikeBase = 16;
+    const ficha = 4;
+    const characterAtk = classAtk + ficha;
     const breakdown = buildAttackBreakdownLines(
       minimalSources({
         equipByBuff: { [ItemBuffType.Strength]: 50 },
-        allocatedAttackFlat: 4,
+        allocatedAttackFlat: ficha,
       }),
       classAtk,
       movePower,
     );
     expect(sumAttackBreakdownTotal(breakdown)).toBe(
-      strikeBase + Math.floor(strikeBase * 50 / 100) + 4,
+      classAtk + movePower + ficha + Math.ceil(characterAtk * 50 / 100),
     );
   });
 });
 
-describe('SET DEF no golpe recebido', () => {
+describe('SET DEF na (classe + ficha)', () => {
   const emptyCombatant = (patch: Partial<Combatant>): Combatant => ({
     id: 'player',
     name: 'Operative',
@@ -145,13 +154,13 @@ describe('SET DEF no golpe recebido', () => {
   });
 
   it('10% DEF do SET reduz o golpe mesmo com maps vazios (só combatStats)', () => {
-    const incomingStrike = 23;
     const defender = emptyCombatant({
       combatStats: { defensePercent: 10 },
     });
-    const breakdown = buildDefenseBreakdown(defender, null, incomingStrike);
+    const breakdown = buildDefenseBreakdown(defender, null);
+    const classDef = CLASS_CATALOG.COGITOR.bonus.defense;
     expect(sumDefenseBreakdownTotal(breakdown)).toBe(
-      CLASS_CATALOG.COGITOR.bonus.defense + Math.floor(incomingStrike * 10 / 100),
+      classDef + Math.ceil(classDef * 10 / 100),
     );
   });
 
@@ -186,6 +195,8 @@ describe('SET DEF no golpe recebido', () => {
     const geared = calculateDamage(rat, withGear, { id: 'rat_bite', power: 12 });
     const bare = calculateDamage(rat, naked, { id: 'rat_bite', power: 12 });
     expect(geared.finalDamage).toBeLessThan(bare.finalDamage);
-    expect(geared.finalDamage).toBe(bare.finalDamage - Math.floor(23 * 10 / 100));
+    expect(geared.finalDamage).toBe(
+      bare.finalDamage - Math.ceil(CLASS_CATALOG.COGITOR.bonus.defense * 10 / 100),
+    );
   });
 });

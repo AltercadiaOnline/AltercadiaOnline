@@ -3,11 +3,7 @@ import type { EquipmentUiGridState } from '../../shared/character/equipmentUiSlo
 import { equippedToEquipmentUiGrid } from '../../shared/character/equipmentUiSlots.js';
 import type { InventoryUpdatedPayload } from '../../shared/economy/events.js';
 import { computeInventoryChecksum } from '../../shared/character/inventoryChecksum.js';
-import {
-  coalescePlayerItemRecords,
-  findInventoryEquipmentOverlap,
-  mergeEquipmentUiGridPreservingLocalEquipped,
-} from '../../shared/character/itemSlotModel.js';
+import { mergeEquipmentUiGridPreservingLocalEquipped } from '../../shared/character/itemSlotModel.js';
 import { normalizeChargedInventoryStacks } from '../../shared/items/chargedEquipment.js';
 import type { InventorySnapshot } from '../../shared/character/inventorySlots.js';
 import { getMockEconomyService } from '../economy/economyLayer.js';
@@ -200,15 +196,11 @@ export function applyInventoryUpdatedPayload(
   let grid: EquipmentUiGridState;
 
   if (payload.equipmentUiGrid !== undefined) {
-    grid = mergeEquipmentUiGridPreservingLocalEquipped(
-      { ...payload.equipmentUiGrid },
-      localGrid,
-      stacks,
-    );
+    grid = { ...payload.equipmentUiGrid };
   } else if (Object.values(payloadGrid).some(Boolean)) {
-    grid = mergeEquipmentUiGridPreservingLocalEquipped(payloadGrid, localGrid, stacks);
+    grid = { ...payloadGrid };
   } else {
-    grid = localGrid;
+    grid = mergeEquipmentUiGridPreservingLocalEquipped(payloadGrid, localGrid, stacks);
   }
 
   applyServerItemBundle({
@@ -219,11 +211,6 @@ export function applyInventoryUpdatedPayload(
   });
 
   getPlayerStatsGateway().refreshFromAuthoritativeGrid(grid);
-
-  const overlap = findInventoryEquipmentOverlap(store.getItems());
-  if (overlap.length > 0) {
-    store.replaceAll(coalescePlayerItemRecords(store.getItems()));
-  }
 
   if (!verifyAppliedInventoryChecksum(payload.inventoryChecksum)) {
     return;

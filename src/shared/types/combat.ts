@@ -142,7 +142,7 @@ export type CombatStatSources = {
   readonly marcoCritPercent: number;
   readonly marcoDodgePercent: number;
   readonly marcoDamageReductionPercent: number;
-  /** Flat da Ficha — depois dos % de SET (1 ponto = +1 no plano). */
+  /** Flat da Ficha — entra na base da % do SET (classe + ficha). */
   readonly allocatedAttackFlat?: number;
   readonly allocatedDefenseFlat?: number;
 };

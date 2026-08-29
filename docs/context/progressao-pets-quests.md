@@ -55,9 +55,9 @@ Marcos / pets / missões abaixo. Não misturar pontos da Ficha com a árvore de 
 | Abandono | Livre (pode reassinar) |
 | Reward | XP + VOLTS (`rewardExp` / `rewardVolts`) |
 | Rep / item / moral branch | Fora do piloto (flavor / campos dormem) |
-| Faixas (piloto) | 3 tiers × 5 quests. Unlock: completar as 5 do tier anterior (não por nível). |
+| Faixas | 1–10 / 11–20 / 21–30. Unlock: completar as 5 do tier anterior (não por nível). |
 
-**Próximo:** design de 15 quests com steps no mapa (faixas **1–10 / 11–20 / 21–30**), itens e POIs — cronograma e checklist em [mercenary-quests-cronograma.md](mercenary-quests-cronograma.md). Implementar **Fase 0** depois **Q1…Q15** uma a uma.
+Catálogo HUD já usa o cronograma (títulos/lore/objetivo). Passos no mundo ainda não. Checklist em [mercenary-quests-cronograma.md](mercenary-quests-cronograma.md) — **Fase 0** depois **Q1…Q15**.
 
 - Shared: `mercenaryQuestCatalog.ts`, `mercenaryQuestProgress.ts` (`completeMercenaryQuest`)
 - Server: `MercenaryQuestHandlers.ts` + `creditMercenaryQuestVolts` (economyGateway)

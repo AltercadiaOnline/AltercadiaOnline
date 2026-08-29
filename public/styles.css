@@ -21623,6 +21623,15 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   overflow: hidden;
 }
 
+.mercenary-board--compact .mercenary-board__interaction {
+  font-size: 9px;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .mercenary-board--compact .mercenary-board__actions {
   margin-top: auto;
 }

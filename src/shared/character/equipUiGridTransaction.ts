@@ -64,6 +64,16 @@ export function applyEquipToUiGrid(
     return { ok: false, reason: 'not_equippable' };
   }
 
+  if (grid[uiSlotId] === itemId) {
+    return {
+      ok: true,
+      inventory: inventory.map((row) => ({ ...row })),
+      grid: cloneGrid(grid),
+      uiSlotId,
+      itemId,
+    };
+  }
+
   const slotIndex = stacksToInventorySlots(inventory, INVENTORY_SLOT_COUNT)
     .findIndex((row) => row.itemId === itemId && row.quantity > 0);
   if (slotIndex < 0) {

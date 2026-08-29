@@ -15,8 +15,8 @@ import {
  * Contrato único — cada buff de item (% passivo do catálogo) vira efeito real na luta.
  *
  * | Buff HUD | O que acontece no combate |
- * | STR      | +STR% do (ATK classe + poder do move) no golpe |
- * | DEF      | +DEF% do golpe recebido na defesa |
+ * | STR      | +STR% da (ATK classe + ficha); o poder do move fica de fora |
+ * | DEF      | +DEF% da (DEF classe + ficha); não é % do golpe recebido |
  * | CRIT     | +CRIT% no pico do crítico (não é chance no dado) |
  * | DODGE    | +DODGE% de chance de anular o hit |
  * | HP       | +HP% no HP máximo da batalha (base de nível) |
@@ -133,6 +133,12 @@ export function resolveCombatantGearBuffs(combatant: Combatant): GearCombatBuffs
 export function applyPercentToBase(base: number, percent: number): number {
   if (percent <= 0 || base <= 0) return 0;
   return Math.floor(base * percent / 100);
+}
+
+/** SET STR/DEF — % da (classe + ficha), ceil uma vez depois de somar os %. */
+export function applyCharacterGearPercent(characterStat: number, percent: number): number {
+  if (percent <= 0 || characterStat <= 0) return 0;
+  return Math.ceil((characterStat * percent) / 100);
 }
 
 /**

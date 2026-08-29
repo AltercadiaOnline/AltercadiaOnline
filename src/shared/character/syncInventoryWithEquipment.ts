@@ -19,7 +19,11 @@ function equippedItemIds(equipped: EquippedSlots): readonly string[] {
   ].filter((itemId): itemId is string => Boolean(itemId));
 }
 
-/** Remove do inventário cada item atualmente vestido no SET (1 cópia por slot equipado). */
+/**
+ * @deprecated Não usar no hot path de loot/sync.
+ * Mochila e SET são lugares distintos: uma cópia vestida não apaga outra do mesmo `itemId`.
+ * Equip/unequip já consomem/devolvem 1 unidade via transação.
+ */
 export function removeEquippedItemsFromInventorySlots(
   slots: readonly InventorySlotState[],
   equipped: EquippedSlots,
@@ -48,7 +52,7 @@ export function removeEquippedItemsFromInventoryStacks(
   return inventorySlotsToStacks(next);
 }
 
-/** Dedupe por grade UI — remove 1 cópia por slot vestido (anel E/D separados). */
+/** @deprecated Ver `removeEquippedItemsFromInventorySlots` — não stripar bag no sync. */
 export function removeEquippedItemsFromUiGrid(
   stacks: readonly InventoryStack[],
   grid: EquipmentUiGridState,

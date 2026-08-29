@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildShareFillHeightPercent,
   computeBuildDistribution,
   extractCombatOnlyBuildWeightsFromItemIds,
+  formatBuildShareBonusLabel,
 } from './buildDistribution.js';
 
 describe('computeBuildDistribution', () => {
@@ -63,5 +65,20 @@ describe('computeBuildDistribution', () => {
     );
     expect(dist.shares.find((s) => s.id === 'CRIT')?.weight).toBe(20);
     expect(dist.shares.find((s) => s.id === 'CRIT')?.percent).toBe(100);
+  });
+
+  it('sidebar mostra o bônus real, não a fatia de 100%', () => {
+    const dist = computeBuildDistribution({
+      forca: 0,
+      defesa: 10,
+      critico: 0,
+      agilidade: 0,
+    });
+    const def = dist.shares.find((s) => s.id === 'DEF');
+    expect(def?.weight).toBe(10);
+    expect(def?.percent).toBe(100);
+    expect(formatBuildShareBonusLabel(def!.weight)).toBe('+10%');
+    expect(buildShareFillHeightPercent(def!.weight)).toBe(10);
+    expect(formatBuildShareBonusLabel(0)).toBe('0%');
   });
 });

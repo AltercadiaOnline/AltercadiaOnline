@@ -1,7 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import {
+  buildShareFillHeightPercent,
   computeBuildDistribution,
   extractCombatOnlyBuildWeightsFromItemIds,
+  formatBuildShareBonusLabel,
   type BuildDistribution,
 } from '../../../../../shared/character/buildDistribution.js';
 import { getPlayerStatsGateway } from '../../../../gateway/PlayerStatsGateway.js';
@@ -62,20 +64,20 @@ export function WorldSidebarBuildDistribution() {
         {distribution.shares.map((share) => (
           <div
             key={share.id}
-            className={`sidebar-build__slot${share.percent <= 0 ? ' sidebar-build__slot--zero' : ''}`}
+            className={`sidebar-build__slot${share.weight <= 0 ? ' sidebar-build__slot--zero' : ''}`}
             role="listitem"
-            aria-label={`${share.label} ${share.percent}%`}
+            aria-label={`${share.label} ${formatBuildShareBonusLabel(share.weight)}`}
             title={
               distribution.hasSignal
-                ? `${share.label}: ${share.percent}% (peso ${share.weight})`
+                ? `${share.label}: ${formatBuildShareBonusLabel(share.weight)}`
                 : `${share.label}: sem bônus de SET/runa`
             }
           >
             <span className="sidebar-build__label">{share.label}</span>
-            <span className="sidebar-build__value">{`${share.percent}%`}</span>
+            <span className="sidebar-build__value">{formatBuildShareBonusLabel(share.weight)}</span>
             <span
               className="sidebar-build__fill"
-              style={{ height: `${Math.max(share.percent, 0)}%` }}
+              style={{ height: `${buildShareFillHeightPercent(share.weight)}%` }}
               aria-hidden="true"
             />
           </div>

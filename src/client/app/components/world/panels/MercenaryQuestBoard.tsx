@@ -100,7 +100,10 @@ function MercenaryQuestRow({
         <span className="mercenary-board__band">Nv. {quest.minLevel}–{quest.maxLevel}</span>
       </header>
       {compact ? (
-        <p className="mercenary-board__lore">{quest.loreSummary}</p>
+        <>
+          <p className="mercenary-board__lore">{quest.loreSummary}</p>
+          <p className="mercenary-board__interaction">{quest.interaction}</p>
+        </>
       ) : (
         <>
           <p className="mercenary-board__giver">{quest.npcGiver}</p>
@@ -108,7 +111,6 @@ function MercenaryQuestRow({
           <p className="mercenary-board__interaction">{quest.interaction}</p>
           <p className="mercenary-board__meta">
             {formatQuestRewards(quest)}
-            {quest.moralChoice ? ' · Escolha moral (flavor)' : ''}
           </p>
         </>
       )}

@@ -133,8 +133,7 @@ export function calculateDamage(
     attackerMonster,
     resolveMoveCombatMeta(moveId)?.scalingStat,
   );
-  const incomingStrike = sumAttackBreakdownTotal(attackBreakdown);
-  const defenseBreakdown = buildDefenseBreakdown(defender, defenderMonster, incomingStrike);
+  const defenseBreakdown = buildDefenseBreakdown(defender, defenderMonster);
   const isPhysical = ctx.isPhysical ?? isPhysicalMove(moveId);
   const logLines: string[] = [];
 

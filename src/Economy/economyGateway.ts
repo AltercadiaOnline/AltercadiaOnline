@@ -1168,8 +1168,6 @@ export async function unequipToInventorySlot(
       );
     }
 
-    // Grid primeiro: setInventory dedupe usa o grid atual — se o slot ainda estiver
-    // ocupado, o item recém-adicionado à mochila seria removido antes do snapshot.
     store.setEquipmentUiGrid(result.grid);
     store.setInventory(result.inventory);
     inventorySnapshot = store.getInventory().map((row) => ({ ...row }));

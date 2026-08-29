@@ -43,6 +43,8 @@ import { resetMarcoCombatTelemetry } from '../progression/marcoCombatTelemetry.j
 import { resetDeathPenaltyMirrorGuard } from '../progression/deathPenaltyClient.js';
 import { resetBattleProgressionClientGuard } from '../progression/battleProgressionClient.js';
 import { resetLocalCityRestRegen } from '../world/localCityRestRegen.js';
+import { resetPvpJumbotronMirror } from '../world/pvpJumbotronStore.js';
+import { resetPvpJumbotronOverlaySprites } from '../worldRender/construct/pvpJumbotronOverlay.js';
 
 import { resetWorldAssetImageCache } from '../world/worldAssetImageLoader.js';
 import { resetWorldSprayMirror } from '../world/worldSpraySyncBridge.js';
@@ -116,6 +118,8 @@ function purgeSessionState(): void {
   resetDeathPenaltyMirrorGuard();
   resetBattleProgressionClientGuard();
   resetLocalCityRestRegen();
+  resetPvpJumbotronMirror();
+  resetPvpJumbotronOverlaySprites();
 }
 
 /** Imagens e atlas — evita acumular memória entre personagens/zonas. */

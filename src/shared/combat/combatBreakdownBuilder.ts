@@ -162,10 +162,9 @@ export function buildAttackBreakdown(
 export function buildDefenseBreakdown(
   defender: Combatant,
   defenderMonster?: MonsterCatalogEntry | null,
-  incomingStrike = 0,
 ): CombatActionBreakdown {
   const classDef = resolveClassDefense(defender, defenderMonster);
-  return buildDefenseBreakdownLines(resolveSources(defender), classDef, incomingStrike);
+  return buildDefenseBreakdownLines(resolveSources(defender), classDef);
 }
 
 export function sumAttackBreakdownTotal(breakdown: CombatActionBreakdown): number {

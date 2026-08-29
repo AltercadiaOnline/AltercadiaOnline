@@ -72,6 +72,16 @@ export function applyEquipFromInventoryItem(
     return { ok: false, reason: 'not_equippable' };
   }
 
+  if (equipped[equippedField] === itemId) {
+    return {
+      ok: true,
+      inventory: inventory.map((row) => ({ ...row })),
+      equipped: cloneEquipped(equipped),
+      itemId,
+      equippedField,
+    };
+  }
+
   let nextSlots = slots.map((row) => ({ ...row }));
   let nextEquipped = cloneEquipped(equipped);
   const occupiedId = nextEquipped[equippedField] ?? null;

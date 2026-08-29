@@ -5,7 +5,6 @@ import {
 } from '../../shared/economy/premiumCurrency.js';
 import type { AuthoritativePlayerSnapshot } from '../../shared/playerDataSnapshots.js';
 import { equippedToEquipmentUiGrid } from '../../shared/character/equipmentUiSlots.js';
-import { removeEquippedItemsFromUiGrid } from '../../shared/character/syncInventoryWithEquipment.js';
 import {
   buildInventorySnapshot,
   INVENTORY_SLOT_COUNT,
@@ -57,10 +56,7 @@ export function buildAuthoritativePlayerSnapshot(
   const equipmentUiGrid = economy.profile.equipmentUiGrid
     ? { ...economy.profile.equipmentUiGrid }
     : equippedToEquipmentUiGrid(economy.profile.equipped);
-  const inventoryStacks = removeEquippedItemsFromUiGrid(
-    economy.profile.inventory,
-    equipmentUiGrid,
-  );
+  const inventoryStacks = economy.profile.inventory.map((row) => ({ ...row }));
   const inventorySlots = stacksToInventorySlots(inventoryStacks, INVENTORY_SLOT_COUNT);
   const bankView = buildBankStorageView(
     economy.bank.itemStacks,

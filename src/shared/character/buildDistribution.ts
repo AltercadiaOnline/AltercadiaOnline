@@ -19,9 +19,9 @@ export type BuildDistributionWeights = Readonly<Record<BuildDistributionPillar, 
 export type BuildDistributionShare = {
   readonly id: BuildDistributionPillar;
   readonly label: string;
-  /** Peso bruto (bônus % do SET / espelho autoritativo). */
+  /** Peso bruto (bônus % do SET / espelho autoritativo). A sidebar mostra isto. */
   readonly weight: number;
-  /** Parte de 100% — soma dos quatro = 100 (ou 0 se sem peso). */
+  /** Fatia de 100% entre os quatro pilares — só composição, não o bônus de combate. */
   readonly percent: number;
 };
 
@@ -152,4 +152,15 @@ export function computeBuildDistribution(
       percent: percents[id],
     })),
   };
+}
+
+/** Número da sidebar BUILD — bônus real do SET, não a fatia normalizada. */
+export function formatBuildShareBonusLabel(weight: number): string {
+  const n = Math.max(0, Math.round(weight));
+  return n > 0 ? `+${n}%` : '0%';
+}
+
+/** Altura da barra (0–100) segue o peso do bônus, não a pizza de 100%. */
+export function buildShareFillHeightPercent(weight: number): number {
+  return Math.min(100, Math.max(0, Math.round(weight)));
 }

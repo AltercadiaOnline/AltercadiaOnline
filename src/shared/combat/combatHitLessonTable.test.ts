@@ -42,10 +42,10 @@ describe('buildCombatHitLessonTable', () => {
     expect(rows.map((row) => `${row.label} ${row.display}`)).toEqual([
       'ATK 20',
       'Move 15',
-      'Equip Força +3',
-      'Golpe 38',
+      'Equip Força +2',
+      'Golpe 37',
       'Defesa −4',
-      'Base 34',
+      'Base 33',
       'Crítico +45%',
       'Dano −47',
     ]);

@@ -10,7 +10,7 @@ function countItems(pool: Map<string, number>, itemId: string, delta: number): v
   pool.set(itemId, (pool.get(itemId) ?? 0) + delta);
 }
 
-/** Pool = mochila + itens atualmente vestidos (equip não duplica na bag). */
+/** Pool = mochila + itens vestidos (cópias distintas do mesmo itemId somam). */
 function buildLoadoutItemPool(
   inventory: readonly InventoryStack[],
   currentGrid: EquipmentUiGridState,

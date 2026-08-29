@@ -18,7 +18,7 @@ export const PET_LIFESPAN_MS = PET_LIFESPAN_DAYS * MS_PER_DAY;
 export const CAEL_PET_RATION_PRICE_VOLTS = 380;
 
 /** Cargas creditadas na HUD Pet Love por compra (não vai ao inventário). */
-export const PET_SPECIAL_RATION_CHARGES_PER_PURCHASE = 30;
+export const PET_SPECIAL_RATION_CHARGES_PER_PURCHASE = 12;
 
 /** @deprecated Use PET_SPECIAL_RATION_CHARGES_PER_PURCHASE */
 export const PET_SPECIAL_RATION_MAX_CHARGES = PET_SPECIAL_RATION_CHARGES_PER_PURCHASE;

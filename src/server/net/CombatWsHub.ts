@@ -93,6 +93,10 @@ import { createPvpRankedBattleBootstrap } from '../combat/pvp/buildPvpRankedBatt
 import { RankedPvpCombatSession } from '../combat/pvp/RankedPvpCombatSession.js';
 import { restoreWorldPeersAfterRankedPvp } from '../combat/pvp/restoreWorldAfterRankedPvp.js';
 import {
+  clearRankedPvpJumbotron,
+  syncRankedPvpJumbotronFromSession,
+} from '../combat/pvp/syncRankedPvpJumbotron.js';
+import {
   DEFAULT_PLAYER_SKIN_BUNDLE_ID,
   isValidPlayerSkinBundleId,
   type PlayerSkinBundleId,
@@ -1222,6 +1226,7 @@ export class CombatWsHub implements CombatWsRouteHost {
 
       queue.markInBattle(match.matchId);
       const startPayloads = session.start();
+      syncRankedPvpJumbotronFromSession(session);
 
       for (const peer of session.listPeers()) {
         const peerWs = this.socketsByConnectionId.get(peer.connectionId);
@@ -1542,6 +1547,7 @@ export class CombatWsHub implements CombatWsRouteHost {
     if (!sample) return;
 
     if (sample.state.phase !== 'ENDED' && !endOptions?.forfeitingConnectionId) {
+      syncRankedPvpJumbotronFromSession(session, sample.events);
       for (const [connectionId, payload] of payloads) {
         const peer = session.getPeerByConnection(connectionId);
         const peerWs = this.socketsByConnectionId.get(connectionId);
@@ -1617,6 +1623,7 @@ export class CombatWsHub implements CombatWsRouteHost {
     // Libera BATTLE + recoloca em exploring na pose do perfil (sem fantasma no AOI).
     restoreWorldPeersAfterRankedPvp(peers);
     this.rankedSessionsByBattleId.delete(battleId);
+    clearRankedPvpJumbotron(session);
     const casualInviteId = session.getCasualInviteId();
     if (casualInviteId) {
       getCasualDuelInviteStore().clearAfterBattle(casualInviteId);

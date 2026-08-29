@@ -20,7 +20,7 @@ const TIER1_IDS = ['quest_01', 'quest_02', 'quest_03', 'quest_04', 'quest_05'] a
 const TIER2_IDS = ['quest_06', 'quest_07', 'quest_08', 'quest_09', 'quest_10'] as const;
 
 describe('mercenaryQuestCatalog', () => {
-  it('piloto: 15 contratos em 3 faixas × 5', () => {
+  it('15 contratos em 3 faixas × 5 (cronograma)', () => {
     const quests = getAllMercenaryQuests();
     expect(quests).toHaveLength(15);
     expect(MERCENARY_QUEST_COUNT).toBe(15);
@@ -28,9 +28,12 @@ describe('mercenaryQuestCatalog', () => {
     const ids = new Set(quests.map((quest) => quest.id));
     expect(ids.size).toBe(15);
     expect(quests.every((q) => q.rewardVolts > 0 && q.rewardExp > 0)).toBe(true);
+    expect(getMercenaryQuestById('quest_01')?.title).toBe('Sinal Fantasma na Linha 4');
     expect(getMercenaryQuestById('quest_01')?.maxLevel).toBe(10);
     expect(getMercenaryQuestById('quest_06')?.minLevel).toBe(11);
-    expect(getMercenaryQuestById('quest_11')?.minLevel).toBe(31);
+    expect(getMercenaryQuestById('quest_06')?.maxLevel).toBe(20);
+    expect(getMercenaryQuestById('quest_11')?.minLevel).toBe(21);
+    expect(MERCENARY_QUEST_BANDS[2]?.maxLevel).toBe(30);
   });
 
   it('libera só tier 1 até completar as 5; depois abre tier 2', () => {

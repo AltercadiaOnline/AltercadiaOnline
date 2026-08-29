@@ -14,7 +14,6 @@ import {
   inventorySlotsToStacks,
   stacksToInventorySlotsWithStacking,
 } from './inventoryStackOps.js';
-import { removeEquippedItemsFromUiGrid } from './syncInventoryWithEquipment.js';
 import type { InventorySlotState } from './inventorySlots.js';
 import { INVENTORY_SLOT_COUNT, stacksToInventorySlots } from './inventorySlots.js';
 
@@ -73,18 +72,21 @@ function findEquippedRow(items: readonly PlayerItemRecord[], slot: EquipmentUiSl
   return items.findIndex((row) => row.slot === slot);
 }
 
-/** Monta array autoritativo a partir do snapshot do servidor. */
+/**
+ * Monta array autoritativo a partir do snapshot do servidor.
+ * Mochila e SET são lugares distintos: o mesmo `itemId` pode existir nas duas
+ * (cópia vestida ≠ cópia lootada). `instanceId` separa as cópias na UI.
+ */
 export function buildItemRecordsFromServerBundle(
   stacks: readonly InventoryStack[],
   uiGrid?: EquipmentUiGridState,
   equipped?: import('./equipmentState.js').EquippedSlots,
 ): PlayerItemRecord[] {
   const grid = uiGrid ?? equippedToEquipmentUiGrid(equipped ?? {});
-  const hasEquipped = EQUIPMENT_UI_SLOT_ORDER.some((slotId) => Boolean(grid[slotId]));
-  const inventoryStacks = hasEquipped ? removeEquippedItemsFromUiGrid(stacks, grid) : stacks;
   const items: PlayerItemRecord[] = [];
 
-  for (const stack of inventoryStacks) {
+  for (const stack of stacks) {
+    if (stack.quantity <= 0) continue;
     items.push({
       instanceId: nextInstanceId('inv', stack.itemId),
       itemId: stack.itemId,
@@ -124,10 +126,8 @@ export function inventoryStacksFromItems(items: readonly PlayerItemRecord[]): In
 
 export function inventorySlotsFromItems(items: readonly PlayerItemRecord[]): InventorySlotState[] {
   const coalesced = coalescePlayerItemRecords(items);
-  const grid = equipmentGridFromItems(coalesced);
   const stacks = inventoryStacksFromItems(coalesced);
-  const dedupedStacks = removeEquippedItemsFromUiGrid(stacks, grid);
-  return stacksToInventorySlots(dedupedStacks, INVENTORY_SLOT_COUNT);
+  return stacksToInventorySlots(stacks, INVENTORY_SLOT_COUNT);
 }
 
 export function equipmentGridFromItems(items: readonly PlayerItemRecord[]): EquipmentUiGridState {
@@ -138,11 +138,10 @@ export function equippedSlotsFromItems(items: readonly PlayerItemRecord[]) {
   return equipmentUiGridToEquipped(buildEquipmentGridFromItems(items));
 }
 
-/** Garante que itens vestidos no SET não permaneçam também na mochila. */
+/** Projeta mochila + SET sem apagar cópias extras do mesmo `itemId`. */
 export function coalescePlayerItemRecords(items: readonly PlayerItemRecord[]): PlayerItemRecord[] {
   const grid = equipmentGridFromItems(items);
   const stacks = inventoryStacksFromItems(items);
-  const dedupedStacks = removeEquippedItemsFromUiGrid(stacks, grid);
 
   const chargesBySlot = new Map<EquipmentUiSlotId, number>();
   for (const row of items) {
@@ -152,7 +151,7 @@ export function coalescePlayerItemRecords(items: readonly PlayerItemRecord[]): P
     }
   }
 
-  const coalesced = buildItemRecordsFromServerBundle(dedupedStacks, grid);
+  const coalesced = buildItemRecordsFromServerBundle(stacks, grid);
   return coalesced.map((row) => {
     if (row.slot === ItemLocationSlot.Inventory) return row;
     const charges = chargesBySlot.get(row.slot);
@@ -170,6 +169,10 @@ export function assignItemToEquipmentSlot(
   const uiSlotId = resolveTargetUiSlotForEquip(grid, itemId, preferredUiSlot);
   if (!uiSlotId || !canItemFitUiSlot(itemId, uiSlotId)) {
     return { ok: false, reason: 'not_equippable' };
+  }
+
+  if (grid[uiSlotId] === itemId) {
+    return { ok: true, items: coalescePlayerItemRecords(items), uiSlotId };
   }
 
   const invIdx = findInventoryRow(items, itemId);
@@ -264,28 +267,21 @@ export function filterEquippedItems(items: readonly PlayerItemRecord[]): readonl
 }
 
 /**
- * Preserva SET local quando o servidor ainda não espelhou o equipamento
- * (ex.: loot pós-batalha com grid vazio, mas elmo/armadura vestidos no cliente).
- * Só mantém slot local se o item não voltou para os stacks autoritativos.
+ * Preserva SET local quando o servidor omite o slot (loot com grid vazio).
+ * Cópia na mochila do mesmo `itemId` não desveste o SET — são instâncias distintas.
  */
 export function mergeEquipmentUiGridPreservingLocalEquipped(
   serverGrid: EquipmentUiGridState,
   localGrid: EquipmentUiGridState,
-  serverStacks: readonly InventoryStack[],
+  _serverStacks?: readonly InventoryStack[],
 ): EquipmentUiGridState {
   const merged: EquipmentUiGridState = { ...serverGrid };
-  const stackQty = new Map<string, number>();
-
-  for (const row of serverStacks) {
-    stackQty.set(row.itemId, (stackQty.get(row.itemId) ?? 0) + row.quantity);
-  }
 
   for (const slotId of EQUIPMENT_UI_SLOT_ORDER) {
     if (merged[slotId]) continue;
 
     const localItemId = localGrid[slotId];
     if (!localItemId) continue;
-    if ((stackQty.get(localItemId) ?? 0) > 0) continue;
 
     merged[slotId] = localItemId;
   }
@@ -293,21 +289,28 @@ export function mergeEquipmentUiGridPreservingLocalEquipped(
   return merged;
 }
 
-/** itemId presente na mochila e no SET ao mesmo tempo — estado inválido para MMO. */
-export function findInventoryEquipmentOverlap(
+/** `instanceId` repetido no array — estado inválido. Mesmo `itemId` em bag+SET é válido. */
+export function findDuplicateItemInstanceIds(
   items: readonly PlayerItemRecord[],
 ): readonly string[] {
-  const equippedIds = new Set<string>();
+  const seen = new Set<string>();
+  const duplicates: string[] = [];
   for (const row of items) {
-    if (row.slot === ItemLocationSlot.Inventory) continue;
-    equippedIds.add(row.itemId);
-  }
-  const overlap: string[] = [];
-  for (const row of items) {
-    if (row.slot !== ItemLocationSlot.Inventory) continue;
-    if (equippedIds.has(row.itemId) && !overlap.includes(row.itemId)) {
-      overlap.push(row.itemId);
+    if (seen.has(row.instanceId)) {
+      if (!duplicates.includes(row.instanceId)) duplicates.push(row.instanceId);
+      continue;
     }
+    seen.add(row.instanceId);
   }
-  return overlap;
+  return duplicates;
+}
+
+/**
+ * @deprecated Mesmo `itemId` na mochila e no SET é válido (cópia extra).
+ * Use `findDuplicateItemInstanceIds` para detectar registros duplicados.
+ */
+export function findInventoryEquipmentOverlap(
+  _items: readonly PlayerItemRecord[],
+): readonly string[] {
+  return [];
 }

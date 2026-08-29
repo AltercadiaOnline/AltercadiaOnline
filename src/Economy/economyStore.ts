@@ -13,7 +13,6 @@ import {
   resolveMaxAddableItemQuantity,
 } from '../shared/character/carryCapacity.js';
 import { equippedToEquipmentUiGrid, equipmentUiGridToEquipped, type EquipmentUiGridState } from '../shared/character/equipmentUiSlots.js';
-import { removeEquippedItemsFromUiGrid } from '../shared/character/syncInventoryWithEquipment.js';
 import { stacksToInventorySlotsWithStacking } from '../shared/character/inventoryStackOps.js';
 import { BookActiveEffectType } from '../shared/items/itemTypes.js';
 import { getBookDefinition } from '../shared/items/runesBooksCatalog.js';
@@ -185,12 +184,6 @@ function resolveProfileUiGrid(profile: CharacterEconomyProfile): EquipmentUiGrid
 function syncEquippedFromUiGrid(profile: CharacterEconomyProfile, grid: EquipmentUiGridState): void {
   profile.equipmentUiGrid = { ...grid };
   profile.equipped = equipmentUiGridToEquipped(grid);
-}
-
-/** Mochila autoritativa — itens vestidos no SET não permanecem também como stack na bag. */
-function dedupeProfileInventoryFromEquipment(profile: CharacterEconomyProfile): void {
-  const grid = resolveProfileUiGrid(profile);
-  profile.inventory = removeEquippedItemsFromUiGrid(profile.inventory, grid);
 }
 
 function defaultProfile(): CharacterEconomyProfile {
@@ -537,7 +530,6 @@ function createEconomyMutator(playerId: string, characterId: number): EconomySto
     },
     setInventory(stacks) {
       profile.inventory = stripRetiredInventoryStacks(stacks).map((row) => ({ ...row }));
-      dedupeProfileInventoryFromEquipment(profile);
       applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
     },
     setActiveBookBuff(buff) {
@@ -546,12 +538,10 @@ function createEconomyMutator(playerId: string, characterId: number): EconomySto
     setEquippedSlots(slots) {
       profile.equipped = { ...slots };
       profile.equipmentUiGrid = equippedToEquipmentUiGrid(profile.equipped);
-      dedupeProfileInventoryFromEquipment(profile);
       syncInventoryFromProfile(key, profile);
     },
     setEquipmentUiGrid(grid) {
       syncEquippedFromUiGrid(profile, grid);
-      dedupeProfileInventoryFromEquipment(profile);
       syncInventoryFromProfile(key, profile);
     },
     consumeChargedEquipmentBattleParticipation() {
@@ -716,7 +706,6 @@ export function applyAuthoritativeEquippedSlots(
   const profile = getOrCreateProfile(playerId, characterId);
   profile.equipped = { ...equipped };
   profile.equipmentUiGrid = equippedToEquipmentUiGrid(profile.equipped);
-  dedupeProfileInventoryFromEquipment(profile);
   syncInventoryFromProfile(profileKey(playerId, characterId), profile);
 }
 
@@ -883,8 +872,8 @@ export type BankEconomyTransactionResult =
 
 export type BankSetInventoryOptions = {
   /**
-   * Saque do cofre: não remover cópias recém-sacadas só porque o mesmo itemId
-   * já está no SET — senão o item some do banco e não entra na bag.
+   * Compat: a mochila já não é stripada pelo SET.
+   * Cópia sacada do cofre permanece na bag mesmo se o mesmo itemId estiver vestido.
    */
   readonly skipEquipmentDedupe?: boolean;
 };
@@ -915,11 +904,8 @@ export async function executeBankEconomyTransaction(
 
     try {
       await mutate({
-      setInventory(stacks, options) {
+      setInventory(stacks, _options) {
         profile.inventory = stacks.map((row) => ({ ...row }));
-        if (!options?.skipEquipmentDedupe) {
-          dedupeProfileInventoryFromEquipment(profile);
-        }
         applyWalletCurrencyMirrorToProfile(playerId, characterId, profile);
       },
       setBank(stacks, currencies) {

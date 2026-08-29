@@ -44,6 +44,7 @@ import { parseAndApplyRemotePlayerSnapshots } from '../world/remoteEntitySyncBri
 import { parseAndApplyWorldSpraySnapshots } from '../world/worldSpraySyncBridge.js';
 import { parseAndApplyStaticNetworkHudSnapshot } from '../world/staticNetworkSyncBridge.js';
 import { parseZoneDomainSnapshot, applyZoneDomainSnapshot } from '../world/zoneBypassSyncBridge.js';
+import { parseAndApplyPvpJumbotronSnapshot } from '../world/pvpJumbotronStore.js';
 import { isVisualDebugModeEnabled } from '../debug/visualDebugMode.js';
 import { resetAuthoritativeRenderStore } from '../render/AuthoritativeRenderStore.js';
 import { clearRemoteEntitySyncBridge } from '../world/remoteEntitySyncBridge.js';
@@ -306,6 +307,10 @@ export class GlobalStateSynchronizer {
       if (tickDelta.zoneDomain) {
         const domain = parseZoneDomainSnapshot(tickDelta.zoneDomain);
         if (domain) applyZoneDomainSnapshot(domain);
+      }
+
+      if (tickDelta.pvpJumbotron) {
+        parseAndApplyPvpJumbotronSnapshot(tickDelta.pvpJumbotron);
       }
 
     }

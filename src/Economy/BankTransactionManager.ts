@@ -157,8 +157,7 @@ export class BankTransactionManager {
         request.playerId,
         request.characterId,
         (store) => {
-          // skipEquipmentDedupe: cópia sacada do cofre deve permanecer na bag
-          // mesmo se o mesmo itemId já estiver equipado no SET.
+          // Mesmo itemId vestido no SET: a cópia sacada permanece na bag.
           store.setInventory(preview.value.inventoryStacks, { skipEquipmentDedupe: true });
           store.setBank(preview.value.bankStacks, bank.currencies);
         },

@@ -95,7 +95,7 @@ class PlayerItemStore {
 
 
 
-  /** Estado canônico — um item, um lugar; sempre persiste após coalesce. */
+  /** Estado canônico — mochila e SET no mesmo array; mesmo itemId pode existir nos dois. */
   private normalizedItems(): PlayerItemRecord[] {
     this.items = coalescePlayerItemRecords(this.items);
     return this.items;
@@ -182,9 +182,8 @@ class PlayerItemStore {
 
 
   /**
-   * Equipa: o registro deixa de ser `inventory` e passa a usar o slot do SET.
-   * Um item, um lugar — inventário e sidebar leem o mesmo array filtrando por `slot`.
-   * (qty>1 divide stack; slot ocupado faz swap — ver assignItemToEquipmentSlot.)
+   * Equipa: o registro da mochila passa ao slot do SET.
+   * Cópia extra do mesmo `itemId` permanece na bag (qty>1 divide; slot ocupado por outro item faz swap).
    */
   equipItem(
     itemId: string,

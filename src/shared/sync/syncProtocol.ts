@@ -5,6 +5,7 @@ import type { WorldCreatureSnapshot } from '../world/worldCreatureSync.js';
 import type { RemotePlayerSnapshot } from '../world/remotePlayerSync.js';
 import type { WorldSpraySnapshot } from '../social/spraySocialTypes.js';
 import type { StaticNetworkHudSnapshot } from '../static/staticNetworkTypes.js';
+import type { PvpJumbotronSnapshot } from '../combat/pvp/pvpJumbotronSnapshot.js';
 
 export { WORLD_TICK_MS, WORLD_TICK_HZ } from '../world/worldGameLoopConfig.js';
 
@@ -37,6 +38,8 @@ export type WorldTickDelta = {
   readonly zoneDomain?: import('../types/zoneBypass.js').ZoneDomainSnapshot;
   /** Rede Static (distritos) — shard inteiro, só se a revision mudou. */
   readonly staticNetwork?: StaticNetworkHudSnapshot;
+  /** Telão PvP ranqueado — só city_01, dirty quando HP/fase/log muda. */
+  readonly pvpJumbotron?: PvpJumbotronSnapshot;
 };
 
 export type StateSyncBody =

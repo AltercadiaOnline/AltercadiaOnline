@@ -34,6 +34,13 @@ import {
 import { zoneBypassPlayerKey } from '../../shared/world/zoneBypassPlayerKey.js';
 import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
 import { tickCityRestRegen } from './cityRestRegenTick.js';
+import { CITY_01_ID } from '../../shared/world/maps/city01.js';
+import { getPvpJumbotronSnapshot } from '../combat/pvp/pvpJumbotronAuthority.js';
+import { pvpJumbotronSignature } from '../../shared/combat/pvp/pvpJumbotronSnapshot.js';
+import {
+  clearPvpJumbotronSyncConnection,
+  shouldSendPvpJumbotron,
+} from '../combat/pvp/pvpJumbotronSyncDirty.js';
 
 export type GameLoopWorldSession = {
   readonly connectionId: string;
@@ -157,6 +164,14 @@ export class GameLoop {
         String(staticNetwork.revision),
       );
 
+      const inCity = profile.currentMapId === CITY_01_ID;
+      const jumbotron = getPvpJumbotronSnapshot();
+      const sendJumbotron = inCity
+        && shouldSendPvpJumbotron(session.connectionId, pvpJumbotronSignature(jumbotron));
+      if (!inCity) {
+        clearPvpJumbotronSyncConnection(session.connectionId);
+      }
+
       const playerKey = zoneBypassPlayerKey(world.playerId, world.characterId);
       const zoneBypassSig = buildZoneBypassSyncSignature(
         getZoneBypassHoldersRevision(),
@@ -182,6 +197,7 @@ export class GameLoop {
           ...(sendSprays ? { sprays: zoneSprays } : {}),
           ...(zoneDomain ? { zoneDomain } : {}),
           ...(sendStatic ? { staticNetwork } : {}),
+          ...(sendJumbotron ? { pvpJumbotron: jumbotron } : {}),
         },
       });
     }

@@ -159,10 +159,20 @@ export function formatCombatActionBreakdown(breakdown: CombatActionBreakdown): s
 
 
 
+function formatSignedContribution(value: number): string {
+  const rounded = Math.round(value);
+  return rounded >= 0 ? `+${rounded}` : String(rounded);
+}
+
+function formatGearContributionTerm(line: CombatBreakdownLine): string {
+  const source = COMBAT_BREAKDOWN_SOURCE_LABELS[line.source];
+  const stat = resolveLineStatLabel(line);
+  const signed = formatSignedContribution(line.value);
+  return stat ? `${source} ${signed} ${stat}` : `${source} ${signed}`;
+}
+
 function formatEquationTerm(line: CombatBreakdownLine, isFirst: boolean): string {
-
   if (line.source === 'ataque' || line.source === 'moveset' || line.source === 'classe' || line.source === 'ficha') {
-
     const label = line.source === 'ataque'
       ? 'ATK'
       : line.source === 'moveset'
@@ -170,27 +180,9 @@ function formatEquationTerm(line: CombatBreakdownLine, isFirst: boolean): string
         : line.source === 'classe'
           ? 'Defesa'
           : 'Ficha';
-
     return isFirst ? `${label} ${Math.round(line.value)}` : `${label} +${Math.round(line.value)}`;
-
   }
-
-
-
-  const source = COMBAT_BREAKDOWN_SOURCE_LABELS[line.source];
-
-  const stat = resolveLineStatLabel(line);
-
-  const pct = Math.round(line.percent);
-
-  const chunk = stat ? `${source} +${pct} ${stat}` : `${source} +${pct}`;
-
-
-
-  if (isFirst) return chunk;
-
-  return chunk;
-
+  return formatGearContributionTerm(line);
 }
 
 
@@ -204,10 +196,7 @@ function formatRosterTerm(line: CombatBreakdownLine): string {
   if (isPrimaryLine(line)) {
     return `${resolveCombatBreakdownLineLabel(line)} ${Math.round(line.value)}`;
   }
-  const source = COMBAT_BREAKDOWN_SOURCE_LABELS[line.source];
-  const stat = resolveLineStatLabel(line);
-  const pct = Math.round(line.percent);
-  return stat ? `${source} +${pct} ${stat}` : `${source} +${pct}`;
+  return formatGearContributionTerm(line);
 }
 
 /** Soma do golpe/defesa — só o que entra no total. */
@@ -251,7 +240,7 @@ export function formatCombatSceneMathLines(
   return lines;
 }
 
-/** Build completa — todos os buffs (% do catálogo). */
+/** Build completa — pontos que entram na soma (não o % do catálogo). */
 export function formatCombatBuildRoster(breakdown: CombatActionBreakdown): string {
   const visible = getDisplayBreakdownLines(breakdown);
   if (visible.length === 0) return '';
