@@ -1,4 +1,4 @@
-/** Manifesto de bundles top-down — SSOT para NpcSpriteLoader e npcDefinition. */
+import { resolveNpcArchetypeId } from './resolveNpcArchetypeId.js';
 export const NPC_ASSET_PUBLIC_BASE = '/assets/npcs';
 
 export type NpcAssetBundleConfig = {
@@ -25,8 +25,8 @@ export const NPC_ASSET_BUNDLES: Readonly<Record<string, NpcAssetBundleConfig>> =
   mestre_trilhas: {
     bundleFolder: 'npc_mestre_trilhas/npc.mestredastrilhas',
     metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_mestre_trilhas/npc.mestredastrilhas/metadata.json`,
-    frameWidth: 80,
-    frameHeight: 80,
+    frameWidth: 68,
+    frameHeight: 68,
   },
   /** ID de protocolo permanece `treinador_zeno`; display = Treinadora Zena. */
   treinador_zeno: {
@@ -64,6 +64,60 @@ export const NPC_ASSET_BUNDLES: Readonly<Record<string, NpcAssetBundleConfig>> =
     metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/mercenario_npc/npc.mercenario/metadata.json`,
     frameWidth: 80,
     frameHeight: 80,
+  },
+  contrabandista: {
+    bundleFolder: 'npc_contrabandista',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_contrabandista/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  receptador: {
+    bundleFolder: 'npc_receptador',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_receptador/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  operario_linha4: {
+    bundleFolder: 'npc_operario_linha4',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_operario_linha4/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  humano_1: {
+    bundleFolder: 'npc_humano_1',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_humano_1/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  humano_2: {
+    bundleFolder: 'npc_humano_2',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_humano_2/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  mercador_rua: {
+    bundleFolder: 'npc_mercador_rua',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_mercador_rua/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  tecnico_manutencao: {
+    bundleFolder: 'npc_tecnico_manutencao',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_tecnico_manutencao/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  membro_gang_rosa: {
+    bundleFolder: 'npc_membro_gang_rosa',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/npc_membro_gang_rosa/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
+  },
+  cao_robo: {
+    bundleFolder: 'cão_robo_npc',
+    metadataUrl: `${NPC_ASSET_PUBLIC_BASE}/cão_robo_npc/metadata.json`,
+    frameWidth: 68,
+    frameHeight: 68,
   },
   /** Mesmo PNG Construct (48×48) — mecânicas distintas no registry. */
   computador_arena: {
@@ -118,7 +172,7 @@ export const NPC_TERMINAL_FRAME_SIZE: Readonly<
 
 
 export function hasNpcAssetBundle(npcId: string): boolean {
-  return npcId in NPC_ASSET_BUNDLES;
+  return resolveNpcArchetypeId(npcId) in NPC_ASSET_BUNDLES;
 }
 
 export function listNpcAssetBundleIds(): readonly string[] {
@@ -128,20 +182,21 @@ export function listNpcAssetBundleIds(): readonly string[] {
 export function getNpcAssetFrameSize(
   npcId: string,
 ): { readonly width: number; readonly height: number } | null {
-  const bundle = NPC_ASSET_BUNDLES[npcId];
+  const bundle = NPC_ASSET_BUNDLES[resolveNpcArchetypeId(npcId)];
   if (bundle) {
     return { width: bundle.frameWidth, height: bundle.frameHeight };
   }
-  return NPC_TERMINAL_FRAME_SIZE[npcId] ?? null;
+  return NPC_TERMINAL_FRAME_SIZE[resolveNpcArchetypeId(npcId)] ?? null;
 }
 
 /** Tamanho de colisão = footprint nos pés (não o PNG inteiro). */
 export function resolveNpcCollisionSize(
   npcId: string,
 ): { readonly width: number; readonly height: number } {
-  const frame = getNpcAssetFrameSize(npcId) ?? { width: 35, height: 54 };
+  const archetypeId = resolveNpcArchetypeId(npcId);
+  const frame = getNpcAssetFrameSize(archetypeId) ?? { width: 35, height: 54 };
   // Terminais / computadores / púlpito — footprint = frame, sem shrink de humanoide.
-  if (npcId in NPC_TERMINAL_FRAME_SIZE || npcId.startsWith('computador_') || npcId === 'combate_pvp') {
+  if (archetypeId in NPC_TERMINAL_FRAME_SIZE || archetypeId.startsWith('computador_') || archetypeId === 'combate_pvp') {
     return frame;
   }
   // Humanoides: círculo implícito nos pés — footprint mínimo (~½ tile).

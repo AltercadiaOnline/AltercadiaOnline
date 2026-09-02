@@ -18,7 +18,7 @@ export const MERCENARY_QUEST_BANDS: readonly MercenaryQuestBand[] = [
     maxLevel: 10,
     title: 'Despertar no Submundo',
     brief:
-      'Primeiros contratos: terminal, contact, drone, totens e um carreto no subsolo.',
+      'Primeiros contratos: operário da Linha 4, contact, drone, totens e um carreto no subsolo.',
   },
   {
     tier: 2,
@@ -47,11 +47,11 @@ const QUESTS: readonly MercenaryQuestDefinition[] = [
     tier: 1,
     npcGiver: 'Operário da Linha 4',
     loreSummary:
-      'Operário com implante travado após vazamento da diretoria. Escondido na estação de metrô desativada.',
+      'Operário com implante travado após vazamento da diretoria. Escondido na estação de metrô da cidade.',
     lore:
-      'Um operário ficou com o implante travado depois de um vazamento da diretoria. Escondeu-se na estação de metrô desativada da Linha 4. O Quadro pede o código de desbloqueio extraído do terminal — o homem é opcional; o sinal é o que importa.',
+      'Um operário ficou com o implante travado depois de um vazamento da diretoria. Escondeu-se na estação de metrô da Linha 4, na cidade. O Quadro pede o código de desbloqueio — o dump ainda está nele.',
     interaction:
-      'Aceita no Quadro → localiza o terminal da estação → extrai o código de desbloqueio → entrega no Quadro.',
+      'Encontre o operário da Linha 4 na estação (cidade), extraia o código e entregue no Quadro.',
     interactionType: 'SCAN_TERMINAL',
     moralChoice: false,
     rewardExp: 150,

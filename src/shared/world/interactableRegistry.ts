@@ -1,15 +1,21 @@
 import { getResolvedNpcRegistry, NPC_INTERACTION_RADIUS_TILES } from './npcRegistry.js';
 import { MONSTER_REGISTRY } from './monsterRegistry.js';
 import { getActiveMonstersForMap } from './worldMonsterInstances.js';
-import { portalCenterTile, type Portal } from './portals.js';
+import { portalCenterTile, PORTAL_TRIGGER_RADIUS_TILES, type Portal } from './portals.js';
 import { getMapDefinition, type MapId } from './mapRegistry.js';
 import { getWorldObjectsForMap } from './worldObjectRegistry.js';
+import { getMercenaryQuestPoiById } from '../quests/mercenaryQuestPoiCatalog.js';
+import {
+  listConstructQuestPoiPlacementsForMap,
+  resolveQuestPoiWorldTile,
+} from './constructQuestPoiPlacements.js';
 
 export const InteractableKind = {
   NPC: 'npc',
   PORTAL: 'portal',
   MONSTER: 'monster',
   WORLD_OBJECT: 'world_object',
+  QUEST_POI: 'quest_poi',
 } as const;
 
 export type InteractableKind = (typeof InteractableKind)[keyof typeof InteractableKind];
@@ -46,11 +52,15 @@ function portalReferenceTile(portal: Portal): { tileX: number; tileY: number } {
 }
 
 /** Registro data-driven de objetos clicáveis por mapa. */
-export function buildInteractablesForMap(mapId: MapId): readonly InteractableDefinition[] {
+export function buildInteractablesForMap(
+  mapId: MapId,
+  options?: { readonly portals?: readonly Portal[] },
+): readonly InteractableDefinition[] {
   const mapDef = getMapDefinition(mapId);
   if (!mapDef) return [];
 
   const entries: InteractableDefinition[] = [];
+  const portals = options?.portals ?? mapDef.portals;
 
   for (const npc of getResolvedNpcRegistry()) {
     if (npc.mapId !== mapId) continue;
@@ -65,7 +75,7 @@ export function buildInteractablesForMap(mapId: MapId): readonly InteractableDef
     });
   }
 
-  for (const portal of mapDef.portals) {
+  for (const portal of portals) {
     const center = portalReferenceTile(portal);
     entries.push({
       id: buildInteractableId(InteractableKind.PORTAL, portal.id),
@@ -116,6 +126,21 @@ export function buildInteractablesForMap(mapId: MapId): readonly InteractableDef
     });
   }
 
+  for (const placement of listConstructQuestPoiPlacementsForMap(mapId)) {
+    const poi = getMercenaryQuestPoiById(placement.poiId);
+    if (!poi) continue;
+    const tile = resolveQuestPoiWorldTile(placement);
+    entries.push({
+      id: buildInteractableId(InteractableKind.QUEST_POI, placement.poiId),
+      kind: InteractableKind.QUEST_POI,
+      mapId,
+      tileX: tile.tileX,
+      tileY: tile.tileY,
+      label: poi.label,
+      sourceId: placement.poiId,
+    });
+  }
+
   return entries;
 }
 
@@ -124,6 +149,7 @@ const KIND_PRIORITY: Record<InteractableKind, number> = {
   [InteractableKind.PORTAL]: 3,
   [InteractableKind.NPC]: 2,
   [InteractableKind.WORLD_OBJECT]: 2,
+  [InteractableKind.QUEST_POI]: 2,
   [InteractableKind.MONSTER]: 1,
 };
 
@@ -134,7 +160,10 @@ export function portalTiles(portal: Portal): ReadonlyArray<{ tileX: number; tile
 
 export function isTileInPortalZone(portal: Portal, tileX: number, tileY: number): boolean {
   const center = portalReferenceTile(portal);
-  return center.tileX === tileX && center.tileY === tileY;
+  return (
+    Math.max(Math.abs(tileX - center.tileX), Math.abs(tileY - center.tileY))
+    <= PORTAL_TRIGGER_RADIUS_TILES
+  );
 }
 
 export { KIND_PRIORITY };

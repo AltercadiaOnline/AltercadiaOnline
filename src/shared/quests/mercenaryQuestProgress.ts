@@ -3,6 +3,10 @@ import {
   isMercenaryQuestUnlocked,
 } from './mercenaryQuestCatalog.js';
 import {
+  isMercenaryQuestReadyToComplete,
+  resetMercenaryQuestStepFields,
+} from './mercenaryQuestStepEngine.js';
+import {
   EMPTY_MERCENARY_QUEST_PROGRESS,
   type MercenaryQuestProgress,
 } from './mercenaryQuestTypes.js';
@@ -15,6 +19,9 @@ function cloneProgress(progress: MercenaryQuestProgress): MercenaryQuestProgress
   return {
     activeQuestId: progress.activeQuestId,
     completedQuestIds: [...progress.completedQuestIds],
+    stepIndex: progress.stepIndex,
+    completedStepTargets: [...progress.completedStepTargets],
+    readyToTurnIn: progress.readyToTurnIn,
   };
 }
 
@@ -34,9 +41,28 @@ export function sanitizeMercenaryQuestProgress(raw: unknown): MercenaryQuestProg
       (id): id is string => typeof id === 'string' && Boolean(getMercenaryQuestById(id)),
     )
     : [];
+  const stepIndex = activeQuestId && typeof record.stepIndex === 'number' && record.stepIndex >= 0
+    ? Math.floor(record.stepIndex)
+    : 0;
+  const completedStepTargets = activeQuestId && Array.isArray(record.completedStepTargets)
+    ? record.completedStepTargets.filter((id): id is string => typeof id === 'string')
+    : [];
+  const readyToTurnIn = activeQuestId ? record.readyToTurnIn === true : false;
+
+  if (!activeQuestId) {
+    return {
+      activeQuestId: null,
+      completedQuestIds: [...new Set(completedQuestIds)],
+      ...resetMercenaryQuestStepFields(),
+    };
+  }
+
   return {
     activeQuestId,
     completedQuestIds: [...new Set(completedQuestIds)],
+    stepIndex,
+    completedStepTargets,
+    readyToTurnIn,
   };
 }
 
@@ -74,6 +100,7 @@ export function acceptMercenaryQuest(
     progress: {
       activeQuestId: quest.id,
       completedQuestIds: [...progress.completedQuestIds],
+      ...resetMercenaryQuestStepFields(),
     },
   };
 }
@@ -93,13 +120,14 @@ export function abandonMercenaryQuest(
     progress: {
       activeQuestId: null,
       completedQuestIds: [...progress.completedQuestIds],
+      ...resetMercenaryQuestStepFields(),
     },
   };
 }
 
 /**
  * Entrega no NPC — marca concluído. Grant XP/VOLTS fica no handler (autoridade).
- * Não exige faixa de nível: quem aceitou ainda pode entregar após upar.
+ * Exige readyToTurnIn (passos no mundo concluídos).
  */
 export function completeMercenaryQuest(
   progress: MercenaryQuestProgress,
@@ -110,6 +138,13 @@ export function completeMercenaryQuest(
   }
   if (questId && questId !== progress.activeQuestId) {
     return { ok: false, code: 'QUEST_NOT_ACTIVE', message: 'Esse contrato não é o ativo.' };
+  }
+  if (!isMercenaryQuestReadyToComplete(progress)) {
+    return {
+      ok: false,
+      code: 'QUEST_NOT_READY',
+      message: 'Conclua os objetivos no mundo antes de entregar no Quadro.',
+    };
   }
   const doneId = progress.activeQuestId;
   if (!getMercenaryQuestById(doneId)) {
@@ -123,6 +158,7 @@ export function completeMercenaryQuest(
     progress: {
       activeQuestId: null,
       completedQuestIds: [...progress.completedQuestIds, doneId],
+      ...resetMercenaryQuestStepFields(),
     },
   };
 }

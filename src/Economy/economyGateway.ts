@@ -2741,4 +2741,98 @@ export async function creditMercenaryQuestVolts(request: {
   return { ok: true, dollarVolt: tx.walletBalance };
 }
 
+/** Item de contrato — grant no step (não vendável, não droppable em trade). */
+export async function grantMercenaryQuestItem(request: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly itemId: string;
+  readonly intentId?: string;
+}): Promise<{ ok: true; added: number } | { ok: false; readonly message: string }> {
+  if (!getItemById(request.itemId)) {
+    return { ok: false, message: `Item de contrato desconhecido: ${request.itemId}` };
+  }
+
+  let added = 0;
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      const result = store.addInventoryItemPartial(request.itemId, 1);
+      added = result.added;
+      if (result.added <= 0) {
+        throw new Error(result.overflow > 0 ? 'Inventário cheio.' : 'Não foi possível receber o item de contrato.');
+      }
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, message: tx.message };
+  }
+
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: buildInventorySyncPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      { ...(request.intentId ? { intentId: request.intentId } : {}) },
+    ),
+  });
+
+  return { ok: true, added };
+}
+
+/** Consome item de turn-in no Completar (remove 1 unidade). */
+export async function consumeMercenaryQuestTurnInItem(request: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly itemId: string;
+  readonly intentId?: string;
+}): Promise<{ ok: true } | { ok: false; readonly message: string }> {
+  const profile = getCharacterProfile(request.playerId, request.characterId);
+  const stack = profile.inventory.find((row) => row.itemId === request.itemId);
+  if (!stack || stack.quantity < 1) {
+    return { ok: false, message: 'Item de contrato ausente no inventário.' };
+  }
+
+  const tx = await executeEconomyTransaction(
+    request.playerId,
+    request.characterId,
+    (store) => {
+      store.removeInventoryItem(request.itemId, 1);
+    },
+  );
+
+  if (!tx.ok) {
+    return { ok: false, message: tx.message };
+  }
+
+  globalEventBus.emit({
+    type: EconomyEventType.InventoryUpdated,
+    payload: buildInventorySyncPayload(
+      request.playerId,
+      request.characterId,
+      tx.inventorySnapshot,
+      { ...(request.intentId ? { intentId: request.intentId } : {}) },
+    ),
+  });
+
+  return { ok: true };
+}
+
+/** Abandonar contrato — remove o item de turn-in se ainda estiver na bolsa. */
+export async function stripMercenaryQuestItemIfHeld(request: {
+  readonly playerId: string;
+  readonly characterId: number;
+  readonly itemId: string;
+  readonly intentId?: string;
+}): Promise<{ ok: true } | { ok: false; readonly message: string }> {
+  const profile = getCharacterProfile(request.playerId, request.characterId);
+  const stack = profile.inventory.find((row) => row.itemId === request.itemId);
+  if (!stack || stack.quantity < 1) {
+    return { ok: true };
+  }
+  return consumeMercenaryQuestTurnInItem(request);
+}
+
 export { ALTER_TO_VOLTS_EXCHANGE_RATE };

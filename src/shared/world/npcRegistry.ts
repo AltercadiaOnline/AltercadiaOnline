@@ -11,7 +11,7 @@ import { resolveNpcRegistryEntries } from './npcBuildingAnchorsResolver.js';
 import { resolveNpcGreeting } from './npcLoreCatalog.js';
 import { WORLD_TERMINAL_IDS } from './worldTerminalCatalog.js';
 import { ZONE_DOMAIN_TERMINAL_CATALOG } from './zoneDomainTerminals.js';
-import { CONSTRUCT_NPC_PLACEMENTS_GENERATED } from './constructNpcPlacements.generated.js';
+import { hasGeneratedConstructNpcPlacement } from './constructNpcPlacements.js';
 
 export { getNpcDefinition, resolveNpcSpriteImageUrl } from '../../assets/npcs/npcDefinition.js';
 
@@ -57,6 +57,114 @@ export const NPC_INTERACTION_RADIUS_TILES = 1.5;
 
 /** Placeholder de tile — sobrescrito por constructNpcPlacements.generated.ts */
 const CONSTRUCT_POS = { tileX: 0, tileY: 0 } as const;
+
+/** Contacts de contrato — spawn só depois do marker Construct. */
+const QUEST_CONTACT_NPCS: readonly NpcRegistryEntry[] = [
+  {
+    id: 'operario_linha4',
+    name: 'Operário da Linha 4',
+    level: 8,
+    sprite: 'line_worker',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: 'O implante travou, mas o dump do código ainda está aqui. Rápido — antes que a patrulha volte.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+  {
+    id: 'contrabandista',
+    name: 'Contrabandista',
+    level: 12,
+    sprite: 'smuggler',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: 'As chaves estão comigo. Tira daqui antes dos capangas voltarem.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+  {
+    id: 'receptador',
+    name: 'Receptador',
+    level: 18,
+    sprite: 'fence',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: 'Relógio quente, preço frio. Não pergunto de onde veio.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+];
+
+/** NPCs de ambiente — multi-spawn; mecânica de quest/interação vem depois. */
+const AMBIENT_NPC_ARCHETYPES: readonly NpcRegistryEntry[] = [
+  {
+    id: 'humano_1',
+    name: 'Morador',
+    level: 5,
+    sprite: 'citizen',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: '…',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+  {
+    id: 'humano_2',
+    name: 'Transeunte',
+    level: 6,
+    sprite: 'passerby',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: '…',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+  {
+    id: 'mercador_rua',
+    name: 'Mercador de Rua',
+    level: 10,
+    sprite: 'street_vendor',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: 'Oferta do dia — sem nota fiscal, sem perguntas.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+  {
+    id: 'tecnico_manutencao',
+    name: 'Técnico de Manutenção',
+    level: 14,
+    sprite: 'maintenance_tech',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: 'Painel aberto, fio solto. Se queimar, não fui eu.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+  {
+    id: 'membro_gang_rosa',
+    name: 'Membro da Gang Rosa',
+    level: 16,
+    sprite: 'pink_gang',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: 'Território marcado. Olha, mas não encosta.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+  },
+  {
+    id: 'cao_robo',
+    name: 'Cão-Robô',
+    level: 4,
+    sprite: 'robot_dog',
+    mapId: CITY_01_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.DIALOG,
+    dialogue: '*bip* Patrulha local. Unidade ociosa.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+    collidable: false,
+  },
+];
 
 function withLoreGreeting(entry: NpcRegistryEntry): NpcRegistryEntry {
   return {
@@ -214,7 +322,7 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
   ...ZONE_DOMAIN_TERMINAL_CATALOG.filter(
     (gate) =>
       gate.terminalId !== WORLD_TERMINAL_IDS.ZONE_1
-      && Object.prototype.hasOwnProperty.call(CONSTRUCT_NPC_PLACEMENTS_GENERATED, gate.terminalId),
+      && hasGeneratedConstructNpcPlacement(gate.terminalId),
   ).map(
     (gate) =>
       ({
@@ -231,6 +339,8 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
         collidable: false,
       }) as const,
   ),
+  ...QUEST_CONTACT_NPCS.filter((npc) => hasGeneratedConstructNpcPlacement(npc.id)),
+  ...AMBIENT_NPC_ARCHETYPES.filter((npc) => hasGeneratedConstructNpcPlacement(npc.id)),
 ] as const;
 
 export const NPC_REGISTRY_WITH_LORE: readonly NpcRegistryEntry[] = NPC_REGISTRY.map(withLoreGreeting);

@@ -4,6 +4,7 @@ import type { WorldSocket } from './WorldSocket.js';
 import { postGameChatMessage } from '../ui/gameChat.js';
 
 import { validatePortalAccess } from '../../shared/world/portalAccess.js';
+import { readUnlockedZones } from './zoneBypassSyncBridge.js';
 
 import type { Portal } from '../../shared/world/portals.js';
 
@@ -162,7 +163,7 @@ export class PortalConfirmationController {
 
 
 
-    const access = validatePortalAccess(portal, this.getPlayerLevel());
+    const access = validatePortalAccess(portal, this.getPlayerLevel(), readUnlockedZones());
 
     if (!access.ok) {
 
@@ -221,10 +222,11 @@ export class PortalConfirmationController {
    */
 
   evaluatePortalProximity(playerX: number, playerY: number, logicalTileX?: number, logicalTileY?: number): void {
-
-    const portal = logicalTileX !== undefined && logicalTileY !== undefined
-      ? this.mapManager.checkPortalAtTile(logicalTileX, logicalTileY)
-      : this.mapManager.checkPortal(playerX, playerY);
+    const portal =
+      this.mapManager.checkPortal(playerX, playerY)
+      ?? (logicalTileX !== undefined && logicalTileY !== undefined
+        ? this.mapManager.checkPortalAtTile(logicalTileX, logicalTileY)
+        : null);
 
     if (!portal) {
 
@@ -294,7 +296,7 @@ export class PortalConfirmationController {
 
 
 
-    const access = validatePortalAccess(portal, this.getPlayerLevel());
+    const access = validatePortalAccess(portal, this.getPlayerLevel(), readUnlockedZones());
 
     if (!access.ok) {
 

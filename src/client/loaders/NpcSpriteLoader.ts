@@ -2,6 +2,7 @@ import {
   NPC_ASSET_BUNDLES,
   type NpcAssetBundleConfig,
 } from '../../shared/npc/npcAssetBundles.js';
+import { resolveNpcArchetypeId } from '../../shared/npc/resolveNpcArchetypeId.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { SpriteFrame } from '../entities/player/types.js';
 
@@ -66,27 +67,28 @@ export class NpcSpriteLoader {
   }
 
   static loadCatalog(npcId: string): Promise<NpcSpriteCatalog | null> {
-    const cached = this.catalogByNpc.get(npcId);
+    const archetypeId = resolveNpcArchetypeId(npcId);
+    const cached = this.catalogByNpc.get(archetypeId);
     if (cached) return Promise.resolve(cached);
 
-    const pending = this.catalogPromises.get(npcId);
+    const pending = this.catalogPromises.get(archetypeId);
     if (pending) return pending;
 
-    const promise = this.fetchCatalog(npcId);
-    this.catalogPromises.set(npcId, promise);
+    const promise = this.fetchCatalog(archetypeId);
+    this.catalogPromises.set(archetypeId, promise);
     return promise;
   }
 
   static getCachedCatalog(npcId: string): NpcSpriteCatalog | null {
-    return this.catalogByNpc.get(npcId) ?? null;
+    return this.catalogByNpc.get(resolveNpcArchetypeId(npcId)) ?? null;
   }
 
   static getCachedRotation(npcId: string, facing: PlayerFacing): SpriteFrame | null {
-    return this.catalogByNpc.get(npcId)?.rotations[facing] ?? null;
+    return this.catalogByNpc.get(resolveNpcArchetypeId(npcId))?.rotations[facing] ?? null;
   }
 
   static hasPngSprites(npcId: string): boolean {
-    const catalog = this.catalogByNpc.get(npcId);
+    const catalog = this.catalogByNpc.get(resolveNpcArchetypeId(npcId));
     return Boolean(catalog && Object.keys(catalog.rotations).length > 0);
   }
 
@@ -96,21 +98,21 @@ export class NpcSpriteLoader {
     this.catalogPromises.clear();
   }
 
-  private static async fetchCatalog(npcId: string): Promise<NpcSpriteCatalog | null> {
-    const bundle = NPC_ASSET_BUNDLES[npcId];
+  private static async fetchCatalog(archetypeId: string): Promise<NpcSpriteCatalog | null> {
+    const bundle = NPC_ASSET_BUNDLES[archetypeId];
     if (!bundle) return null;
 
     try {
       const response = await fetch(bundle.metadataUrl);
       if (!response.ok) {
-        console.warn(`[NpcSpriteLoader] metadata ausente (${npcId}):`, bundle.metadataUrl);
+        console.warn(`[NpcSpriteLoader] metadata ausente (${archetypeId}):`, bundle.metadataUrl);
         return null;
       }
 
       const metadata = (await response.json()) as NpcAssetMetadata;
       const state = metadata.states[0];
       if (!state) {
-        console.warn('[NpcSpriteLoader] metadata.states vazio:', npcId);
+        console.warn('[NpcSpriteLoader] metadata.states vazio:', archetypeId);
         return null;
       }
 
@@ -123,7 +125,7 @@ export class NpcSpriteLoader {
         try {
           rotations[direction] = await this.loadFrame(bundle, relativePath);
         } catch (error) {
-          console.warn('[NpcSpriteLoader] Rotação ignorada:', npcId, direction, error);
+          console.warn('[NpcSpriteLoader] Rotação ignorada:', archetypeId, direction, error);
         }
       }
 
@@ -132,10 +134,10 @@ export class NpcSpriteLoader {
       }
 
       const catalog: NpcSpriteCatalog = { frameWidth, frameHeight, rotations };
-      this.catalogByNpc.set(npcId, catalog);
+      this.catalogByNpc.set(archetypeId, catalog);
       return catalog;
     } catch (error) {
-      console.warn('[NpcSpriteLoader] Falha ao carregar catálogo:', npcId, error);
+      console.warn('[NpcSpriteLoader] Falha ao carregar catálogo:', archetypeId, error);
       return null;
     }
   }

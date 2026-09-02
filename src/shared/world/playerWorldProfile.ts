@@ -6,6 +6,10 @@ import { tileCenterToWorldPixel } from './portals.js';
 import type { WorldExplorationSessionSync } from './zoneTransition.js';
 import type { PlayerLoadoutData } from './playerLoadout.js';
 import { resolveConstructPlayerSpawn } from './constructPlayerSpawnPlacements.js';
+import {
+  CONSTRUCT_FARM_MAIN_LAYOUT,
+  isKnownConstructFarmLayout,
+} from './constructFarmLayoutConstants.js';
 
 export type WorldPosition = {
   readonly x: number;
@@ -17,6 +21,8 @@ export type PlayerWorldProfile = {
   readonly currentMapId: string;
   readonly lastPosition: WorldPosition;
   readonly facing: PlayerFacing;
+  /** Subzona Construct ativa em farm_zone_01 (zonabeco1 / 1a / 1b / 1c). */
+  readonly constructFarmLayout?: string;
   /** Vitals, loadout e pet — sincronizados na Etapa A do portal. */
   readonly sessionSync?: WorldExplorationSessionSync;
   /** SET equipado — fonte da verdade para InventoryUpdated pós-loot. */
@@ -28,6 +34,7 @@ export type WorldLoginResult = {
   readonly currentMapId: string;
   readonly lastPosition: WorldPosition;
   readonly facing: PlayerFacing;
+  readonly constructFarmLayout?: string;
   /** Aviso informativo para menores — definido pelo servidor; não bloqueia entrada. */
   readonly aviso_menor?: string;
 };
@@ -52,6 +59,9 @@ export function createDefaultWorldProfile(mapId: MapId = DEFAULT_MAP_ID): Player
       currentMapId: resolvedMapId,
       lastPosition: { x: constructSpawn.worldX, y: constructSpawn.worldY },
       facing: 'south',
+      ...(resolvedMapId === 'farm_zone_01'
+        ? { constructFarmLayout: CONSTRUCT_FARM_MAIN_LAYOUT }
+        : {}),
     };
   }
 
@@ -111,6 +121,13 @@ export function sanitizePlayerWorldProfile(
       ...fallback,
       ...(world?.sessionSync !== undefined ? { sessionSync: world.sessionSync } : {}),
       ...(world?.loadout !== undefined ? { loadout: world.loadout } : {}),
+      ...(mapId === 'farm_zone_01'
+        ? {
+            constructFarmLayout: isKnownConstructFarmLayout(world?.constructFarmLayout ?? '')
+              ? world!.constructFarmLayout
+              : CONSTRUCT_FARM_MAIN_LAYOUT,
+          }
+        : {}),
     };
   }
 
@@ -120,5 +137,12 @@ export function sanitizePlayerWorldProfile(
     facing: isValidFacing(world?.facing) ? world.facing : 'south',
     ...(world?.sessionSync !== undefined ? { sessionSync: world.sessionSync } : {}),
     ...(world?.loadout !== undefined ? { loadout: world.loadout } : {}),
+    ...(mapId === 'farm_zone_01'
+      ? {
+          constructFarmLayout: isKnownConstructFarmLayout(world?.constructFarmLayout ?? '')
+            ? world!.constructFarmLayout
+            : CONSTRUCT_FARM_MAIN_LAYOUT,
+        }
+      : {}),
   };
 }

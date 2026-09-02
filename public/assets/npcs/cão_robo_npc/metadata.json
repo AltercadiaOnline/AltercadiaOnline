@@ -1,0 +1,36 @@
+{
+  "group_id": "215983d7-6a9b-4b34-92cd-97101c7c0606",
+  "states": [
+    {
+      "character": {
+        "id": "ea19a4f0-0bcc-4d15-8343-db2e16543a4f",
+        "name": "Idle",
+        "prompt": "Pixel art quadrupedal robot sprite, cybernetic guard hound, side view. Sleek dark metallic industrial body with exposed hydraulic joints, visible fiber-optic neck cables, and an aerodynamic mechanical head featuring a glowing yellow optical sensor visor instead of eyes. Alert posture, segmented mechanical tail. 90s retro anime aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background, isolated sprite, NO background elements, NO walls, NO ground.",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "dog",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T06:09:23.694923+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T06:10:56.848733"
+}

@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const sourceDir = path.join(root, 'construct', 'altercadia-world');
+const sourceDir = path.join(root, 'construct-export');
 const targetDir = path.join(root, 'public', 'construct-world');
 
 const EXPORT_DIRS = ['icons', 'images', 'scripts', 'media'];
@@ -63,7 +63,7 @@ function copyExportTree() {
   const indexSource = path.join(sourceDir, 'index.html');
   if (!existsSync(indexSource)) {
     console.error(
-      '[sync:construct] index.html ausente em construct/altercadia-world/.\n'
+      '[sync:construct] index.html ausente em construct-export/.\n'
         + '  Exporte HTML5 do Construct para essa pasta (ou sobrescreva o export atual),\n'
         + '  depois rode de novo: npm run sync:construct',
     );

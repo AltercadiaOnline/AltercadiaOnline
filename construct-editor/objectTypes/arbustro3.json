@@ -1,0 +1,60 @@
+{
+	"name": "arbustro3",
+	"plugin-id": "Sprite",
+	"sid": 557616848943355,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 32,
+						"height": 32,
+						"originX": 6.7272727272727275,
+						"originY": -1.2142857142857142,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 3799682,
+						"collisionPoly": {
+							"points": [
+								0.15202020202020272,
+								0.3954365079365078,
+								0.3484848484848494,
+								0.26359126984127024,
+								0.7217171717171714,
+								0.2732142857142862,
+								0.8370580808080798,
+								0.4402777777777782,
+								0.8526515151515134,
+								0.7854166666666662,
+								0.6878156565656554,
+								0.9489087301587301,
+								0.3184974747474747,
+								0.9349206349206348,
+								0.14974747474747535,
+								0.7889880952380941
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 440538336218844,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

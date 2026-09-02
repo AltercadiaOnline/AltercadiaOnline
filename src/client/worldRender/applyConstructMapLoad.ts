@@ -21,13 +21,16 @@ export function applyConstructMapLoad(payload: MapTransitionPayload): boolean {
 
   // world-login pode chegar antes do engine existir ou no meio do boot.
   if (isWorldRenderBootInFlight() || !getWorldRenderEngine()) {
-    deferAuthoritativeConstructMap(mapId, spawn);
+    deferAuthoritativeConstructMap(mapId, spawn, payload.constructLayout);
   }
 
   if (!isConstructRenderEngineActive()) return false;
   const engine = getWorldRenderEngine();
   if (!engine) return true;
 
-  void engine.loadMap(mapId, { spawn });
+  void engine.loadMap(mapId, {
+    spawn,
+    ...(payload.constructLayout ? { layoutId: payload.constructLayout } : {}),
+  });
   return true;
 }

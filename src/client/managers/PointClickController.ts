@@ -32,6 +32,8 @@ import type { WorldSocket } from '../world/WorldSocket.js';
 import { isMonsterDefeated } from '../../shared/world/defeatedMonsterState.js';
 import { requestPortalConfirmation } from '../world/portalConfirmationController.js';
 import { getWorldObjectById, WorldObjectAction } from '../../shared/world/worldObjectRegistry.js';
+import { getMercenaryQuestPoiById } from '../../shared/quests/mercenaryQuestPoiCatalog.js';
+import { beginWorldHudInteractionSession } from '../world/worldHudInteractionSession.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
 import type { InteractionCardTarget } from '../../shared/world/interactionCardTypes.js';
 import { InteractionTargetType } from '../../shared/world/interactionCardTypes.js';
@@ -113,7 +115,9 @@ export class PointClickController implements Disposable {
     this.onRequestCombat = options.onRequestCombat;
     this.canOpenPortal = options.canOpenPortal;
     this.onNavigationDestination = options.onNavigationDestination;
-    this.hitboxMap = HitboxMap.forMap(options.mapManager.currentMapId);
+    this.hitboxMap = HitboxMap.forMap(options.mapManager.currentMapId, {
+      portals: options.mapManager.portals,
+    });
 
     this.prompt = new InteractionPromptOverlay({
       host: options.promptHost,
@@ -138,7 +142,7 @@ export class PointClickController implements Disposable {
   }
 
   setMapId(mapId: MapId): void {
-    this.hitboxMap = HitboxMap.forMap(mapId);
+    this.hitboxMap = HitboxMap.forMap(mapId, { portals: this.mapManager.portals });
     this.cancelNavigation();
     this.dismissPrompt();
   }
@@ -220,7 +224,9 @@ export class PointClickController implements Disposable {
   }
 
   refreshInteractables(): void {
-    this.hitboxMap = HitboxMap.forMap(this.mapManager.currentMapId);
+    this.hitboxMap = HitboxMap.forMap(this.mapManager.currentMapId, {
+      portals: this.mapManager.portals,
+    });
   }
 
   peekMonsterAt(tileX: number, tileY: number): string | null {
@@ -586,6 +592,23 @@ export class PointClickController implements Disposable {
             label: worldObject.label,
           });
         }
+        break;
+      }
+      case InteractableKind.QUEST_POI: {
+        const poi = getMercenaryQuestPoiById(definition.sourceId);
+        if (!poi) break;
+        InputHandler.emergencyStop(player, undefined);
+        beginWorldHudInteractionSession({
+          x: player.x,
+          y: player.y,
+          facing: player.facing,
+        });
+        uiEvents.emit(UIEventType.SHOW_DIALOGUE, {
+          npcId: definition.sourceId,
+          npcName: poi.label,
+          text: poi.interactText,
+          questPoiId: definition.sourceId,
+        });
         break;
       }
       default:

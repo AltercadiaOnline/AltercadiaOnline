@@ -1,0 +1,22 @@
+{
+  "group_id": "2f286220-0338-46b2-b5a9-255ea4e19fd1",
+  "objects": [
+    {
+      "id": "7058487f-bc29-40ef-9f58-8dde507b534a",
+      "name": "base",
+      "prompt": "top-down pixel art sprite, beautiful genetically engineered bioluminescent tree, dense round canopy emitting soft magenta and cyan light glow, dark metallic-looking bark, perfectly centered on single tile, cyber-urban decoration, clean crisp pixel edges, solid pure white background, chroma key, no background, RPG game asset",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/top-down_pixel_art_sprite_bea.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-30T01:51:11.683785"
+}

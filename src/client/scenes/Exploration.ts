@@ -16,6 +16,11 @@ import type { MapTransitionPayload } from '../../shared/world/protocol.js';
 import type { ExplorationSnapshot } from '../../shared/game/gameState.js';
 import type { WorldLoginResult } from '../../shared/world/playerWorldProfile.js';
 import type { MapId } from '../../shared/world/mapRegistry.js';
+import { FARM_ZONE_01_ID } from '../../shared/world/maps/farm_zone_01.js';
+import {
+  getActiveConstructFarmLayout,
+  setActiveConstructFarmLayout,
+} from '../../shared/world/activeConstructFarmLayout.js';
 import type { MockWorldSocket } from '../services/mockWorldSocket.js';
 
 import type { WorldSocket } from '../world/WorldSocket.js';
@@ -626,11 +631,15 @@ export class ExplorationScene implements Disposable {
   /** Posiciona o jogador com spawn autoritativo do servidor após world-login. */
   applyServerWorldSpawn(payload: WorldLoginResult): void {
     const mapId = payload.currentMapId as MapId;
+    if (payload.constructFarmLayout) {
+      setActiveConstructFarmLayout(payload.constructFarmLayout);
+    }
     const spawn = {
       x: payload.lastPosition.x,
       y: payload.lastPosition.y,
       facing: payload.facing,
       mapId: payload.currentMapId,
+      ...(payload.constructFarmLayout ? { constructLayout: payload.constructFarmLayout } : {}),
     };
 
     if (this.mapManager.currentMapId !== mapId) {
@@ -659,6 +668,7 @@ export class ExplorationScene implements Disposable {
       x: payload.lastPosition.x,
       y: payload.lastPosition.y,
       facing: payload.facing,
+      ...(payload.constructFarmLayout ? { constructLayout: payload.constructFarmLayout } : {}),
     });
   }
 
@@ -918,6 +928,9 @@ export class ExplorationScene implements Disposable {
       lastPosition: { x: this.player.x, y: this.player.y },
       facing: this.player.facing,
       playerLevel: this.player.level,
+      ...(this.mapManager.currentMapId === FARM_ZONE_01_ID
+        ? { constructFarmLayout: getActiveConstructFarmLayout() }
+        : {}),
       sessionSync: {
         worldVitals: vitals,
         activeMovesets: [...getGlobalPlayerStore().getConfirmedLoadout()],
@@ -937,6 +950,9 @@ export class ExplorationScene implements Disposable {
   }
 
   private applyPlayerPosition(payload: MapTransitionPayload): void {
+    if (payload.constructLayout) {
+      setActiveConstructFarmLayout(payload.constructLayout);
+    }
 
     this.syncMockWorldAuthority({
       x: payload.x,

@@ -295,5 +295,8 @@ function toLoginResult(profile: PlayerProfile): WorldLoginResult {
     currentMapId: profile.currentMapId,
     lastPosition: { ...profile.lastPosition },
     facing: profile.facing,
+    ...(profile.constructFarmLayout !== undefined
+      ? { constructFarmLayout: profile.constructFarmLayout }
+      : {}),
   };
 }

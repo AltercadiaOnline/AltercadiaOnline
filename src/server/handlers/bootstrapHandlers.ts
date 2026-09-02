@@ -93,6 +93,7 @@ import {
   getAcceptMercenaryQuestHandler,
   getCompleteMercenaryQuestHandler,
 } from './world/MercenaryQuestHandlers.js';
+import { getMercenaryQuestInteractHandler } from './world/MercenaryQuestInteractHandler.js';
 import {
   getZoneBypassInitHandler,
   getZoneBypassSubmitHandler,
@@ -119,6 +120,7 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getAcceptMercenaryQuestHandler());
   registerIntentHandler(getAbandonMercenaryQuestHandler());
   registerIntentHandler(getCompleteMercenaryQuestHandler());
+  registerIntentHandler(getMercenaryQuestInteractHandler());
   registerIntentHandler(getZoneBypassInitHandler());
   registerIntentHandler(getZoneBypassSubmitHandler());
   registerIntentHandler(getEquipFromInventoryHandler());

@@ -27,6 +27,8 @@ export type MapTransitionPayload = {
   readonly y: number;
   readonly facing?: PlayerFacing;
   readonly portalLabel?: string;
+  /** Layout Construct a carregar (subzonas do Beco). */
+  readonly constructLayout?: string;
 };
 
 export type PortalEnterIntent = {

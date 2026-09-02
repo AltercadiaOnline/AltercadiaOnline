@@ -62,21 +62,19 @@ function nextGateHint(transitionId: SubZoneTransitionId): string | null {
   return `Próxima trava (${nextConfig.fromZone} → ${nextConfig.toZone}): use o ${nextTerminal.label} dentro de ${nextTerminal.residesInZone}.`;
 }
 
-function openMinigameFromInit(
+function overlayFromInit(
   gate: { readonly transitionId: SubZoneTransitionId; readonly terminalId: string; readonly label: string },
   initData: TerminalInitResponse,
-  setOverlay: React.Dispatch<React.SetStateAction<TerminalOverlay | null>>,
-): void {
+): TerminalOverlay {
   if (initData.isAlreadyUnlocked) {
-    setOverlay({
+    return {
       kind: 'domain',
       zoneName: gate.label,
       terminalId: gate.terminalId,
       transitionId: gate.transitionId,
-    });
-    return;
+    };
   }
-  setOverlay({
+  return {
     kind: 'minigame',
     transitionId: gate.transitionId,
     terminalId: gate.terminalId,
@@ -85,7 +83,7 @@ function openMinigameFromInit(
     sequencePreview: initData.sequencePreview || '1234',
     displayTimeMs: initData.displayTimeMs,
     timeLimitMs: initData.timeLimitMs,
-  });
+  };
 }
 
 function TerminalBootOverlay(props: {
@@ -108,12 +106,44 @@ export const MemoryTerminalReactBridge: React.FC = () => {
   const [overlay, setOverlay] = useState<TerminalOverlay | null>(null);
   const [domainRevision, setDomainRevision] = useState(0);
   const overlayRef = useRef<TerminalOverlay | null>(null);
-  overlayRef.current = overlay;
+  const pendingInitRef = useRef<TerminalInitResponse | null>(null);
+
+  const commitOverlay = useCallback((next: TerminalOverlay | null) => {
+    overlayRef.current = next;
+    setOverlay(next);
+  }, []);
 
   const closeSession = useCallback(() => {
-    setOverlay(null);
+    pendingInitRef.current = null;
+    commitOverlay(null);
     dismissMemoryTerminalHud();
-  }, []);
+  }, [commitOverlay]);
+
+  const applyInitSuccess = useCallback(
+    (initData: TerminalInitResponse): boolean => {
+      const current = overlayRef.current;
+      if (!current || (current.kind !== 'booting' && current.kind !== 'domain')) {
+        pendingInitRef.current = initData;
+        return false;
+      }
+      if (current.transitionId !== initData.transitionId) {
+        pendingInitRef.current = initData;
+        return false;
+      }
+      const gate = getZoneDomainTerminalByTransition(initData.transitionId);
+      if (!gate) {
+        postSystemNotification('Terminal de domínio desconhecido.');
+        pendingInitRef.current = null;
+        commitOverlay(null);
+        dismissMemoryTerminalHud();
+        return true;
+      }
+      pendingInitRef.current = null;
+      commitOverlay(overlayFromInit(gate, initData));
+      return true;
+    },
+    [commitOverlay],
+  );
 
   useEffect(() => {
     registerMemoryTerminalHudCloser(overlay ? closeSession : null);
@@ -135,26 +165,12 @@ export const MemoryTerminalReactBridge: React.FC = () => {
     onZoneBypassInit((payload) => {
       if ('ok' in payload && payload.ok === false) {
         postSystemNotification(payload.reason);
-        setOverlay(null);
+        pendingInitRef.current = null;
+        commitOverlay(null);
         dismissMemoryTerminalHud();
         return;
       }
-      const initData = payload as TerminalInitResponse;
-      const current = overlayRef.current;
-      if (!current || (current.kind !== 'booting' && current.kind !== 'domain')) {
-        return;
-      }
-      if (current.transitionId !== initData.transitionId) {
-        return;
-      }
-      const gate = getZoneDomainTerminalByTransition(initData.transitionId);
-      if (!gate) {
-        postSystemNotification('Terminal de domínio desconhecido.');
-        setOverlay(null);
-        dismissMemoryTerminalHud();
-        return;
-      }
-      openMinigameFromInit(gate, initData, setOverlay);
+      applyInitSuccess(payload as TerminalInitResponse);
     });
     onZoneBypassSubmit((payload) => {
       if ('ok' in payload && payload.ok === false) {
@@ -178,7 +194,7 @@ export const MemoryTerminalReactBridge: React.FC = () => {
       onZoneBypassInit(null);
       onZoneBypassSubmit(null);
     };
-  }, []);
+  }, [applyInitSuccess, commitOverlay]);
 
   useEffect(() => {
     const unsubscribe = uiEvents.on(
@@ -193,7 +209,8 @@ export const MemoryTerminalReactBridge: React.FC = () => {
           getZoneDomainTerminalByTransition(payload.transitionId);
         if (!gate) {
           postSystemNotification('Terminal de domínio desconhecido.');
-          setOverlay(null);
+          pendingInitRef.current = null;
+          commitOverlay(null);
           dismissMemoryTerminalHud();
           return;
         }
@@ -203,24 +220,32 @@ export const MemoryTerminalReactBridge: React.FC = () => {
           return;
         }
 
-        setOverlay({
+        const booting: TerminalOverlay = {
           kind: 'booting',
           transitionId: gate.transitionId,
           terminalId: gate.terminalId,
           zoneName: gate.label,
-        });
+        };
+        commitOverlay(booting);
+
+        const pending = pendingInitRef.current;
+        if (pending && pending.transitionId === gate.transitionId) {
+          applyInitSuccess(pending);
+          return;
+        }
 
         const started = requestZoneBypassInit(gate.transitionId);
         if (!started) {
           postSystemNotification('Não foi possível iniciar o terminal — tente novamente.');
-          setOverlay(null);
+          pendingInitRef.current = null;
+          commitOverlay(null);
           dismissMemoryTerminalHud();
         }
       },
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [applyInitSuccess, commitOverlay]);
 
   const handleHackThisGate = useCallback(() => {
     if (!overlay || overlay.kind !== 'domain') return;

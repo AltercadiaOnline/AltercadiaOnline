@@ -13,6 +13,7 @@ import { notifyWorldPositionPersist } from './notifyWorldPositionPersist.js';
 import { rejectMapTransitionIfNotAllowed } from '../instance/serverWorldScope.js';
 import { getZoneLoadGateway } from './ZoneLoadGateway.js';
 import { ensureWorldCollisionForMap } from '../../shared/world/constructWorldCollision.js';
+import { getAuthoritativeZoneBypassGateway } from './AuthoritativeZoneBypassGateway.js';
 
 export type PortalTransitionGatewayResult =
   | { readonly ok: true; readonly ready: PortalTransitionReadyPayload; readonly profile: PlayerProfile }
@@ -26,7 +27,11 @@ export class PortalTransitionGateway {
     playerId: string,
     request: PortalTransitionRequestPayload,
   ): PortalTransitionGatewayResult {
-    const resolved = resolvePortalTransition(request);
+    const unlockedZones = getAuthoritativeZoneBypassGateway().exportPlayerUnlocks(
+      playerId,
+      request.characterId,
+    );
+    const resolved = resolvePortalTransition(request, { unlockedZones });
     if (!resolved.ok) {
       return {
         ok: false,
@@ -67,6 +72,9 @@ export class PortalTransitionGateway {
       currentMapId: resolved.ready.mapId,
       lastPosition: { x: resolved.ready.x, y: resolved.ready.y },
       facing: (resolved.ready.facing ?? request.facing) as PlayerFacing,
+      ...(resolved.ready.constructLayout && resolved.ready.mapId === 'farm_zone_01'
+        ? { constructFarmLayout: resolved.ready.constructLayout }
+        : {}),
       ...(request.sessionSync ? { sessionSync: normalizeSessionSync(request.sessionSync) } : {}),
     });
     notifyWorldPositionPersist(playerId, request.characterId, profile);

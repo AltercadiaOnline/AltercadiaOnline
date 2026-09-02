@@ -1,0 +1,36 @@
+{
+  "group_id": "6ce18c56-b9f7-4645-a90a-da9fdcbe0d69",
+  "states": [
+    {
+      "character": {
+        "id": "9e3e923e-71bc-4bee-8546-f8f79d9dc1fa",
+        "name": "Idle",
+        "prompt": "top-down pixel art sprite, stylish black fence NPC with voluminous black power hair, brown skin, half-closed eyes, wearing layered streetwear in cool color tones like deep teal and dark purple, bulky vest, sitting behind a messy workbench in a dark alley with a glowing gold vortex watch, rusty brown and cold urban palette, harsh yellow overhead lamp light, RPG game asset, clean crisp pixel edges",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T04:23:57.177949+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T04:25:27.175229"
+}

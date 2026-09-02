@@ -12,9 +12,14 @@ import {
 import {
   buildPortalTransitionPayload,
   findPortalAtTile,
+  findPortalNearWorldPosition,
   type Portal,
-  worldPixelToTile,
 } from '../../shared/world/portals.js';
+import { getPortalsForActiveLayout } from '../../shared/world/buildConstructPortals.js';
+import {
+  getActiveConstructFarmLayout,
+  setActiveConstructFarmLayout,
+} from '../../shared/world/activeConstructFarmLayout.js';
 import type { MapTransitionPayload } from '../../shared/world/protocol.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { MapVisualLayout } from '../world/mapVisualLayouts.js';
@@ -34,6 +39,7 @@ export type LoadMapOptions = {
   readonly y?: number;
   readonly facing?: PlayerFacing;
   readonly portalLabel?: string;
+  readonly constructLayout?: string;
   /** Camada ZoneLink — evita regenerateData na troca. */
   readonly cachedMapData?: number[][];
   readonly cachedLayout?: MapVisualLayout;
@@ -72,7 +78,7 @@ export class MapManager {
   }
 
   get portals(): readonly Portal[] {
-    return this.currentMap.portals;
+    return getPortalsForActiveLayout(this.currentMapId, getActiveConstructFarmLayout());
   }
 
   get mapDataSnapshot(): readonly (readonly number[])[] {
@@ -108,21 +114,23 @@ export class MapManager {
 
     this.currentMap = next;
     this.mapData = spawn?.cachedMapData ?? next.generateData();
+    if (spawn?.constructLayout) {
+      setActiveConstructFarmLayout(spawn.constructLayout);
+    }
     setActiveNpcOccupancyMapId(mapId);
     syncConstructWorldCollision(mapId);
     setActiveMapTileSize(mapId);
     this.applySceneForCurrentMap(mapId, spawn);
   }
 
-  /** Compara tile lógico do jogador com os portais do mapa atual. */
+  /** Compara tile lógico do jogador com os portais do layout Construct ativo. */
   checkPortalAtTile(tileX: number, tileY: number): Portal | null {
-    return findPortalAtTile(this.currentMap.portals, tileX, tileY);
+    return findPortalAtTile(this.portals, tileX, tileY);
   }
 
-  /** Compara posição do jogador (pixels) com os portais do mapa atual. */
+  /** Compara posição do jogador (pixels) com os portais do layout Construct ativo. */
   checkPortal(playerX: number, playerY: number): Portal | null {
-    const tile = worldPixelToTile(playerX, playerY, this.currentMap.tileSize);
-    return this.checkPortalAtTile(tile.tileX, tile.tileY);
+    return findPortalNearWorldPosition(this.portals, playerX, playerY, this.currentMap.tileSize);
   }
 
   /**
@@ -163,6 +171,7 @@ export class MapManager {
         y: spawn.y,
         ...(spawn.facing !== undefined ? { facing: spawn.facing } : {}),
         ...(spawn.portalLabel !== undefined ? { portalLabel: spawn.portalLabel } : {}),
+        ...(spawn.constructLayout !== undefined ? { constructLayout: spawn.constructLayout } : {}),
       };
       this.sceneHost.setPlayerPosition(payload);
     }

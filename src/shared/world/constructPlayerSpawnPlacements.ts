@@ -9,6 +9,7 @@ import { CONSTRUCT_PLAYER_SPAWN_PLACEMENTS_GENERATED } from './constructPlayerSp
  */
 export type ConstructPlayerSpawnPlacement = {
   readonly mapId: MapId;
+  readonly constructLayout?: string;
   readonly constructX: number;
   readonly constructY: number;
   readonly widthPx: number;

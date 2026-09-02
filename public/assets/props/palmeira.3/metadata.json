@@ -1,0 +1,22 @@
+{
+  "group_id": "f5498dc4-5078-42f1-bc35-868f439e7746",
+  "objects": [
+    {
+      "id": "dca3efbf-594c-44b3-b0e1-0e9f5cba6f85",
+      "name": "base",
+      "prompt": "top-down pixel art sprite, stylized cyber-hydroponic palm tree, tall slender reinforced metallic trunk, wide polymeric fan-shaped leaves with subtle gold glowing veins, cyber-industrial aesthetic, single tile base, clean crisp pixel edges, solid pure white background, chroma key, no background, RPG game asset",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/top-down_pixel_art_sprite_sty.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-30T01:54:47.194012"
+}

@@ -40,6 +40,7 @@ export function initWorldPanelsBridge(): void {
         npcId: payload.npcId,
         npcName: payload.npcName,
         text: payload.text,
+        ...(payload.questPoiId ? { questPoiId: payload.questPoiId } : {}),
       });
     }),
     uiEvents.on(UIEventType.SHOW_VENDOR_SHOP, (payload) => {

@@ -34,10 +34,15 @@ export function getZone1CreatureDisplayName(creatureId: string): string {
  * Posição = hotspot do marker; combate/overlay usam estes IDs.
  */
 export function buildZone1ConstructMonsterInstances(): MonsterRegistryEntry[] {
-  return CONSTRUCT_ZONE1_CREATURE_SPAWNS.map((spawn) => {
+  const activeSpawns = CONSTRUCT_ZONE1_CREATURE_SPAWNS;
+  const indexByCreature = new Map<string, number>();
+
+  return activeSpawns.map((spawn) => {
     const logical = resolveConstructSpawnLogical(spawn);
+    const creatureIndex = (indexByCreature.get(spawn.creatureId) ?? 0) + 1;
+    indexByCreature.set(spawn.creatureId, creatureIndex);
     return {
-      id: `beco_${spawn.creatureId}_${String(spawn.index + 1).padStart(2, '0')}`,
+      id: `beco_${spawn.creatureId}_${String(creatureIndex).padStart(2, '0')}`,
       name: getZone1CreatureDisplayName(spawn.creatureId),
       mapId: spawn.mapId,
       tileX: logical.tileX,

@@ -163,7 +163,8 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
     !pending
     || (pending.action.type !== 'ACCEPT_MERCENARY_TASK'
       && pending.action.type !== 'ABANDON_MERCENARY_TASK'
-      && pending.action.type !== 'COMPLETE_MERCENARY_TASK')
+      && pending.action.type !== 'COMPLETE_MERCENARY_TASK'
+      && pending.action.type !== 'MERCENARY_QUEST_INTERACT')
   ) {
     return false;
   }
@@ -173,6 +174,8 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
     characterLevel?: { level?: unknown; xpCurrent?: unknown };
     rewardExp?: unknown;
     rewardVolts?: unknown;
+    grantedItemId?: unknown;
+    objectiveShort?: unknown;
   };
   if (!record.mercenaryQuests) return false;
   getMercenaryQuestStore().applyAuthoritative(record.mercenaryQuests);
@@ -192,6 +195,14 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
     const volts = typeof record.rewardVolts === 'number' ? Math.floor(record.rewardVolts) : 0;
     if (xp > 0 || volts > 0) {
       alertSystem(`Contrato entregue: +${xp} XP · +${volts} VOLTS`);
+    }
+  }
+  if (pending.action.type === 'MERCENARY_QUEST_INTERACT') {
+    const granted = typeof record.grantedItemId === 'string' ? record.grantedItemId : '';
+    if (granted) {
+      alertSystem('Item de contrato recebido. Volte ao Mercenário.');
+    } else if (typeof record.objectiveShort === 'string' && record.objectiveShort.trim()) {
+      alertSystem(record.objectiveShort);
     }
   }
   return true;

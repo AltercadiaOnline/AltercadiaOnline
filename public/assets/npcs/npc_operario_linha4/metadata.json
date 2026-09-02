@@ -1,0 +1,36 @@
+{
+  "group_id": "3a9fcf52-66b5-4eb6-af2a-364b9d10fa47",
+  "states": [
+    {
+      "character": {
+        "id": "a60eccc1-4740-4688-9ada-ed4d677faf9d",
+        "name": "Idle",
+        "prompt": "top-down pixel art sprite, strong muscular industrial worker NPC, yellow hard hat, heavy-duty construction vest, sleeveless tank top shirt, rugged denim jeans, hand holding a red emergency LED implant on neck, standing in a neutral pose, solid pure white background, chroma key, no background, RPG game asset, clean crisp pixel edges",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T04:28:54.153424+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T04:29:59.056311"
+}

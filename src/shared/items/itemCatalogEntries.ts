@@ -60,6 +60,21 @@ function generic(
   };
 }
 
+function questItem(id: string, name: string, description: string): ItemDefinition {
+  return {
+    id,
+    name,
+    category: ItemCategory.Generic,
+    weight: DEFAULT_ITEM_WEIGHT,
+    effects: [],
+    description,
+    isTradable: false,
+    isUnique: true,
+    isIndestructible: true,
+    maxStack: 1,
+  };
+}
+
 function currency(
   id: string,
   name: string,
@@ -208,6 +223,21 @@ export const CATALOG_ENTRIES: readonly ItemDefinition[] = [
   generic('dimensional_rock', 'Rocha Dimensional', 'Drop temático do Ciclope.'),
   generic('black_mist', 'Névoa Negra', 'Drop temático do Wraith.'),
   generic('wraith_echo', 'Eco de Wraith', 'Drop temático do Wraith.'),
+
+  questItem('codigo_desbloqueio', 'Código de Desbloqueio', 'Dump extraído do operário da Linha 4. Entrega no Quadro.'),
+  questItem('chave_mestre', 'Chave-Mestre', 'Chaves-mestre dos distritos. Resgate do contrabandista.'),
+  questItem('mapa_patrulha', 'Mapa de Patrulha', 'Cartão do drone corporativo caído no telhado.'),
+  questItem('baterias_alta_densidade', 'Baterias de Alta Densidade', 'Células apreendidas na alfândega. Carreto do subsolo.'),
+  questItem('recibo_extorsao', 'Recibo de Extorsão', 'Print do quiosque. Burocrata Vórtex.'),
+  questItem('modulo_memoria', 'Módulo de Memória', 'Peça do servidor fantasma do Distrito 4.'),
+  questItem('manifesto_cargas', 'Manifesto de Cargas', 'Arquivo da docagem clandestina.'),
+  questItem('relogio_ouro', 'Relógio de Ouro', 'Relógio de executivo Vórtex. Chaves no mecanismo.'),
+  questItem('amostra_biologica', 'Amostra Biológica', 'Extraída da carga viva experimental.'),
+  questItem('documentos_sigilosos', 'Documentos Sigilosos', 'Dossiê Vórtex do terminal de autoatendimento.'),
+  questItem('unidade_transmissora', 'Unidade Transmissora', 'Nó de vigilância do armazém desativado.'),
+  questItem('registros_rota', 'Registros de Rota', 'Rotas das barcaças no console portuário.'),
+  questItem('pendrive_chaves', 'Pendrive de Chaves', 'Contas secundárias do cofre do gerente.'),
+  questItem('nucleo_processamento', 'Núcleo de Processamento', 'Relay central da fachada. Static quer isto.'),
 
   equip('gnawed_bone_helm', 'Elmo de Osso Roído', 'H', [pct('DEF', 5)], EQUIPMENT_SLOT_WEIGHT.head),
   equip('black_feather_pants', 'Calças de Penas Negras', 'P', [pct('DEF', 5)], EQUIPMENT_SLOT_WEIGHT.bottom),

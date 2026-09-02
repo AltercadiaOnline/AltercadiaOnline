@@ -13,13 +13,18 @@ import {
 } from '../../../shared/character/playerSkin.js';
 import type { PetSnapshot } from '../../../shared/pet/petModel.js';
 import type { PlayerPetRosterSnapshot } from '../../../shared/pet/petRoster.js';
-import type { WalletSnapshot } from '../../../shared/playerDataSnapshots.js';
+import type { CharacterLevelSnapshot, WalletSnapshot } from '../../../shared/playerDataSnapshots.js';
 import { ACTIVE_MOVESET_SLOT_COUNT } from '../../../shared/combat/moveTypes.js';
 import { listAchievementDefinitions } from '../../../shared/achievements/achievementCatalog.js';
 import {
   ACHIEVEMENT_CATEGORY_LABELS,
   type AchievementProgressSnapshot,
 } from '../../../shared/achievements/achievementTypes.js';
+import {
+  overlayLiveLevelOnProfile,
+  readLiveCharacterLevel,
+  subscribeLiveCharacterLevel,
+} from '../hooks/subscribeLiveCharacterLevel.js';
 import { getDataStore } from '../../economy/dataStoreAccess.js';
 import { getCarryCapacityStore } from '../../ui/capacity/carryCapacityStore.js';
 import { getPlayerProfileStore } from '../../ui/character/playerProfileStore.js';
@@ -106,7 +111,10 @@ export function useCharactersPanelState() {
     () => getPlayerEquipmentStore().getSnapshot(),
   );
   const [profile, setProfile] = useState<PlayerProfileSnapshot>(
-    () => getPlayerProfileStore().getSnapshot(),
+    () => overlayLiveLevelOnProfile(getPlayerProfileStore().getSnapshot()),
+  );
+  const [characterLevel, setCharacterLevel] = useState<CharacterLevelSnapshot>(
+    () => readLiveCharacterLevel(),
   );
   const [statsBonus, setStatsBonus] = useState<PlayerStatsBonus>(EMPTY_STATS);
   const [speedBonusTotal, setSpeedBonusTotal] = useState(0);
@@ -148,10 +156,13 @@ export function useCharactersPanelState() {
 
     const unsubSkin = getPlayerSkinStore().subscribe(setSkinState);
 
-    // Nível vem do PlayerDataStore via profile.getSnapshot() — NÃO chamar setLevel aqui
-    // (equipment.subscribe ↔ syncLevelDerivedVitals gerava stack overflow).
+    // Nível = PDS ao vivo. NÃO chamar setLevel (equipment.subscribe ↔ vitals = overflow).
     const unsubEquipment = getPlayerEquipmentStore().subscribe((snapshot) => {
       setEquipmentMeta(snapshot);
+    });
+    const unsubLiveLevel = subscribeLiveCharacterLevel(() => {
+      setCharacterLevel(readLiveCharacterLevel());
+      setProfile(overlayLiveLevelOnProfile(getPlayerProfileStore().getSnapshot()));
     });
 
     const unsubPlayerItems = getPlayerItemStore().subscribe(() => {
@@ -162,7 +173,9 @@ export function useCharactersPanelState() {
       setIsEncumbered(nextSpeed.isEncumbered);
     });
 
-    const unsubProfile = getPlayerProfileStore().subscribe(setProfile);
+    const unsubProfile = getPlayerProfileStore().subscribe((next) => {
+      setProfile(overlayLiveLevelOnProfile(next));
+    });
 
     const unsubStats = uiEvents.on(UIEventType.PLAYER_STATS_UPDATED, (payload) => {
       setStatsBonus(payload.statsBonus);
@@ -193,6 +206,7 @@ export function useCharactersPanelState() {
     return () => {
       unsubSkin();
       unsubEquipment();
+      unsubLiveLevel();
       unsubPlayerItems();
       unsubProfile();
       unsubStats();
@@ -232,13 +246,20 @@ export function useCharactersPanelState() {
     [achievementRows],
   );
 
+  const liveProfile = useMemo<PlayerProfileSnapshot>(() => ({
+    ...profile,
+    level: characterLevel.level,
+    xpCurrent: characterLevel.xpCurrent,
+    xpToNext: characterLevel.xpToNext,
+  }), [profile, characterLevel]);
+
   const levelProgressionModel = useMemo<LevelProgressionSectionModel>(() => ({
-    profile,
+    profile: liveProfile,
     classId: equipmentMeta.classId,
     vitals: equipmentMeta.vitals,
     speedBonusTotal,
     isEncumbered,
-  }), [profile, equipmentMeta, speedBonusTotal, isEncumbered]);
+  }), [liveProfile, equipmentMeta, speedBonusTotal, isEncumbered]);
 
   const toggleSkinMenu = useCallback((slot: SkinSlotId) => {
     setOpenSkinMenu((current) => (current === slot ? null : slot));
@@ -256,7 +277,8 @@ export function useCharactersPanelState() {
   return {
     skinState,
     equipmentMeta,
-    profile,
+    profile: liveProfile,
+    characterLevel,
     statsBonus,
     wallet,
     syncStatus,

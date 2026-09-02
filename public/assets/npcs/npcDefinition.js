@@ -2,7 +2,8 @@
  * Manifesto SSOT — definições visuais e físicas de NPCs (sprites PNG).
  * Gameplay (posição, ações, diálogo) permanece em npcRegistry.ts.
  */
-import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, } from '../../shared/npc/npcAssetBundles.js?v=78b302b';
+import { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, } from '../../shared/npc/npcAssetBundles.js?v=4ea43bf';
+import { resolveNpcArchetypeId } from '../../shared/npc/resolveNpcArchetypeId.js?v=4ea43bf';
 export { hasNpcAssetBundle, listNpcAssetBundleIds, NPC_ASSET_BUNDLES, NPC_ASSET_PUBLIC_BASE, getNpcAssetFrameSize, resolveNpcCollisionSize, };
 function defFromBundle(npcId, animationSpeed, isCollidable = true) {
     const size = resolveNpcCollisionSize(npcId);
@@ -22,6 +23,15 @@ export const NPC_DEFINITION_REGISTRY = {
     banqueiro: defFromBundle('banqueiro', 0.1),
     mercenario: defFromBundle('mercenario', 0.11),
     treinador_zeno: defFromBundle('treinador_zeno', 0.1),
+    contrabandista: defFromBundle('contrabandista', 0.1),
+    receptador: defFromBundle('receptador', 0.1),
+    operario_linha4: defFromBundle('operario_linha4', 0.1),
+    humano_1: defFromBundle('humano_1', 0.1),
+    humano_2: defFromBundle('humano_2', 0.1),
+    mercador_rua: defFromBundle('mercador_rua', 0.11),
+    tecnico_manutencao: defFromBundle('tecnico_manutencao', 0.1),
+    membro_gang_rosa: defFromBundle('membro_gang_rosa', 0.1),
+    cao_robo: defFromBundle('cao_robo', 0.12),
     // instrutor_refraction (Kael) — fora do spawn até entrada oficial
     computador_marketplace: defFromBundle('computador_marketplace', 0, false),
     computador_arena: defFromBundle('computador_arena', 0, false),
@@ -33,11 +43,11 @@ export const NPC_DEFINITION_REGISTRY = {
 };
 const definitionRegistry = NPC_DEFINITION_REGISTRY;
 export function getNpcDefinition(npcId) {
-    return definitionRegistry[npcId] ?? null;
+    return definitionRegistry[resolveNpcArchetypeId(npcId)] ?? null;
 }
 /** @deprecated Bundles usam metadata — retorna null; use NpcSpriteLoader. */
 export function resolveNpcSpriteImageUrl(npcId) {
-    const bundle = NPC_ASSET_BUNDLES[npcId];
+    const bundle = NPC_ASSET_BUNDLES[resolveNpcArchetypeId(npcId)];
     if (!bundle)
         return null;
     return bundle.metadataUrl;

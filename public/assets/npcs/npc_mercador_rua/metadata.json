@@ -1,0 +1,36 @@
+{
+  "group_id": "91fb730b-9002-4a91-aa8c-6b61763febc9",
+  "states": [
+    {
+      "character": {
+        "id": "fed74f9c-05b9-427d-8fb0-74d89ba75e69",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite, street food vendor standing behind a makeshift modular counter, side view. Face completely hidden in deep shadow under a heavy oversized hoodie and a cracked visor, absolute zero visible eyes. Wearing a weathered tactical apron over a multi-pocketed techwear jacket. Holding a steaming bowl of synthetic noodles, surrounded by small neon-glowing food containers on the counter. 90s retro anime aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background, isolated sprite, NO background elements, NO walls, NO ground.",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T05:59:16.712678+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T06:02:15.332392"
+}

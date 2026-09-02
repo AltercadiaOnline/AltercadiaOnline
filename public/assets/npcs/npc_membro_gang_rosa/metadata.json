@@ -1,0 +1,36 @@
+{
+  "group_id": "60e380f5-77db-444b-8a00-91f1d0b3556b",
+  "states": [
+    {
+      "character": {
+        "id": "2de6aae4-4a0c-45b6-892e-72b1ea79f3a8",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite, static gang sentinel on street patrol, side view. Face completely concealed in deep shadow under a heavy pulled-down hood and a dark fabric face mask, absolute zero visible eyes. Wearing a heavy asymmetrical techwear jacket with dangling utility straps, glowing neon armband, and a wide horizontal visor emitting a dim colored LED glow. 90s retro anime aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background, isolated sprite, NO background elements, NO walls, NO ground.",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T06:03:15.583615+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T06:07:45.249741"
+}

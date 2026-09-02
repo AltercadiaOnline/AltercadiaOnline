@@ -1,0 +1,22 @@
+{
+  "group_id": "c7be1abb-8e51-4322-9545-c1e06ec76517",
+  "objects": [
+    {
+      "id": "74068e8f-3586-423c-9e30-176ae5c12480",
+      "name": "base",
+      "prompt": "top-down pixel art sprite, cyber-industrial urban tree, genetically modified sapling contained within a heavy steel grate and concrete planter base, small glowing power LED, dark green and teal foliage, rusty metal texture, clean crisp pixel edges, solid pure white background, chroma key, no background, RPG game asset",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/top-down_pixel_art_sprite_cyb.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-30T01:37:23.157800"
+}

@@ -5,7 +5,12 @@ import {
   abandonMercenaryQuest,
   completeMercenaryQuest,
 } from '../../../shared/quests/mercenaryQuestProgress.js';
-import { creditMercenaryQuestVolts } from '../../../Economy/economyGateway.js';
+import { resolveMercenaryQuestTurnInItemId } from '../../../shared/quests/mercenaryQuestStepEngine.js';
+import {
+  consumeMercenaryQuestTurnInItem,
+  creditMercenaryQuestVolts,
+  stripMercenaryQuestItemIfHeld,
+} from '../../../Economy/economyGateway.js';
 import { BaseIntentHandler } from '../../network/BaseIntentHandler.js';
 import {
   getAuthoritativeProgression,
@@ -71,6 +76,21 @@ export class AbandonMercenaryQuestHandler extends BaseIntentHandler<AbandonMerce
       this.sendResponse(playerId, intentId, false, result.code);
       return;
     }
+    const turnInItemId = current.activeQuestId
+      ? resolveMercenaryQuestTurnInItemId(current.activeQuestId)
+      : null;
+    if (turnInItemId) {
+      const stripped = await stripMercenaryQuestItemIfHeld({
+        playerId,
+        characterId: this.characterId,
+        itemId: turnInItemId,
+        intentId,
+      });
+      if (!stripped.ok) {
+        this.sendResponse(playerId, intentId, false, stripped.message);
+        return;
+      }
+    }
     const progress = setMercenaryQuestProgress(playerId, this.characterId, result.progress);
     this.sendResponse(playerId, intentId, true, { mercenaryQuests: progress });
   }
@@ -98,6 +118,20 @@ export class CompleteMercenaryQuestHandler extends BaseIntentHandler<CompleteMer
     if (!completed.ok) {
       this.sendResponse(playerId, intentId, false, completed.code);
       return;
+    }
+
+    const turnInItemId = resolveMercenaryQuestTurnInItemId(activeId);
+    if (turnInItemId) {
+      const consumed = await consumeMercenaryQuestTurnInItem({
+        playerId,
+        characterId: this.characterId,
+        itemId: turnInItemId,
+        intentId,
+      });
+      if (!consumed.ok) {
+        this.sendResponse(playerId, intentId, false, consumed.message);
+        return;
+      }
     }
 
     // Pagamento antes de marcar concluído — evita “done” sem reward.

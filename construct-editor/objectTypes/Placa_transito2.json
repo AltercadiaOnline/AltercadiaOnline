@@ -1,0 +1,68 @@
+{
+	"name": "Placa_transito2",
+	"plugin-id": "Sprite",
+	"sid": 212008687586632,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 950770704653971
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 97,
+						"height": 132,
+						"originX": -5.699156513589503,
+						"originY": 0.07217383414988202,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 4477912,
+						"collisionPoly": {
+							"points": [
+								0.4819587628865981,
+								0.5726010101010117,
+								0.4639175257731962,
+								0.5656565656565669,
+								0.45962199312714846,
+								0.5776515151515151,
+								0.45264175257731964,
+								0.9310290404040403,
+								0.4751932989690728,
+								0.9464962121212129,
+								0.5171821305841928,
+								0.9400252525252523,
+								0.5214776632302407,
+								0.5789141414141432,
+								0.5085910652920964,
+								0.5530303030303035,
+								0.4793814432989695,
+								0.5454545454545457
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 260816642414339,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

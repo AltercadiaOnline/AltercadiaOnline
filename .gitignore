@@ -52,8 +52,18 @@ public/assets/**/._*
 .env.*.local
 
 # Construct 3 — exports locais do editor
-construct/**/Exports/
-construct/**/Backups/
+construct-editor/**/Exports/
+construct-editor/**/Backups/
+construct-editor/_backup/
+
+# HTML5 intermediário do Construct (runtime publicado = public/construct-world/)
+construct-export/images/
+construct-export/scripts/
+construct-export/icons/
+construct-export/media/
+
+# Rascunho local — não é o trem do mapa
+public/assets/props/TREM_TEST/
 
 # Fonte oficial de credenciais Supabase/Postgres — JAMAIS commitar
 .env

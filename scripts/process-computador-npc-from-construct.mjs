@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const sheetPath = path.join(root, 'construct', 'altercadia-world', 'images', 'shared-0-sheet1.webp');
+const sheetPath = path.join(root, 'construct-export', 'images', 'shared-0-sheet1.webp');
 const sheetFallback = path.join(root, 'public', 'construct-world', 'images', 'shared-0-sheet1.webp');
 const propFallback = path.join(
   root,

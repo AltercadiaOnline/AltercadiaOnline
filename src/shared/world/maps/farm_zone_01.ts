@@ -8,10 +8,10 @@ import {
   FARM_ZONE_01_TILES_HIGH,
   FARM_ZONE_01_TILES_WIDE,
 } from './farmZone01LayoutConstants.js';
+import { buildPortalsForMap } from '../buildConstructPortals.js';
 import {
-  CONSTRUCT_PORTAL_PLACEMENTS,
-  constructPortalArrivalTile,
   constructPortalToTriggerTiles,
+  findConstructPortalPlacement,
 } from '../constructPortalPlacements.js';
 
 export const FARM_ZONE_01_ID = 'farm_zone_01' as const;
@@ -24,16 +24,12 @@ export {
   FARM_ZONE_01_PIXEL_HEIGHT,
 } from './farmZone01LayoutConstants.js';
 
-const FARM_SOUTH_TRIGGER = constructPortalToTriggerTiles(
-  CONSTRUCT_PORTAL_PLACEMENTS.farm_portal_south,
-);
-/** Chegada na cidade: um pouco ao sul do portal norte Construct. */
-const CITY_ARRIVAL = constructPortalArrivalTile(
-  CONSTRUCT_PORTAL_PLACEMENTS.city_portal_north,
-  { dx: 0, dy: 2 },
-);
+const FARM_SOUTH_PLACEMENT = findConstructPortalPlacement('farm_portal_south', 'zonabeco1');
+const FARM_SOUTH_TRIGGER = FARM_SOUTH_PLACEMENT
+  ? constructPortalToTriggerTiles(FARM_SOUTH_PLACEMENT)
+  : { tileX: 0, tileY: 0, tileW: 1, tileH: 1 };
 
-/** Zona de interação = footprint do portal sul Construct. */
+/** Zona de interação = footprint do portal sul Construct (layout principal). */
 export const FARM_ZONE_01_SOUTH_EXIT_ZONE = {
   tileX: FARM_SOUTH_TRIGGER.tileX,
   tileY: FARM_SOUTH_TRIGGER.tileY,
@@ -41,23 +37,8 @@ export const FARM_ZONE_01_SOUTH_EXIT_ZONE = {
   tileH: FARM_SOUTH_TRIGGER.tileH,
 } as const;
 
-/**
- * Beco dos Fundos — gatilho = marker Construct `farm_portal_south`.
- */
-export const portals: readonly Portal[] = [
-  {
-    id: 'farm_portal_south',
-    mapId: FARM_ZONE_01_ID,
-    label: 'Retorno à Cidade',
-    direction: 'south',
-    tileX: FARM_SOUTH_TRIGGER.tileX,
-    tileY: FARM_SOUTH_TRIGGER.tileY,
-    tileW: FARM_SOUTH_TRIGGER.tileW,
-    tileH: FARM_SOUTH_TRIGGER.tileH,
-    targetMapId: CITY_01_ID,
-    targetPosition: CITY_ARRIVAL,
-  },
-];
+/** Beco dos Fundos — todos os portais Construct (filtrados por layout ativo no runtime). */
+export const portals: readonly Portal[] = buildPortalsForMap(FARM_ZONE_01_ID);
 
 export const FARM_ZONE_01_PORTALS = portals;
 

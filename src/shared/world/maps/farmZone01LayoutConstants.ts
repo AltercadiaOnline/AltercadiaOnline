@@ -4,19 +4,18 @@ import { DESIGN_CONFIG } from '../../../config/designConstants.js';
  * Beco dos Fundos (Zona 1) — dimensões autoritativas do Construct (`zonabeco1`).
  *
  * Autoridade visual / bounds: pixels do layout Construct (não grade Tiled pintada).
- * Tile size permanece 32px só para math de portal/spawn/overlay; o mapa não precisa
- * fechar em tiles inteiros na largura (860 ÷ 32 = 26.875).
+ * Tile size permanece 32px só para math de portal/spawn/overlay.
  */
 export const FARM_ZONE_01_LORE_BRIEF = [
   'Beco dos Fundos — extensão da Cidade 01, não periferia rural.',
   'Estética: beco americano (tijolo, ferro, hidrante) + Tóquio (néon, corredor apertado, grafite).',
   'Distrito de oficinas e becos antes da gentrificação NexGrid.',
-  'Fonte de tamanho: Construct layout zonabeco1 (860×2400 px).',
+  'Fonte de tamanho: Construct layout zonabeco1 (640×1600 px).',
 ].join(' ');
 
 /** Pixels do layout Construct `zonabeco1` — fonte da verdade para câmera e bounds. */
-export const FARM_ZONE_01_PIXEL_WIDTH = 860;
-export const FARM_ZONE_01_PIXEL_HEIGHT = 2400;
+export const FARM_ZONE_01_PIXEL_WIDTH = 640;
+export const FARM_ZONE_01_PIXEL_HEIGHT = 1600;
 
 export const FARM_ZONE_01_TILE_SIZE = DESIGN_CONFIG.TILE.SIZE;
 
@@ -27,7 +26,7 @@ export const FARM_ZONE_01_TILE_SIZE = DESIGN_CONFIG.TILE.SIZE;
 export const FARM_ZONE_01_TILES_WIDE = Math.ceil(FARM_ZONE_01_PIXEL_WIDTH / FARM_ZONE_01_TILE_SIZE);
 export const FARM_ZONE_01_TILES_HIGH = Math.ceil(FARM_ZONE_01_PIXEL_HEIGHT / FARM_ZONE_01_TILE_SIZE);
 
-/** Centro horizontal aproximado do beco em tiles (860/2). */
+/** Centro horizontal aproximado do beco em tiles (640/2). */
 export const FARM_ZONE_01_ALLEY_CENTER = Math.floor(
   FARM_ZONE_01_PIXEL_WIDTH / 2 / FARM_ZONE_01_TILE_SIZE,
 );

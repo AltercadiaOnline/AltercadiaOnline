@@ -49,20 +49,27 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
 
   private bridgeReady = false;
   private layoutMapId: MapId | null = null;
+  private activeLayoutKey: string | null = null;
   private wantedMapId: MapId | null = null;
   private wantedSpawn: WorldRenderLoadMapOptions['spawn'] | undefined;
+  private wantedLayoutId: string | undefined;
 
   private mode: WorldRenderMode = 'exploration';
   private lastPostedCamX = Number.NaN;
   private lastPostedCamY = Number.NaN;
 
   private layoutReadyWaiter: {
+    readonly layoutKey: string;
     readonly mapId: MapId;
     readonly promise: Promise<void>;
     readonly resolve: () => void;
     readonly reject: (error: Error) => void;
     readonly timer: number;
   } | null = null;
+
+  private buildLayoutKey(mapId: MapId, layoutId?: string): string {
+    return `${mapId}::${resolveConstructLayoutId(mapId, layoutId)}`;
+  }
 
   async boot(host: HTMLElement): Promise<void> {
     this.shutdown();
@@ -105,8 +112,10 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
     this.iframe = null;
     this.bridgeReady = false;
     this.layoutMapId = null;
+    this.activeLayoutKey = null;
     this.wantedMapId = null;
     this.wantedSpawn = undefined;
+    this.wantedLayoutId = undefined;
     this.lastPostedCamX = Number.NaN;
     this.lastPostedCamY = Number.NaN;
     if (this.host) this.host.replaceChildren();
@@ -116,14 +125,16 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
   async loadMap(mapId: MapId, options?: WorldRenderLoadMapOptions): Promise<void> {
     this.wantedMapId = mapId;
     this.wantedSpawn = options?.spawn;
+    this.wantedLayoutId = options?.layoutId;
 
-    if (this.layoutMapId === mapId) {
+    const layoutKey = this.buildLayoutKey(mapId, options?.layoutId);
+    if (this.activeLayoutKey === layoutKey) {
       this.setIframeBooting(false);
       return;
     }
 
-    // Mesmo mapa já em voo (boot + world-login) — compartilha a promise.
-    if (this.layoutReadyWaiter?.mapId === mapId) {
+    // Mesmo mapa/layout já em voo (boot + world-login) — compartilha a promise.
+    if (this.layoutReadyWaiter?.layoutKey === layoutKey) {
       this.flushWantedMap();
       await this.layoutReadyWaiter.promise;
       this.setIframeBooting(false);
@@ -138,6 +149,7 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
     }
 
     this.layoutMapId = null;
+    this.activeLayoutKey = null;
     this.setIframeBooting(true);
 
     let settle!: (ok: boolean, error?: Error) => void;
@@ -156,6 +168,7 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
     }, 20_000);
 
     this.layoutReadyWaiter = {
+      layoutKey,
       mapId,
       promise,
       resolve: () => {
@@ -272,19 +285,22 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
     if (!waiter || waiter.mapId !== mapId) return;
     this.layoutReadyWaiter = null;
     window.clearTimeout(waiter.timer);
+    this.layoutMapId = mapId;
+    this.activeLayoutKey = this.buildLayoutKey(mapId, this.wantedLayoutId);
     waiter.resolve();
   }
 
   private flushWantedMap(): void {
     if (!this.bridgeReady || !this.wantedMapId) return;
-    if (this.layoutMapId === this.wantedMapId) return;
+    const layoutKey = this.buildLayoutKey(this.wantedMapId, this.wantedLayoutId);
+    if (this.activeLayoutKey === layoutKey) return;
 
     const mapId = this.wantedMapId;
     const spawn = this.wantedSpawn;
     this.postToConstruct({
       type: 'altercadia:load-map',
       mapId,
-      layoutId: resolveConstructLayoutId(mapId),
+      layoutId: resolveConstructLayoutId(mapId, this.wantedLayoutId),
       ...(spawn
         ? {
             spawn: {
@@ -385,7 +401,6 @@ export class ConstructWorldRuntime implements WorldRenderEngine {
           this.flushWantedMap();
           break;
         case 'construct:layout-ready':
-          this.layoutMapId = event.data.mapId;
           this.lastPostedCamX = Number.NaN;
           this.lastPostedCamY = Number.NaN;
           this.setIframeBooting(false);

@@ -341,7 +341,7 @@ export function WorldCharactersPanel({ zIndex, focused }: WorldCharactersPanelPr
               <p className="character-sheet__sprite-meta">
                 {formatSpriteMetaLine(
                   state.equipmentMeta.displayName,
-                  state.equipmentMeta.level,
+                  state.characterLevel.level,
                   state.equipmentMeta.classId,
                 )}
               </p>

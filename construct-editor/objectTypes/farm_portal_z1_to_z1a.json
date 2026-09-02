@@ -1,0 +1,52 @@
+{
+	"name": "farm_portal_z1_to_z1a",
+	"plugin-id": "Sprite",
+	"sid": 262296590778596,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 250,
+						"height": 250,
+						"originX": 0.5,
+						"originY": 0.5,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 9408110,
+						"collisionPoly": {
+							"points": [
+								0.43200000000000016,
+								0.3360000000000001,
+								0.6239999999999997,
+								0.3480000000000002,
+								0.6019999999999996,
+								0.5279999999999996,
+								0.4120000000000001,
+								0.5119999999999996
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 708150545590460,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

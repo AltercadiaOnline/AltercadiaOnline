@@ -23,9 +23,9 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const targetDir = path.join(root, 'public', 'construct-world');
-const sourceExportDataJson = path.join(root, 'construct', 'altercadia-world', 'data.json');
+const sourceExportDataJson = path.join(root, 'construct-export', 'data.json');
 const scriptsDir = path.join(targetDir, 'scripts');
-const bridgeDir = path.join(root, 'construct', 'bridge');
+const bridgeDir = path.join(root, 'construct-editor', 'bridge');
 const bridgeWorkerSrc = path.join(bridgeDir, 'altercadia-bridge-worker.js');
 const bridgeDomSrc = path.join(bridgeDir, 'altercadia-bridge-dom.js');
 const bridgeWorkerDest = path.join(scriptsDir, 'altercadia-bridge-worker.js');
@@ -72,7 +72,7 @@ if (!existsSync(scriptsDir)) {
   fail('public/construct-world/scripts/ ausente');
 }
 if (!existsSync(bridgeWorkerSrc) || !existsSync(bridgeDomSrc)) {
-  fail('construct/bridge/altercadia-bridge-{worker,dom}.js ausente');
+  fail('construct-editor/bridge/altercadia-bridge-{worker,dom}.js ausente');
 }
 
 copyFileSync(bridgeWorkerSrc, bridgeWorkerDest);
@@ -136,7 +136,7 @@ if (!existsSync(dataJsonPath)) {
 
 const policyCheck = applyRendererPolicy(dataJsonPath, 'public/construct-world');
 // Espelha no export fonte — próximo sync já nasce WebGL-only.
-applyRendererPolicy(sourceExportDataJson, 'construct/altercadia-world');
+applyRendererPolicy(sourceExportDataJson, 'construct-export');
 
 const dataRaw = readFileSync(dataJsonPath, 'utf8');
 const hasCity = CITY_LAYOUTS.some((n) => dataRaw.includes(n));

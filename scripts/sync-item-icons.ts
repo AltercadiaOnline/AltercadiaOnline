@@ -6,7 +6,15 @@ import { ITEM_CATALOG } from '../src/shared/items/itemCatalog.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const itemsRoot = path.join(root, 'public', 'assets', 'items');
+const extraIconRoots = [path.join(root, 'public', 'assets', 'quests.mercenario')];
 const force = process.argv.includes('--force');
+
+function findPngInRotationsDir(dir: string): string | null {
+  const rotations = path.join(dir, 'rotations');
+  if (!existsSync(rotations)) return null;
+  const png = readdirSync(rotations).find((name) => name.toLowerCase().endsWith('.png'));
+  return png ? path.join(rotations, png) : null;
+}
 
 /**
  * Procura pasta com o mesmo id do catalogo, sob rotations/unknown.png.
@@ -22,13 +30,17 @@ function findUnknownPng(itemId: string, dir = itemsRoot, depth = 0): string | nu
     if (!entry.isDirectory()) continue;
 
     if (folderAliases.has(entry.name)) {
-      const direct = path.join(full, 'rotations', 'unknown.png');
-      if (existsSync(direct)) return direct;
+      const directUnknown = path.join(full, 'rotations', 'unknown.png');
+      if (existsSync(directUnknown)) return directUnknown;
+      const directAny = findPngInRotationsDir(full);
+      if (directAny) return directAny;
 
       for (const sub of readdirSync(full, { withFileTypes: true })) {
         if (!sub.isDirectory()) continue;
-        const nested = path.join(full, sub.name, 'rotations', 'unknown.png');
-        if (existsSync(nested)) return nested;
+        const nestedUnknown = path.join(full, sub.name, 'rotations', 'unknown.png');
+        if (existsSync(nestedUnknown)) return nestedUnknown;
+        const nestedAny = findPngInRotationsDir(path.join(full, sub.name));
+        if (nestedAny) return nestedAny;
       }
     }
 
@@ -36,6 +48,16 @@ function findUnknownPng(itemId: string, dir = itemsRoot, depth = 0): string | nu
     if (nestedHit) return nestedHit;
   }
 
+  return null;
+}
+
+function findItemIconSource(itemId: string): string | null {
+  const fromItems = findUnknownPng(itemId, itemsRoot);
+  if (fromItems) return fromItems;
+  for (const extraRoot of extraIconRoots) {
+    const hit = findUnknownPng(itemId, extraRoot);
+    if (hit) return hit;
+  }
   return null;
 }
 
@@ -55,7 +77,7 @@ function main(): void {
       continue;
     }
 
-    const source = findUnknownPng(itemId);
+    const source = findItemIconSource(itemId);
     if (!source) {
       if (!existsSync(dest)) {
         missing += 1;

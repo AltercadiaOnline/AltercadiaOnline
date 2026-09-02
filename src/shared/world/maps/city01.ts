@@ -7,11 +7,7 @@ import {
   CITY_01_PIXEL_HEIGHT,
   CITY_01_PIXEL_WIDTH,
 } from './city01LayoutConstants.js';
-import {
-  CONSTRUCT_PORTAL_PLACEMENTS,
-  constructPortalArrivalTile,
-  constructPortalToTriggerTiles,
-} from '../constructPortalPlacements.js';
+import { buildPortalsForMap } from '../buildConstructPortals.js';
 
 export const CITY_01_ID = 'city_01' as const;
 
@@ -20,34 +16,8 @@ export const CITY_01_TILE_SIZE = DESIGN_CONFIG.TILE.SIZE;
 export const CITY_01_TILES_WIDE = CITY_01_MAP_TILES;
 export const CITY_01_TILES_HIGH = CITY_01_MAP_TILES;
 
-const CITY_NORTH_TRIGGER = constructPortalToTriggerTiles(
-  CONSTRUCT_PORTAL_PLACEMENTS.city_portal_north,
-);
-/** Chegada no beco: um pouco ao norte do portal sul Construct (evita loop imediato). */
-const FARM_ARRIVAL = constructPortalArrivalTile(
-  CONSTRUCT_PORTAL_PLACEMENTS.farm_portal_south,
-  { dx: 0, dy: -2 },
-);
-
-/**
- * Portais da Cidade 01 — gatilho = marker Construct `city_portal_north`.
- * Norte → sul do Beco (farm_zone_01).
- */
-export const portals: readonly Portal[] = [
-  {
-    id: 'city_portal_north',
-    mapId: CITY_01_ID,
-    label: 'Beco dos Fundos',
-    direction: 'north',
-    tileX: CITY_NORTH_TRIGGER.tileX,
-    tileY: CITY_NORTH_TRIGGER.tileY,
-    tileW: CITY_NORTH_TRIGGER.tileW,
-    tileH: CITY_NORTH_TRIGGER.tileH,
-    targetMapId: 'farm_zone_01',
-    targetPosition: FARM_ARRIVAL,
-    targetZoneId: ZoneId.Zone1,
-  },
-];
+/** Portais da Cidade 01 — gerados do catálogo + markers Construct. */
+export const portals: readonly Portal[] = buildPortalsForMap(CITY_01_ID);
 
 export const CITY_01_PORTALS = portals;
 

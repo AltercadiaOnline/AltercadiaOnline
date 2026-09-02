@@ -13,7 +13,8 @@ public/
   assets/          PNG itens, NPCs, sprays, UI, áudio
   index.html       shell do browser
 
-construct/         projeto Construct fonte + bridge JS
+construct-editor/  projeto Construct fonte + bridge JS
+construct-export/  export HTML5 do Construct
 docs/context/      fichas operacionais (este pack)
 ```
 

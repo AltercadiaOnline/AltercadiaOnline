@@ -6,6 +6,9 @@ import type { ZoneId } from '../items/itemTypes.js';
 
 export type PortalDirection = 'north' | 'south' | 'east' | 'west';
 
+/** Distância máxima (Chebyshev, em tiles) do centro do marker Construct — 1 sqm. */
+export const PORTAL_TRIGGER_RADIUS_TILES = 1;
+
 /** Coordenada de tile de destino após atravessar o portal. */
 export type PortalPosition = {
   readonly x: number;
@@ -28,6 +31,10 @@ export type Portal = {
   readonly tileH: number;
   readonly targetMapId: string;
   readonly targetPosition: PortalPosition;
+  /** Layout Construct onde o gatilho está ativo. */
+  readonly sourceConstructLayout?: string;
+  /** Layout Construct a carregar no destino (subzonas farm). */
+  readonly targetConstructLayout?: string;
   /** Opcional: validação de nível na zona de destino (não conecta mapas automaticamente). */
   readonly targetZoneId?: ZoneId;
 };
@@ -67,6 +74,16 @@ export function portalCenterTile(portal: Portal): PortalPosition {
   };
 }
 
+/** Distância Chebyshev do tile do jogador ao centro do portal. */
+export function portalChebyshevDistanceFromCenter(
+  portal: Portal,
+  tileX: number,
+  tileY: number,
+): number {
+  const center = portalCenterTile(portal);
+  return Math.max(Math.abs(tileX - center.x), Math.abs(tileY - center.y));
+}
+
 /** Zona retangular legada — walkable / debug; não usar para gatilho de teleporte. */
 export function portalZoneContains(
   portal: Portal,
@@ -81,13 +98,30 @@ export function portalZoneContains(
   );
 }
 
-/** Gatilho de interação — footprint do portal (alinhado ao marker Construct). */
+/** Gatilho — sobre o marker ou até 1 tile (sqm) do centro Construct. */
 export function portalInteractionContains(
   portal: Portal,
   tileX: number,
   tileY: number,
 ): boolean {
-  return portalZoneContains(portal, tileX, tileY);
+  return portalChebyshevDistanceFromCenter(portal, tileX, tileY) <= PORTAL_TRIGGER_RADIUS_TILES;
+}
+
+export function findPortalAtTile(
+  portals: readonly Portal[],
+  tileX: number,
+  tileY: number,
+): Portal | null {
+  let best: Portal | null = null;
+  let bestDistance = Infinity;
+  for (const portal of portals) {
+    const distance = portalChebyshevDistanceFromCenter(portal, tileX, tileY);
+    if (distance <= PORTAL_TRIGGER_RADIUS_TILES && distance < bestDistance) {
+      best = portal;
+      bestDistance = distance;
+    }
+  }
+  return best;
 }
 
 /** Origem do tile na grade — (tileX × tileSize, tileY × tileSize). */
@@ -126,15 +160,14 @@ export function worldPixelToTile(
   };
 }
 
-export function findPortalAtTile(
+export function findPortalNearWorldPosition(
   portals: readonly Portal[],
-  tileX: number,
-  tileY: number,
+  playerX: number,
+  playerY: number,
+  tileSize: number = DESIGN_CONFIG.TILE.SIZE,
 ): Portal | null {
-  for (const portal of portals) {
-    if (portalInteractionContains(portal, tileX, tileY)) return portal;
-  }
-  return null;
+  const { tileX, tileY } = worldPixelToTile(playerX, playerY, tileSize);
+  return findPortalAtTile(portals, tileX, tileY);
 }
 
 /** Compara posição do jogador (pixels) com os portais do mapa atual. */
@@ -144,8 +177,7 @@ export function checkPortal(
   playerY: number,
 ): Portal | null {
   const tileSize = getActiveMapTileSize();
-  const { tileX, tileY } = worldPixelToTile(playerX, playerY, tileSize);
-  return findPortalAtTile(portals, tileX, tileY);
+  return findPortalNearWorldPosition(portals, playerX, playerY, tileSize);
 }
 
 export function buildPortalTransitionPayload(
@@ -163,6 +195,9 @@ export function buildPortalTransitionPayload(
     x: spawn.x,
     y: spawn.y,
     portalLabel: portal.label,
+    ...(portal.targetConstructLayout !== undefined
+      ? { constructLayout: portal.targetConstructLayout }
+      : {}),
     ...(facing !== undefined ? { facing } : {}),
   };
 }

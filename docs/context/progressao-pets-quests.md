@@ -47,22 +47,23 @@ Marcos / pets / missões abaixo. Não misturar pontos da Ficha com a árvore de 
 
 ## Quadro de Agente (mercenário)
 
-**Piloto (MVP):** Aceitar no NPC → Hub mostra tracker → voltar ao Mercenário → **Completar** → XP + VOLTS.
+**Piloto:** Aceitar no NPC → passo no mundo (Q1) → voltar ao Mercenário → **Completar** → XP + VOLTS.
 
 | Decisão | Valor |
 |---------|--------|
-| Entrega | Só no NPC (sem passo no mundo ainda) |
-| Abandono | Livre (pode reassinar) |
+| Entrega | Só no NPC Mercenário; Q1 exige item extraído no mundo |
+| Abandono | Livre (pode reassinar); remove `codigo_desbloqueio` se estiver na bolsa |
 | Reward | XP + VOLTS (`rewardExp` / `rewardVolts`) |
-| Rep / item / moral branch | Fora do piloto (flavor / campos dormem) |
+| Q1 | Operário da Linha 4 **na cidade** → Extrair código → `codigo_desbloqueio` |
+| Q2–Q15 | Catálogo/HUD prontos; POIs ainda não ligados |
 | Faixas | 1–10 / 11–20 / 21–30. Unlock: completar as 5 do tier anterior (não por nível). |
 
-Catálogo HUD já usa o cronograma (títulos/lore/objetivo). Passos no mundo ainda não. Checklist em [mercenary-quests-cronograma.md](mercenary-quests-cronograma.md) — **Fase 0** depois **Q1…Q15**.
+Checklist das 15: [mercenary-quests-cronograma.md](mercenary-quests-cronograma.md).
 
-- Shared: `mercenaryQuestCatalog.ts`, `mercenaryQuestProgress.ts` (`completeMercenaryQuest`)
-- Server: `MercenaryQuestHandlers.ts` + `creditMercenaryQuestVolts` (economyGateway)
-- UI: `MercenaryQuestBoard.tsx`, `useMercenaryQuestBoard.ts`
-- Intents: `ACCEPT_MERCENARY_TASK` / `ABANDON_MERCENARY_TASK` / `COMPLETE_MERCENARY_TASK`
+- Shared: `mercenaryQuestCatalog.ts`, `mercenaryQuestStepEngine.ts`, `mercenaryQuestInteractRange.ts`
+- Server: `MercenaryQuestHandlers.ts` + `MercenaryQuestInteractHandler.ts` + grant/strip no `economyGateway`
+- UI: `MercenaryQuestBoard.tsx`, diálogo **Extrair código** no operário da cidade
+- Intents: `ACCEPT_MERCENARY_TASK` / `MERCENARY_QUEST_INTERACT` / `ABANDON_MERCENARY_TASK` / `COMPLETE_MERCENARY_TASK`
 
 ## Leaderboard
 

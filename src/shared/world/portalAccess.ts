@@ -5,6 +5,11 @@ import {
   evaluateZoneGate,
   ZONE_GATE_MAP,
 } from './ZoneGatekeeper.js';
+import {
+  canUsePortalWithUnlocks,
+  formatPortalBypassDeniedMessage,
+  getPortalRequiredUnlock,
+} from './portalBypassGates.js';
 import type { Portal } from './portals.js';
 import { portalCenterTile } from './portals.js';
 
@@ -26,13 +31,28 @@ export function getPortalZoneName(portal: Portal): string | null {
   return ZONE_GATE_MAP[portal.targetZoneId]?.name ?? null;
 }
 
-/** Valida nível mínimo exigido pela zona de destino do portal. */
-export function validatePortalAccess(portal: Portal, playerLevel: number): PortalAccessResult {
+/**
+ * Valida nível da zona e bypass de subzona.
+ * `unlockedZones` vem da autoridade (servidor / mock) ou do snapshot (UX).
+ * Sem lista = fail-closed nos portais com trava.
+ */
+export function validatePortalAccess(
+  portal: Portal,
+  playerLevel: number,
+  unlockedZones: readonly string[] = [],
+): PortalAccessResult {
   const gate = evaluatePortalZoneGate(portal, playerLevel);
-  if (gate.allowed) {
-    return { ok: true, zoneName: gate.zoneName };
+  if (!gate.allowed) {
+    return { ok: false, reason: gate.message };
   }
-  return { ok: false, reason: gate.message };
+  if (!canUsePortalWithUnlocks(portal.id, unlockedZones)) {
+    const required = getPortalRequiredUnlock(portal.id);
+    return {
+      ok: false,
+      reason: formatPortalBypassDeniedMessage(required ?? 'esta subzona'),
+    };
+  }
+  return { ok: true, zoneName: gate.zoneName };
 }
 
 export function portalReferenceTile(portal: Portal): { readonly tileX: number; readonly tileY: number } {

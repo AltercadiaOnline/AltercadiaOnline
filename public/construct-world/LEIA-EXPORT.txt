@@ -1,0 +1,12 @@
+Altercadia — EXPORT HTML5 do Construct (nao editar manualmente)
+
+Destino do Export no Construct 3:
+  C:\Users\Usuario\Desktop\MMO BROWSER\construct-export
+
+Deve conter na raiz: index.html, data.json, images/, scripts/
+(Nao exporte para subpasta altercadia.online — use a raiz de construct-export)
+
+Depois do export:
+  npm run sync:construct
+
+A OFICINA (editar mapa) fica em ../construct-editor/

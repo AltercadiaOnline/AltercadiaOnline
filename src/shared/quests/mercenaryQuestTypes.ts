@@ -1,5 +1,8 @@
 /** Contrato de missão do Quadro de Agente (Mercenário). Catálogo estático — progresso é persistido. */
 
+import type { MapId } from '../world/mapRegistry.js';
+import type { MercenaryQuestTargetKind } from './mercenaryQuestWorldBindings.js';
+
 /** Steps do cronograma — HUD já lista; mecânica de mundo ainda não. */
 export const MERCENARY_QUEST_INTERACTION_TYPES = [
   'SCAN_TERMINAL',
@@ -61,13 +64,28 @@ export type MercenaryQuestBand = {
 export type MercenaryQuestProgress = {
   readonly activeQuestId: string | null;
   readonly completedQuestIds: readonly string[];
+  /** Índice do step atual (0-based) dentro do binding da quest ativa. */
+  readonly stepIndex: number;
+  /** Alvos já completados no step atual (multi-POI). */
+  readonly completedStepTargets: readonly string[];
+  /** Pronto para entregar no Mercenário após concluir steps no mundo. */
+  readonly readyToTurnIn: boolean;
 };
 
 export type MercenaryQuestBoardRow = MercenaryQuestDefinition & {
   readonly status: 'available' | 'active' | 'completed';
 };
 
+export type MercenaryQuestInteractPayload = {
+  readonly targetKind: MercenaryQuestTargetKind;
+  readonly targetId: string;
+  readonly mapId: MapId;
+};
+
 export const EMPTY_MERCENARY_QUEST_PROGRESS: MercenaryQuestProgress = {
   activeQuestId: null,
   completedQuestIds: [],
+  stepIndex: 0,
+  completedStepTargets: [],
+  readyToTurnIn: false,
 };

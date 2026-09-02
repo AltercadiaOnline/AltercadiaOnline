@@ -1,8 +1,8 @@
 import type { MapId } from './mapRegistry.js';
 import type { WorldCollisionObstacle } from './worldCollisionObstacle.js';
 import {
-  CONSTRUCT_NPC_PLACEMENTS,
   constructNpcCollisionHitbox,
+  getConstructNpcInstance,
   hasConstructNpcPlacement,
 } from './constructNpcPlacements.js';
 import {
@@ -24,7 +24,8 @@ function buildNpcObstacles(mapId: MapId): readonly WorldCollisionObstacle[] {
     const collidable = entry.collidable ?? isNpcDefinitionCollidable(entry.id);
     if (!collidable) continue;
     if (!hasConstructNpcPlacement(entry.id, mapId)) continue;
-    const placement = CONSTRUCT_NPC_PLACEMENTS[entry.id]!;
+    const placement = getConstructNpcInstance(entry.id);
+    if (!placement) continue;
     out.push({
       id: `npc:${entry.id}`,
       kind: 'npc',

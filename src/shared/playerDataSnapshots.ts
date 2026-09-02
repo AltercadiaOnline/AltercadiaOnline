@@ -139,6 +139,9 @@ export type AuthoritativePlayerSnapshot = {
   readonly mercenaryQuests?: {
     readonly activeQuestId: string | null;
     readonly completedQuestIds: readonly string[];
+    readonly stepIndex: number;
+    readonly completedStepTargets: readonly string[];
+    readonly readyToTurnIn: boolean;
   };
   /** Amigos do personagem. `online` é da sessão atual. */
   readonly friends?: readonly import('./social/friendListTypes.js').FriendListViewEntry[];

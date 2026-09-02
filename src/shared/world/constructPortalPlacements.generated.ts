@@ -5,9 +5,11 @@
 
 import type { ConstructPortalPlacement } from './constructPortalPlacements.js';
 
-export const CONSTRUCT_PORTAL_PLACEMENTS_GENERATED: Readonly<
-  Record<'city_portal_north' | 'farm_portal_south', ConstructPortalPlacement>
-> = {
-  city_portal_north: { mapId: 'city_01', portalId: 'city_portal_north', constructX: 799, constructY: 40, widthPx: 45, heightPx: 40 }, // teletransporte
-  farm_portal_south: { mapId: 'farm_zone_01', portalId: 'farm_portal_south', constructX: 453, constructY: 2359, widthPx: 45, heightPx: 40 }, // teletransporte
-};
+export const CONSTRUCT_PORTAL_INSTANCES_GENERATED: readonly ConstructPortalPlacement[] = [
+  { mapId: 'city_01', portalId: 'city_portal_north', constructLayout: 'cidade_01', constructX: 792, constructY: 54, widthPx: 138, heightPx: 130 }, // city_portal_north
+  { mapId: 'farm_zone_01', portalId: 'farm_portal_south', constructLayout: 'zonabeco1', constructX: 348, constructY: 1566, widthPx: 250, heightPx: 250 }, // farm_portal_south
+  { mapId: 'farm_zone_01', portalId: 'farm_portal_z1_to_z1a', constructLayout: 'zonabeco1', constructX: 357, constructY: 40, widthPx: 250, heightPx: 250 }, // farm_portal_z1_to_z1a
+  { mapId: 'farm_zone_01', portalId: 'farm_portal_z1a_to_z1', constructLayout: 'zonabeco1a', constructX: 1261, constructY: 622, widthPx: 250, heightPx: 250 }, // farm_portal_z1a_to_z1
+  { mapId: 'farm_zone_01', portalId: 'farm_portal_z1a_to_z1b', constructLayout: 'zonabeco1a', constructX: 29, constructY: 351, widthPx: 250, heightPx: 250 }, // farm_portal_z1a_to_z1b
+  { mapId: 'farm_zone_01', portalId: 'farm_portal_z1a_to_z1c', constructLayout: 'zonabeco1a', constructX: 2518, constructY: 347, widthPx: 250, heightPx: 250 }, // farm_portal_z1a_to_z1c
+];

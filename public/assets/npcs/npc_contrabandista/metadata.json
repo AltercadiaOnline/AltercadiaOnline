@@ -1,0 +1,36 @@
+{
+  "group_id": "96dd39f4-8bcd-466d-8aa1-6c9905a06cfd",
+  "states": [
+    {
+      "character": {
+        "id": "fd5e0dee-d1f2-47d7-9d0d-8f272afe1d76",
+        "name": "Idle",
+        "prompt": "Idade/Estilo: Homem jovem, visual urbano e moderno com forte pegada techwear.\n\nCabelo roxo vibrante (purple), espetado para cima em estilo ousado e despojado.\n\nAcess\u00f3rios: \u00d3culos de sol espelhados ou escuros de armadura futurista, mochila utilit\u00e1ria volumosa nas costas com cabos aparentes escapando pelos bolsos.\n\nVestimenta: Jaqueta curta de alta utilidade com bolsos estourados e cheios de fios, mantendo um corte estiloso mesmo no meio do caos. Um lado do pesco\u00e7o ou t\u00eampora exibe um port de implante com LED piscando em tom \u00e2mbar com falha.",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T04:15:49.612411+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T04:17:30.048012"
+}

@@ -1,0 +1,22 @@
+{
+  "group_id": "37ec8729-892e-45a0-a29c-e93100946f7b",
+  "objects": [
+    {
+      "id": "370021a1-b392-4701-ad85-b42670f7bbb6",
+      "name": "base",
+      "prompt": "codigo_desbloqueio \u2014 dump / chip / arquivo (Q1)\nchave_mestre \u2014 chave digital (Q2)\nmapa_patrulha \u2014 mapa / cart\u00e3o de drone (Q3)\nbaterias_alta_densidade \u2014 c\u00e9lulas / pack (Q5)\nrecibo_extorsao \u2014 recibo / print (Q6)\nmodulo_memoria \u2014 m\u00f3dulo / RAM industrial (Q7)\nmanifesto_cargas \u2014 manifesto / tablet (Q8)\nrelogio_ouro \u2014 rel\u00f3gio (Q9)\namostra_biologica \u2014 vial / tubo (Q10)\ndocumentos_sigilosos \u2014 pasta / dossi\u00ea (Q11)\nunidade_transmissora \u2014 r\u00e1dio / placa (Q12)\nregistros_rota \u2014 log / cart\u00e3o portu\u00e1rio (Q13)\npendrive_chaves \u2014 pendrive (Q14)\nnucleo_processamento \u2014 n\u00facleo / cristal de servidor (Q15)",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/codigo_desbloqueio_dump_ch.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-29T04:03:16.226598"
+}

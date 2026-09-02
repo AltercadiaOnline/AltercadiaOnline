@@ -11,6 +11,7 @@ import {
   resolvePortalTransition,
 
 } from '../../shared/world/zoneTransition.js';
+import { readUnlockedZones } from './zoneBypassSyncBridge.js';
 
 import type { MapId } from '../../shared/world/mapRegistry.js';
 import { getMapDefinition } from '../../shared/world/mapRegistry.js';
@@ -287,7 +288,7 @@ export class ZoneTransitionController {
 
   private resolveLocally(request: PortalTransitionRequestPayload): void {
 
-    const resolved = resolvePortalTransition(request);
+    const resolved = resolvePortalTransition(request, { unlockedZones: readUnlockedZones() });
 
     if (!resolved.ok) {
 

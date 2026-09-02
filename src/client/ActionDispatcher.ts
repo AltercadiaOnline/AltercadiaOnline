@@ -1,4 +1,4 @@
-import type { MapId } from '../shared/world/mapRegistry.js';
+import { isMapId, type MapId } from '../shared/world/mapRegistry.js';
 import { ensureHuntZoneLoaded } from '../shared/world/worldMonsterInstances.js';
 import type { PlayerWorldVitals } from '../shared/character/equipmentState.js';
 import type { SkinSlotId } from '../shared/character/playerSkin.js';
@@ -49,8 +49,16 @@ import {
   completeMercenaryQuest,
 } from '../shared/quests/mercenaryQuestProgress.js';
 import { getMercenaryQuestById } from '../shared/quests/mercenaryQuestCatalog.js';
+import {
+  advanceMercenaryQuestStep,
+  resolveMercenaryQuestTurnInItemId,
+} from '../shared/quests/mercenaryQuestStepEngine.js';
+import { addItemToInventoryStacks } from '../shared/character/inventoryStackOps.js';
+import { applyServerItemBundle } from './game/PlayerItemSession.js';
+import { getPlayerItemStore } from './ui/items/playerItemStore.js';
 import { applyCharacterXpGain } from '../shared/character/characterLevelProgression.js';
 import { getPlayerProfileStore } from './ui/character/playerProfileStore.js';
+import { assertMercenaryQuestNpcInRange } from '../shared/quests/mercenaryQuestInteractRange.js';
 import { resolveMarcoChooseBlockedMessage } from '../shared/progression/milestoneTreeState.js';
 import { formatVolts } from '../shared/economy/premiumCurrency.js';
 import { healPlayer } from '../shared/world/npcHealService.js';
@@ -142,6 +150,14 @@ export type ClientAction =
   | { readonly type: 'ACCEPT_MERCENARY_TASK'; readonly payload: { readonly taskId: string } }
   | { readonly type: 'ABANDON_MERCENARY_TASK'; readonly payload: { readonly taskId?: string } }
   | { readonly type: 'COMPLETE_MERCENARY_TASK'; readonly payload: { readonly taskId?: string } }
+  | {
+    readonly type: 'MERCENARY_QUEST_INTERACT';
+    readonly payload: {
+      readonly targetKind: 'npc' | 'poi';
+      readonly targetId: string;
+      readonly mapId: MapId;
+    };
+  }
   | {
     readonly type: 'SELL_NPC_ITEM';
     readonly payload: { readonly vendorId: string; readonly itemId: string; readonly quantity: number };
@@ -574,7 +590,8 @@ export class ActionDispatcher {
       this.mode === 'online'
       && (action.type === 'ACCEPT_MERCENARY_TASK'
         || action.type === 'ABANDON_MERCENARY_TASK'
-        || action.type === 'COMPLETE_MERCENARY_TASK')
+        || action.type === 'COMPLETE_MERCENARY_TASK'
+        || action.type === 'MERCENARY_QUEST_INTERACT')
     ) {
       return this.dispatchPending(action);
     }
@@ -1160,12 +1177,30 @@ export class ActionDispatcher {
       }
 
       case 'ABANDON_MERCENARY_TASK': {
+        const snapshot = getMercenaryQuestStore().getSnapshot();
         const result = abandonMercenaryQuest(
-          getMercenaryQuestStore().getSnapshot(),
+          snapshot,
           action.payload.taskId,
         );
         if (!result.ok) {
           return { ok: false, reason: result.message };
+        }
+        const turnInItemId = snapshot.activeQuestId
+          ? resolveMercenaryQuestTurnInItemId(snapshot.activeQuestId)
+          : null;
+        if (turnInItemId) {
+          const stacks = getPlayerItemStore().toInventoryStacks();
+          const stack = stacks.find((row) => row.itemId === turnInItemId);
+          if (stack && stack.quantity >= 1) {
+            const nextStacks = stacks
+              .map((row) => (
+                row.itemId === turnInItemId
+                  ? { ...row, quantity: row.quantity - 1 }
+                  : row
+              ))
+              .filter((row) => row.quantity > 0);
+            applyServerItemBundle({ stacks: nextStacks, inventoryOnly: true, immediate: true });
+          }
         }
         getMercenaryQuestStore().applyAuthoritative(result.progress);
         alertSystem('Contrato abandonado.');
@@ -1186,6 +1221,22 @@ export class ActionDispatcher {
         if (!result.ok) {
           return { ok: false, reason: result.message };
         }
+        const turnInItemId = resolveMercenaryQuestTurnInItemId(activeId);
+        if (turnInItemId) {
+          const stacks = getPlayerItemStore().toInventoryStacks();
+          const stack = stacks.find((row) => row.itemId === turnInItemId);
+          if (!stack || stack.quantity < 1) {
+            return { ok: false, reason: 'Item de contrato ausente no inventário.' };
+          }
+          const nextStacks = stacks
+            .map((row) => (
+              row.itemId === turnInItemId
+                ? { ...row, quantity: row.quantity - 1 }
+                : row
+            ))
+            .filter((row) => row.quantity > 0);
+          applyServerItemBundle({ stacks: nextStacks, inventoryOnly: true, immediate: true });
+        }
         const levelSnap = getPlayerProfileStore().getSnapshot();
         const xpApplied = applyCharacterXpGain(
           { level: levelSnap.level, xpCurrent: levelSnap.xpCurrent },
@@ -1201,6 +1252,52 @@ export class ActionDispatcher {
         }
         getMercenaryQuestStore().applyAuthoritative(result.progress);
         alertSystem(`Contrato entregue: +${quest.rewardExp} XP · +${quest.rewardVolts} VOLTS`);
+        return { ok: true, status: 'applied' };
+      }
+
+      case 'MERCENARY_QUEST_INTERACT': {
+        if (action.payload.targetKind === 'npc') {
+          const world = getMutableDataStore().getWorldPosition();
+          if (!world) {
+            return { ok: false, reason: 'Posição de mundo indisponível.' };
+          }
+          if (!isMapId(world.mapId)) {
+            return { ok: false, reason: 'Mapa inválido.' };
+          }
+          const range = assertMercenaryQuestNpcInRange(action.payload.targetId, action.payload.mapId, {
+            mapId: world.mapId,
+            x: world.x,
+            y: world.y,
+          });
+          if (!range.ok) {
+            return { ok: false, reason: range.message };
+          }
+        }
+        const interactResult = advanceMercenaryQuestStep(
+          getMercenaryQuestStore().getSnapshot(),
+          {
+            targetKind: action.payload.targetKind,
+            targetId: action.payload.targetId,
+            mapId: action.payload.mapId,
+          },
+        );
+        if (!interactResult.ok) {
+          return { ok: false, reason: interactResult.message };
+        }
+        if (interactResult.grantsItem) {
+          const stacks = getPlayerItemStore().toInventoryStacks();
+          const added = addItemToInventoryStacks(stacks, interactResult.grantsItem, 1);
+          if (added.added <= 0) {
+            return { ok: false, reason: 'Inventário cheio — libere espaço para o item de contrato.' };
+          }
+          applyServerItemBundle({ stacks: added.stacks, inventoryOnly: true, immediate: true });
+        }
+        getMercenaryQuestStore().applyAuthoritative(interactResult.progress);
+        if (interactResult.grantsItem) {
+          alertSystem(`Item de contrato recebido: ${interactResult.grantsItem}`);
+        } else if (interactResult.objectiveShort) {
+          alertSystem(interactResult.objectiveShort);
+        }
         return { ok: true, status: 'applied' };
       }
 

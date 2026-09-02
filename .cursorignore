@@ -26,15 +26,15 @@ public/vendor/
 public/app-ui/
 
 # Construct 3 - runtime HTML5 (imagens + c3runtime ~1.4 MB)
-# Fonte editavel permanece: construct/layouts/, objectTypes/, project.c3proj
-construct/**/Exports/
-construct/**/Backups/
-construct/altercadia-world/images/
-construct/altercadia-world/scripts/
-construct/altercadia-world/icons/
-construct/altercadia-world/media/
-construct/images/
-construct/icons/
+# Fonte editavel permanece: construct-editor/layouts/, objectTypes/, project.c3proj
+construct-editor/**/Exports/
+construct-editor/**/Backups/
+construct-export/images/
+construct-export/scripts/
+construct-export/icons/
+construct-export/media/
+construct-editor/images/
+construct-editor/icons/
 public/construct-world/images/
 public/construct-world/scripts/
 public/construct-world/icons/

@@ -16,6 +16,10 @@ import type { GameStoreGold } from '../../state/GameStore.js';
 import { usePlayerGold } from '../store/gameStore.js';
 import { getWorldVitalsBridge } from '../bridge/worldVitalsBridge.js';
 import { subscribeExternalStore } from './subscribeExternalStore.js';
+import {
+  overlayLiveLevelOnProfile,
+  subscribeLiveCharacterLevel,
+} from './subscribeLiveCharacterLevel.js';
 
 /**
  * Snapshot estável por conteúdo — stores que retornam objeto novo a cada
@@ -35,7 +39,14 @@ function useStoreRevision(
 
 export function usePlayerEquipmentSnapshot(): PlayerEquipmentSnapshot {
   useStoreRevision(
-    (listener) => getPlayerEquipmentStore().subscribe(() => listener()),
+    (listener) => {
+      const unsubEquipment = getPlayerEquipmentStore().subscribe(() => listener());
+      const unsubLevel = subscribeLiveCharacterLevel(listener);
+      return () => {
+        unsubEquipment();
+        unsubLevel();
+      };
+    },
     () => {
       const s = getPlayerEquipmentStore().getSnapshot();
       return [
@@ -89,10 +100,17 @@ export function useAuthoritativeWorldVitalsStrip(): {
 
 export function usePlayerProfileSnapshot(): PlayerProfileSnapshot {
   useStoreRevision(
-    (listener) => getPlayerProfileStore().subscribe(() => listener()),
-    () => JSON.stringify(getPlayerProfileStore().getSnapshot()),
+    (listener) => {
+      const unsubProfile = getPlayerProfileStore().subscribe(() => listener());
+      const unsubLevel = subscribeLiveCharacterLevel(listener);
+      return () => {
+        unsubProfile();
+        unsubLevel();
+      };
+    },
+    () => JSON.stringify(overlayLiveLevelOnProfile(getPlayerProfileStore().getSnapshot())),
   );
-  return getPlayerProfileStore().getSnapshot();
+  return overlayLiveLevelOnProfile(getPlayerProfileStore().getSnapshot());
 }
 
 export function useCarryCapacitySnapshot(): CarryCapacitySnapshot {

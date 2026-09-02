@@ -1,0 +1,36 @@
+{
+  "group_id": "f3021bcf-553d-4aa4-836f-a535e6fc2fd0",
+  "states": [
+    {
+      "character": {
+        "id": "e65614d6-69f2-4bfc-9de6-7f0095fe0e41",
+        "name": "Idle",
+        "prompt": "I \u2014 Identidade Visual e Conceito\nNome/Fun\u00e7\u00e3o: Receptador de artigos de luxo e eletr\u00f4nicos quentes (Q9). Intermedi\u00e1rio comercial de rua que lava itens roubados da V\u00f3rtex.\n\nIdade/Estilo: Homem moreno, porte robusto, com um visual urbano marcante que rompe com o cinza mon\u00f3tono do beco.\n\nCabelo e Rosto: Cabelo estilo black power volumoso e bem definido, com express\u00e3o relaxada mas de olhos meio fechados (olhar calculista e desconfiado de quem j\u00e1 viu de tudo).\n\nVestimenta e Estilo: Roupas coloridas em tons frios e sobretons (como azul-petr\u00f3leo profundo, roxo escuro, ciano ou verde-azulado acinzentado), combinando um colete utilit\u00e1rio robusto sobrepostas a pe\u00e7as de alfaiataria urbana desconstru\u00edda.",
+        "size": {
+          "width": 68,
+          "height": 68
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T04:19:45.797820+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T06:03:32.463133"
+}

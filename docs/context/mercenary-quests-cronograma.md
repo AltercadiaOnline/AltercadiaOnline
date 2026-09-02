@@ -1,6 +1,6 @@
 # Quadro de Agente — Cronograma de implementação (15 quests)
 
-**Status:** design fechado · implementação pendente (quest a quest)  
+**Status:** tubo Fase 0 + **Q1 jogável** · Q2–Q15 catálogo/HUD, POIs pendentes  
 **Ficha-mãe:** [progressao-pets-quests.md](progressao-pets-quests.md)  
 **Chat:** anexar `@docs/context/mercenary-quests-cronograma.md` + ficha-mãe ao pedir a próxima quest.
 
@@ -12,10 +12,10 @@
 |------|--------|
 | Aceitar / abandonar / completar no NPC Mercenário | OK |
 | 1 slot ativo · XP + VOLTS no Completar | OK |
-| Catálogo 15 quests (lore antiga) | **Substituir** por este design |
-| Passos no mundo (`step`) | **Não existe ainda** |
-| Itens de quest no inventário | **Não existem** |
-| POIs / terminais / contacts no mapa | **Não existem** (só NPC `mercenario`) |
+| Catálogo 15 quests | HUD + lore do cronograma |
+| Passos no mundo (`step`) | **Q1 só** (`MERCENARY_QUEST_INTERACT` + operário cidade) |
+| Itens de quest no inventário | **Q1:** `codigo_desbloqueio` (grant/strip/consume) |
+| POIs / contacts no mapa | **Q1:** `operario_linha4#0` em `city_01`. Q2–Q15 ainda sem alvo. |
 
 **Padrão-alvo de toda quest:**
 
@@ -61,14 +61,14 @@ NPC **Mercenário** (`mercenario`) continua sendo o Quadro (accept/complete). Os
 
 Fazer **uma vez**; desbloqueia Q1…Q15.
 
-- [ ] Novo schema de progresso (ex.: `activeQuestId`, `completedQuestIds`, `step`, `flags` / `heldQuestItemIds`)
-- [ ] Estender `mercenaryQuestTypes` + `mercenaryQuestProgress` (sanitize/accept/complete)
-- [ ] Catálogo: ids novos, titles, bands 1–10 / 11–20 / 21–30, `step` canônico por quest
-- [ ] Intent(s) de mundo: ex. `MERCENARY_QUEST_INTERACT` (POI + step) — ou intents por família se precisar
-- [ ] Handler server: valida quest ativa + step esperado + posição/POI → aplica flag/item
-- [ ] Tracker Hub (`WorldQuestPanel`): mostrar step atual + objetivo curto
-- [ ] Regra: `COMPLETE` só se step final OK (item no inventário ou flag `readyToTurnIn`)
-- [ ] Persistência: slice `mercenaryQuests` no `CharacterPersistenceRecord`
+- [x] Novo schema de progresso (`activeQuestId`, `completedQuestIds`, `step`, flags / item de turn-in)
+- [x] Estender `mercenaryQuestTypes` + `mercenaryQuestProgress` (sanitize/accept/complete)
+- [x] Catálogo: ids, titles, bands 1–10 / 11–20 / 21–30, `step` canônico por quest
+- [x] Intent de mundo: `MERCENARY_QUEST_INTERACT`
+- [x] Handler server: quest ativa + step + mapa/raio → grant item
+- [x] Tracker Hub: step atual + objetivo curto
+- [x] `COMPLETE` só se `readyToTurnIn` + item no inventário
+- [x] Persistência: slice `mercenaryQuests` no `CharacterPersistenceRecord`
 
 **Não** implementar as 15 mecânicas na Fase 0 — só o tubo.
 
@@ -103,12 +103,12 @@ Variantes de steps já existentes + `CRACK_SAFE` / `RESTORE_POWER`.
 | Campo | Valor |
 |-------|--------|
 | **Step** | `SCAN_TERMINAL` |
-| **Lore** | Operário com implante travado após vazamento da diretoria; escondido na estação de metrô desativada. |
-| **Gameplay** | Aceita no Quadro → localiza terminal no mapa → extrai código de desbloqueio → entrega no Quadro. |
-| **Item** | código / arquivo de desbloqueio (nome final no catálogo) |
-| **POI / visual** | Estação subterrânea, trilhos, luzes de emergência vermelhas |
-| **NPC?** | Opcional: operário como contact visual; interact pode ser só o terminal |
-| **Status** | Pendente (primeira a implementar após Fase 0) |
+| **Lore** | Operário com implante travado após vazamento da diretoria; escondido na estação de metrô da cidade. |
+| **Gameplay** | Aceita no Quadro → Operário da Linha 4 na estação da cidade (~371, 124) → **Extrair código** → `codigo_desbloqueio` → Completar no Mercenário. Sem terminal POI. Operários do beco = diálogo só. |
+| **Item** | `codigo_desbloqueio` |
+| **POI / visual** | Estação na cidade (layout `cidade_01`) |
+| **NPC?** | **Sim** — `operario_linha4#0` em `city_01` (alvo). Instâncias `#1–#3` no beco = decoração. |
+| **Status** | **Jogável** (Q1 only; Q2–Q15 ainda sem POI) |
 
 #### Q2 — O Contrabandista de Cripto-Chaves
 | Campo | Valor |

@@ -1,0 +1,22 @@
+{
+  "group_id": "e4a567a7-fb2b-49de-8c6d-983d8acfdaa3",
+  "objects": [
+    {
+      "id": "6e9de383-bcfa-4f72-aad2-cf424f4225d3",
+      "name": "base",
+      "prompt": "Pixel art UI game asset sprite, large futuristic battle arena display screen frame, front-facing perspective. Heavy industrial metallic border with reinforced bolts, cooling vents, and blinking status indicator lights along the top edge. The interior screen area is completely flat, filled with a solid neutral medium-gray placeholder color (#808080) designed for easy UI replacement. 90s retro anime aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background around the frame, isolated sprite, NO background elements, NO walls, NO ground.",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/Pixel_art_UI_game_asset_sprite.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-29T06:35:25.035670"
+}

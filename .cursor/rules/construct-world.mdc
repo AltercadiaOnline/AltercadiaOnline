@@ -35,8 +35,8 @@ Alias de markers legados: `npc_treinador_pet` → `treinador_zeno`, `computador_
 
 ## Workflow export
 
-1. Editar em `construct/altercadia-world/` (**Tilemap** 32×32 para terreno; poucos props)
-2. Export HTML5 → pasta do projeto (sobrescreve `index.html` / `data.json` / `images/` / `scripts/`)
+1. Editar em `construct-editor/` (**Tilemap** 32×32 para terreno; poucos props)
+2. Export HTML5 → `construct-export/` (sobrescreve `index.html` / `data.json` / `images/` / `scripts/`)
 3. `npm run sync:construct` — limpa `public/construct-world/` e valida layouts + bridge
 4. `npm run prepare:construct` / audit — **força WebGL-only** (`project[13]=false`; fullscreen `project[12]=0`; viewport 640×360; sampling `nearest`; gpu `high-performance`). Bridge DOM trava `devicePixelRatio=1`. WebGPU no export causa canvas preto / timeout em vários GPUs (ex. AMD).
 5. `npm run audit:construct` — revalidar (falha se WebGPU/viewport/sampling voltarem errados). Também roda em `deploy:check`.
@@ -51,7 +51,7 @@ Alias de markers legados: `npc_treinador_pet` → `treinador_zeno`, `computador_
 
 ## Bridge (postMessage)
 
-- Fonte: `construct/bridge/altercadia-bridge-{worker,dom}.js` → sync/prepare copia para `public/construct-world/scripts/`
+- Fonte: `construct-editor/bridge/altercadia-bridge-{worker,dom}.js` → sync/prepare copia para `public/construct-world/scripts/`
 - Tipos: `src/client/worldRender/construct/constructBridgeProtocol.ts`
 - Runtime: `src/client/worldRender/construct/ConstructWorldRuntime.ts`
 - Auditoria: `src/client/worldRender/construct/constructDependencyAudit.ts`

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { getActionDispatcher } from '../../../../ActionDispatcher.js';
 import { formatVolts } from '../../../../../shared/economy/premiumCurrency.js';
 import { hideInteractionCard } from '../../../../world/interactionCardController.js';
@@ -17,6 +17,8 @@ import {
   resolveDialogueFromContext,
   useDialoguePanelState,
 } from '../../../panels/useDialoguePanelState.js';
+import { useMercenaryQuestNpcInteract, useMercenaryQuestPoiInteract } from '../../../panels/useMercenaryQuestBoard.js';
+import { getGlobalPlayerStore } from '../../../../ui/moveset/globalPlayerStore.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 
 type WorldDialoguePanelProps = {
@@ -34,6 +36,14 @@ export function WorldDialoguePanel({
 }: WorldDialoguePanelProps) {
   const dialogue = useMemo(() => resolveDialogueFromContext(context), [context]);
   const state = useDialoguePanelState(dialogue);
+  const mapId = useSyncExternalStore(
+    (listener) => getGlobalPlayerStore().subscribe(listener),
+    () => getGlobalPlayerStore().getExplorationSnapshot()?.mapId ?? null,
+    () => null,
+  );
+  const mercenaryNpc = useMercenaryQuestNpcInteract(dialogue.npcId, mapId);
+  const mercenaryPoi = useMercenaryQuestPoiInteract(dialogue.questPoiId, mapId);
+  const mercenaryQuest = dialogue.questPoiId ? mercenaryPoi : mercenaryNpc;
   const preserveWorldHudRef = useRef(false);
   const suppressWorldHudReleaseRef = useRef(false);
 
@@ -252,6 +262,26 @@ export function WorldDialoguePanel({
       ) : (
         <div className="ui-dialogue-body">
           <p className="ui-dialogue-text">{dialogue.text}</p>
+          {mercenaryQuest.offer ? (
+            <div className="ui-dialogue-choices">
+              <button
+                type="button"
+                className="ui-dialogue-heal-btn ui-dialogue-choice--accept"
+                disabled={!mercenaryQuest.canSubmit || mercenaryQuest.gateway.pending}
+                aria-busy={mercenaryQuest.gateway.pending || undefined}
+                onClick={mercenaryQuest.gateway.submit}
+              >
+                {mercenaryQuest.gateway.buttonLabel}
+              </button>
+              <button
+                type="button"
+                className="ui-dialogue-heal-btn ui-dialogue-choice--decline"
+                onClick={handleClose}
+              >
+                Fechar
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
     </MovablePanelFrame>

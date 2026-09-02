@@ -1,0 +1,22 @@
+{
+  "group_id": "379b83e8-5f4b-470e-a7c8-2b9d1b0e0019",
+  "objects": [
+    {
+      "id": "4d16464c-d11a-4568-9cff-96694e97807d",
+      "name": "base",
+      "prompt": "top-down pixel art sprite, stack of military supply crates and weapon boxes covered with a tarp, tactical gear cache, dark cyber-industrial palette, solid pure white background, chroma key, no background, RPG game asset",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/top-down_pixel_art_sprite_sta.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-30T02:12:13.569314"
+}

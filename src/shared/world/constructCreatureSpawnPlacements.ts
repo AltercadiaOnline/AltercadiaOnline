@@ -1,4 +1,5 @@
 import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { isConstructFarmLayoutActive } from './constructFarmLayouts.js';
 import type { MapId } from './mapRegistry.js';
 import { constructMarkerToLogicalWorld } from './constructNpcPlacements.js';
 import { CONSTRUCT_ZONE1_CREATURE_SPAWNS_GENERATED } from './constructCreatureSpawnPlacements.generated.js';
@@ -19,6 +20,7 @@ export const CONSTRUCT_SPAWN_MARKER_TO_CREATURE: Readonly<
 
 export type ConstructCreatureSpawnPlacement = {
   readonly mapId: MapId;
+  readonly constructLayout: string;
   readonly markerType: string;
   readonly creatureId: ConstructZone1CreatureId;
   readonly constructX: number;
@@ -26,9 +28,15 @@ export type ConstructCreatureSpawnPlacement = {
   readonly index: number;
 };
 
-/** Spawns Zona 1 — gerados do Construct (única autoridade). */
+function listActiveConstructCreatureSpawns(): readonly ConstructCreatureSpawnPlacement[] {
+  return CONSTRUCT_ZONE1_CREATURE_SPAWNS_GENERATED.filter((spawn) =>
+    isConstructFarmLayoutActive(spawn.constructLayout),
+  );
+}
+
+/** Spawns Zona 1 ativos no layout principal — gerados do Construct. */
 export const CONSTRUCT_ZONE1_CREATURE_SPAWNS: readonly ConstructCreatureSpawnPlacement[] =
-  CONSTRUCT_ZONE1_CREATURE_SPAWNS_GENERATED;
+  listActiveConstructCreatureSpawns();
 
 export const CONSTRUCT_CREATURE_SPAWN_MARKER_TYPES = Object.keys(
   CONSTRUCT_SPAWN_MARKER_TO_CREATURE,

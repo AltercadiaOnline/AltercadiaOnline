@@ -167,6 +167,11 @@ import {
   completeMercenaryQuest,
 } from '../../shared/quests/mercenaryQuestProgress.js';
 import { getMercenaryQuestById } from '../../shared/quests/mercenaryQuestCatalog.js';
+import {
+  advanceMercenaryQuestStep,
+  resolveMercenaryQuestTurnInItemId,
+} from '../../shared/quests/mercenaryQuestStepEngine.js';
+import { assertMercenaryQuestNpcInRange } from '../../shared/quests/mercenaryQuestInteractRange.js';
 import { applyCharacterXpGain } from '../../shared/character/characterLevelProgression.js';
 import { getPlayerWalletStore, resetPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
 import { getGameStore } from '../state/GameStore.js';
@@ -1018,6 +1023,8 @@ export class MockEconomyService implements IDevMockEconomyService {
         return this.abandonMercenaryTask(action.payload.taskId);
       case 'COMPLETE_MERCENARY_TASK':
         return this.completeMercenaryTask(action.payload.taskId);
+      case 'MERCENARY_QUEST_INTERACT':
+        return this.mercenaryQuestInteract(action.payload);
       case 'GIFT_TRANSFER':
         return { ok: false, reason: 'Presentes requerem servidor online.' };
       case 'REFRACTION_BOOTH_QUOTE':
@@ -1335,8 +1342,18 @@ export class MockEconomyService implements IDevMockEconomyService {
   }
 
   private abandonMercenaryTask(taskId?: string): IntentHandleResult {
-    const result = abandonMercenaryQuest(getMercenaryQuestStore().getSnapshot(), taskId);
+    const snapshot = getMercenaryQuestStore().getSnapshot();
+    const result = abandonMercenaryQuest(snapshot, taskId);
     if (!result.ok) return { ok: false, reason: result.message };
+    const turnInItemId = snapshot.activeQuestId
+      ? resolveMercenaryQuestTurnInItemId(snapshot.activeQuestId)
+      : null;
+    if (turnInItemId) {
+      const stack = this.state.inventoryStacks.find((row) => row.itemId === turnInItemId);
+      if (stack && stack.quantity >= 1) {
+        this.removeInventoryItem(turnInItemId, 1);
+      }
+    }
     getMercenaryQuestStore().applyAuthoritative(result.progress);
     this.persistLocalSave();
     alertSystem('Contrato abandonado.');
@@ -1351,6 +1368,15 @@ export class MockEconomyService implements IDevMockEconomyService {
     if (!quest) return { ok: false, reason: 'Contrato inexistente no quadro.' };
     const result = completeMercenaryQuest(snapshot, taskId);
     if (!result.ok) return { ok: false, reason: result.message };
+
+    const turnInItemId = resolveMercenaryQuestTurnInItemId(activeId);
+    if (turnInItemId) {
+      const stack = this.state.inventoryStacks.find((row) => row.itemId === turnInItemId);
+      if (!stack || stack.quantity < 1) {
+        return { ok: false, reason: 'Item de contrato ausente no inventário.' };
+      }
+      this.removeInventoryItem(turnInItemId, 1);
+    }
 
     const levelState = getMutableDataStore().getCharacterLevel();
     const xpApplied = applyCharacterXpGain(
@@ -1378,6 +1404,42 @@ export class MockEconomyService implements IDevMockEconomyService {
     getMercenaryQuestStore().applyAuthoritative(result.progress);
     this.persistLocalSave();
     alertSystem(`Contrato entregue: +${quest.rewardExp} XP · +${quest.rewardVolts} VOLTS`);
+    return { ok: true };
+  }
+
+  private mercenaryQuestInteract(payload: {
+    readonly targetKind: 'npc' | 'poi';
+    readonly targetId: string;
+    readonly mapId: import('../../shared/world/mapRegistry.js').MapId;
+  }): IntentHandleResult {
+    if (payload.targetKind === 'npc') {
+      const world = getMutableDataStore().getWorldPosition();
+      if (!world) {
+        return { ok: false, reason: 'Posição de mundo indisponível.' };
+      }
+      if (!isMapId(world.mapId)) {
+        return { ok: false, reason: 'Mapa inválido.' };
+      }
+      const range = assertMercenaryQuestNpcInRange(payload.targetId, payload.mapId, {
+        mapId: world.mapId,
+        x: world.x,
+        y: world.y,
+      });
+      if (!range.ok) return { ok: false, reason: range.message };
+    }
+    const result = advanceMercenaryQuestStep(getMercenaryQuestStore().getSnapshot(), payload);
+    if (!result.ok) return { ok: false, reason: result.message };
+    if (result.grantsItem) {
+      this.addInventoryItem(result.grantsItem, 1);
+      this.syncInventoryToPlayerItemStore();
+    }
+    getMercenaryQuestStore().applyAuthoritative(result.progress);
+    this.persistLocalSave();
+    if (result.grantsItem) {
+      alertSystem(`Item de contrato recebido: ${result.grantsItem}`);
+    } else if (result.objectiveShort) {
+      alertSystem(result.objectiveShort);
+    }
     return { ok: true };
   }
 

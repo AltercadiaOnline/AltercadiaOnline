@@ -28,6 +28,7 @@ export function applyExplorationMapTransition(
     skipSceneSpawn: true,
     ...(payload.facing !== undefined ? { facing: payload.facing } : {}),
     ...(payload.portalLabel !== undefined ? { portalLabel: payload.portalLabel } : {}),
+    ...(payload.constructLayout !== undefined ? { constructLayout: payload.constructLayout } : {}),
     ...(zoneLink?.mapData ? { cachedMapData: zoneLink.mapData } : {}),
     ...(zoneLink?.layout ? { cachedLayout: zoneLink.layout } : {}),
   });

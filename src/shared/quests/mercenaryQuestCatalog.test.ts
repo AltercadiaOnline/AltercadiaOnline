@@ -13,6 +13,7 @@ import {
   acceptMercenaryQuest,
   abandonMercenaryQuest,
   completeMercenaryQuest,
+  createEmptyMercenaryQuestProgress,
 } from './mercenaryQuestProgress.js';
 import { EMPTY_MERCENARY_QUEST_PROGRESS } from './mercenaryQuestTypes.js';
 
@@ -29,6 +30,8 @@ describe('mercenaryQuestCatalog', () => {
     expect(ids.size).toBe(15);
     expect(quests.every((q) => q.rewardVolts > 0 && q.rewardExp > 0)).toBe(true);
     expect(getMercenaryQuestById('quest_01')?.title).toBe('Sinal Fantasma na Linha 4');
+    expect(getMercenaryQuestById('quest_01')?.interaction).toContain('operário da Linha 4');
+    expect(getMercenaryQuestById('quest_01')?.loreSummary).toContain('estação');
     expect(getMercenaryQuestById('quest_01')?.maxLevel).toBe(10);
     expect(getMercenaryQuestById('quest_06')?.minLevel).toBe(11);
     expect(getMercenaryQuestById('quest_06')?.maxLevel).toBe(20);
@@ -43,14 +46,14 @@ describe('mercenaryQuestCatalog', () => {
     ]);
 
     const halfDone = {
-      activeQuestId: null,
+      ...createEmptyMercenaryQuestProgress(),
       completedQuestIds: ['quest_01', 'quest_02'],
     };
     expect(resolveHighestUnlockedMercenaryTier(halfDone)).toBe(1);
     expect(isMercenaryTierComplete(1, halfDone)).toBe(false);
 
     const tier1Done = {
-      activeQuestId: null,
+      ...createEmptyMercenaryQuestProgress(),
       completedQuestIds: [...TIER1_IDS],
     };
     expect(isMercenaryTierComplete(1, tier1Done)).toBe(true);
@@ -61,7 +64,7 @@ describe('mercenaryQuestCatalog', () => {
     ]);
 
     const tier2Done = {
-      activeQuestId: null,
+      ...createEmptyMercenaryQuestProgress(),
       completedQuestIds: [...TIER1_IDS, ...TIER2_IDS],
     };
     expect(resolveHighestUnlockedMercenaryTier(tier2Done)).toBe(3);
@@ -70,6 +73,7 @@ describe('mercenaryQuestCatalog', () => {
   it('monta board do tier pedido com status', () => {
     const board = buildMercenaryQuestBoard(
       {
+        ...createEmptyMercenaryQuestProgress(),
         activeQuestId: 'quest_02',
         completedQuestIds: ['quest_01'],
       },
@@ -103,7 +107,7 @@ describe('mercenaryQuestProgress', () => {
 
   it('libera accept do tier 2 após as 5 do tier 1', () => {
     const unlocked = {
-      activeQuestId: null,
+      ...createEmptyMercenaryQuestProgress(),
       completedQuestIds: [...TIER1_IDS],
     };
     const ok = acceptMercenaryQuest(unlocked, 'quest_06');
@@ -122,11 +126,18 @@ describe('mercenaryQuestProgress', () => {
     expect(again.ok).toBe(true);
   });
 
-  it('completa o ativo e marca concluído', () => {
+  it('completa o ativo só após readyToTurnIn', () => {
     const accepted = acceptMercenaryQuest(EMPTY_MERCENARY_QUEST_PROGRESS, 'quest_01');
     expect(accepted.ok).toBe(true);
     if (!accepted.ok) return;
-    const done = completeMercenaryQuest(accepted.progress, 'quest_01');
+
+    const premature = completeMercenaryQuest(accepted.progress, 'quest_01');
+    expect(premature.ok).toBe(false);
+    if (premature.ok) return;
+    expect(premature.code).toBe('QUEST_NOT_READY');
+
+    const ready = { ...accepted.progress, readyToTurnIn: true };
+    const done = completeMercenaryQuest(ready, 'quest_01');
     expect(done.ok).toBe(true);
     if (!done.ok) return;
     expect(done.progress.activeQuestId).toBeNull();

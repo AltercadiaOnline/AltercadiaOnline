@@ -1,0 +1,20 @@
+Altercadia — OFICINA Construct (somente edicao)
+
+COMO ABRIR NO CONSTRUCT 3
+-------------------------
+Chrome/Edge → Menu → Project → Open → Open local file
+Arquivo: altercadia-atual.c3p (Desktop ou esta pasta)
+
+OU Open local project folder → selecione ESTA pasta (construct-editor/)
+
+WORKFLOW
+--------
+1. Editar aqui (project.c3proj, layouts/, objectTypes/, images/)
+2. Export HTML5 → ../construct-export/
+3. No repo: npm run sync:construct
+
+NAO EDITAR
+----------
+- ../construct-export/       → export HTML5
+- _backup/                   → c3p antigo jul/2026
+- ../public/construct-world/ → jogo (sync automatico)

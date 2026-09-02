@@ -35,6 +35,7 @@ export type DialogueView = {
   readonly npcId: string;
   readonly npcName: string;
   readonly text: string;
+  readonly questPoiId?: string;
 };
 
 export function resolveDialogueFromContext(
@@ -45,6 +46,7 @@ export function resolveDialogueFromContext(
       npcId: context.npcId,
       npcName: context.npcName,
       text: context.text,
+      ...(context.questPoiId ? { questPoiId: context.questPoiId } : {}),
     };
   }
   return { npcId: '', npcName: 'NPC', text: '' };

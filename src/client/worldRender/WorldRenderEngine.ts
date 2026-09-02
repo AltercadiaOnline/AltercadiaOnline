@@ -13,6 +13,7 @@ export type WorldRenderLoadMapOptions = {
     readonly y: number;
     readonly facing?: PlayerFacing;
   };
+  readonly layoutId?: string;
 };
 
 /**

@@ -54,8 +54,8 @@ export const CONSTRUCT_LAYOUT_SIZE_PX: Readonly<
   },
   /** Layout vivo no export — não forçar 20×60 Tiled. */
   zonabeco1: {
-    width: 860,
-    height: 2400,
+    width: 640,
+    height: 1600,
   },
 };
 
@@ -77,6 +77,15 @@ export const CONSTRUCT_OPTIONAL_MARKERS = [
   'computador_zona1b',
   'computador_zona1c',
   WORLD_TERMINAL_IDS.MARKETPLACE,
+  'npc_contrabandista',
+  'npc_receptador',
+  'npc_operario_linha4',
+  'npc_humano_1',
+  'npc_humano_2',
+  'npc_mercador_rua',
+  'npc_tecnico_manutencao',
+  'npc_membro_gang_rosa',
+  'npc_cão_robo',
 ] as const;
 
 /**

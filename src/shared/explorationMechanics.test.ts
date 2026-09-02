@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ZoneBypassService } from './world/zoneBypassStore.js';
 import { TacticalSprayService } from './social/tacticalSprayStore.js';
 import { resolveScrambledMemorizeDigit } from './types/zoneBypass.js';
+import type { Portal } from './world/portals.js';
+import { validatePortalAccess } from './world/portalAccess.js';
+import { canUsePortalWithUnlocks, getPortalRequiredUnlock } from './world/portalBypassGates.js';
 
 describe('Mecânica 1: Bypass de Zona (Escalonamento de Memória)', () => {
   let bypassService: ZoneBypassService;
@@ -119,6 +122,35 @@ describe('Mecânica 1: Bypass de Zona (Escalonamento de Memória)', () => {
 
     // Tentar iniciar nova sessão deve ser bloqueado por lockdown
     expect(() => bypassService.initTerminalSession('user_fail', 'Z1_TO_Z1A')).toThrow(/lockdown/i);
+  });
+});
+
+describe('Portal Z1 → Z1A exige bypass do terminal', () => {
+  it('bloqueia farm_portal_z1_to_z1a sem Z1A e libera com unlock', () => {
+    const portal: Portal = {
+      id: 'farm_portal_z1_to_z1a',
+      mapId: 'farm_zone_01',
+      label: 'Subzona 1A',
+      direction: 'north',
+      tileX: 0,
+      tileY: 0,
+      tileW: 1,
+      tileH: 1,
+      targetMapId: 'farm_zone_01',
+      targetPosition: { x: 1, y: 1 },
+    };
+    expect(getPortalRequiredUnlock(portal.id)).toBe('Z1A');
+    const denied = validatePortalAccess(portal, 99, []);
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) {
+      expect(denied.reason).toMatch(/Terminal Zona 1/i);
+    }
+    expect(validatePortalAccess(portal, 99, ['Z1A']).ok).toBe(true);
+  });
+
+  it('retorno Z1A → Z1 não exige unlock', () => {
+    expect(getPortalRequiredUnlock('farm_portal_z1a_to_z1')).toBeNull();
+    expect(canUsePortalWithUnlocks('farm_portal_z1a_to_z1', [])).toBe(true);
   });
 });
 

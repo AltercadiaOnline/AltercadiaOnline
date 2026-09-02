@@ -28,6 +28,7 @@ import {
   portalReferenceTile,
   validatePortalAccess,
 } from '../../shared/world/portalAccess.js';
+import { readUnlockedZones } from '../world/zoneBypassSyncBridge.js';
 import type { PortalCollisionPayload } from '../../shared/world/portalConfirmation.js';
 import type { WorldSocket } from '../world/WorldSocket.js';
 
@@ -163,7 +164,7 @@ export function createMockWorldSocket(initialMapId: MapId = DEFAULT_MAP_ID): Moc
           return;
         }
 
-        const access = validatePortalAccess(portal, playerLevel);
+        const access = validatePortalAccess(portal, playerLevel, readUnlockedZones());
         if (!access.ok) {
           publishDenied({ portalId: portal.id, reason: access.reason });
           return;

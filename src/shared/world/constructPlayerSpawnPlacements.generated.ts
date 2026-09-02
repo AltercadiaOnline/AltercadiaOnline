@@ -9,5 +9,5 @@ import type { MapId } from './mapRegistry.js';
 export const CONSTRUCT_PLAYER_SPAWN_PLACEMENTS_GENERATED: Readonly<
   Partial<Record<MapId, ConstructPlayerSpawnPlacement>>
 > = {
-  city_01: { mapId: 'city_01', constructX: 124, constructY: 232, widthPx: 250, heightPx: 250 }, // spawn_players
+  city_01: { mapId: 'city_01', constructLayout: 'cidade_01', constructX: 113, constructY: 325, widthPx: 147, heightPx: 130 }, // spawn_players
 };

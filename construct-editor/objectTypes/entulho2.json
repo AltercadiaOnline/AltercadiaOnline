@@ -1,0 +1,66 @@
+{
+	"name": "entulho2",
+	"plugin-id": "Sprite",
+	"sid": 908039790392770,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 275558902245183
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 64,
+						"height": 64,
+						"originX": 6.584905660377358,
+						"originY": 0.23880597014925373,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 1224883,
+						"collisionPoly": {
+							"points": [
+								0.07079402515723149,
+								0.24284566749585182,
+								0.38952109538784097,
+								0.05448279436152468,
+								0.8914439203354326,
+								0.13658530265339827,
+								0.9463083071278829,
+								0.7039230928689866,
+								0.917354559748427,
+								0.8757903192371479,
+								0.5049331761006267,
+								0.9513318822553906,
+								0.10353446016771563,
+								0.9542988184079617,
+								0.046789832285115594,
+								0.5251995232172476
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 846991002775448,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

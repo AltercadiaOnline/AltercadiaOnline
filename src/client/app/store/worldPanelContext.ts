@@ -2,7 +2,7 @@ import type { UiWindowId } from '../../ui/uiEvents.js';
 
 export type WorldPanelContext =
   | { readonly kind: 'empty' }
-  | { readonly kind: 'dialogue'; readonly npcId: string; readonly npcName: string; readonly text: string }
+  | { readonly kind: 'dialogue'; readonly npcId: string; readonly npcName: string; readonly text: string; readonly questPoiId?: string }
   | { readonly kind: 'vendorShop'; readonly vendorId: string; readonly vendorName: string }
   | { readonly kind: 'laboratoryShop'; readonly vendorId: string; readonly vendorName: string }
   | { readonly kind: 'petTrainerShop'; readonly vendorId: string; readonly vendorName: string }

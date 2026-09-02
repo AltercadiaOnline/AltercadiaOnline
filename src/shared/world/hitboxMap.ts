@@ -3,10 +3,10 @@ import {
   buildInteractablesForMap,
   InteractableKind,
   KIND_PRIORITY,
-  portalTiles,
   type InteractableDefinition,
   type InteractableId,
 } from './interactableRegistry.js';
+import type { Portal } from './portals.js';
 import { getMapDefinition, type MapId } from './mapRegistry.js';
 import { getResolvedNpcRegistry } from './npcRegistry.js';
 import { MONSTER_REGISTRY } from './monsterRegistry.js';
@@ -38,12 +38,16 @@ export class HitboxMap {
     this.stampInteractables(definitions, tilesWide, tilesHigh);
   }
 
-  static forMap(mapId: MapId): HitboxMap {
+  static forMap(mapId: MapId, options?: { readonly portals?: readonly Portal[] }): HitboxMap {
     const mapDef = getMapDefinition(mapId);
     if (!mapDef) {
       return new HitboxMap([], 0, 0);
     }
-    return new HitboxMap(buildInteractablesForMap(mapId), mapDef.tilesWide, mapDef.tilesHigh);
+    return new HitboxMap(
+      buildInteractablesForMap(mapId, options),
+      mapDef.tilesWide,
+      mapDef.tilesHigh,
+    );
   }
 
   pick(tileX: number, tileY: number): InteractableId | null {
@@ -100,10 +104,9 @@ export class HitboxMap {
       }
     };
 
-    for (const portal of mapDef.portals) {
-      const id = buildInteractableId(InteractableKind.PORTAL, portal.id);
-      for (const tile of portalTiles(portal)) {
-        stamp(tile.tileX, tile.tileY, id, InteractableKind.PORTAL);
+    for (const definition of definitions) {
+      if (definition.kind === InteractableKind.PORTAL) {
+        stamp(definition.tileX, definition.tileY, definition.id, InteractableKind.PORTAL);
       }
     }
 
@@ -144,6 +147,11 @@ export class HitboxMap {
           stamp(x, y, id, InteractableKind.WORLD_OBJECT);
         }
       }
+    }
+
+    for (const definition of definitions) {
+      if (definition.kind !== InteractableKind.QUEST_POI) continue;
+      stamp(definition.tileX, definition.tileY, definition.id, InteractableKind.QUEST_POI);
     }
   }
 }

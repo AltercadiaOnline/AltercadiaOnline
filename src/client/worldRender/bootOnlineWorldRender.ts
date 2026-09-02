@@ -21,6 +21,7 @@ let deferredAuthoritativeMap: {
     readonly y: number;
     readonly facing?: PlayerFacing;
   };
+  readonly layoutId?: string;
 } | null = null;
 
 function markWorldRenderReady(scene: WorldRenderMode = 'exploration'): void {
@@ -40,8 +41,13 @@ export function deferAuthoritativeConstructMap(
     readonly y: number;
     readonly facing?: PlayerFacing;
   },
+  layoutId?: string,
 ): void {
-  deferredAuthoritativeMap = spawn ? { mapId, spawn } : { mapId };
+  deferredAuthoritativeMap = layoutId
+    ? { mapId, ...(spawn ? { spawn } : {}), layoutId }
+    : spawn
+      ? { mapId, spawn }
+      : { mapId };
 }
 
 export function getWorldRenderEngine(): WorldRenderEngine | null {
@@ -84,7 +90,12 @@ export async function bootOnlineWorldRender(mapId: MapId = DEFAULT_MAP_ID): Prom
       const bootMapId = authoritative?.mapId ?? mapId;
       await engine.loadMap(
         bootMapId,
-        authoritative?.spawn ? { spawn: authoritative.spawn } : undefined,
+        authoritative?.spawn || authoritative?.layoutId
+          ? {
+              ...(authoritative.spawn ? { spawn: authoritative.spawn } : {}),
+              ...(authoritative.layoutId ? { layoutId: authoritative.layoutId } : {}),
+            }
+          : undefined,
       );
       engine.setMode('exploration');
 

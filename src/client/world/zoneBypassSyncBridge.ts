@@ -7,6 +7,11 @@ export function applyZoneDomainSnapshot(snapshot: ZoneDomainSnapshot): void {
   latestSnapshot = snapshot;
 }
 
+/** Subzonas liberadas no último snapshot autoritativo. Sem snapshot = nenhuma trava aberta. */
+export function readUnlockedZones(): readonly string[] {
+  return latestSnapshot?.unlockedZones ?? [];
+}
+
 export function getZoneDomainSnapshot(
   boundTransitionId?: SubZoneTransitionId,
 ): ZoneDomainSnapshot | null {

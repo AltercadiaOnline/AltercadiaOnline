@@ -24,6 +24,7 @@ import {
 } from '../../sync/connectionState.js';
 import type { BrowserCombatSocket } from '../../browser/createBrowserCombatSocket.js';
 import { ensureClientZone } from '../../world/zoneLoad/zoneLoadClient.js';
+import { readUnlockedZones } from '../../world/zoneBypassSyncBridge.js';
 import {
   dispatchLocalPveEncounter,
   tryAcceptLocalPveEncounter,
@@ -259,7 +260,7 @@ export function createLocalCombatSocket(
         ) {
           return;
         }
-        const resolved = resolvePortalTransition(request);
+        const resolved = resolvePortalTransition(request, { unlockedZones: readUnlockedZones() });
         if (!resolved.ok) {
           emitToHandlers('portal-transition-failed', {
             requestId: request.requestId,

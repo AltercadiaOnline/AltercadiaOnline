@@ -96,6 +96,27 @@ export const NPC_HUMANOID_APPEARANCE: Record<string, NpcHumanoidPalette> = {
     limb: '#a08858',
     accessories: [NpcHumanoidAccessory.GLASSES, NpcHumanoidAccessory.HAT],
   },
+  smuggler: {
+    body: '#3d4a3a',
+    face: '#6a7a5c',
+    accent: '#d4a017',
+    limb: '#2c352a',
+    accessories: [NpcHumanoidAccessory.GLASSES],
+  },
+  fence: {
+    body: '#4a3228',
+    face: '#6e4a3a',
+    accent: '#c9a227',
+    limb: '#3a261e',
+    accessories: [NpcHumanoidAccessory.HAT],
+  },
+  line_worker: {
+    body: '#2a3a4a',
+    face: '#4a5a6a',
+    accent: '#d03030',
+    limb: '#1e2a34',
+    accessories: [NpcHumanoidAccessory.HAT, NpcHumanoidAccessory.VISOR],
+  },
 };
 
 export function resolveNpcHumanoidAppearance(sprite: string): NpcHumanoidPalette {

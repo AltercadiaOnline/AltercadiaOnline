@@ -127,6 +127,7 @@ export type UiEventMap = {
     readonly npcId: string;
     readonly npcName: string;
     readonly text: string;
+    readonly questPoiId?: string;
   };
   readonly SHOW_VENDOR_SHOP: {
     readonly vendorId: string;

@@ -1,0 +1,22 @@
+{
+  "group_id": "e45b4c6f-1110-48f2-a70e-8db3e4bb08ff",
+  "objects": [
+    {
+      "id": "b7020b03-8335-4e6a-b73f-9f305a4181a6",
+      "name": "base",
+      "prompt": "top-down pixel art sprite, modular futuristic cyberpunk train cargo wagon, viewed from directly above, metallic chassis matching previous locomotive style, open top showing crates and futuristic containers inside, clean crisp pixel edges, solid pure white background, chroma key, no background, RPG game asset",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/top-down_pixel_art_sprite_mod.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-29T14:50:03.365524"
+}

@@ -3,16 +3,19 @@ import type { MapTransitionPayload } from './protocol.js';
 import type { PlayerFacing } from './playerFacing.js';
 import { parsePlayerFacing } from './playerFacing.js';
 import { CITY_01_ID } from './maps/city01.js';
+import { FARM_ZONE_01_ID } from './maps/farm_zone_01.js';
+import { CONSTRUCT_FARM_MAIN_LAYOUT } from './constructFarmLayoutConstants.js';
 import type { Portal } from './portals.js';
 import {
   buildPortalTransitionPayload,
+  portalChebyshevDistanceFromCenter,
+  PORTAL_TRIGGER_RADIUS_TILES,
   tileCenterToWorldPixel,
   worldPixelToTile,
 } from './portals.js';
 import { portalReferenceTile } from './portalAccess.js';
 import { getMapDefinition, type MapId } from './mapRegistry.js';
 import { validatePortalAccess } from './portalAccess.js';
-import { isWithinInteractionRadius } from './interactableDistance.js';
 import { TILE_SIZE } from './mapConstants.js';
 import type { WorldPosition } from './playerWorldProfile.js';
 import { resolveConstructPlayerSpawn } from './constructPlayerSpawnPlacements.js';
@@ -49,6 +52,8 @@ export type PortalTransitionRequestPayload = {
   readonly lastPosition: WorldPosition;
   readonly facing: PlayerFacing;
   readonly playerLevel: number;
+  /** Layout farm ativo na origem — valida portal da subzona correta. */
+  readonly constructFarmLayout?: string;
   readonly sessionSync?: WorldExplorationSessionSync;
 };
 
@@ -74,6 +79,11 @@ export type PortalTransitionFailedPayload = {
 export type PortalTransitionResolveResult =
   | { readonly ok: true; readonly ready: PortalTransitionReadyPayload }
   | { readonly ok: false; readonly failed: Omit<PortalTransitionFailedPayload, 'requestId'> };
+
+/** Unlocks autoritativos — o cliente não envia isto no request. */
+export type PortalTransitionAccessContext = {
+  readonly unlockedZones?: readonly string[];
+};
 
 export function buildCitySafeSpawnPayload(facing: PlayerFacing = 'south'): MapTransitionPayload {
   const constructSpawn = resolveConstructPlayerSpawn(CITY_01_ID);
@@ -113,12 +123,13 @@ export function isPlayerNearPortal(
   playerY: number,
   portal: Portal,
 ): boolean {
-  const ref = portalReferenceTile(portal);
-  return isWithinInteractionRadius(playerX, playerY, ref);
+  const player = worldPixelToTile(playerX, playerY);
+  return portalChebyshevDistanceFromCenter(portal, player.tileX, player.tileY) <= PORTAL_TRIGGER_RADIUS_TILES;
 }
 
 export function resolvePortalTransition(
   request: PortalTransitionRequestPayload,
+  accessContext: PortalTransitionAccessContext = {},
 ): PortalTransitionResolveResult {
   const mapDef = getMapDefinition(request.currentMapId as MapId);
   if (!mapDef) {
@@ -144,6 +155,22 @@ export function resolvePortalTransition(
     };
   }
 
+  if (
+    request.currentMapId === FARM_ZONE_01_ID
+    && portal.sourceConstructLayout
+  ) {
+    const activeLayout = request.constructFarmLayout ?? CONSTRUCT_FARM_MAIN_LAYOUT;
+    if (portal.sourceConstructLayout !== activeLayout) {
+      return {
+        ok: false,
+        failed: {
+          reason: 'Portal indisponível nesta subzona.',
+          code: 'INVALID_PORTAL',
+        },
+      };
+    }
+  }
+
   if (!isPlayerNearPortal(request.lastPosition.x, request.lastPosition.y, portal)) {
     return {
       ok: false,
@@ -154,7 +181,11 @@ export function resolvePortalTransition(
     };
   }
 
-  const access = validatePortalAccess(portal, request.playerLevel);
+  const access = validatePortalAccess(
+    portal,
+    request.playerLevel,
+    accessContext.unlockedZones ?? [],
+  );
   if (!access.ok) {
     return {
       ok: false,
@@ -239,8 +270,14 @@ export function parsePortalTransitionRequestPayload(
     playerLevel,
   };
 
+  const constructFarmLayout = p.constructFarmLayout;
+  const withLayout =
+    typeof constructFarmLayout === 'string' && constructFarmLayout.length > 0
+      ? { ...base, constructFarmLayout }
+      : base;
+
   const sessionSync = parseSessionSync(p.sessionSync);
-  return sessionSync ? { ...base, sessionSync } : base;
+  return sessionSync ? { ...withLayout, sessionSync } : withLayout;
 }
 
 function parseSessionSync(value: unknown): WorldExplorationSessionSync | null {
