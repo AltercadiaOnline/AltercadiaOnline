@@ -10,12 +10,13 @@ import {
   loadAuthoritativeProgression,
   resetAuthoritativeProgressionStore,
 } from '../progression/authoritativeProgressionStore.js';
-import { resolveNearbyPeerAppearance } from './nearbyPlayerAppearance.js';
+import { resolveNearbyPeerAppearance, clearNearbyPeerAppearanceCache } from './nearbyPlayerAppearance.js';
 
 describe('resolveNearbyPeerAppearance', () => {
   afterEach(() => {
     resetAuthoritativeProgressionStore();
     resetPetRosterStore();
+    clearNearbyPeerAppearanceCache();
   });
 
   it('lê skin, nível e pet do próprio peer', () => {

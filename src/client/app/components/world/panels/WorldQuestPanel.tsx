@@ -12,7 +12,7 @@ export function WorldQuestPanel({ zIndex, focused }: WorldQuestPanelProps) {
     <MovablePanelFrame
       windowId="quest"
       title="Contratos"
-      titleMeta="// AGENTE //"
+      titleMeta="// TRACKER //"
       zIndex={zIndex}
       focused={focused}
       bodyOverflow="auto"

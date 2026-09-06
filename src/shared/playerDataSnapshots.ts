@@ -114,6 +114,7 @@ export type AuthoritativePlayerSnapshot = {
     readonly level: number;
     readonly xpCurrent: number;
     readonly displayName?: string;
+    readonly skinBundleId?: string;
     readonly allocatedAtk?: number;
     readonly allocatedDef?: number;
     readonly allocatedHp?: number;

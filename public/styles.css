@@ -4584,86 +4584,177 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   pointer-events: auto;
 }
 
-.survival-guide-card__panel.ui-panel--diary {
+.survival-guide-card__panel.ui-panel {
   position: relative;
   z-index: 1;
-  width: min(640px, 94vw) !important;
-  max-width: min(640px, 94vw) !important;
-  min-width: min(480px, 92vw) !important;
+  width: min(560px, 94vw) !important;
+  max-width: min(560px, 94vw) !important;
+  min-width: min(420px, 92vw) !important;
   max-height: min(560px, 82vh);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(184, 168, 138, 0.45);
-  border-radius: 12px;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.62);
-  background: linear-gradient(160deg, rgba(38, 32, 26, 0.98), rgba(18, 14, 12, 0.99));
   pointer-events: auto;
 }
 
-.survival-guide-card__panel .diary-panel__scroll {
-  max-height: min(420px, 58vh);
+.survival-guide-card__header {
+  flex-shrink: 0;
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid rgba(58, 63, 68, 0.9);
 }
 
-.survival-guide-card__feed {
-  gap: 0.75rem;
+.survival-guide-card__header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
 }
 
-.survival-guide-card__entry .diary-book__entry-icon {
+.survival-guide-card__tag {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(58, 208, 214, 0.85);
+}
+
+.survival-guide-card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  color: #d8e4ec;
+}
+
+.survival-guide-card__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.7rem 0.85rem;
+  gap: 0.55rem;
+}
+
+.survival-guide-card__scroll {
+  overflow: auto;
+  max-height: min(400px, 56vh);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.survival-guide-card__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.survival-guide-card__intro-tag {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(58, 208, 214, 0.88);
+}
+
+.survival-guide-card__intro-sub {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #c5d0d8;
+}
+
+.survival-guide-card__entry {
+  border: 1px solid rgba(58, 63, 68, 0.95);
+  border-radius: 2px;
+  padding: 0.65rem 0.75rem;
+  background:
+    linear-gradient(180deg, rgba(58, 208, 214, 0.04) 0%, transparent 40%),
+    linear-gradient(180deg, #15171a 0%, #0a0b0d 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(58, 208, 214, 0.08);
+}
+
+.survival-guide-card__entry-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+
+.survival-guide-card__entry-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 1.65rem;
   width: 1.65rem;
   height: 1.65rem;
-  border-radius: 999px;
+  border-radius: 1px;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #e8dcc8;
-  background: rgba(184, 168, 138, 0.18);
-  border: 1px solid rgba(184, 168, 138, 0.35);
+  color: #d7f0f4;
+  background: linear-gradient(180deg, #2c3238 0%, #171a1d 100%);
+  border: 1px solid var(--ui-metal-edge, #3a3f44);
+}
+
+.survival-guide-card__entry-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.survival-guide-card__entry-tag {
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(58, 208, 214, 0.88);
 }
 
 .survival-guide-card__entry-title {
   display: block;
-  margin-top: 0.15rem;
-  font-size: 0.92rem;
-  color: var(--ui-text-primary, #e8dcc8);
+  font-size: 0.88rem;
+  color: #d8e4ec;
 }
 
-.survival-guide-card__entry--new {
-  border: 1px solid rgba(120, 200, 255, 0.55);
-  border-radius: 10px;
-  padding: 0.65rem 0.75rem;
-  background: linear-gradient(160deg, rgba(28, 44, 58, 0.55), rgba(16, 22, 30, 0.35));
-  box-shadow: 0 0 18px rgba(80, 160, 220, 0.18);
+.survival-guide-card__paragraph {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #c5d0d8;
 }
 
-.survival-guide-card__entry--new .diary-book__entry-tag {
-  color: #8fd4ff;
+.survival-guide-card__paragraph:last-child {
+  margin-bottom: 0;
 }
 
 .survival-guide-card__footer {
   display: flex;
   justify-content: flex-end;
-  padding: 0.65rem 0.85rem 0.85rem;
-  border-top: 1px solid rgba(184, 168, 138, 0.22);
+  flex-shrink: 0;
+  padding: 0.55rem 0.85rem 0.75rem;
+  border-top: 1px solid rgba(58, 63, 68, 0.9);
 }
 
 .survival-guide-card__fechar {
-  padding: 0.45rem 1rem;
-  border: 1px solid rgba(184, 168, 138, 0.55);
-  border-radius: 8px;
-  background: rgba(38, 32, 26, 0.92);
-  color: #e8dcc8;
+  padding: 0.4rem 1rem;
+  min-height: 2rem;
+  border: 1px solid #3a3f44;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #2c3238 0%, #171a1d 100%);
+  color: #b8c4cc;
   font-family: inherit;
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .survival-guide-card__fechar:hover {
-  filter: brightness(1.08);
-  border-color: rgba(201, 168, 106, 0.75);
+  border-color: rgba(58, 208, 214, 0.65);
+  color: #d7f0f4;
+  box-shadow: 0 0 12px rgba(58, 208, 214, 0.28);
 }
 
 .exploration-comms-stack {
@@ -16465,6 +16556,66 @@ body > .battle-result-overlay,
 .vendor-shop__layout--mercenary .vendor-shop__trade-hub {
   min-width: 0;
   height: auto;
+}
+
+.vendor-shop__tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0 0.15rem 0.45rem;
+  border-bottom: 1px solid rgba(58, 63, 68, 0.85);
+  margin-bottom: 0.45rem;
+}
+
+.vendor-shop__tab {
+  min-width: 7rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9aa3ad;
+  background: linear-gradient(180deg, #1a1d20 0%, #101214 100%);
+  border: 1px solid rgba(58, 63, 68, 0.95);
+  border-radius: 1px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.vendor-shop__tab:hover {
+  border-color: rgba(58, 208, 214, 0.45);
+  color: #c5d0d8;
+}
+
+.vendor-shop__tab.is-active {
+  color: #d7f6f8;
+  border-color: rgba(58, 208, 214, 0.7);
+  box-shadow: 0 0 10px rgba(58, 208, 214, 0.16);
+}
+
+.vendor-shop__contracts-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.15rem 0.1rem 0.35rem;
+  pointer-events: auto;
+}
+
+.mercenary-board--npc-contracts {
+  pointer-events: auto;
+}
+
+.mercenary-board--npc-contracts .mercenary-board__btn {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
+.mercenary-board__row--locked {
+  opacity: 0.72;
+}
+
+.mercenary-board__row--locked .mercenary-board__btn:disabled {
+  opacity: 0.55;
 }
 
 .vendor-shop__lists {

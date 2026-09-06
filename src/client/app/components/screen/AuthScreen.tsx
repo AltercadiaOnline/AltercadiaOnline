@@ -3,9 +3,12 @@ import { useState, type ReactNode } from 'react';
 import { useAuthScreen, useAuthScreenActions } from '../../hooks/useAuthScreen.js';
 import { useLiveLeaderboard } from '../../hooks/useLiveLeaderboard.js';
 import type { LeaderboardBoardId } from '../../../../shared/leaderboard/leaderboardTypes.js';
+import { LEADERBOARD_POLL_MS } from '../../../leaderboard/fetchLeaderboard.js';
 import { CLASS_CATALOG, type ClassType } from '../../../../shared/types/classes.js';
 import { AUTH_COMMUNITY_LINKS } from './authHudTestFlag.js';
 import { PerformancePresetToggle } from './PerformancePresetToggle.js';
+
+const AUTH_RANK_POLL_SECONDS = Math.round(LEADERBOARD_POLL_MS / 1000);
 
 const AUTH_RANK_TABS: ReadonlyArray<{ readonly id: LeaderboardBoardId; readonly label: string }> = [
   { id: 'level_global', label: 'Level' },
@@ -82,7 +85,9 @@ function LiveRankPanel() {
           {loading ? 'Carregando ranking ao vivo…' : 'Sem registros nesta board ainda.'}
         </p>
       ) : (
-        <p className="auth-hud-test__rank-note">Ao vivo — atualiza a cada 4s</p>
+        <p className="auth-hud-test__rank-note">
+          {`Ao vivo — atualiza a cada ${AUTH_RANK_POLL_SECONDS}s`}
+        </p>
       )}
     </section>
   );

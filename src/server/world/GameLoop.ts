@@ -9,7 +9,7 @@ import type { Player } from '../models/Player.js';
 import type { MovementIntentHandler } from './MovementIntentHandler.js';
 import { selectPeersInInterestFromCandidates } from './SpatialInterestGrid.js';
 import type { ActivePlayerState, WorldGameState } from './WorldGameState.js';
-import { resolveNearbyPeerAppearance, type NearbyPeerAppearance } from './nearbyPlayerAppearance.js';
+import { resolveNearbyPeerAppearanceCached, pruneNearbyPeerAppearanceCache, nearbyPeerAppearanceCacheKey, type NearbyPeerAppearance } from './nearbyPlayerAppearance.js';
 import { getWorldProfile } from './worldProfileStore.js';
 import type { ServerSyncAuthority } from '../sync/ServerSyncAuthority.js';
 import type { TimeManager } from '../TimeManager.js';
@@ -86,6 +86,7 @@ export class GameLoop {
       gameDayIndex: timeAnchor.gameDayIndex,
     };
     const appearanceByPeer = new Map<string, NearbyPeerAppearance>();
+    const liveAppearanceKeys = new Set<string>();
 
     for (const session of deps.gameState.listAllActive()) {
       const world = deps.getWorldSession(session.connectionId);
@@ -145,10 +146,13 @@ export class GameLoop {
 
       const observer = deps.gameState.getByConnection(session.connectionId);
       const peersOnMap = deps.gameState.listExploringOnMap(profile.currentMapId);
+      for (const peer of peersOnMap) {
+        liveAppearanceKeys.add(nearbyPeerAppearanceCacheKey(peer.playerId, peer.characterId));
+      }
       const nearbyPlayers = observer
         ? buildNearbyPlayerSnapshots(
           selectPeersInInterestFromCandidates(observer, peersOnMap).map((peer) =>
-            toNearbyPeerInput(peer, appearanceByPeer),
+            toNearbyPeerInput(peer, appearanceByPeer, tick),
           ),
           envelope.serverTimeMs,
         )
@@ -201,6 +205,8 @@ export class GameLoop {
         },
       });
     }
+
+    pruneNearbyPeerAppearanceCache(liveAppearanceKeys);
   }
 }
 
@@ -211,11 +217,12 @@ function peerAppearanceKey(playerId: string, characterId: number): string {
 function toNearbyPeerInput(
   peer: ActivePlayerState,
   appearanceByPeer: Map<string, NearbyPeerAppearance>,
+  tick: number,
 ): NearbyPlayerPeerInput {
   const key = peerAppearanceKey(peer.playerId, peer.characterId);
   let appearance = appearanceByPeer.get(key);
   if (!appearance) {
-    appearance = resolveNearbyPeerAppearance(peer.playerId, peer.characterId);
+    appearance = resolveNearbyPeerAppearanceCached(peer.playerId, peer.characterId, tick);
     appearanceByPeer.set(key, appearance);
   }
   return {

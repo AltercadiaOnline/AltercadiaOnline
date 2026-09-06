@@ -414,7 +414,7 @@ export function buildMercenaryQuestBoard(
     let status: MercenaryQuestBoardRow['status'] = 'available';
     if (completed.has(quest.id)) status = 'completed';
     else if (progress.activeQuestId === quest.id) status = 'active';
-    else if (quest.tier > unlocked) status = 'available';
+    else if (quest.tier > unlocked) status = 'locked';
     return { ...quest, status };
   });
 }

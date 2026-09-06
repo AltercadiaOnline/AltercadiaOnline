@@ -8,6 +8,7 @@ import { getActionDispatcher } from '../ActionDispatcher.js';
 import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
 import { ARCHITECTURE_SERVER_ID_REQUIRED } from '../../shared/supabase/characterServerScope.js';
+import { getActivePlayerSkinBundleId } from '../entities/player/activePlayerSkinBundle.js';
 
 const HEARTBEAT_MS = 5000;
 
@@ -117,6 +118,8 @@ export class PositionGateway {
       serverId,
 
       displayName: creds.displayName,
+
+      skinBundleId: getActivePlayerSkinBundleId(),
 
       ...(accessToken ? { accessToken } : {}),
 

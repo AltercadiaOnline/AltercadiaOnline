@@ -43,6 +43,7 @@ import {
   allocatedStatsToProfileFields,
   resolveCharacterStatPointsView,
 } from '../../shared/character/characterStatPoints.js';
+import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
 
 /** Monta payload `full-state-sync` a partir do estado autoritativo em memória. */
 export function buildAuthoritativePlayerSnapshot(
@@ -134,11 +135,13 @@ export function buildAuthoritativePlayerSnapshot(
       const allocated = allocatedStatsFromProfile(progressionState.characterProfile);
       const view = resolveCharacterStatPointsView(level, allocated);
       const fields = allocatedStatsToProfileFields(allocated);
+      const skinBundleId = resolvePlayerSkinBundleId(progressionState.characterProfile);
       return {
         level,
         xpCurrent: Math.max(0, Math.floor(progressionState.characterProfile.xpCurrent || 0)),
         ...fields,
         unspentStatPoints: view.unspent,
+        skinBundleId,
         ...(progressionState.characterProfile.displayName
           ? { displayName: progressionState.characterProfile.displayName }
           : {}),

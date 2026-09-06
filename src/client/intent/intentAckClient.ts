@@ -180,6 +180,14 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
   if (!record.mercenaryQuests) return false;
   getMercenaryQuestStore().applyAuthoritative(record.mercenaryQuests);
 
+  if (pending.action.type === 'ACCEPT_MERCENARY_TASK') {
+    const taskId = pending.action.payload.taskId;
+    alertSystem(`Contrato aceito: ${taskId}`);
+  }
+  if (pending.action.type === 'ABANDON_MERCENARY_TASK') {
+    alertSystem('Contrato abandonado.');
+  }
+
   const level = typeof record.characterLevel?.level === 'number'
     ? Math.max(1, Math.floor(record.characterLevel.level))
     : null;

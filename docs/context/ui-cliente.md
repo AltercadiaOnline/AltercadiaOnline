@@ -70,7 +70,8 @@ Moveset, Marcos e Social declaram `ui-skin-hybrid` no `panelClassName` (além do
 
 ## Contratos × Static
 
-- `WorldQuestPanel` (Hub → Contratos): só o tracker do contrato ativo. Largura 360, altura auto, teto 380px.
+- `WorldQuestPanel` (Hub → Contratos): só o **tracker** do contrato ativo (sem Aceitar). Largura 360, altura auto, teto 380px.
+- NPC Mercenário (`vendorShop`): abas **Contratos** | **Loja**. Aceitar / Completar só na aba Contratos; sprays na aba Loja.
 - Rede Static / Vortex: janela `staticNet` (`WorldStaticNetworkPanel`, título **Agentes Vortex**). Chip **SINAL** no cluster (ao lado do relógio), não no Hub Social. Radar **global do shard**: agente em qualquer distrito deixa aquela zona QUENTE e acende o chip, independente de onde o jogador está.
 
 ## Docs velhos

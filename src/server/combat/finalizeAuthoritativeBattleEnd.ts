@@ -142,21 +142,25 @@ export function finalizeAuthoritativeBattleEnd(
         playerActorId,
         characterId,
         playerCombatant,
-        // Só derrota (HP=0) → cidade + HP baixo. Fuga (FORFEIT) e vitória → mesma posição da farm.
-        victory || endReason === 'FORFEIT'
-          ? undefined
-          : (() => {
-              const spawn = buildCitySafeSpawnPayload();
-              return {
-                defeatRespawn: true,
-                respawn: {
-                  mapId: spawn.mapId,
-                  x: spawn.x,
-                  y: spawn.y,
-                  facing: spawn.facing ?? 'south',
-                },
-              };
-            })(),
+        // Derrota KO → cidade + HP baixo. Fuga → mesma pose + 50% do HP no momento da fuga.
+        endReason === 'FORFEIT'
+          ? {
+              surrenderHpAtMoment: enriched.state.forfeitHpByActorId?.[playerActorId] ?? 0,
+            }
+          : victory
+            ? undefined
+            : (() => {
+                const spawn = buildCitySafeSpawnPayload();
+                return {
+                  defeatRespawn: true,
+                  respawn: {
+                    mapId: spawn.mapId,
+                    x: spawn.x,
+                    y: spawn.y,
+                    facing: spawn.facing ?? 'south',
+                  },
+                };
+              })(),
       )
     : undefined;
   const mayHaveLoot = victory && Boolean(

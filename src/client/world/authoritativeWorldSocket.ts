@@ -54,6 +54,13 @@ export function createAuthoritativeWorldSocket(
   let localRotateSeq = 0;
   let predictedTileX = 0;
   let predictedTileY = 0;
+  let lastPoseSentAtMs = 0;
+  let lastPoseSentX = Number.NaN;
+  let lastPoseSentY = Number.NaN;
+
+  /** Pose sub-tile: no máximo a cada 50 ms, ou quando andou ≥4 px desde o último envio. */
+  const POSE_MIN_INTERVAL_MS = 50;
+  const POSE_MIN_DELTA_PX = 4;
 
   const authority = getWorldMovementAuthority();
   let authorityUnsub = authority.subscribe((payload) => {
@@ -104,7 +111,39 @@ export function createAuthoritativeWorldSocket(
       if (!transport) return;
       const stepX = Math.sign(payload.stepX) as -1 | 0 | 1;
       const stepY = Math.sign(payload.stepY) as -1 | 0 | 1;
-      if (stepX === 0 && stepY === 0) return;
+      const worldX = payload.worldX;
+      const worldY = payload.worldY;
+      const hasWorldPose =
+        typeof worldX === 'number'
+        && Number.isFinite(worldX)
+        && typeof worldY === 'number'
+        && Number.isFinite(worldY);
+
+      // Pose-only (mesmo tile): atualiza feet no servidor sem avançar o cursor de grade.
+      if (stepX === 0 && stepY === 0) {
+        if (!hasWorldPose) return;
+        const nowMs = performance.now();
+        const dx = worldX! - lastPoseSentX;
+        const dy = worldY! - lastPoseSentY;
+        const movedEnough = !Number.isFinite(lastPoseSentX)
+          || Math.hypot(dx, dy) >= POSE_MIN_DELTA_PX;
+        const intervalOk = nowMs - lastPoseSentAtMs >= POSE_MIN_INTERVAL_MS;
+        if (!movedEnough && !intervalOk) return;
+
+        const seq = ++localSeq;
+        lastPoseSentAtMs = nowMs;
+        lastPoseSentX = worldX!;
+        lastPoseSentY = worldY!;
+        transport.onMove({
+          targetX: predictedTileX,
+          targetY: predictedTileY,
+          seq,
+          worldX: worldX!,
+          worldY: worldY!,
+        });
+        getMovementNetTelemetry().noteMoveIntentSent(seq);
+        return;
+      }
 
       const targetX = predictedTileX + stepX;
       const targetY = predictedTileY + stepY;
@@ -113,16 +152,16 @@ export function createAuthoritativeWorldSocket(
       // Avanço otimista — cada tile cruzado envia o próximo alvo adjacente.
       predictedTileX = targetX;
       predictedTileY = targetY;
-      const worldX = payload.worldX;
-      const worldY = payload.worldY;
+      if (hasWorldPose) {
+        lastPoseSentAtMs = performance.now();
+        lastPoseSentX = worldX!;
+        lastPoseSentY = worldY!;
+      }
       transport.onMove({
         targetX,
         targetY,
         seq,
-        ...(typeof worldX === 'number' && Number.isFinite(worldX)
-          && typeof worldY === 'number' && Number.isFinite(worldY)
-          ? { worldX, worldY }
-          : {}),
+        ...(hasWorldPose ? { worldX: worldX!, worldY: worldY! } : {}),
       });
       getMovementNetTelemetry().noteMoveIntentSent(seq);
       return;

@@ -6,7 +6,12 @@
 import type { Combatant } from '../../shared/types.js';
 import type { PlayerWorldVitals } from '../../shared/character/equipmentState.js';
 import type { PlayerFacing } from '../../shared/world/playerFacing.js';
-import { clampPlayerHpCurrent, computePlayerHpMax, resolveDefeatRespawnHpCurrent } from '../../shared/character/playerVitals.js';
+import {
+  clampPlayerHpCurrent,
+  computePlayerHpMax,
+  resolveDefeatRespawnHpCurrent,
+  resolveSurrenderWorldHpCurrent,
+} from '../../shared/character/playerVitals.js';
 import { allocatedStatsFromProfile } from '../../shared/character/characterStatPoints.js';
 import { resolveCombatantHp } from '../../shared/pet/petCombatRules.js';
 import { EconomyEventType } from '../../shared/economy/events.js';
@@ -37,6 +42,11 @@ export type PersistWorldVitalsOptions = {
   readonly respawn?: PostCombatRespawn;
   /** Rankeado: devolve HP/MP de antes da luta. */
   readonly keepPreBattleVitals?: boolean;
+  /**
+   * Fuga/rendição — HP de mundo = metade do HP no momento da fuga (mín. 1).
+   * Valor = snapshot pré-zerar (`state.forfeitHpByActorId`).
+   */
+  readonly surrenderHpAtMoment?: number;
 };
 
 /** Persiste vitals de mundo pós-combate e emite `WorldVitalsUpdated`. */
@@ -53,7 +63,7 @@ export function persistWorldVitalsAfterCombat(
   const defaultMp = mpVitalsForLevel(level);
   const allocatedHp = allocatedStatsFromProfile(progression.characterProfile).hp;
 
-  if (options?.keepPreBattleVitals) {
+  if (options?.keepPreBattleVitals && options.surrenderHpAtMoment === undefined) {
     const hpMax = Math.max(
       1,
       Math.floor(existing?.hpMax ?? playerCombatant.hpMax ?? playerCombatant.maxHp ?? computePlayerHpMax(level, 0, allocatedHp)),
@@ -91,11 +101,13 @@ export function persistWorldVitalsAfterCombat(
     1,
     Math.floor(playerCombatant.hpMax ?? playerCombatant.maxHp ?? computePlayerHpMax(level, 0, allocatedHp)),
   );
-  const hpCurrent = options?.fullRestore
-    ? hpMax
-    : options?.defeatRespawn
-      ? resolveDefeatRespawnHpCurrent(hpMax)
-      : clampPlayerHpCurrent(resolveCombatantHp(playerCombatant), hpMax);
+  const hpCurrent = options?.surrenderHpAtMoment !== undefined
+    ? resolveSurrenderWorldHpCurrent(options.surrenderHpAtMoment, hpMax)
+    : options?.fullRestore
+      ? hpMax
+      : options?.defeatRespawn
+        ? resolveDefeatRespawnHpCurrent(hpMax)
+        : clampPlayerHpCurrent(resolveCombatantHp(playerCombatant), hpMax);
   const mpMax = existing?.mpMax ?? defaultMp.mpMax;
   const mpCurrent = options?.fullRestore
     ? mpMax

@@ -33,6 +33,15 @@ export function resolveDefeatRespawnHpCurrent(hpMax: number): number {
   return Math.max(1, Math.floor(max * DEFEAT_RESPAWN_HP_RATIO));
 }
 
+/** HP no mapa após fuga/rendição — metade do HP no momento da fuga (mínimo 1). */
+export const SURRENDER_WORLD_HP_RATIO = 0.5;
+
+export function resolveSurrenderWorldHpCurrent(hpAtSurrender: number, hpMax: number): number {
+  const max = Math.max(1, Math.floor(hpMax));
+  const half = Math.floor(Math.max(0, Math.floor(hpAtSurrender)) * SURRENDER_WORLD_HP_RATIO);
+  return clampPlayerHpCurrent(Math.max(1, half), max);
+}
+
 /**
  * Ajusta HP atual quando o teto muda (buff/equip de vida %).
  * Ganho de teto: soma o delta no atual (100/100 +12 → 112/112).

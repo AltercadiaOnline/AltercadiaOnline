@@ -69,7 +69,7 @@ export function BattleSurrenderConfirmPanel() {
               <strong>Desistir = derrota + penalidade</strong> (mesma de morte do PVE).
             </p>
             <p className="battle-surrender-confirm__hint">
-              O oponente vence. Você volta ao mapa com o HP da luta.
+              O oponente vence. Você volta ao mapa com 50% do HP atual (mínimo 1).
             </p>
           </>
         ) : (
@@ -77,7 +77,9 @@ export function BattleSurrenderConfirmPanel() {
             <p className="battle-surrender-confirm__text">
               Penalidade: <strong>−{penaltyLabel}</strong>. O monstro permanece vivo no mapa.
             </p>
-            <p className="battle-surrender-confirm__hint">Você perde a luta e volta ao mundo.</p>
+            <p className="battle-surrender-confirm__hint">
+              Você perde a luta e volta ao mundo com 50% do HP atual (mínimo 1).
+            </p>
           </>
         )}
         <div className="battle-surrender-confirm__actions">

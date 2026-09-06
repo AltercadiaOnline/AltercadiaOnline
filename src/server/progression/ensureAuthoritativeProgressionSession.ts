@@ -7,6 +7,10 @@ import {
   allocatedStatsToProfileFields,
 } from '../../shared/character/characterStatPoints.js';
 import {
+  isValidPlayerSkinBundleId,
+  type PlayerSkinBundleId,
+} from '../../shared/character/playerSkinBundle.js';
+import {
   getAuthoritativeProgression,
   hasAuthoritativeProgressionEntry,
   loadAuthoritativeProgression,
@@ -19,7 +23,22 @@ export type EnsureAuthoritativeProgressionSessionInput = {
   readonly displayName?: string | undefined;
   readonly level?: number | undefined;
   readonly xpCurrent?: number | undefined;
+  /** Preenche lacuna de skin (create/hub); não sobrescreve skin já válida no save. */
+  readonly skinBundleId?: string | null | undefined;
 };
+
+function resolveSessionSkinBundleId(
+  existing: string | undefined,
+  input: string | null | undefined,
+): PlayerSkinBundleId | undefined {
+  if (typeof existing === 'string' && isValidPlayerSkinBundleId(existing)) {
+    return existing;
+  }
+  if (typeof input === 'string' && isValidPlayerSkinBundleId(input.trim())) {
+    return input.trim() as PlayerSkinBundleId;
+  }
+  return undefined;
+}
 
 /**
  * Garante entrada de progressão após world-login.
@@ -30,15 +49,25 @@ export function ensureAuthoritativeProgressionSession(
   characterId: number,
   input: EnsureAuthoritativeProgressionSessionInput,
 ): void {
-  if (input.hadPersistedSave && hasAuthoritativeProgressionEntry(playerId, characterId)) {
+  const existing = hasAuthoritativeProgressionEntry(playerId, characterId)
+    ? getAuthoritativeProgression(playerId, characterId)
+    : null;
+  const skinBundleId = resolveSessionSkinBundleId(
+    existing?.characterProfile.skinBundleId,
+    input.skinBundleId,
+  );
+
+  if (input.hadPersistedSave && existing) {
+    // Save ok, mas skin pode ter faltado em saves antigos — preenche lacuna sem resetar XP.
+    if (skinBundleId && !existing.characterProfile.skinBundleId) {
+      patchAuthoritativeProgression(playerId, characterId, {
+        characterProfile: { skinBundleId },
+      });
+    }
     return;
   }
 
   const hubClass = input.classId && isClassType(input.classId) ? input.classId : undefined;
-  const existing = hasAuthoritativeProgressionEntry(playerId, characterId)
-    ? getAuthoritativeProgression(playerId, characterId)
-    : null;
-
   const level = Math.max(
     1,
     Math.floor(input.level ?? existing?.characterProfile.level ?? 1),
@@ -51,7 +80,7 @@ export function ensureAuthoritativeProgressionSession(
     || existing?.characterProfile.displayName?.trim();
   const classId = hubClass ?? existing?.characterProfile.classId;
 
-  if (!hasAuthoritativeProgressionEntry(playerId, characterId)) {
+  if (!existing) {
     const baseProgression = createDefaultPlayerProgressionData();
     const movesetMastery = classId
       ? ensureMovesetMasteryForClass(baseProgression.movesetMastery, classId)
@@ -72,13 +101,14 @@ export function ensureAuthoritativeProgressionSession(
         xpCurrent,
         ...(displayName ? { displayName } : {}),
         ...(classId ? { classId } : {}),
+        ...(skinBundleId ? { skinBundleId } : {}),
       },
     });
     return;
   }
 
   const allocated = allocatedStatsToProfileFields(
-    allocatedStatsFromProfile(existing?.characterProfile),
+    allocatedStatsFromProfile(existing.characterProfile),
   );
 
   patchAuthoritativeProgression(playerId, characterId, {
@@ -88,6 +118,9 @@ export function ensureAuthoritativeProgressionSession(
       ...allocated,
       ...(classId ? { classId } : {}),
       ...(displayName ? { displayName } : {}),
+      ...(skinBundleId && !existing.characterProfile.skinBundleId
+        ? { skinBundleId }
+        : {}),
     },
   });
 }

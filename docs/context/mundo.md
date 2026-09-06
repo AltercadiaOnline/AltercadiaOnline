@@ -25,7 +25,17 @@ Visual = **Construct 3**. Lógica = servidor + `src/shared/world`. Overlay canva
 
 ## Peers (`nearbyPlayers`)
 
-Tick leva identidade **do peer**, não do observador: pose + `skinBundleId` + `level` + `companion` (pet convocado). Contrato: `remotePlayerSync.ts`. Servidor preenche em `nearbyPlayerAppearance.ts` (progressão + roster). Overlay: sprite **por** `skinBundleId`; pet ancora atrás do dono (`remoteCompanionPose.ts`). Nametag: `Nome (Nível: N)` via `formatRemotePlayerNametag`. Campo omitido → não inventar no cliente (sem copiar skin/pet local).
+Tick leva identidade **do peer**, não do observador: pose + `skinBundleId` + `level` + `companion` (pet convocado). Contrato: `remotePlayerSync.ts`. Servidor preenche em `nearbyPlayerAppearance.ts` (progressão + roster, com cache leve entre ticks). Overlay: **um sprite por peer** (`playerId:characterId`); walk/idle pelo delta da pose interpolada. Nametag: `Nome (Nível: N)` via `formatRemotePlayerNametag`. Campo omitido → não inventar no cliente (sem copiar skin/pet local).
+
+### Multiplayer — checklist QA (2 abas)
+
+1. Conta A: skin default. Conta B (aba anônima): skin provisória diferente no create.
+2. Ambos entram na cidade, perto um do outro.
+3. A vê B com a skin provisória; B vê A com a default. Nametags distintos.
+4. A dá 1–2 passos curtos → B vê deslocamento (não precisa “andar bastante”).
+5. Peer andando mostra walk; parado volta a idle.
+6. Re-enter world / reload: skins batem de novo.
+7. RTT alto: widget de lag (`WorldNetLagWidget` / `altercadiaMoveNet`) — só observacional.
 
 ### Descanso na cidade (HP/MP)
 
@@ -40,9 +50,10 @@ Tick leva identidade **do peer**, não do observador: pose + `skinBundleId` + `l
 | Peça | Path / regra |
 |------|----------------|
 | Fila MOVE | `MovementIntentHandler` — fila cheia remove o **mais antigo**; nunca dropa o intent novo. Catch-up até 5 passos/tick. |
-| Tick | `GameLoop` 20 Hz → `nearbyPlayers` para AOI |
+| Pose sub-tile | Cliente emite pose (`step 0` + `worldX/Y`) enquanto anda — throttle 50 ms / 4 px. Tile step continua no cruzamento. |
+| Tick | `GameLoop` 20 Hz → `nearbyPlayers` para AOI; appearance com cache |
 | Local | Predição ok; hold drift > `ONLINE_HOLD_MAX_DRIFT_TILES` (4) deixa de ignorar pose do servidor |
-| Remoto | Só interpola `nearbyPlayers` (`remoteEntitySyncBridge`) |
+| Remoto | Só interpola `nearbyPlayers` (`remoteEntitySyncBridge`) + locomotion visual no overlay |
 | HP mundo | `worldVitalsBridge` (globalThis) + `applyAuthoritativeWorldVitals` — HUD React lê o bridge, não store duplicado do bundle |
 
 ## Colisão

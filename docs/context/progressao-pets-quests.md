@@ -47,15 +47,17 @@ Marcos / pets / missões abaixo. Não misturar pontos da Ficha com a árvore de 
 
 ## Quadro de Agente (mercenário)
 
-**Piloto:** Aceitar no NPC → passo no mundo (Q1) → voltar ao Mercenário → **Completar** → XP + VOLTS.
+**Piloto:** Aceitar no NPC (aba Contratos) → passo no mundo (Q1) → voltar ao Mercenário → **Completar** → XP + VOLTS. Hub → Contratos = só tracker do ativo.
 
 | Decisão | Valor |
 |---------|--------|
-| Entrega | Só no NPC Mercenário; Q1 exige item extraído no mundo |
+| Entrega | Só no NPC Mercenário (aba Contratos); Q1 exige item extraído no mundo |
+| UI NPC | Abas **Contratos** \| **Loja** (textos/CTAs separados) |
+| Hub Contratos | Só visualizar ativo (+ Abandonar); sem Aceitar |
 | Abandono | Livre (pode reassinar); remove `codigo_desbloqueio` se estiver na bolsa |
 | Reward | XP + VOLTS (`rewardExp` / `rewardVolts`) |
 | Q1 | Operário da Linha 4 **na cidade** → Extrair código → `codigo_desbloqueio` |
-| Q2–Q15 | Catálogo/HUD prontos; POIs ainda não ligados |
+| Q2–Q15 | Catálogo/HUD prontos; POIs ainda não ligados (terreno: mesmo tubo) |
 | Faixas | 1–10 / 11–20 / 21–30. Unlock: completar as 5 do tier anterior (não por nível). |
 
 Checklist das 15: [mercenary-quests-cronograma.md](mercenary-quests-cronograma.md).

@@ -18,9 +18,20 @@ import { buildRemoteCompanionRenderSnapshot } from '../../world/remoteCompanionP
 import { getWorldSpraysForMap } from '../../world/worldSpraySyncBridge.js';
 import { renderPvpJumbotronOverlay, resetPvpJumbotronOverlaySprites } from './pvpJumbotronOverlay.js';
 import { OFFICIAL_SPRAY_STENCILS } from '../../../shared/types/tacticalSpray.js';
+import { remotePlayerEntityId } from '../../world/remoteEntityInterpolator.js';
 
 const VIEWPORT_W = DESIGN_CONFIG.VIEWPORT.WIDTH;
 const VIEWPORT_H = DESIGN_CONFIG.VIEWPORT.HEIGHT;
+
+/** Limiar em px — abaixo disso o peer remoto fica idle (evita flicker). */
+const REMOTE_MOVE_EPS_PX = 0.75;
+
+type RemoteSpriteSlot = {
+  readonly sprite: PlayerSprite;
+  skinBundleId: PlayerSkinBundleId;
+  lastFeetX: number;
+  lastFeetY: number;
+};
 
 /**
  * Canvas DOM sobre o iframe Construct — desenha jogador local, peers, NPCs e criaturas
@@ -31,7 +42,8 @@ export class ConstructEntityOverlay {
 
   private ctx: CanvasRenderingContext2D | null = null;
 
-  private readonly remotePlayerSprites = new Map<PlayerSkinBundleId, PlayerSprite>();
+  /** Um sprite por peer — walk/facing independentes (não compartilhar por skin). */
+  private readonly remotePlayerSprites = new Map<string, RemoteSpriteSlot>();
 
   private readonly npcSpriteById = new Map(
     getResolvedNpcRegistry().map((entry) => [entry.id, entry.sprite] as const),
@@ -152,17 +164,17 @@ export class ConstructEntityOverlay {
 
     const depthLayer: Array<{ readonly depthY: number; readonly draw: () => void }> = [];
     const remotes = frame.remotePlayers;
+    const seenRemoteIds = new Set<string>();
     if (remotes.length > 0) {
-      const updatedSkins = new Set<PlayerSkinBundleId>();
       for (const remote of remotes) {
-        const skinBundleId = this.resolveRemoteSkinBundleId(remote);
-        if (!updatedSkins.has(skinBundleId)) {
-          this.getRemotePlayerSprite(skinBundleId).update(frame.timestampMs);
-          updatedSkins.add(skinBundleId);
-        }
+        const entityId = remotePlayerEntityId(remote.playerId, remote.characterId);
+        seenRemoteIds.add(entityId);
+        const slot = this.getRemotePlayerSlot(remote);
+        this.syncRemoteLocomotion(slot, remote);
+        slot.sprite.update(frame.timestampMs);
         depthLayer.push({
           depthY: remote.feetY,
-          draw: () => this.renderRemotePlayer(ctx, remote, frame.timestampMs),
+          draw: () => this.renderRemotePlayer(ctx, remote, slot, frame.timestampMs),
         });
         if (!remote.companion) continue;
         const companion = buildRemoteCompanionRenderSnapshot(
@@ -176,6 +188,12 @@ export class ConstructEntityOverlay {
             renderPetSprite(ctx, companion, frame.timestampMs);
           },
         });
+      }
+    }
+
+    for (const entityId of this.remotePlayerSprites.keys()) {
+      if (!seenRemoteIds.has(entityId)) {
+        this.remotePlayerSprites.delete(entityId);
       }
     }
 
@@ -218,21 +236,39 @@ export class ConstructEntityOverlay {
     return remote.skinBundleId ?? DEFAULT_PLAYER_SKIN_ID;
   }
 
-  private getRemotePlayerSprite(skinBundleId: PlayerSkinBundleId): PlayerSprite {
-    let sprite = this.remotePlayerSprites.get(skinBundleId);
-    if (!sprite) {
-      sprite = new PlayerSprite(skinBundleId);
-      this.remotePlayerSprites.set(skinBundleId, sprite);
+  private getRemotePlayerSlot(remote: RemotePlayerRenderFrame): RemoteSpriteSlot {
+    const entityId = remotePlayerEntityId(remote.playerId, remote.characterId);
+    const skinBundleId = this.resolveRemoteSkinBundleId(remote);
+    let slot = this.remotePlayerSprites.get(entityId);
+    if (!slot || slot.skinBundleId !== skinBundleId) {
+      slot = {
+        sprite: new PlayerSprite(skinBundleId),
+        skinBundleId,
+        lastFeetX: remote.feetX,
+        lastFeetY: remote.feetY,
+      };
+      this.remotePlayerSprites.set(entityId, slot);
     }
-    return sprite;
+    return slot;
+  }
+
+  private syncRemoteLocomotion(slot: RemoteSpriteSlot, remote: RemotePlayerRenderFrame): void {
+    const dx = remote.feetX - slot.lastFeetX;
+    const dy = remote.feetY - slot.lastFeetY;
+    const moving = Math.hypot(dx, dy) >= REMOTE_MOVE_EPS_PX;
+    slot.sprite.setMoving(moving);
+    slot.sprite.setFacing(remote.facing);
+    slot.lastFeetX = remote.feetX;
+    slot.lastFeetY = remote.feetY;
   }
 
   private renderRemotePlayer(
     ctx: CanvasRenderingContext2D,
     remote: RemotePlayerRenderFrame,
+    slot: RemoteSpriteSlot,
     timestampMs: number,
   ): void {
-    this.getRemotePlayerSprite(this.resolveRemoteSkinBundleId(remote)).draw(
+    slot.sprite.draw(
       ctx,
       {
         x: snapToPixel(remote.feetX),

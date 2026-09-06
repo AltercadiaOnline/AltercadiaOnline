@@ -58,6 +58,12 @@ import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
 import { setOwnSprayLegacyMessage } from './world/sprayInspectStore.js';
 import { sanitizeSprayLegacyMessage } from '../shared/social/spraySocialTypes.js';
+import {
+  isValidPlayerSkinBundleId,
+} from '../shared/character/playerSkinBundle.js';
+import { setActivePlayerSkinBundleId } from './entities/player/activePlayerSkinBundle.js';
+import { resetSharedPlayerSprite } from './entities/player/PlayerSprite.js';
+import { PlayerSpriteLoader } from './entities/player/PlayerSpriteLoader.js';
 
 type SliceRevisions = Record<DataStoreSlice, number>;
 
@@ -539,6 +545,12 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
       }
       if (typeof state.characterProfile.legacyMessage === 'string') {
         setOwnSprayLegacyMessage(sanitizeSprayLegacyMessage(state.characterProfile.legacyMessage));
+      }
+      const skinRaw = state.characterProfile.skinBundleId;
+      if (typeof skinRaw === 'string' && isValidPlayerSkinBundleId(skinRaw)) {
+        setActivePlayerSkinBundleId(skinRaw);
+        PlayerSpriteLoader.resetCache();
+        resetSharedPlayerSprite();
       }
     }
 

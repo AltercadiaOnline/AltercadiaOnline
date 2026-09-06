@@ -9,7 +9,8 @@ export type NearbyPlayerPeerInput = {
   readonly playerId: string;
   readonly characterId: number;
   readonly displayName?: string;
-  readonly skinBundleId?: PlayerSkinBundleId;
+  /** Sempre preenchido no servidor via resolveNearbyPeerAppearance. */
+  readonly skinBundleId: PlayerSkinBundleId;
   readonly level?: number;
   readonly companion?: RemotePlayerCompanionSnapshot;
   readonly mapId: string;
@@ -30,8 +31,9 @@ export function toRemotePlayerSnapshot(
     feetY: peer.feetY,
     facing: peer.facing,
     serverTimeMs,
+    // Servidor sempre resolve skin do peer — nunca omitir (cliente não inventa).
+    skinBundleId: peer.skinBundleId,
     ...(peer.displayName ? { displayName: peer.displayName } : {}),
-    ...(peer.skinBundleId ? { skinBundleId: peer.skinBundleId } : {}),
     ...(peer.level !== undefined ? { level: peer.level } : {}),
     ...(peer.companion ? { companion: peer.companion } : {}),
   };

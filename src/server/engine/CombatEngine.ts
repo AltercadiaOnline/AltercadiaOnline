@@ -402,11 +402,12 @@ export class CombatEngine {
     ];
   }
 
-  /** Fuga/render-se — derrota imediata com HP zerado (anti-exploit). */
+  /** Fuga/render-se — derrota imediata com HP zerado (anti-exploit); snapshot para HP de mundo. */
   public forfeitActor(actorId: string): CombatEvent[] {
     const actor = this.state.combatants[actorId];
     if (!actor) return [];
 
+    const hpAtForfeit = resolveCombatantHp(actor);
     const events: CombatEvent[] = [{
       type: CombatEventType.COMBAT_LOG,
       battleId: this.state.battleId,
@@ -418,6 +419,10 @@ export class CombatEngine {
       ...this.state,
       phase: 'ENDED',
       activeActorId: null,
+      forfeitHpByActorId: {
+        ...(this.state.forfeitHpByActorId ?? {}),
+        [actorId]: hpAtForfeit,
+      },
       combatants: {
         ...this.state.combatants,
         [actorId]: withHp(actor, 0),

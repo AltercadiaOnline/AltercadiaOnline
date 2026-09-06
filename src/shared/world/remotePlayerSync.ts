@@ -21,6 +21,7 @@ export type RemotePlayerSnapshot = {
   readonly playerId: string;
   readonly characterId: number;
   readonly displayName?: string;
+  /** Bundle do peer. Servidor sempre envia; parse legado pode omitir. */
   readonly skinBundleId?: PlayerSkinBundleId;
   readonly level?: number;
   readonly companion?: RemotePlayerCompanionSnapshot;

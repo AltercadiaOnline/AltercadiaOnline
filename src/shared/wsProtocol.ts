@@ -305,6 +305,8 @@ export type WsInboundMessage =
         /** Shard reportado pelo cliente — validado contra SERVER_ID do processo. */
         readonly serverId: string;
         readonly displayName?: string;
+        /** Hint do hub local — servidor só preenche lacuna, não sobrescreve save. */
+        readonly skinBundleId?: string;
         readonly clientMapId?: string;
         readonly clientPosition?: { readonly x: number; readonly y: number };
         readonly accessToken?: string;
@@ -703,12 +705,16 @@ export function parseWsInbound(raw: string): WsInboundMessage | null {
         characterId: number;
         serverId: string;
         displayName?: string;
+        skinBundleId?: string;
         clientMapId?: string;
         clientPosition?: { x: number; y: number };
         accessToken?: string;
       } = { playerId, characterId, serverId: serverId.trim().toLowerCase() };
 
       if (typeof p.displayName === 'string') loginPayload.displayName = p.displayName;
+      if (typeof p.skinBundleId === 'string' && p.skinBundleId.trim().length > 0) {
+        loginPayload.skinBundleId = p.skinBundleId.trim();
+      }
       if (typeof p.accessToken === 'string' && p.accessToken.length > 0) {
         loginPayload.accessToken = p.accessToken;
       }

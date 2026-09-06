@@ -28,13 +28,16 @@ PvP casual / batalha normal **não** alimenta nem aparece no PC da Arena.
 ## Regras
 
 - Snapshot vem do servidor. Cliente faz poll / intent e **desenha**.
+- **HTTP do board:** sempre Railway (`gameServerFetch` + `authoritativeHost: true`). Na Vercel split, `/api/leaderboard` **não** existe — não usar same-origin.
+- Poll vitrine/arena: `LEADERBOARD_POLL_MS` (15s). Cache no servidor ~3s.
 - Arena: sem abas level / moveset / PvE.
 - Board ranqueado (`pvp_ranked`): Top 10 de **pontos** (+1 vitória / −1 derrota, piso 0). Entra na 1ª luta; empate de pontos → mais vitórias → quem chegou primeiro.
 - Colunas da arena: posição, nome, pontos (sem linha “você”).
-- Persistência atual = file. Não inventar rank no Zustand.
+- Persistência atual = file em `data/{serverId}/leaderboard.json`. Railway precisa de **volume** em `/app/data` ou o placar some no redeploy. Não inventar rank no Zustand.
 - XP/nível que alimenta boards de progressão: [progressao-pets-quests.md](progressao-pets-quests.md) — só na vitrine do login.
 
 ## Proibido
 
 Calcular posição no ranking no front. Escrever leaderboard via `economyGateway`.
 Mostrar ranks gerais no `computador_arena`.
+Fetch do leaderboard via URL da Vercel (same-origin).

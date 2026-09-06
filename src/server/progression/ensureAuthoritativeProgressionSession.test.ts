@@ -43,6 +43,7 @@ describe('ensureAuthoritativeProgressionSession', () => {
         xpCurrent: 40,
         classId: 'IMPETUS',
         allocatedAtk: 3,
+        skinBundleId: 'player_female_1',
       },
     });
 
@@ -50,10 +51,37 @@ describe('ensureAuthoritativeProgressionSession', () => {
       hadPersistedSave: true,
       level: 1,
       xpCurrent: 0,
+      skinBundleId: 'player_male_2',
     });
 
     const progression = getAuthoritativeProgression('player-a', 2);
     expect(progression.characterProfile.level).toBe(8);
     expect(progression.characterProfile.allocatedAtk).toBe(3);
+    expect(progression.characterProfile.skinBundleId).toBe('player_female_1');
+  });
+
+  it('preenche skinBundleId quando o save não tinha skin', () => {
+    loadAuthoritativeProgression('player-a', 3, {
+      progression: createDefaultPlayerProgressionData(),
+      marcos: {
+        activeMarcos: [],
+        flowSpeedBase: 1,
+        nodeProgression: emptyMarcosNodeProgression(),
+      },
+      characterProfile: {
+        level: 2,
+        xpCurrent: 0,
+        classId: 'COGITOR',
+      },
+    });
+
+    ensureAuthoritativeProgressionSession('player-a', 3, {
+      hadPersistedSave: true,
+      skinBundleId: 'player_male_3',
+    });
+
+    expect(getAuthoritativeProgression('player-a', 3).characterProfile.skinBundleId).toBe(
+      'player_male_3',
+    );
   });
 });

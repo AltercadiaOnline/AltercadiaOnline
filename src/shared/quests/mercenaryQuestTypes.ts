@@ -73,7 +73,7 @@ export type MercenaryQuestProgress = {
 };
 
 export type MercenaryQuestBoardRow = MercenaryQuestDefinition & {
-  readonly status: 'available' | 'active' | 'completed';
+  readonly status: 'available' | 'active' | 'completed' | 'locked';
 };
 
 export type MercenaryQuestInteractPayload = {

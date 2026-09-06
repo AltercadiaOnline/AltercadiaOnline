@@ -21,6 +21,10 @@ import type {
 } from '../../../../../shared/quests/mercenaryQuestTypes.js';
 
 type MercenaryQuestBoardProps = {
+  /**
+   * `false` (default) = Hub Contratos — só tracker do ativo.
+   * `true` = NPC Mercenário aba Contratos — lista + Aceitar/Completar.
+   */
   readonly compact?: boolean;
 };
 
@@ -34,6 +38,17 @@ function resolveBandForLevel(level: number): MercenaryQuestBand {
 
 function formatQuestRewards(quest: MercenaryQuestBoardRow): string {
   return `XP ${quest.rewardExp} · ${quest.rewardVolts} VOLTS`;
+}
+
+function acceptDisabledReason(
+  quest: MercenaryQuestBoardRow,
+  slotBusy: boolean,
+): string | null {
+  if (quest.status === 'locked') return 'Complete o tier anterior para liberar.';
+  if (quest.status === 'completed') return 'Contrato já encerrado.';
+  if (quest.status === 'active') return 'Já está ativo.';
+  if (slotBusy) return 'Abandone o contrato ativo antes de assinar outro.';
+  return null;
 }
 
 function MercenaryQuestTrackerCard({
@@ -63,7 +78,7 @@ function MercenaryQuestTrackerCard({
         {readyToTurnIn ? (
           <div className="mercenary-tracker__field">
             <dt>Status</dt>
-            <dd>Pronto para entregar no Mercenário.</dd>
+            <dd>Pronto — entregue na aba Contratos do Mercenário.</dd>
           </div>
         ) : null}
         <div className="mercenary-tracker__field">
@@ -88,19 +103,24 @@ function MercenaryQuestTrackerCard({
 
 function MercenaryQuestRow({
   quest,
-  compact: _compact,
   slotBusy,
   readyToTurnIn,
 }: {
   readonly quest: MercenaryQuestBoardRow;
-  readonly compact: boolean;
   readonly slotBusy: boolean;
   readonly readyToTurnIn: boolean;
 }) {
   const accept = useAcceptMercenaryQuest(quest);
   const abandon = useAbandonMercenaryQuest(quest.id);
   const complete = useCompleteMercenaryQuest(quest.id, readyToTurnIn && quest.status === 'active');
-  const acceptDisabled = quest.status !== 'available' || accept.pending || slotBusy;
+  const blockReason = acceptDisabledReason(quest, slotBusy);
+  const acceptDisabled = Boolean(blockReason) || accept.pending;
+
+  const buttonLabel = quest.status === 'locked'
+    ? 'Bloqueado'
+    : quest.status === 'completed'
+      ? 'Encerrado'
+      : accept.buttonLabel;
 
   return (
     <article className={`mercenary-board__row mercenary-board__row--${quest.status}`}>
@@ -117,6 +137,9 @@ function MercenaryQuestRow({
             ? `Pronto para entregar — Completar paga ${formatQuestRewards(quest)}.`
             : 'Conclua os objetivos no mundo antes de entregar.'}
         </p>
+      ) : null}
+      {quest.status === 'locked' ? (
+        <p className="mercenary-board__placeholder">Complete as 5 missões do tier anterior.</p>
       ) : null}
       <div className="mercenary-board__actions">
         {quest.status === 'active' ? (
@@ -146,9 +169,10 @@ function MercenaryQuestRow({
             className="mercenary-board__btn"
             disabled={acceptDisabled}
             aria-busy={accept.pending || undefined}
+            title={blockReason ?? undefined}
             onClick={accept.submit}
           >
-            {accept.buttonLabel}
+            {buttonLabel}
           </button>
         )}
       </div>
@@ -156,7 +180,7 @@ function MercenaryQuestRow({
   );
 }
 
-/** Hub Social → Contratos: só o ativo. Compacto (mercenário): 5 do tier atual. */
+/** Hub Social → Contratos: só o ativo. Compacto (mercenário): quadro Aceitar/Completar. */
 export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProps) {
   const { level, progress, activeQuest, trackerObjective, readyToTurnIn } = useMercenaryQuestBoard();
   const agentBand = useMemo(() => resolveBandForLevel(level), [level]);
@@ -208,7 +232,7 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
   if (!compact) {
     return (
       <section className="mercenary-board mercenary-board--tracker" aria-label="Contrato ativo">
-        <p className="mercenary-board__tag">NODE::BOUNTY · AGENTE NV. {level}</p>
+        <p className="mercenary-board__tag">CONTRATOS · TRACKER · NV. {level}</p>
         {activeRow ? (
           <MercenaryQuestTrackerCard
             quest={activeRow}
@@ -217,9 +241,9 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
           />
         ) : (
           <div className="mercenary-tracker mercenary-tracker--idle">
-            <p className="mercenary-tracker__idle-title">AGUARDANDO CONTRATO.</p>
+            <p className="mercenary-tracker__idle-title">NENHUM CONTRATO ATIVO</p>
             <p className="mercenary-tracker__hint">
-              Assine no NPC Mercenário. 1 ativo por vez.
+              Assine no NPC Mercenário → aba Contratos. Aqui só acompanha o ativo.
             </p>
             <p className="mercenary-tracker__band-line">
               {agentBand.title}
@@ -235,9 +259,9 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
   }
 
   return (
-    <div className="mercenary-board mercenary-board--compact">
+    <div className="mercenary-board mercenary-board--compact mercenary-board--npc-contracts">
       <p className="mercenary-board__tag">
-        NODE::BOUNTY · TIER {viewedTier} · AGENTE NV. {level}
+        QUADRO DE AGENTE · TIER {viewedTier} · NV. {level}
       </p>
       {activeQuest ? (
         <p className="mercenary-board__active">
@@ -246,7 +270,7 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
         </p>
       ) : (
         <p className="mercenary-board__active mercenary-board__active--idle">
-          Nenhum contrato assinado. Escolha um das 5 do tier.
+          Nenhum contrato assinado. Escolha um das 5 do tier e clique Aceitar.
         </p>
       )}
       {orphanActive ? (
@@ -254,7 +278,6 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
           <p className="mercenary-board__band-title">Contrato ativo (outro tier)</p>
           <MercenaryQuestRow
             quest={orphanActive}
-            compact
             slotBusy={false}
             readyToTurnIn={readyToTurnIn}
           />
@@ -274,7 +297,6 @@ export function MercenaryQuestBoard({ compact = false }: MercenaryQuestBoardProp
             <MercenaryQuestRow
               key={quest.id}
               quest={quest}
-              compact
               slotBusy={Boolean(activeQuest) && quest.status === 'available'}
               readyToTurnIn={quest.status === 'active' && readyToTurnIn}
             />

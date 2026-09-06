@@ -199,6 +199,11 @@ export function finalizeAuthoritativeRankedPvpEnd(
             };
           })()
         : undefined;
+    const surrenderVitalsOptions: PersistWorldVitalsOptions | undefined = forfeited
+      ? {
+          surrenderHpAtMoment: enriched.state.forfeitHpByActorId?.[peer.actorId] ?? 0,
+        }
+      : undefined;
     const worldVitals = combatant
       ? persistWorldVitalsAfterCombat(
         peer.playerId,
@@ -206,7 +211,8 @@ export function finalizeAuthoritativeRankedPvpEnd(
         combatant,
         {
           ...casualDefeatVitalsOptions,
-          ...(!isCasual ? { keepPreBattleVitals: true } : {}),
+          ...(!isCasual && !forfeited ? { keepPreBattleVitals: true } : {}),
+          ...surrenderVitalsOptions,
         },
       )
       : undefined;

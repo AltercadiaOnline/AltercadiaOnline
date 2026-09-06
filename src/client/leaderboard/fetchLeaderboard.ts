@@ -7,7 +7,8 @@ import {
 } from '../../shared/leaderboard/leaderboardTypes.js';
 import { gameServerFetch } from '../net/gameServerClient.js';
 
-export const LEADERBOARD_POLL_MS = 4_000;
+/** Poll da vitrine / arena — leve; snapshot no Railway já tem cache ~3s. */
+export const LEADERBOARD_POLL_MS = 15_000;
 
 export type FetchLeaderboardInput = {
   readonly boardId: LeaderboardBoardId;
@@ -17,7 +18,7 @@ export type FetchLeaderboardInput = {
 
 /**
  * Board autoritativo no servidor de jogo (Railway).
- * Nunca fetch relativo na Vercel — `/api/leaderboard` não existe no static host.
+ * Sempre `authoritativeHost` — `/api/leaderboard` não existe no static/Vercel.
  */
 export async function fetchLeaderboardSnapshot(
   input: FetchLeaderboardInput,
@@ -31,6 +32,7 @@ export async function fetchLeaderboardSnapshot(
   try {
     const response = await gameServerFetch('/api/leaderboard', {
       auth: false,
+      authoritativeHost: true,
       searchParams,
       deadlineMs: 12_000,
     });

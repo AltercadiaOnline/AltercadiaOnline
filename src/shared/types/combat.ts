@@ -251,6 +251,11 @@ export interface CombatState {
   readonly agilitySkipEnemyReaction?: boolean;
   /** Turno em que o último golpe extra de AGI foi marcado. */
   readonly agilityLastExtraTurn?: number;
+  /**
+   * HP do combatente no instante da fuga/rendição (antes do zerar anti-exploit).
+   * Usado só para persistir HP de mundo = metade (mín. 1).
+   */
+  readonly forfeitHpByActorId?: Readonly<Record<string, number>>;
 }
 
 /**

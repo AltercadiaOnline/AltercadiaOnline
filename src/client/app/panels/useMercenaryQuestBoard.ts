@@ -52,7 +52,14 @@ export function useMercenaryQuestBoard() {
 
 export function useAcceptMercenaryQuest(quest: MercenaryQuestBoardRow) {
   return useActionGatewaySubmit({
-    idleLabel: quest.status === 'active' ? 'Ativo' : quest.status === 'completed' ? 'Encerrado' : 'Aceitar',
+    idleLabel:
+      quest.status === 'active'
+        ? 'Ativo'
+        : quest.status === 'completed'
+          ? 'Encerrado'
+          : quest.status === 'locked'
+            ? 'Bloqueado'
+            : 'Aceitar',
     pendingLabel: 'Assinando…',
     onClick: () => getActionDispatcher().dispatch({
       type: 'ACCEPT_MERCENARY_TASK',

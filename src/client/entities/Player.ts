@@ -290,6 +290,19 @@ export class Player {
         getWorldMovementAuthority().recordPredictedStep(this.x, this.y, this.facing);
       },
     );
+
+    // Multiplayer: enquanto anda no mesmo tile, espelha pose contínua (sub-tile).
+    if (
+      isAuthoritativeMovementOnline()
+      && (this.isMoving || this.isGridAnimating())
+    ) {
+      this.worldSocket.emit('move', {
+        stepX: 0,
+        stepY: 0,
+        worldX: this.x,
+        worldY: this.y,
+      });
+    }
   }
 
   /**

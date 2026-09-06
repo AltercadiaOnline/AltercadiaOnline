@@ -106,6 +106,7 @@ import type { PvpRankedQueueSnapshot } from '../../shared/combat/pvp/pvpRankedQu
 import { validatePvpRankedStationAccess } from '../../shared/combat/pvp/pvpRankedStationAccess.js';
 import {
   getAuthoritativeProgression,
+  hasAuthoritativeProgressionEntry,
   patchAuthoritativeProgression,
 } from '../progression/authoritativeProgressionStore.js';
 import { repairTrailStarterIfNeeded } from '../../Economy/progressionGateway.js';
@@ -2175,6 +2176,7 @@ export class CombatWsHub implements CombatWsRouteHost {
       readonly characterId: number;
       readonly serverId: string;
       readonly displayName?: string;
+      readonly skinBundleId?: string;
       readonly clientMapId?: string;
       readonly clientPosition?: { readonly x: number; readonly y: number };
       readonly accessToken?: string;
@@ -2320,6 +2322,10 @@ export class CombatWsHub implements CombatWsRouteHost {
         displayName: payload.displayName?.trim() || bootstrap.profileDisplayName,
         level: bootstrap.profileLevel,
         xpCurrent: bootstrap.profileXpCurrent,
+        skinBundleId: payload.skinBundleId
+          ?? (hasAuthoritativeProgressionEntry(authUserId, payload.characterId)
+            ? getAuthoritativeProgression(authUserId, payload.characterId).characterProfile.skinBundleId
+            : undefined),
       });
       // Save legado: trilha travada sem starter — repara antes do full-state-sync.
       repairTrailStarterIfNeeded(authUserId, payload.characterId);

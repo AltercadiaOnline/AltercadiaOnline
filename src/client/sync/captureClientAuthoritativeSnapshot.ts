@@ -13,6 +13,7 @@ import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getPlayerProgressionStore } from '../progression/playerProgressionStore.js';
 import { getPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
+import { getActivePlayerSkinBundleId } from '../entities/player/activePlayerSkinBundle.js';
 
 /** Captura o estado autoritativo local imediatamente antes de enviar um comando. */
 export function captureClientAuthoritativeSnapshot(): AuthoritativePlayerSnapshot {
@@ -70,6 +71,7 @@ export function captureClientAuthoritativeSnapshot(): AuthoritativePlayerSnapsho
       xpCurrent: playerSnapshot.characterLevel.xpCurrent,
       ...allocatedStatsToProfileFields(points),
       unspentStatPoints: points.unspent,
+      skinBundleId: getActivePlayerSkinBundleId(),
     },
   };
 }

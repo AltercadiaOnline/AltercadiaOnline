@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { resolveItemValorBase } from '../../../../../shared/economy/itemValorEconomy.js';
 import { resolveNpcPriceSpread } from '../../../../../shared/economy/npcVendorCatalog.js';
 import {
@@ -33,6 +33,8 @@ import { bindItemHoverHandlers } from '../../../../ui/tooltip/itemHoverTooltip.j
 import { hideGameTooltip, showHintTooltip } from '../../../../ui/tooltip/showGameTooltip.js';
 import { MovablePanelFrame } from '../MovablePanelFrame.js';
 import { ItemSlotIcon } from './ItemSlotIcon.js';
+
+type MercenaryNpcTab = 'shop' | 'contracts';
 
 type WorldVendorShopPanelProps = {
   context: WorldPanelContext;
@@ -323,6 +325,9 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
   const sellsRation = vendor.vendorId === VENDEDOR_NPC;
   const rationQuote = sellsRation ? resolveCaelPetRationQuote() : null;
   const isMercenary = vendor.vendorId === 'mercenario';
+  const [mercenaryTab, setMercenaryTab] = useState<MercenaryNpcTab>('contracts');
+  const showShopBody = !isMercenary || mercenaryTab === 'shop';
+  const showContractsBody = isMercenary && mercenaryTab === 'contracts';
 
   const purchaseGateway = useActionGatewaySubmit({
     onClick: handlePurchase,
@@ -351,9 +356,13 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
         'ui-panel--npc-hybrid',
         'ui-skin-hybrid',
         isMercenary ? 'ui-panel--vendor-shop--mercenary' : '',
+        showContractsBody ? 'ui-panel--vendor-shop--mercenary-contracts' : '',
       ].filter(Boolean).join(' ')}
       panelStyle={isMercenary
-        ? { width: 'min(980px, 98vw)', maxHeight: 'min(92vh, 720px)' }
+        ? {
+          width: showContractsBody ? 'min(720px, 96vw)' : 'min(980px, 98vw)',
+          maxHeight: 'min(92vh, 720px)',
+        }
         : { width: 'min(960px, 98vw)', height: 'min(620px, 86vh)', maxHeight: 'min(620px, 86vh)' }}
       bodyOverflow="hidden"
       onFocus={() => tryFocusReactWorldPanel('vendorShop')}
@@ -363,7 +372,9 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
         <div className="vendor-shop__intro">
           <div className="vendor-shop__intro-main">
             <p className="vendor-shop__tag">
-              {isMercenary ? 'QUADRO // CONTRATOS + SPRAY' : 'LOJA NPC // SUPRIMENTOS'}
+              {isMercenary
+                ? (mercenaryTab === 'contracts' ? 'QUADRO // CONTRATOS' : 'LOJA // SPRAY')
+                : 'LOJA NPC // SUPRIMENTOS'}
             </p>
             <p className="vendor-shop__balance">
               Saldo: <strong>{state.gold.voltsFormatted}</strong>
@@ -371,16 +382,49 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
           </div>
           <p className="vendor-shop__hint">
             {isMercenary
-              ? 'Assine 1 contrato por vez. Complete as 5 do tier para liberar o próximo. Spray à esquerda.'
+              ? (mercenaryTab === 'contracts'
+                ? 'Aceite 1 contrato por vez. Complete as 5 do tier para liberar o próximo. Entrega só aqui.'
+                : 'Compre sprays. Contratos ficam na outra aba.')
               : 'Revenda drops Comum/Incomum (50% valor base). Set, poções e Raros+ → Marketplace.'}
           </p>
         </div>
 
+        {isMercenary ? (
+          <div className="vendor-shop__tabs" role="tablist" aria-label="Mercenário">
+            <button
+              type="button"
+              role="tab"
+              className={['vendor-shop__tab', mercenaryTab === 'contracts' ? 'is-active' : ''].filter(Boolean).join(' ')}
+              aria-selected={mercenaryTab === 'contracts'}
+              onClick={() => setMercenaryTab('contracts')}
+            >
+              Contratos
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={['vendor-shop__tab', mercenaryTab === 'shop' ? 'is-active' : ''].filter(Boolean).join(' ')}
+              aria-selected={mercenaryTab === 'shop'}
+              onClick={() => setMercenaryTab('shop')}
+            >
+              Loja
+            </button>
+          </div>
+        ) : null}
+
+        {showContractsBody ? (
+          <div className="vendor-shop__contracts-pane" role="tabpanel">
+            <MercenaryQuestBoard compact />
+          </div>
+        ) : null}
+
+        {showShopBody ? (
         <div
           className={[
             'vendor-shop__layout',
             isMercenary ? 'vendor-shop__layout--mercenary' : '',
           ].filter(Boolean).join(' ')}
+          role={isMercenary ? 'tabpanel' : undefined}
         >
           <div className="vendor-shop__lists">
             <section className="vendor-shop__list-wrap" aria-label="Comprar suprimentos">
@@ -545,34 +589,7 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
           </div>
 
           <aside className="vendor-shop__trade-hub" aria-label="Negociação">
-            {vendor.vendorId === 'mercenario' ? (
-              <>
-                <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--tasks">
-                  <MercenaryQuestBoard compact />
-                </div>
-
-                {state.selectedListing ? (
-                  <CatalogTradeHub
-                    listing={state.selectedListing}
-                    tradeQuantity={state.tradeQuantity}
-                    owned={state.countInventoryItem(state.selectedListing.itemId)}
-                    purchasePending={purchaseGateway.pending}
-                    sellPending={sellGateway.pending}
-                    onQuantityChange={state.setClampedTradeQuantity}
-                    onPurchase={purchaseGateway.submit}
-                    onSell={sellGateway.submit}
-                    onCancel={state.cancelSelection}
-                  />
-                ) : (
-                  <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--idle">
-                    <span className="vendor-shop__trade-tag">NODE::SELECIONE</span>
-                    <p className="vendor-shop__trade-idle">
-                      Selecione um spray na lista para comprar aqui.
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : state.tradeMode === 'ration' && sellsRation ? (
+            {state.tradeMode === 'ration' && sellsRation ? (
               <RationTradeHub
                 purchasePending={rationGateway.pending}
                 onPurchase={rationGateway.submit}
@@ -603,14 +620,17 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
               <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--idle">
                 <span className="vendor-shop__trade-tag">NODE::IDLE</span>
                 <p className="vendor-shop__trade-idle">
-                  {sellsRation
-                    ? 'Selecione a ração especial ou um drop para negociar.'
-                    : 'Selecione um drop na lista e confirme a venda aqui.'}
+                  {isMercenary
+                    ? 'Selecione um spray na lista para comprar aqui.'
+                    : sellsRation
+                      ? 'Selecione a ração especial ou um drop para negociar.'
+                      : 'Selecione um drop na lista e confirme a venda aqui.'}
                 </p>
               </div>
             )}
           </aside>
         </div>
+        ) : null}
       </div>
     </MovablePanelFrame>
   );

@@ -1,6 +1,10 @@
 import { resolveSessionAccessToken } from '../auth/supabaseAuth.js';
 import { getClientRuntimeConfig } from '../runtime/clientRuntimeConfig.js';
-import { resolveGameHttpUrl } from '../../shared/net/resolveGameHttpUrl.js';
+import { isLocalMonolithDevHost, resolveLocalMonolithGameHttpUrl } from '../../shared/net/localMonolithDev.js';
+import {
+  resolveAuthoritativeGameHttpUrl,
+  resolveGameHttpUrl,
+} from '../../shared/net/resolveGameHttpUrl.js';
 
 export type GameServerFetchOptions = {
   readonly method?: string;
@@ -12,6 +16,11 @@ export type GameServerFetchOptions = {
   readonly auth?: boolean;
   /** Aborta a requisição após N ms (evita UI presa se o Railway não responder). */
   readonly deadlineMs?: number;
+  /**
+   * Prefer Railway / monólito autoritativo (não same-origin Vercel).
+   * Usar para rotas que só existem no Node de jogo (ex.: /api/leaderboard).
+   */
+  readonly authoritativeHost?: boolean;
 };
 
 const DEFAULT_GAME_SERVER_DEADLINE_MS = 20_000;
@@ -39,14 +48,33 @@ function mergeAbortSignals(
   return controller.signal;
 }
 
-function resolveGameServerBaseUrl(): string {
-  return resolveGameHttpUrl(window.location, getClientRuntimeConfig());
+function resolveGameServerBaseUrl(authoritativeHost = false): string {
+  const config = getClientRuntimeConfig();
+  const location = window.location;
+
+  if (isLocalMonolithDevHost(location.hostname)) {
+    return resolveLocalMonolithGameHttpUrl(location);
+  }
+
+  if (authoritativeHost) {
+    const authoritative = resolveAuthoritativeGameHttpUrl(config);
+    if (authoritative) return authoritative;
+  }
+
+  return resolveGameHttpUrl(location, config);
 }
 
-/** Monta URL absoluta para rota do servidor de jogo (Railway), não da Vercel. */
-export function buildGameServerUrl(path: string, searchParams?: Record<string, string>): URL {
+/** Monta URL absoluta para APIs do jogo. Com `authoritativeHost`, prioriza Railway. */
+export function buildGameServerUrl(
+  path: string,
+  searchParams?: Record<string, string>,
+  options?: { readonly authoritativeHost?: boolean },
+): URL {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const url = new URL(normalizedPath, `${resolveGameServerBaseUrl()}/`);
+  const url = new URL(
+    normalizedPath,
+    `${resolveGameServerBaseUrl(options?.authoritativeHost === true)}/`,
+  );
   if (searchParams) {
     for (const [key, value] of Object.entries(searchParams)) {
       url.searchParams.set(key, value);
@@ -63,7 +91,9 @@ export async function gameServerFetch(
   path: string,
   options: GameServerFetchOptions = {},
 ): Promise<Response> {
-  const url = buildGameServerUrl(path, options.searchParams);
+  const url = buildGameServerUrl(path, options.searchParams, {
+    authoritativeHost: options.authoritativeHost === true,
+  });
   const deadlineMs = options.deadlineMs ?? DEFAULT_GAME_SERVER_DEADLINE_MS;
 
   const headers: Record<string, string> = {
