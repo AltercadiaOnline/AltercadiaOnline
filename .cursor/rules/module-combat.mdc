@@ -6,13 +6,14 @@ alwaysApply: false
 
 # Combate
 
-Uma ficha por chat — não abrir as três juntas.
+Uma ficha por chat — não abrir várias juntas.
 
 | Tarefa | Ficha |
 |--------|--------|
 | Motor, payload, Battle HUD, tooltip de move | `docs/context/combate.md` |
 | XP / loot cassino vs criatura | `docs/context/combate-pve.md` |
 | Fila púlpito / match ranqueado | `docs/context/combate-pvp.md` |
+| Ordem / setup / finisher por classe (catálogo) | `docs/context/combate-moveset-dinamica.md` |
 
 - Servidor calcula; cliente reproduz payload (`events`, `state`, `ui`).
 - Sem import WorldMap ↔ BattleScreen. Estado central único.

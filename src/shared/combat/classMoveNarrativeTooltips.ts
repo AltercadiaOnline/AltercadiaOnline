@@ -43,24 +43,25 @@ const IMPETUS_NARRATIVE_TOOLTIPS: Readonly<
   IMP_1: {
     category: MoveTooltipCategory.Execution,
     narrative:
-      'Golpe direto e confiável. Referência de pressão da classe — sem setup.',
+      'Golpe de pressão do pool. Filler confiável — anti-spam médio se repetir o mesmo golpe.',
     technical: buildOfficialTechnicalLine('Dano base 15', 8, 1),
     finale:
-      'Use para manter ritmo entre bursts. Encadeie com Impulso Crescente antes de Lâmina ou Fúria.',
+      'Use entre setups. Não substitui Lâmina/Preparo → Fúria.',
   },
   IMP_2: {
     category: MoveTooltipCategory.Preparation,
     narrative:
-      'Prepara o impulso ofensivo. Eco nos próximos golpes e precisão elevada — sem dano imediato.',
+      'Setup caro. Abre janela de finisher por 2 turnos; eco só na Fúria Suicida.',
     technical: buildOfficialTechnicalLine(
       'Dano base 0',
       12,
       1,
-      'Eco +15% do golpe escolhido (2 turnos; não renova se reusar)',
+      'Janela finisher 2 turnos',
+      'Eco +15% só no finisher',
       '+5% crítico',
     ),
     finale:
-      'Ative antes de Golpe Direto ou Lâmina. Cura no turno do eco não gasta carga; reusar Impulso não renova o eco.',
+      'Ative antes da Fúria. Reusar Preparo não renova o eco; a janela pode se renovar.',
   },
   IMP_3: {
     category: MoveTooltipCategory.Support,
@@ -68,47 +69,49 @@ const IMPETUS_NARRATIVE_TOOLTIPS: Readonly<
       'Recuperação rápida em si. Sustenta a pressão sem quebrar o ritmo ofensivo.',
     technical: buildOfficialTechnicalLine('Cura base 10', 8, 2),
     finale:
-      'Use com HP baixo entre golpes. Poção reativa no mesmo turno combina; cure antes do finisher se ainda for agredir.',
+      'Use com HP baixo entre golpes. Cure antes do finisher se ainda for agredir.',
   },
   IMP_4: {
-    category: MoveTooltipCategory.Execution,
+    category: MoveTooltipCategory.Preparation,
     narrative:
-      'Golpe incendiário. Dano imediato e queimadura nos turnos seguintes.',
+      'Setup barato. Burn no alvo e janela de finisher por 1 turno.',
     technical: buildOfficialTechnicalLine(
       'Dano base 16',
       5,
       2,
       'Queimadura 5% HP/turno (3 turnos)',
+      'Janela finisher 1 turno',
     ),
     finale:
-      'Aplique cedo para maximizar o DoT. Alterne com Golpe Direto e Impulso entre os ticks de burn.',
+      'Abra a janela e feche com Fúria Suicida. Alternativa rápida ao Preparo caro.',
   },
   IMP_5: {
     category: MoveTooltipCategory.Execution,
     narrative:
-      'Impacto em área. Atinge todos os inimigos e deixa impulso ofensivo residual.',
+      'Rompe a postura do rival. Corta escudo e encurta janela de finisher inimiga.',
     technical: buildOfficialTechnicalLine(
       'Dano base 14',
       8,
       2,
-      'AOE ×0,85 por alvo',
-      '+5% ATK (2 turnos)',
+      'Corta 50% do escudo',
+      'Encurta janela rival (−1)',
     ),
     finale:
-      'Priorize em PvE multi-alvo. O buff modesto prepara Golpe Direto ou burst nos turnos seguintes.',
+      'Priorize contra Tutator com muro ou Impetus rival em janela. Pool — não está no default.',
   },
   IMP_6: {
     category: MoveTooltipCategory.Execution,
     narrative:
-      'Finisher de altíssimo impacto. O recuo atravessa você na mesma hora.',
+      'Finisher. Pico na janela (+45% poder) com autodano reduzido; fora da janela, custo cheio.',
     technical: buildOfficialTechnicalLine(
       'Dano base 30',
       6,
       3,
-      'Autodano 35% do dano causado',
+      'Na janela: +45% poder, autodano 18%',
+      'Fora: autodano 35%',
     ),
     finale:
-      'Use só quando sobreviver ao recuo. Combina com Fôlego Impulsivo se o HP apertar depois.',
+      'Lâmina ou Preparo antes. Fôlego Divino se o HP apertar depois.',
   },
 };
 
@@ -213,12 +216,12 @@ const TUTATOR_NARRATIVE_TOOLTIPS: Readonly<
       '+1% ATK a cada 10 de dano recebido (máx. +30%)',
     ),
     finale:
-      'Tank hits nos turnos do inimigo e solte no seu turno — zera o acúmulo. Planeje Égide ou Espinhos antes de Retribuição.',
+      'Tank hits nos turnos do inimigo e solte no seu turno — zera o acúmulo. Planeje Escudo de Alter ou Espinhos antes de Retribuição.',
   },
   TUT_2: {
     category: MoveTooltipCategory.Preparation,
     narrative:
-      'Camada elétrica absorvente. Protege o HP e compra tempo para acumular fúria.',
+      'Escudo de Alter — camada absorvente. Protege o HP e compra tempo para acumular carga.',
     technical: buildOfficialTechnicalLine(
       'Dano base 0',
       10,
@@ -253,7 +256,7 @@ const TUTATOR_NARRATIVE_TOOLTIPS: Readonly<
       '−50% dano recebido (1 turno)',
     ),
     finale:
-      'Use contra kits de controle. Combine com Égide antes de janelas perigosas — não substitui escudo de absorção.',
+      'Use contra kits de controle. Combine com Escudo de Alter antes de janelas perigosas — não substitui escudo de absorção.',
   },
   TUT_5: {
     category: MoveTooltipCategory.Preparation,
@@ -304,7 +307,7 @@ const DISSOLUTUS_NARRATIVE_TOOLTIPS: Readonly<
   DIS_2: {
     category: MoveTooltipCategory.Preparation,
     narrative:
-      'Paradoxo defensivo no alvo. Corta a força dos próximos ataques inimigos.',
+      'Paradoxo Infernal no alvo. Corta a força dos próximos ataques inimigos.',
     technical: buildOfficialTechnicalLine(
       'Dano base 0',
       8,

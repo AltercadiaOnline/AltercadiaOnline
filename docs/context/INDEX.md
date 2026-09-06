@@ -11,7 +11,7 @@ login → identidade → mundo + HUD → loja / spray → combate → progressã
 
 ## Alta — quebra a sessão se falhar
 
-Loop que o jogador percorre **toda vez**. Intent e save atravessam tudo. Combate: **uma** das três fichas (motor / PVE / PVP), não as três juntas.
+Loop que o jogador percorre **toda vez**. Intent e save atravessam tudo. Combate: **uma** ficha (motor / PVE / PVP / moveset-dinamica), não várias juntas.
 
 | Ordem | Você está mexendo em… | Ficha | Pasta âncora |
 |------:|-----------------------|-------|----------------|
@@ -23,6 +23,7 @@ Loop que o jogador percorre **toda vez**. Intent e save atravessam tudo. Combate
 | 5 | Motor, payload, Battle HUD, nomenclatura de move | [combate.md](combate.md) | `src/server/combat/` `src/server/engine/` |
 | 5a | Vitória vs criatura: XP, marcos, loot cassino | [combate-pve.md](combate-pve.md) | `CombatSession.ts` + pending loot |
 | 5b | Púlpito, fila 1x1, match ranqueado, rating | [combate-pvp.md](combate-pvp.md) | `src/server/combat/pvp/` |
+| 5c | Ordem/setup/finisher por classe (catálogo) | [combate-moveset-dinamica.md](combate-moveset-dinamica.md) | `classMovesetCatalog.ts` + `CombatEngine` |
 | 6 | Itens, loja, banco, market, craft | [economia.md](economia.md) | `src/Economy/` |
 | 7 | Spray / pixo / legado / amigo | [spray-social.md](spray-social.md) | `src/shared/social/` |
 | — | Intent, handler, pending UI | [intents-gateway.md](intents-gateway.md) | `src/server/handlers/` |
@@ -39,6 +40,7 @@ Progressão e social de mapa. Só abrir estas fichas se o bug for **desse** POI.
 | 9 | Chat global | [chat.md](chat.md) | `src/server/handlers/social/ChatGlobalSendHandler.ts` |
 | 10 | Ranking / placar da arena | [ranking.md](ranking.md) | `src/server/leaderboard/` |
 | 11 | Refração, terminal zona 1, lazer cidade | [minigames-cidade.md](minigames-cidade.md) | `src/shared/cityMinigames/` `worldTerminalCatalog.ts` |
+| — | Torre de Poder (lobby + arenas; futuro) | [torre-poder.md](torre-poder.md) | `src/shared/tower/` (ainda não) + Construct `torre_lobby` |
 
 ## Baixa — polish e meta do chat
 

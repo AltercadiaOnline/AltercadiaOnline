@@ -15,7 +15,7 @@ import { applyMoveMasteryToSkillData } from '../progression/moveCombatScaling.js
 
 export { resolveMoveDefinitionForUi };
 
-/** Quatro skills padrão — mix burst / ramp / DoT / setup (ver `CLASS_DEFAULT_ACTIVE_LOADOUT`). */
+/** Quatro skills padrão — ordem/setup/finisher (ver `CLASS_DEFAULT_ACTIVE_LOADOUT` + ficha moveset-dinamica). */
 export function getDefaultClassActiveLoadout(classId: CombatClassId): string[] {
   const curated = CLASS_DEFAULT_ACTIVE_LOADOUT[classId];
   const pool = getClassMovePool(classId);

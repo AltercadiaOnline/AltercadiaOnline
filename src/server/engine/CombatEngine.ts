@@ -51,10 +51,19 @@ import {
   buildRuntimeStatus,
   buildSelfShield,
   formatRuntimeStatusDisplayTurns,
+  hasActiveRuntimeStatus,
   isIncomingStatusBlocked,
   isPermanentRuntimeStatus,
   resolveModifierPercentFromCombatant,
 } from '../../shared/combat/runtimeStatusCatalog.js';
+import {
+  FINISHER_WINDOW_STATUS_NAME,
+  isFinisherSkill,
+  resolveFinisherBurstPower,
+  resolveFinisherSelfDamagePercent,
+  resolveFinisherWindowTurns,
+  shouldEchoOnlyOnFinisher,
+} from '../../shared/combat/finisherWindow.js';
 import {
   isRuntimeEffectActive,
   isRuntimeEffectExpired,
@@ -1659,11 +1668,121 @@ export class CombatEngine {
     return Math.max(0, Math.floor(power * (1 + actorModifier / 100)));
   }
 
-  private shouldTriggerAttackEcho(pendingSkill: SkillData): boolean {
+  private shouldTriggerAttackEcho(pendingSkill: SkillData, echoMetadata?: Readonly<Record<string, number>>): boolean {
+    if (shouldEchoOnlyOnFinisher(echoMetadata)) {
+      return isFinisherSkill(pendingSkill);
+    }
     const meta = resolveMoveCombatMeta(pendingSkill.id);
     if (!meta || meta.category !== MoveCategory.Attack) return false;
     const power = pendingSkill.basePower ?? pendingSkill.damage ?? 0;
     return power > 0;
+  }
+
+  private applyFinisherWindowFromParams(
+    actorId: string,
+    params: Readonly<Record<string, number>>,
+    sourceSkillId: string,
+    events: CombatEvent[],
+  ): void {
+    const windowTurns = resolveFinisherWindowTurns(params);
+    if (windowTurns <= 0) return;
+    const actor = this.state.combatants[actorId];
+    if (!actor) return;
+    this.addOrRefreshStatus(actorId, this.statusAtTurn(
+      RuntimeStatusId.FinisherWindow,
+      FINISHER_WINDOW_STATUS_NAME,
+      windowTurns,
+      {
+        sourceActorId: actorId,
+        sourceSkillId,
+        metadata: { finisherWindowTurns: windowTurns },
+      },
+    ), events);
+    events.push({
+      type: CombatEventType.COMBAT_LOG,
+      battleId: this.state.battleId,
+      line: `${actor.name} abre janela de finisher (${windowTurns} turno(s)).`,
+      ts: Date.now(),
+    });
+  }
+
+  private applyPostureBreakEffects(
+    actorId: string,
+    targetId: string,
+    params: Readonly<Record<string, number>>,
+    events: CombatEvent[],
+  ): void {
+    const shieldBreakPct = Math.max(0, Math.floor(params.postureBreakShieldPercent ?? 0));
+    if (shieldBreakPct > 0) {
+      const target = this.state.combatants[targetId];
+      if (target) {
+        const shields = getShields(target);
+        if (shields.length > 0) {
+          const nextShields = shields
+            .map((shield) => ({
+              ...shield,
+              value: Math.max(0, Math.floor(shield.value * (1 - shieldBreakPct / 100))),
+            }))
+            .filter((shield) => shield.value > 0);
+          this.updateCombatant(targetId, (current) => ({
+            ...current,
+            activeShields: nextShields,
+          }));
+          events.push({
+            type: CombatEventType.COMBAT_LOG,
+            battleId: this.state.battleId,
+            line: `${target.name} perde ${shieldBreakPct}% da guarda.`,
+            ts: Date.now(),
+          });
+        }
+      }
+    }
+
+    const shorten = Math.max(0, Math.floor(params.rivalFinisherWindowShorten ?? 0));
+    if (shorten <= 0) return;
+    const rival = this.state.combatants[targetId];
+    if (!rival) return;
+    const window = getStatuses(rival).find((row) => row.id === RuntimeStatusId.FinisherWindow);
+    if (!window) return;
+    const nextDuration = window.turnsRemaining - shorten;
+    if (nextDuration <= 0) {
+      this.updateCombatant(targetId, (current) => ({
+        ...current,
+        activeStatuses: getStatuses(current).filter((row) => row.id !== RuntimeStatusId.FinisherWindow),
+      }));
+      this.setStatusEffectsFromRuntime(targetId);
+      this.pushStatusEvent(events, targetId, RuntimeStatusId.FinisherWindow, 'expired');
+      events.push({
+        type: CombatEventType.STATUS_EXPIRED,
+        payload: {
+          battleId: this.state.battleId,
+          targetId,
+          statusId: RuntimeStatusId.FinisherWindow,
+        },
+      });
+      events.push({
+        type: CombatEventType.COMBAT_LOG,
+        battleId: this.state.battleId,
+        line: `${rival.name} perde a janela de finisher.`,
+        ts: Date.now(),
+      });
+      return;
+    }
+    this.updateCombatant(targetId, (current) => ({
+      ...current,
+      activeStatuses: getStatuses(current).map((row) => (
+        row.id === RuntimeStatusId.FinisherWindow
+          ? { ...row, turnsRemaining: nextDuration }
+          : row
+      )),
+    }));
+    this.setStatusEffectsFromRuntime(targetId);
+    events.push({
+      type: CombatEventType.COMBAT_LOG,
+      battleId: this.state.battleId,
+      line: `${rival.name} tem a janela de finisher encurtada (−${shorten}).`,
+      ts: Date.now(),
+    });
   }
 
   private applyPendingAttackEcho(
@@ -1676,7 +1795,7 @@ export class CombatEngine {
     const echoStatus = getStatuses(actor).find((row) => row.id === RuntimeStatusId.AttackEcho);
     if (!echoStatus || (echoStatus.stacks ?? 0) <= 0) return;
 
-    if (pendingSkill && !this.shouldTriggerAttackEcho(pendingSkill)) return;
+    if (pendingSkill && !this.shouldTriggerAttackEcho(pendingSkill, echoStatus.metadata)) return;
 
     const targetId = this.resolveOpponentId(actorId);
     const echoBonusPct = echoStatus.metadata?.echoBonusPercent ?? 15;
@@ -1904,6 +2023,7 @@ export class CombatEngine {
       case MoveEffectKind.DamageMirror:
       case MoveEffectKind.OutOfTurn:
         this.applyDirectDamage(request.actorId, targetId, scaledPower, events, dmgOpts);
+        this.applyPostureBreakEffects(request.actorId, targetId, params, events);
         break;
       case MoveEffectKind.AttackEcho: {
         if (echoActiveAtTurnStart) {
@@ -1913,6 +2033,7 @@ export class CombatEngine {
             line: `${actor.name} mantém o impulso — eco anterior não se renova.`,
             ts: Date.now(),
           });
+          this.applyFinisherWindowFromParams(request.actorId, params, selectedSkill.id, events);
           break;
         }
         const echoBonusPct = params.echoBonusPercent
@@ -1921,6 +2042,7 @@ export class CombatEngine {
             : 15);
         const echoTurns = Math.max(1, Math.floor(params.echoTurns ?? 2));
         const critBonus = Math.max(0, Math.floor(params.critBonusPercent ?? 0));
+        const echoFinisherOnly = (params.echoFinisherOnly ?? 0) > 0 ? 1 : 0;
 
         if (scaledPower > 0) {
           const dealt = this.applyDirectDamage(request.actorId, targetId, scaledPower, events, dmgOpts);
@@ -1937,7 +2059,11 @@ export class CombatEngine {
                   sourceActorId: request.actorId,
                   sourceSkillId: selectedSkill.id,
                   stacks: echoTurns,
-                  metadata: { echoDamage, echoBonusPercent: echoBonusPct },
+                  metadata: {
+                    echoDamage,
+                    echoBonusPercent: echoBonusPct,
+                    echoFinisherOnly,
+                  },
                 },
               ),
             ],
@@ -1962,6 +2088,7 @@ export class CombatEngine {
             line: `${actor.name} prepara eco de ataque (${echoTurns} turno(s), ${echoDamage} por eco).`,
             ts: Date.now(),
           });
+          this.applyFinisherWindowFromParams(request.actorId, params, selectedSkill.id, events);
           break;
         }
 
@@ -1977,7 +2104,11 @@ export class CombatEngine {
                 sourceActorId: request.actorId,
                 sourceSkillId: selectedSkill.id,
                 stacks: echoTurns,
-                metadata: { echoBonusPercent: echoBonusPct, echoFromPendingMove: 1 },
+                metadata: {
+                  echoBonusPercent: echoBonusPct,
+                  echoFromPendingMove: 1,
+                  echoFinisherOnly,
+                },
               },
             ),
           ],
@@ -1999,12 +2130,14 @@ export class CombatEngine {
             appliedAtTurn: this.state.turn,
           },
         });
+        const echoFocus = echoFinisherOnly > 0 ? ' (só finisher)' : '';
         events.push({
           type: CombatEventType.COMBAT_LOG,
           battleId: this.state.battleId,
-          line: `${actor.name} prepara impulso (${echoTurns} eco(s) +${echoBonusPct}%${critBonus > 0 ? `, +${critBonus}% crítico` : ''}).`,
+          line: `${actor.name} prepara impulso (${echoTurns} eco(s) +${echoBonusPct}%${critBonus > 0 ? `, +${critBonus}% crítico` : ''}${echoFocus}).`,
           ts: Date.now(),
         });
+        this.applyFinisherWindowFromParams(request.actorId, params, selectedSkill.id, events);
         break;
       }
       case MoveEffectKind.StackingDamage: {
@@ -2087,6 +2220,7 @@ export class CombatEngine {
             metadata: { burnDamagePercent: params.burnDamagePercent ?? 5 },
           },
         ), events);
+        this.applyFinisherWindowFromParams(request.actorId, params, selectedSkill.id, events);
         break;
       case MoveEffectKind.AoeDamage:
         for (const enemy of allEnemies) {
@@ -2095,8 +2229,23 @@ export class CombatEngine {
         this.applyAttackModifier(request.actorId, params.nextTurnAttackBonusPercent ?? 12, Math.max(1, Math.floor(params.nextTurnAttackBonusTurns ?? 2)));
         break;
       case MoveEffectKind.HighRiskBurst: {
-        const dealt = this.applyDirectDamage(request.actorId, targetId, scaledPower, events, dmgOpts);
-        const selfDamage = Math.max(1, Math.floor(dealt * ((params.selfDamagePercent ?? 15) / 100)));
+        const inWindow = hasActiveRuntimeStatus(
+          getStatuses(actor),
+          RuntimeStatusId.FinisherWindow,
+          this.state.turn,
+        );
+        const burstPower = resolveFinisherBurstPower(scaledPower, params, inWindow);
+        if (inWindow && burstPower > scaledPower) {
+          events.push({
+            type: CombatEventType.COMBAT_LOG,
+            battleId: this.state.battleId,
+            line: `${actor.name} explode a janela de finisher!`,
+            ts: Date.now(),
+          });
+        }
+        const dealt = this.applyDirectDamage(request.actorId, targetId, burstPower, events, dmgOpts);
+        const selfPct = resolveFinisherSelfDamagePercent(params, inWindow);
+        const selfDamage = Math.max(1, Math.floor(dealt * (selfPct / 100)));
         // Autodano: source = player (não a criatura) — VFX ancora no PNG do jogador.
         this.applyDirectDamage(request.actorId, request.actorId, selfDamage, events, {
           ignoreBarrierPercent: 100,

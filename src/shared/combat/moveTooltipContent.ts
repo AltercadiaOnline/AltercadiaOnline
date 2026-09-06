@@ -151,8 +151,13 @@ export function formatMovePrimaryEffect(move: MoveDefinition): string | null {
       return line;
     }
 
-    case MoveEffectKind.ApplyBurn:
-      return `${formatMoveBasePowerLabel(power)}; Queimadura (${pctLabel(p.burnDamagePercent, 'burnDamagePercent', 5)}/turno, ${pct(p.burnTurns, 3)} turnos)`;
+    case MoveEffectKind.ApplyBurn: {
+      let line = `${formatMoveBasePowerLabel(power)}; Queimadura (${pctLabel(p.burnDamagePercent, 'burnDamagePercent', 5)}/turno, ${pct(p.burnTurns, 3)} turnos)`;
+      if (p.finisherWindowTurns) {
+        line += `; Janela finisher ${pct(p.finisherWindowTurns)} turno(s)`;
+      }
+      return line;
+    }
 
     case MoveEffectKind.StackingDamage: {
       const cap = pct(p.stackCap, 3);
@@ -162,9 +167,13 @@ export function formatMovePrimaryEffect(move: MoveDefinition): string | null {
     case MoveEffectKind.AttackEcho: {
       const bonus = pct(p.echoBonusPercent, 15);
       const echoTurns = pct(p.echoTurns, 2);
-      let line = `Eco +${bonus}% do golpe (${echoTurns} turno(s) seus)`;
+      const echoFocus = (p.echoFinisherOnly ?? 0) > 0 ? ' só no finisher' : '';
+      let line = `Eco +${bonus}% do golpe${echoFocus} (${echoTurns} turno(s) seus)`;
       if (p.critBonusPercent) {
         line += `; +${pct(p.critBonusPercent)}% crítico`;
+      }
+      if (p.finisherWindowTurns) {
+        line += `; Janela finisher ${pct(p.finisherWindowTurns)} turno(s)`;
       }
       if (power > 0) {
         return `${formatMoveBasePowerLabel(power)}; ${line}`;
@@ -181,8 +190,24 @@ export function formatMovePrimaryEffect(move: MoveDefinition): string | null {
       return line;
     }
 
-    case MoveEffectKind.HighRiskBurst:
-      return `${formatMoveBasePowerLabel(power)} (autodano: ${pct(p.selfDamagePercent, 15)}% do dano causado)`;
+    case MoveEffectKind.HighRiskBurst: {
+      let line = `${formatMoveBasePowerLabel(power)} (autodano: ${pct(p.selfDamagePercent, 15)}% do dano causado)`;
+      if (p.finisherWindowBonusPercent || p.selfDamageInWindowPercent) {
+        line += `; na janela: +${pct(p.finisherWindowBonusPercent, 45)}% poder, autodano ${pct(p.selfDamageInWindowPercent, 18)}%`;
+      }
+      return line;
+    }
+
+    case MoveEffectKind.PureDamage: {
+      let line = formatMoveBasePowerLabel(power);
+      if (p.postureBreakShieldPercent) {
+        line += `; corta ${pct(p.postureBreakShieldPercent)}% do escudo`;
+      }
+      if (p.rivalFinisherWindowShorten) {
+        line += `; encurta janela rival (−${pct(p.rivalFinisherWindowShorten)})`;
+      }
+      return line;
+    }
 
     case MoveEffectKind.DebuffScalingDamage: {
       const cap = pct(p.debuffBonusCap, 3);
@@ -238,9 +263,6 @@ export function formatMovePrimaryEffect(move: MoveDefinition): string | null {
       }
       return confuseLine;
     }
-
-    case MoveEffectKind.PureDamage:
-      return power > 0 ? formatMoveBasePowerLabel(power) : null;
 
     case MoveEffectKind.AttackStack:
       return power > 0 ? formatMoveBasePowerLabel(power) : null;

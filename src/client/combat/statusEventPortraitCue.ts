@@ -6,6 +6,7 @@ const STATUS_PLACEHOLDER_ICON: Readonly<Record<string, string>> = {
   DELAYED_DETONATION: '💣',
   HEAL_ECHO: '💚',
   ATTACK_ECHO: '⚔',
+  FINISHER_WINDOW: '⚔',
   THORNS: '🌵',
   STATUS_IMMUNITY: '🛡',
   VULNERABLE: '⬇',

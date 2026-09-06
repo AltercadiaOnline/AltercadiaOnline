@@ -7,6 +7,8 @@ const TICK_ON_ACTOR_TURN_STATUS_IDS: ReadonlySet<string> = new Set([
   RuntimeStatusId.Burn,
   RuntimeStatusId.Confuse,
   RuntimeStatusId.HealEcho,
+  /** Janela cobre o próximo turno do portador após o setup (duração do catálogo). */
+  RuntimeStatusId.FinisherWindow,
 ]);
 
 /** CC no portador — duração cobre a próxima ação dele mesmo se o turno global avançou. */

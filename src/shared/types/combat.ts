@@ -34,6 +34,8 @@ export const RuntimeStatusId = {
   RetaliationCharge: 'RETALIATION_CHARGE',
   HealEcho: 'HEAL_ECHO',
   AttackEcho: 'ATTACK_ECHO',
+  /** Setup Impetus — Fúria Suicida pico + autodano reduzido enquanto ativo. */
+  FinisherWindow: 'FINISHER_WINDOW',
   StatusImmunity: 'STATUS_IMMUNITY',
   Thorns: 'THORNS',
   MarcoCcImmune: 'MARCO_CC_IMMUNE',

@@ -105,9 +105,10 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
   {
     id: 'IMP_1',
     classId: 'IMPETUS',
-    name: 'Golpe Direto',
+    name: 'Golpe de Pressão',
     effectKind: MoveEffectKind.PureDamage,
-    effectSummary: 'Dano puro no alvo — skill básica de referência da classe.',
+    effectSummary:
+      'Pressão/filler do pool — anti-spam médio se repetir o mesmo golpe (cadeia de mash do motor).',
     isDefined: true,
     combat: {
       target: MoveTarget.Enemy,
@@ -122,10 +123,10 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
   {
     id: 'IMP_2',
     classId: 'IMPETUS',
-    name: 'Impulso Crescente',
+    name: 'Preparo de Impulso',
     effectKind: MoveEffectKind.AttackEcho,
     effectSummary:
-      'Preparação — eco +15% do golpe escolhido por 2 turnos seus e +5% crítico. Sem dano na hora. Reusar não renova o eco.',
+      'Setup caro — janela de finisher 2 turnos; eco +15% só na Fúria Suicida (não no spam). +5% crítico. Sem dano na hora.',
     isDefined: true,
     combat: {
       target: MoveTarget.Enemy,
@@ -139,13 +140,15 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
         echoBonusPercent: 15,
         echoTurns: 2,
         critBonusPercent: 5,
+        finisherWindowTurns: 2,
+        echoFinisherOnly: 1,
       },
     },
   },
   {
     id: 'IMP_3',
     classId: 'IMPETUS',
-    name: 'Fôlego Impulsivo',
+    name: 'Fôlego Divino',
     effectKind: MoveEffectKind.Heal,
     effectSummary: 'Cura canônica da classe — recuperação rápida em si, escala com STR.',
     isDefined: true,
@@ -167,7 +170,8 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
     classId: 'IMPETUS',
     name: 'Lâmina Ardente',
     effectKind: MoveEffectKind.ApplyBurn,
-    effectSummary: 'Aplica Burn — dano contínuo por turno.',
+    effectSummary:
+      'Setup barato — Burn no alvo e janela de finisher por 1 turno seu.',
     isDefined: true,
     combat: {
       target: MoveTarget.Enemy,
@@ -180,19 +184,20 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
       effectParams: {
         burnDamagePercent: 5,
         burnTurns: 3,
+        finisherWindowTurns: 1,
       },
     },
   },
   {
     id: 'IMP_5',
     classId: 'IMPETUS',
-    name: 'Varredura de Impacto',
-    effectKind: MoveEffectKind.AoeDamage,
+    name: 'Romper Postura',
+    effectKind: MoveEffectKind.PureDamage,
     effectSummary:
-      'Ataque em área — atinge todos os inimigos e gera bônus de ataque por 2 turnos sequenciais.',
+      'Util ofensivo (pool) — quebra guarda (corta escudo) e encurta janela de finisher rival.',
     isDefined: true,
     combat: {
-      target: MoveTarget.AllEnemies,
+      target: MoveTarget.Enemy,
       priority: 1,
       category: MoveCategory.Attack,
       scalingStat: MoveScalingStat.STR,
@@ -200,9 +205,8 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
       basePp: 8,
       cooldown: 2,
       effectParams: {
-        aoeDamageMultiplier: 0.85,
-        nextTurnAttackBonusPercent: 5,
-        nextTurnAttackBonusTurns: 2,
+        postureBreakShieldPercent: 50,
+        rivalFinisherWindowShorten: 1,
       },
     },
   },
@@ -211,7 +215,8 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
     classId: 'IMPETUS',
     name: 'Fúria Suicida',
     effectKind: MoveEffectKind.HighRiskBurst,
-    effectSummary: 'Dano alto com custo em si (autodano / exposição).',
+    effectSummary:
+      'Finisher — pico na janela (+45% poder); autodano reduzido na janela (não zero).',
     isDefined: true,
     combat: {
       target: MoveTarget.Enemy,
@@ -223,6 +228,8 @@ const IMPETUS_MOVES: readonly ClassMoveDefinition[] = [
       cooldown: 3,
       effectParams: {
         selfDamagePercent: 35,
+        selfDamageInWindowPercent: 18,
+        finisherWindowBonusPercent: 45,
       },
     },
   },
@@ -394,7 +401,7 @@ const TUTATOR_MOVES: readonly ClassMoveDefinition[] = [
   {
     id: 'TUT_2',
     classId: 'TUTATOR',
-    name: 'Égide de Volts',
+    name: 'Escudo de Alter',
     effectKind: MoveEffectKind.SelfShield,
     effectSummary: 'Gera escudo temporário que absorve dano antes do HP.',
     isDefined: true,
@@ -526,7 +533,7 @@ const DISSOLUTUS_MOVES: readonly ClassMoveDefinition[] = [
   {
     id: 'DIS_2',
     classId: 'DISSOLUTUS',
-    name: 'Paradoxo',
+    name: 'Paradoxo Infernal',
     effectKind: MoveEffectKind.InvertDebuff,
     effectSummary:
       'Aplica debuff — ataques inimigos causam 30% menos dano por 3 turnos.',

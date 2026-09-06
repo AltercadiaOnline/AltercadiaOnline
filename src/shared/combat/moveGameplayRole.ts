@@ -30,7 +30,7 @@ const ROLE_BY_EFFECT: Partial<Record<MoveEffectKindType, MoveGameplayRoleId>> = 
   [MoveEffectKind.OutOfTurn]: MoveGameplayRole.Burst,
   [MoveEffectKind.RandomDamage]: MoveGameplayRole.Burst,
   [MoveEffectKind.StackingDamage]: MoveGameplayRole.Ramp,
-  [MoveEffectKind.AttackEcho]: MoveGameplayRole.Ramp,
+  [MoveEffectKind.AttackEcho]: MoveGameplayRole.Setup,
   [MoveEffectKind.RetaliationStrike]: MoveGameplayRole.Ramp,
   [MoveEffectKind.AttackStack]: MoveGameplayRole.Ramp,
   [MoveEffectKind.ApplyBurn]: MoveGameplayRole.Dot,
@@ -62,12 +62,13 @@ export function formatMoveGameplayRoleLine(effectKind: MoveEffectKindType): stri
 }
 
 /**
- * Loadout ativo padrão (4 slots) — mix burst / ramp / DoT / setup por classe.
- * Cura canônica fica no pool de 6, fora dos 4 iniciais (troca no painel de moveset).
+ * Loadout ativo padrão (4 slots) — ordem/setup/finisher por classe.
+ * Fonte de produto: `docs/context/combate-moveset-dinamica.md`.
+ * Dissolutus: cura (`DIS_6`) fica no pool para caber o loop de caos.
  */
 export const CLASS_DEFAULT_ACTIVE_LOADOUT: Readonly<Record<CombatClassId, readonly string[]>> = {
-  IMPETUS: ['IMP_1', 'IMP_2', 'IMP_4', 'IMP_6'],
-  COGITOR: ['COG_1', 'COG_3', 'COG_2', 'COG_4'],
-  TUTATOR: ['TUT_1', 'TUT_6', 'TUT_5', 'TUT_2'],
-  DISSOLUTUS: ['DIS_1', 'DIS_5', 'DIS_3', 'DIS_2'],
+  IMPETUS: ['IMP_4', 'IMP_2', 'IMP_3', 'IMP_6'],
+  COGITOR: ['COG_4', 'COG_3', 'COG_1', 'COG_5'],
+  TUTATOR: ['TUT_5', 'TUT_2', 'TUT_1', 'TUT_3'],
+  DISSOLUTUS: ['DIS_2', 'DIS_4', 'DIS_3', 'DIS_1'],
 };

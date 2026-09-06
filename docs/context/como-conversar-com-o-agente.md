@@ -3,7 +3,7 @@
 ## Frase padrão (copie)
 
 ```text
-Módulo: <login | spray | combate | combate-pve | combate-pvp | economia | mundo | ui | persistencia | progressao | chat | ranking | minigames | audio>
+Módulo: <login | spray | combate | combate-pve | combate-pvp | combate-moveset-dinamica | economia | mundo | ui | persistencia | progressao | chat | ranking | minigames | audio>
 Objetivo: <1 frase>
 Onde vi: <produção Vercel | local>
 Ficha: @docs/context/<arquivo>.md

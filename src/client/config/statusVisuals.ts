@@ -67,6 +67,12 @@ export const STATUS_VISUALS: Readonly<Record<string, StatusVisual>> = {
     label: 'E',
     color: '#f4a261',
   },
+  [RuntimeStatusId.FinisherWindow]: {
+    iconPath: '',
+    iconId: 'finisher-window',
+    label: 'J',
+    color: '#ff4d6d',
+  },
   [RuntimeStatusId.StatusImmunity]: {
     iconPath: '',
     iconId: 'immunity',
