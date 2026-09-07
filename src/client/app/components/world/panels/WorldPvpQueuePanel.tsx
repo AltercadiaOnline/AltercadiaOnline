@@ -23,7 +23,6 @@ import {
 import {
   PVP_RANKED_STAKE_MAX_VOLTS,
   PVP_RANKED_STAKE_MIN_VOLTS,
-  PVP_RANKED_STAKE_PRESETS,
 } from '../../../../../shared/combat/pvp/pvpRankedDuelStake.js';
 import { resolvePlayerSkinBundleSouthPreviewUrl } from '../../../../../shared/character/playerSkinBundle.js';
 import { alertSystem } from '../../../../ui/alertSystem.js';
@@ -151,8 +150,11 @@ export function WorldPvpQueuePanel({
     || snapshot.phase === 'starting'
     || snapshot.phase === 'in_battle';
   const potVolts = snapshot.potVolts;
-  const displayedStake = localSlot?.stakeVolts ?? selectedStakeVolts;
   const canChangeStake = inQueue && !countdownActive && !localSlot?.ready;
+  /** Enquanto edita, o rascunho local manda; snapshot só após travar / countdown. */
+  const displayedStake = canChangeStake
+    ? selectedStakeVolts
+    : (localSlot?.stakeVolts ?? selectedStakeVolts);
   const canLockStake =
     inQueue
     && !localSlot?.ready
@@ -177,6 +179,14 @@ export function WorldPvpQueuePanel({
       });
     };
   }, [station.objectId, station.label, localPlayerId, identity.characterId, profile.displayName, store]);
+
+  /** Espelha rascunho inicial (≥50) no servidor assim que o slot local estiver editável. */
+  useEffect(() => {
+    if (!canChangeStake) return;
+    if (selectedStakeVolts < PVP_RANKED_STAKE_MIN_VOLTS) return;
+    if ((localSlot?.stakeVolts ?? 0) === selectedStakeVolts) return;
+    sendPvpRankedSetStake(station.objectId, selectedStakeVolts);
+  }, [canChangeStake, localSlot?.stakeVolts, selectedStakeVolts, station.objectId]);
 
   useEffect(() => {
     return store.onSessionCancelled(() => {
@@ -231,46 +241,43 @@ export function WorldPvpQueuePanel({
           <p className="pvp-queue__stake-label">
             {potVolts > 0
               ? `Pote ${formatVoltsShort(potVolts)} (soma das apostas). Casa: 5%.`
-              : 'Escolha e trave sua aposta (mín. 50 V). Cada um pode apostar um valor diferente.'}
+              : 'Digite e trave sua aposta (mín. 50 V). Cada um pode apostar um valor diferente.'}
           </p>
-          <div className="pvp-queue__stake-chips">
-            {PVP_RANKED_STAKE_PRESETS.map((value) => {
-              const unaffordable = walletDollarVolt < value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  className={`pvp-queue__stake-chip${displayedStake === value ? ' is-selected' : ''}`}
-                  disabled={!canChangeStake || unaffordable}
-                  onClick={() => {
-                    setSelectedStakeVolts(value);
-                    sendPvpRankedSetStake(station.objectId, value);
-                  }}
-                >
-                  {formatVoltsShort(value)}
-                </button>
-              );
-            })}
-          </div>
           <label className="pvp-queue__stake-custom">
-            Valor
-            <input
-              type="number"
-              min={PVP_RANKED_STAKE_MIN_VOLTS}
-              max={PVP_RANKED_STAKE_MAX_VOLTS}
-              step={50}
-              disabled={!canChangeStake}
-              value={displayedStake || ''}
-              onChange={(event) => {
-                const next = Math.floor(Number(event.target.value));
-                if (!Number.isFinite(next)) return;
-                setSelectedStakeVolts(next);
-                if (next >= PVP_RANKED_STAKE_MIN_VOLTS && next <= PVP_RANKED_STAKE_MAX_VOLTS) {
-                  sendPvpRankedSetStake(station.objectId, next);
-                }
-              }}
-            />
+            <span className="pvp-queue__stake-custom-label">Sua aposta</span>
+            <span className="pvp-queue__stake-input-wrap">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={PVP_RANKED_STAKE_MIN_VOLTS}
+                max={PVP_RANKED_STAKE_MAX_VOLTS}
+                step={1}
+                disabled={!canChangeStake}
+                value={displayedStake > 0 ? displayedStake : ''}
+                placeholder={String(PVP_RANKED_STAKE_MIN_VOLTS)}
+                aria-label={`Aposta em VOLTS, mínimo ${PVP_RANKED_STAKE_MIN_VOLTS}`}
+                onChange={(event) => {
+                  const raw = event.target.value.trim();
+                  if (raw === '') {
+                    setSelectedStakeVolts(0);
+                    return;
+                  }
+                  const next = Math.floor(Number(raw));
+                  if (!Number.isFinite(next) || next < 0) return;
+                  setSelectedStakeVolts(next);
+                  if (next >= PVP_RANKED_STAKE_MIN_VOLTS && next <= PVP_RANKED_STAKE_MAX_VOLTS) {
+                    sendPvpRankedSetStake(station.objectId, next);
+                  }
+                }}
+              />
+              <span className="pvp-queue__stake-unit" aria-hidden>
+                V
+              </span>
+            </span>
           </label>
+          {displayedStake > walletDollarVolt ? (
+            <p className="pvp-queue__stake-warn">VOLTS insuficientes para este valor.</p>
+          ) : null}
         </div>
 
         <div className="pvp-queue__actions">

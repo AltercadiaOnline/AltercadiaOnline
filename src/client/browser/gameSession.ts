@@ -8,6 +8,10 @@ import { InputHandler } from '../inputHandler.js';
 import { applyEconomyEventToHud, isEconomyEvent } from '../ui/economyHud.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import {
+  notifyZoneBypassInitResult,
+  notifyZoneBypassSubmitResult,
+} from '../world/zoneBypassNotify.js';
+import {
   registerCombatDevTransportResolver,
   refreshCombatDevBindings,
 } from '../dev/combatDevBindings.js';
@@ -558,11 +562,27 @@ async function connectSocket(): Promise<void> {
       if (!socket || socket.readyState !== WebSocket.OPEN) {
         console.warn('[ActionDispatcher] player-intent bloqueado — WS fechado.', intent.action.type);
         queueMicrotask(() => {
+          if (intent.action.type === 'ZONE_BYPASS_INIT') {
+            notifyZoneBypassInitResult({
+              ok: false,
+              reason: 'Servidor desconectado. Reconecte e tente novamente.',
+            });
+          } else if (intent.action.type === 'ZONE_BYPASS_SUBMIT') {
+            notifyZoneBypassSubmitResult({
+              ok: false,
+              reason: 'Servidor desconectado. Reconecte e tente novamente.',
+            });
+          }
           dispatcher.rejectIntent(
             intent.intentId,
             'Servidor desconectado. Reconecte e tente novamente.',
           );
-          alertSystem('Servidor desconectado. Reconecte e tente novamente.');
+          if (
+            intent.action.type !== 'ZONE_BYPASS_INIT'
+            && intent.action.type !== 'ZONE_BYPASS_SUBMIT'
+          ) {
+            alertSystem('Servidor desconectado. Reconecte e tente novamente.');
+          }
         });
         return;
       }

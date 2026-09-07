@@ -8,7 +8,6 @@ export const PVP_RANKED_PRACTICE_BOT_PLAYER_ID = 'pvp_practice_bot';
 export const PVP_RANKED_STAKE_MIN_VOLTS = 50;
 export const PVP_RANKED_STAKE_MAX_VOLTS = 10_000;
 export const PVP_RANKED_HOUSE_RAKE_RATE = 0.05;
-export const PVP_RANKED_STAKE_PRESETS = [50, 100, 250, 500, 1000] as const;
 
 export function isPvpPracticeBotPlayer(playerId: string): boolean {
   return playerId === PVP_RANKED_PRACTICE_BOT_PLAYER_ID;
