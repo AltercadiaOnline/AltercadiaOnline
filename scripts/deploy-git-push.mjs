@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from 'node:child_process';
+import { ensureAltercadiaGithubAuth } from './ensureAltercadiaGithubAuth.mjs';
 
 const message = `Deploy: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
 
@@ -16,4 +17,5 @@ if (!pending) {
 }
 
 run(`git commit -m "${message}"`);
+ensureAltercadiaGithubAuth();
 run('git push origin main');

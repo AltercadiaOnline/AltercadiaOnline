@@ -10,6 +10,7 @@
  *   npm run deploy -- --no-wait
  */
 import { execSync } from 'node:child_process';
+import { ensureAltercadiaGithubAuth } from './ensureAltercadiaGithubAuth.mjs';
 
 const args = process.argv.slice(2);
 const noWait = args.includes('--no-wait');
@@ -68,6 +69,7 @@ if (statusPorcelain()) {
 }
 
 const pushedCommit = headCommit();
+ensureAltercadiaGithubAuth();
 run('git push origin main');
 
 try {
