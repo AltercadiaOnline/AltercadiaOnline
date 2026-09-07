@@ -216,7 +216,8 @@ export const MemoryTerminalReactBridge: React.FC = () => {
         }
 
         const current = overlayRef.current;
-        if (current && (current.kind === 'booting' || current.kind === 'minigame')) {
+        // Minigame em andamento — não reinicia. Booting travado pode retentar.
+        if (current && current.kind === 'minigame') {
           return;
         }
 

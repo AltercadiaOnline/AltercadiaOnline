@@ -39,7 +39,7 @@ import {
 import {
   notifyZoneBypassInitResult,
   notifyZoneBypassSubmitResult,
-} from '../world/zoneBypassClient.js';
+} from '../world/zoneBypassNotify.js';
 import type {
   TerminalInitResponse,
   TerminalSubmitResponse,
@@ -455,6 +455,16 @@ function tryNotifyRefractionResult(intentId: string, success: boolean, data?: un
   }
 }
 
+function isTerminalInitResponse(data: unknown): data is TerminalInitResponse {
+  if (!data || typeof data !== 'object') return false;
+  const record = data as Record<string, unknown>;
+  return typeof record.sessionId === 'string'
+    && typeof record.transitionId === 'string'
+    && typeof record.displayTimeMs === 'number'
+    && typeof record.timeLimitMs === 'number'
+    && typeof record.isAlreadyUnlocked === 'boolean';
+}
+
 function tryNotifyZoneBypassResult(intentId: string, success: boolean, data?: unknown): void {
   const pending = getPendingIntentRegistry().get(intentId);
   if (!pending) return;
@@ -472,9 +482,14 @@ function tryNotifyZoneBypassResult(intentId: string, success: boolean, data?: un
         notifyZoneBypassInitResult({ ok: false, reason: failReason ?? 'Falha ao iniciar.' });
         return;
       }
-      if (data && typeof data === 'object') {
-        notifyZoneBypassInitResult(data as TerminalInitResponse);
+      if (isTerminalInitResponse(data)) {
+        notifyZoneBypassInitResult(data);
+        return;
       }
+      notifyZoneBypassInitResult({
+        ok: false,
+        reason: 'Resposta inválida do servidor ao ligar o terminal.',
+      });
       return;
     case 'ZONE_BYPASS_SUBMIT':
       if (!success) {
@@ -483,7 +498,12 @@ function tryNotifyZoneBypassResult(intentId: string, success: boolean, data?: un
       }
       if (data && typeof data === 'object') {
         notifyZoneBypassSubmitResult(data as TerminalSubmitResponse & { zoneDomain?: ZoneDomainSnapshot });
+        return;
       }
+      notifyZoneBypassSubmitResult({
+        ok: false,
+        reason: 'Resposta inválida do servidor ao validar o código.',
+      });
       return;
     default:
       return;
@@ -775,13 +795,27 @@ export function handleIntentResultPayload(raw: unknown): void {
     const inventoryApplied = tryApplyInventoryFromIntentData(raw.intentId, raw.data);
     tryApplyMarcosFromIntentData(raw.intentId, raw.data);
     const statPointsApplied = tryApplyStatPointsFromIntentData(raw.intentId, raw.data);
-    tryApplyMercenaryQuestsFromIntentData(raw.intentId, raw.data);
+    const mercenaryQuestsApplied = tryApplyMercenaryQuestsFromIntentData(raw.intentId, raw.data);
     tryApplyMovesetMasteryFromIntentData(raw.intentId, raw.data);
     tryApplyHealVitalsFromIntentData(raw.intentId, raw.data);
     tryApplyMarketplaceFromIntentData(raw.intentId, raw.data);
     const skipFullStateForAllocatedStats =
       pendingIntent?.action.type === 'ALLOCATE_STAT_POINTS' && statPointsApplied;
-    if (!skipFullStateForAllocatedStats && (!petRosterApplied || !inventoryApplied)) {
+    // Aceitar/abandonar/completar/interact já espelham mercenaryQuests no ACK.
+    // requestFullState em seguida pode chegar vazio (race/persist) e apagar o tracker da HUD.
+    const skipFullStateForMercenary =
+      mercenaryQuestsApplied
+      && (
+        pendingIntent?.action.type === 'ACCEPT_MERCENARY_TASK'
+        || pendingIntent?.action.type === 'ABANDON_MERCENARY_TASK'
+        || pendingIntent?.action.type === 'COMPLETE_MERCENARY_TASK'
+        || pendingIntent?.action.type === 'MERCENARY_QUEST_INTERACT'
+      );
+    if (
+      !skipFullStateForAllocatedStats
+      && !skipFullStateForMercenary
+      && (!petRosterApplied || !inventoryApplied)
+    ) {
       getGlobalStateSynchronizer().requestFullState();
     }
 

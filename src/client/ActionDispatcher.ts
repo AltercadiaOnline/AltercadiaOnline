@@ -69,6 +69,10 @@ import { getPlayerWalletStore } from './ui/wallet/playerWalletStore.js';
 import { confirmTransaction, rejectTransaction } from './core/GameTransactionCoordinator.js';
 import { alertSystem } from './ui/alertSystem.js';
 import { uiEvents, UIEventType } from './ui/uiEvents.js';
+import {
+  notifyZoneBypassInitResult,
+  notifyZoneBypassSubmitResult,
+} from './world/zoneBypassNotify.js';
 import { getPlayerSkinStore } from './ui/character/playerSkinStore.js';
 import { getPlayerPetStore } from './ui/pet/playerPetStore.js';
 import {
@@ -1029,6 +1033,19 @@ export class ActionDispatcher {
       const stillPending = getPendingIntentRegistry().isIntentPending(intentId);
       if (!stillPending) return;
 
+      // Fecha HUD do terminal antes de limpar o pending — senão fica em "Ligando…".
+      if (action.type === 'ZONE_BYPASS_INIT') {
+        notifyZoneBypassInitResult({
+          ok: false,
+          reason: 'Terminal não respondeu. Tente novamente.',
+        });
+      } else if (action.type === 'ZONE_BYPASS_SUBMIT') {
+        notifyZoneBypassSubmitResult({
+          ok: false,
+          reason: 'Terminal não respondeu. Tente novamente.',
+        });
+      }
+
       this.rejectIntent(intentId, undefined, { silent: true });
       console.warn('[ActionDispatcher] Intenção expirou sem confirmação do servidor.', {
         intentId,
@@ -1042,7 +1059,9 @@ export class ActionDispatcher {
       if (this.mode === 'online' && this.shouldResyncInventoryAfterTimeout(action)) {
         getGlobalStateSynchronizer().requestFullState();
       }
-      this.notifyPendingIntentTimeout();
+      if (!this.isZoneBypassAction(action)) {
+        this.notifyPendingIntentTimeout();
+      }
     }, this.pendingIntentTimeoutMs);
     this.intentTimeoutHandles.set(intentId, handle);
   }

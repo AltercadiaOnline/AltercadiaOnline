@@ -54,11 +54,14 @@ export class ActionDispatcher {
     }
 
     try {
+      // INIT só cria sessão de minigame — unlock/persist ficam no SUBMIT.
+      const persistOnSuccess =
+        intent.type === 'ZONE_BYPASS_INIT' ? undefined : ctx.schedulePersist;
       handler.attachSession({
         playerId: ctx.playerId,
         characterId: ctx.characterId,
         sendIntent: ctx.sendIntent,
-        onSuccess: ctx.schedulePersist,
+        ...(persistOnSuccess ? { onSuccess: persistOnSuccess } : {}),
       });
       await handler.execute(ctx.playerId, intent.payload, intent.intentId);
       return 'handled';

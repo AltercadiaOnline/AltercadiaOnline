@@ -16,26 +16,27 @@ export class ZoneBypassInitHandler extends BaseIntentHandler<ZoneBypassInitPaylo
     payload: ZoneBypassInitPayload,
     intentId: string,
   ): Promise<void> {
+    const session = this.captureSession();
+
     if (!isSubZoneTransitionId(payload?.transitionId)) {
-      this.sendResponse(playerId, intentId, false, 'TRANSITION_INVALID');
+      session.sendResponse(playerId, intentId, false, 'TRANSITION_INVALID');
       return;
     }
 
-    const characterId = this.characterId;
+    const characterId = session.characterId;
     if (!characterId || characterId < 1) {
-      this.sendResponse(playerId, intentId, false, 'NO_WORLD_SESSION');
+      session.sendResponse(playerId, intentId, false, 'NO_WORLD_SESSION');
       return;
     }
 
     const gateway = getAuthoritativeZoneBypassGateway();
-    await gateway.ensureBootstrapped();
-
     try {
+      await gateway.ensureBootstrapped();
       const result = gateway.initSession(playerId, characterId, payload.transitionId);
-      this.sendResponse(playerId, intentId, true, result);
+      session.sendResponse(playerId, intentId, true, result);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Falha ao iniciar terminal.';
-      this.sendResponse(playerId, intentId, false, message);
+      session.sendResponse(playerId, intentId, false, message);
     }
   }
 }
@@ -53,41 +54,47 @@ export class ZoneBypassSubmitHandler extends BaseIntentHandler<ZoneBypassSubmitP
     payload: ZoneBypassSubmitPayload,
     intentId: string,
   ): Promise<void> {
+    const session = this.captureSession();
     const sessionId = payload?.sessionId?.trim();
     const inputCode = payload?.inputCode?.trim();
     if (!sessionId || !inputCode) {
-      this.sendResponse(playerId, intentId, false, 'PAYLOAD_INVALID');
+      session.sendResponse(playerId, intentId, false, 'PAYLOAD_INVALID');
       return;
     }
 
-    const characterId = this.characterId;
+    const characterId = session.characterId;
     if (!characterId || characterId < 1) {
-      this.sendResponse(playerId, intentId, false, 'NO_WORLD_SESSION');
+      session.sendResponse(playerId, intentId, false, 'NO_WORLD_SESSION');
       return;
     }
 
     const gateway = getAuthoritativeZoneBypassGateway();
-    await gateway.ensureBootstrapped();
+    try {
+      await gateway.ensureBootstrapped();
 
-    const profile = getAuthoritativeProgression(playerId, characterId).characterProfile;
-    const displayName = profile.displayName?.trim() || 'Operador';
-    const result = gateway.submitAnswer(
-      playerId,
-      characterId,
-      sessionId,
-      inputCode,
-      displayName,
-    );
+      const profile = getAuthoritativeProgression(playerId, characterId).characterProfile;
+      const displayName = profile.displayName?.trim() || 'Operador';
+      const result = gateway.submitAnswer(
+        playerId,
+        characterId,
+        sessionId,
+        inputCode,
+        displayName,
+      );
 
-    if (!result.success) {
-      this.sendResponse(playerId, intentId, false, result.errorMessage ?? 'Falha no terminal.');
-      return;
+      if (!result.success) {
+        session.sendResponse(playerId, intentId, false, result.errorMessage ?? 'Falha no terminal.');
+        return;
+      }
+
+      session.sendResponse(playerId, intentId, true, {
+        ...result,
+        zoneDomain: gateway.getDomainSnapshot(playerId, characterId),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Falha ao validar terminal.';
+      session.sendResponse(playerId, intentId, false, message);
     }
-
-    this.sendResponse(playerId, intentId, true, {
-      ...result,
-      zoneDomain: gateway.getDomainSnapshot(playerId, characterId),
-    });
   }
 }
 

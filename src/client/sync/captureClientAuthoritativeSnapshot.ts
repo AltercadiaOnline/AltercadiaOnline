@@ -13,6 +13,7 @@ import { getPlayerItemStore } from '../ui/items/playerItemStore.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getPlayerProgressionStore } from '../progression/playerProgressionStore.js';
 import { getPlayerWalletStore } from '../ui/wallet/playerWalletStore.js';
+import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
 import { getActivePlayerSkinBundleId } from '../entities/player/activePlayerSkinBundle.js';
 
 /** Captura o estado autoritativo local imediatamente antes de enviar um comando. */
@@ -28,6 +29,7 @@ export function captureClientAuthoritativeSnapshot(): AuthoritativePlayerSnapsho
   const petStore = getPlayerPetStore();
   const petRoster = petStore.getRoster();
   const petAffinity = petStore.getPetAffinitySnapshot();
+  const mercenaryQuests = getMercenaryQuestStore().getSnapshot();
 
   return {
     revision: dataStore.getGlobalRevision(),
@@ -72,6 +74,13 @@ export function captureClientAuthoritativeSnapshot(): AuthoritativePlayerSnapsho
       ...allocatedStatsToProfileFields(points),
       unspentStatPoints: points.unspent,
       skinBundleId: getActivePlayerSkinBundleId(),
+    },
+    mercenaryQuests: {
+      activeQuestId: mercenaryQuests.activeQuestId,
+      completedQuestIds: [...mercenaryQuests.completedQuestIds],
+      stepIndex: mercenaryQuests.stepIndex,
+      completedStepTargets: [...mercenaryQuests.completedStepTargets],
+      readyToTurnIn: mercenaryQuests.readyToTurnIn,
     },
   };
 }

@@ -20,10 +20,11 @@ export type GameTransactionFailureOptions = {
 };
 
 export function resolveTransactionErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'string' && error.trim().length > 0) return error.trim();
-  if (error instanceof Error && error.message.trim().length > 0) return error.message.trim();
   if (typeof error === 'string' && error.trim().length > 0) {
     return getIntentErrorMessage(error.trim());
+  }
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return getIntentErrorMessage(error.message.trim());
   }
   return fallback;
 }

@@ -129,6 +129,21 @@ const INTENT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   REPLAY_DETECTED: 'Intenção já processada.',
   STALE_INTENT: 'Intenção expirada — tente novamente.',
   ERR_ACTION_FORBIDDEN: 'Ação indisponível durante combate.',
+  QUEST_NOT_FOUND: 'Contrato inexistente no quadro.',
+  QUEST_TIER_LOCKED: 'Complete as 5 missões do tier anterior para liberar este contrato.',
+  QUEST_ALREADY_DONE: 'Este contrato já foi encerrado.',
+  QUEST_ALREADY_ACTIVE: 'Este contrato já está ativo.',
+  QUEST_SLOT_BUSY: 'Abandone o contrato ativo antes de assinar outro.',
+  QUEST_NONE_ACTIVE: 'Nenhum contrato ativo.',
+  QUEST_NOT_ACTIVE: 'Esse contrato não é o ativo.',
+  QUEST_NOT_READY: 'Conclua os objetivos no mundo antes de entregar no Quadro.',
+  QUEST_INTERACT_INVALID: 'Interação de contrato inválida.',
+  QUEST_MAP_MISMATCH: 'Este alvo de contrato não está neste mapa.',
+  QUEST_TARGET_MISSING: 'Contact de contrato não encontrado neste mapa.',
+  QUEST_OUT_OF_RANGE: 'Chegue mais perto do alvo do contrato.',
+  QUEST_TARGET_MISMATCH: 'Este alvo não faz parte do contrato ativo.',
+  QUEST_BINDING_MISSING: 'Contrato sem passos no mundo.',
+  QUEST_ALREADY_READY: 'Contrato pronto — entregue no Mercenário.',
 };
 
 export function resolveIntentErrorCode(source: {

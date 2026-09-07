@@ -478,6 +478,16 @@ export class MockEconomyService implements IDevMockEconomyService {
       return;
     }
 
+    if (action.type === 'ZONE_BYPASS_INIT' || action.type === 'ZONE_BYPASS_SUBMIT') {
+      handleIntentResultPayload({
+        intentId,
+        correlationId: intentId,
+        success: false,
+        error: result.reason,
+      });
+      return;
+    }
+
     getActionDispatcher().rejectIntent(intentId);
     alertSystem(result.reason);
   }
