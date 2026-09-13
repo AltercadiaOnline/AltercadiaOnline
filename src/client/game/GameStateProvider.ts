@@ -334,7 +334,23 @@ export function beginPendingPveCombatJoin(monsterInstanceId: string): boolean {
  * Pedido de join (legado / local) — prepara encontro + combat-join, sem montar Battle.
  */
 export async function startBattle(monsterId: string): Promise<boolean> {
-  const encounter = resolvePendingBattleEncounter(monsterId) ?? buildBattleEncounter(monsterId);
+  const encounter = resolvePendingBattleEncounter(monsterId)
+    ?? buildBattleEncounter(monsterId)
+    ?? (monsterId.startsWith('tower_boss:')
+      ? (() => {
+          const snap = getGlobalPlayerStore().getExplorationSnapshot();
+          const parts = monsterId.split(':');
+          const floor = parts[1] ?? '?';
+          return {
+            monsterId,
+            monsterName: `Guardião · Andar ${floor}`,
+            mapId: (snap?.mapId && isMapId(snap.mapId) ? snap.mapId : CITY_01_ID),
+            tileX: 0,
+            tileY: 0,
+            creatureId: `tower_boss_floor_${floor}`,
+          } satisfies BattleEncounterData;
+        })()
+      : null);
   const hooks = getGameStateProviderSlot().hooks;
   if (!encounter || !hooks) return false;
 
@@ -485,12 +501,16 @@ export async function returnToExplorationFromBattle(
   getGameStateProviderSlot().pendingCombatJoin = false;
   clearPendingCombatJoinTimer();
 
-  // PVE derrota / PVP casual derrota → cidade. PVP rankeado → mesma pose do duelo.
+  // PVE derrota / PVP casual derrota → cidade. Torre derrota → gate (servidor). PVP rankeado → mesma pose.
   if (resolveLocalDefeatCityTeleport({
     victory: options.victory,
     ...(options.endReason !== undefined ? { endReason: options.endReason } : {}),
     ...(options.battleType !== undefined ? { battleType: options.battleType } : {}),
     ...(options.casualPvp === true ? { casualPvp: true } : {}),
+    ...(options.towerDefeat === true
+      || (typeof options.monsterId === 'string' && options.monsterId.startsWith('tower_boss:'))
+      ? { towerDefeat: true }
+      : {}),
   })) {
     const citySpawn = buildCitySafeSpawnPayload();
     if (isMapId(citySpawn.mapId)) {

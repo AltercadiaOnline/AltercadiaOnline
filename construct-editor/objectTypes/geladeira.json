@@ -1,0 +1,60 @@
+{
+	"name": "geladeira",
+	"plugin-id": "Sprite",
+	"sid": 535211154578065,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 204951753282192
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 81,
+						"height": 163,
+						"originX": 3.993827160493827,
+						"originY": 1.0429447852760736,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 9296102,
+						"collisionPoly": {
+							"points": [
+								0.06584362139917685,
+								0.03271983640081799,
+								0.9958847736625515,
+								0.028629856850715743,
+								1,
+								1,
+								1,
+								1,
+								0.08641975308641975,
+								1
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 453909211052611,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

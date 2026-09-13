@@ -129,6 +129,11 @@ function copyExportTree() {
     process.exit(1);
   }
 
+  if (!dataRaw.includes('entradatorredopoder')) {
+    console.error(`[sync:construct] Layout da Torre de Poder ausente (entradatorredopoder)`);
+    process.exit(1);
+  }
+
   console.log(
     `[sync:construct] OK → public/construct-world/ (${readdirSync(targetDir).length} entradas na raiz)`,
   );

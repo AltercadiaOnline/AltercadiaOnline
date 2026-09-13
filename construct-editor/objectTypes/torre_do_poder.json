@@ -1,0 +1,70 @@
+{
+	"name": "torre_do_poder",
+	"plugin-id": "Sprite",
+	"sid": 807804569209404,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 528581095039312
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 461,
+						"height": 473,
+						"originX": 21.43993620825466,
+						"originY": 11.779580106417022,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 3208777,
+						"collisionPoly": {
+							"points": [
+								1,
+								0.0021141649048625794,
+								1,
+								0.0021141649048625794,
+								1,
+								0.0021141649048625794,
+								1,
+								1,
+								1,
+								1,
+								1,
+								1,
+								1,
+								1,
+								1,
+								1,
+								0,
+								1,
+								0,
+								0.0021141649048625794
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 575325244470697,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

@@ -47,6 +47,14 @@ describe('battleWorldRestorePolicy', () => {
     })).toBe(false);
   });
 
+  it('Torre derrota → sem cidade (gate)', () => {
+    expect(shouldCityRespawnAfterBattle({
+      battleType: BattleType.PVE,
+      victory: false,
+      towerDefeat: true,
+    })).toBe(false);
+  });
+
   it('vitória nunca teleporta', () => {
     expect(shouldCityRespawnAfterBattle({
       battleType: BattleType.PVE,

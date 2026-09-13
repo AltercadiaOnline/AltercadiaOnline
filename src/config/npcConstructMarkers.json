@@ -22,5 +22,11 @@
   "computador_zona1a": "computador_zona1a",
   "computador_zona1b": "computador_zona1b",
   "computador_zona1c": "computador_zona1c",
+  "computador_towerpower": "computador_towerpower",
+  "enter_spaw_towerpower": "enter_spaw_towerpower",
+  "spaw_enter_towerpower": "enter_spaw_towerpower",
+  "ativador_boss": "ativador_boss",
+  "next_level_power_tower": "next_level_power_tower",
+  "leave_level_power_tower2": "leave_level_power_tower2",
   "pulpito": "combate_pvp"
 }

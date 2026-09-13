@@ -1,0 +1,36 @@
+{
+  "group_id": "1a0218ad-ba4f-4c2b-8c8b-70b48f4ded72",
+  "states": [
+    {
+      "character": {
+        "id": "524a7f48-3722-428a-8170-0d3880954e21",
+        "name": "Idle",
+        "prompt": "Pixel art game asset sprite, full-body character portrait of Apex-01 Cybernetic Wyrm boss, top-down tactical perspective. Massive mechanical dragon monstrosity with a segmented serpentine spine made of interlocking titanium-alloy plates and glowing blue neon energy seams running along its back. Head features a predatory swept-back steel crest, glowing optical sensor eyes, and an open jaws lined with high-frequency plasma teeth. Massive delta-wing-like stabilizer fins made of carbon fiber fold tightly along its sides, and a heavy plasma-thruster tail assembly anchors its rear. 90s retro anime mecha-dragon aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background, isolated sprite, NO background elements, NO walls, NO ground.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "custom",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-07T20:02:28.857700+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-07T20:07:06.654569"
+}

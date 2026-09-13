@@ -1,0 +1,55 @@
+{
+	"name": "next_level_power_tower",
+	"plugin-id": "Sprite",
+	"sid": 242240605758146,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [
+		{
+			"name": "city_portal_north",
+			"type": "string",
+			"desc": "",
+			"show": true,
+			"sid": 613750563437630
+		},
+		{
+			"name": "farm_portal_south",
+			"type": "string",
+			"desc": "",
+			"show": true,
+			"sid": 779789168683258
+		}
+	],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 102,
+						"height": 112,
+						"originX": -3.079738562091503,
+						"originY": 4.669642857142857,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 5180623,
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 639916968298486,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

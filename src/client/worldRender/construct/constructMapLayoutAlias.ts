@@ -1,10 +1,12 @@
 import type { MapId } from '../../../shared/world/mapRegistry.js';
+import { TOWER_CONSTRUCT_LAYOUT_BY_MAP_ID } from '../../../shared/tower/towerMapCatalog.js';
 
 /** Layouts no Construct 3 ↔ ids autoritativos Altercadia. */
 export const CONSTRUCT_LAYOUT_BY_MAP_ID: Readonly<Record<MapId, string>> = {
   city_01: 'cidade_01',
   /** Export atual usa `zonabeco1`; legado: `beco_dos_fundos_zona1`. */
   farm_zone_01: 'zonabeco1',
+  ...TOWER_CONSTRUCT_LAYOUT_BY_MAP_ID,
 };
 
 /** Nomes de layout aceitos no export (atual + legado). */
@@ -12,6 +14,12 @@ export const CONSTRUCT_LAYOUT_NAME_ALIASES: Readonly<Record<string, string>> = {
   zonabeco1: 'zonabeco1',
   beco_dos_fundos_zona1: 'zonabeco1',
   cidade_01: 'cidade_01',
+  entradatorredopoder: 'entradatorredopoder',
+  andar_1_torre_poder: 'andar_1_torre_poder',
+  andar_2_torre_poder: 'andar_2_torre_poder',
+  andar_3_torre_poder: 'andar_3_torre_poder',
+  andar_4_torre_poder2: 'andar_4_torre_poder2',
+  andar_5_torre_poder3: 'andar_5_torre_poder3',
 };
 
 /** Markers Construct com typo / legado → id do registry. */
@@ -30,6 +38,7 @@ export const CONSTRUCT_NPC_MARKER_ALIASES: Readonly<Record<string, string>> = {
   computador_zona1b: 'computador_zona1b',
   computador_zona1c: 'computador_zona1c',
   computador_marktplace: 'computador_marketplace',
+  computador_towerpower: 'computador_towerpower',
   spawn_players: 'player_spawn',
 };
 

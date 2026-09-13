@@ -18,10 +18,13 @@ import {
   farmZone01PixelHeight,
   farmZone01PixelWidth,
 } from './maps/farm_zone_01.js';
+import {
+  TOWER_MAP_DEFS,
+  type TowerWorldMapId,
+} from './maps/towerMaps.js';
 import type { Portal } from './portals.js';
-import { TILE_SIZE } from './mapConstants.js';
 
-export type MapId = typeof CITY_01_ID | typeof FARM_ZONE_01_ID;
+export type MapId = typeof CITY_01_ID | typeof FARM_ZONE_01_ID | TowerWorldMapId;
 
 export type MapDefinition = {
   readonly id: MapId;
@@ -33,6 +36,19 @@ export type MapDefinition = {
   readonly pixelWidth: () => number;
   readonly pixelHeight: () => number;
 };
+
+function toMapDefinition(def: (typeof TOWER_MAP_DEFS)[TowerWorldMapId]): MapDefinition {
+  return {
+    id: def.id,
+    tilesWide: def.tilesWide,
+    tilesHigh: def.tilesHigh,
+    tileSize: def.tileSize,
+    generateData: def.generateData,
+    portals: def.portals,
+    pixelWidth: def.pixelWidth,
+    pixelHeight: def.pixelHeight,
+  };
+}
 
 export const MAP_REGISTRY: Record<MapId, MapDefinition> = {
   [CITY_01_ID]: {
@@ -55,6 +71,12 @@ export const MAP_REGISTRY: Record<MapId, MapDefinition> = {
     pixelWidth: farmZone01PixelWidth,
     pixelHeight: farmZone01PixelHeight,
   },
+  tower_gate: toMapDefinition(TOWER_MAP_DEFS.tower_gate),
+  tower_floor_1: toMapDefinition(TOWER_MAP_DEFS.tower_floor_1),
+  tower_floor_2: toMapDefinition(TOWER_MAP_DEFS.tower_floor_2),
+  tower_floor_3: toMapDefinition(TOWER_MAP_DEFS.tower_floor_3),
+  tower_floor_4: toMapDefinition(TOWER_MAP_DEFS.tower_floor_4),
+  tower_floor_5: toMapDefinition(TOWER_MAP_DEFS.tower_floor_5),
 };
 
 export const DEFAULT_MAP_ID: MapId = CITY_01_ID;

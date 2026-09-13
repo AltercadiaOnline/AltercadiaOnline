@@ -40,6 +40,8 @@ import {
   notifyZoneBypassInitResult,
   notifyZoneBypassSubmitResult,
 } from '../world/zoneBypassNotify.js';
+import { startBattle } from '../game/GameStateProvider.js';
+import { tryApplyTowerPanelMirrorFromIntentData } from '../world/towerPanelMirror.js';
 import type {
   TerminalInitResponse,
   TerminalSubmitResponse,
@@ -510,6 +512,20 @@ function tryNotifyZoneBypassResult(intentId: string, success: boolean, data?: un
   }
 }
 
+function tryStartTowerBossCombatJoin(intentId: string, data: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending || pending.action.type !== 'TOWER_ACTIVATE_BOSS') return;
+  if (!data || typeof data !== 'object') return;
+  const record = data as Record<string, unknown>;
+  const monsterInstanceId =
+    (typeof record.monsterInstanceId === 'string' && record.monsterInstanceId.trim())
+    || (typeof record.battleId === 'string' && record.battleId.startsWith('tower_boss:')
+      ? record.battleId
+      : '');
+  if (!monsterInstanceId) return;
+  void startBattle(monsterInstanceId);
+}
+
 async function playCombatAttackVfx(data: CombatActionIntentResultData): Promise<void> {
   if (!isProjectileCombatAction(data.action)) return;
   // Combate já orquestra VFX via combat-event — evita segundo impacto no oponente.
@@ -791,6 +807,8 @@ export function handleIntentResultPayload(raw: unknown): void {
     tryNotifyWhisperResult(raw.intentId, true, raw.data);
     tryNotifyRefractionResult(raw.intentId, true, raw.data);
     tryNotifyZoneBypassResult(raw.intentId, true, raw.data);
+    tryStartTowerBossCombatJoin(raw.intentId, raw.data);
+    tryApplyTowerPanelMirrorFromIntentData(raw.data);
     const petRosterApplied = tryApplyPetRosterFromIntentData(raw.intentId, raw.data);
     const inventoryApplied = tryApplyInventoryFromIntentData(raw.intentId, raw.data);
     tryApplyMarcosFromIntentData(raw.intentId, raw.data);

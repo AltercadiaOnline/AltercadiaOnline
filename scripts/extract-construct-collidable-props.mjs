@@ -19,6 +19,12 @@ const LAYOUT_TO_MAP = {
   cidade_01: 'city_01',
   zonabeco1: 'farm_zone_01',
   beco_dos_fundos_zona1: 'farm_zone_01',
+  entradatorredopoder: 'tower_gate',
+  andar_1_torre_poder: 'tower_floor_1',
+  andar_2_torre_poder: 'tower_floor_2',
+  andar_3_torre_poder: 'tower_floor_3',
+  andar_4_torre_poder2: 'tower_floor_4',
+  andar_5_torre_poder3: 'tower_floor_5',
 };
 
 /**

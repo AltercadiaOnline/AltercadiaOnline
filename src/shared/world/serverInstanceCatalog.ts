@@ -1,6 +1,10 @@
 import { CITY_01_ID } from './maps/city01.js';
 import { FARM_ZONE_01_ID } from './maps/farm_zone_01.js';
+import { TOWER_MAP_IDS } from './maps/towerMaps.js';
 import type { MapId } from './mapRegistry.js';
+
+/** Mapas jogáveis no shard principal (cidade + beco + torre). */
+const CORE_WORLD_MAP_IDS: readonly MapId[] = [CITY_01_ID, FARM_ZONE_01_ID, ...TOWER_MAP_IDS];
 
 /** Ordem fixa na char select — Azul, Vermelho, Roxo. */
 export const PLAYER_SHARD_ORDER = ['azul', 'vermelho', 'roxo'] as const;
@@ -30,15 +34,15 @@ export const SERVER_INSTANCE_CATALOG: Record<string, ServerInstanceDefinition> =
   default: {
     id: 'default',
     displayName: 'Altercadia Principal',
-    mapIds: [CITY_01_ID, FARM_ZONE_01_ID],
+    mapIds: CORE_WORLD_MAP_IDS,
     defaultMapId: CITY_01_ID,
     charSelectVisible: false,
   },
   azul: {
     id: 'azul',
     displayName: 'Servidor Azul',
-    // Cidade + Beco (Zona 1) — necessário para PvE local/online no shard jogável.
-    mapIds: [CITY_01_ID, FARM_ZONE_01_ID],
+    // Cidade + Beco (Zona 1) + Torre — necessário para PvE/raid no shard jogável.
+    mapIds: CORE_WORLD_MAP_IDS,
     defaultMapId: CITY_01_ID,
     databaseName: 'altercadia_azul',
     charSelectVisible: true,
@@ -56,7 +60,7 @@ export const SERVER_INSTANCE_CATALOG: Record<string, ServerInstanceDefinition> =
   roxo: {
     id: 'roxo',
     displayName: 'Servidor Roxo',
-    mapIds: [CITY_01_ID, FARM_ZONE_01_ID],
+    mapIds: CORE_WORLD_MAP_IDS,
     defaultMapId: CITY_01_ID,
     databaseName: 'altercadia_roxo',
     charSelectVisible: true,

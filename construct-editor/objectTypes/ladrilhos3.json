@@ -1,0 +1,23 @@
+{
+	"name": "ladrilhos3",
+	"plugin-id": "TiledBg",
+	"sid": 363415659566806,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"image": {
+		"width": 107,
+		"height": 115,
+		"originX": 0.5,
+		"originY": 0.5,
+		"originalSource": "",
+		"exportFormat": "lossless",
+		"exportQuality": 0.8,
+		"fileType": "image/png",
+		"imageSpriteId": 6814828,
+		"useCollisionPoly": true,
+		"tag": ""
+	}
+}

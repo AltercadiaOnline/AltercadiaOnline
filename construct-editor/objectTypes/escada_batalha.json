@@ -1,0 +1,54 @@
+{
+	"name": "escada_batalha",
+	"plugin-id": "Sprite",
+	"sid": 984799934747737,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 620,
+						"height": 499,
+						"originX": 3.364673941256476,
+						"originY": -2.2977712541261575,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 1215429,
+						"collisionPoly": {
+							"points": [
+								0,
+								0.1981466261895828,
+								0.6127536041289556,
+								0,
+								1,
+								0.14867352648064913,
+								1,
+								0.8957173320855577,
+								0,
+								0.8635598172747531
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 926743561293280,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

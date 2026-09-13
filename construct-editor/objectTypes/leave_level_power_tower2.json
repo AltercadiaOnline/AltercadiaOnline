@@ -1,0 +1,75 @@
+{
+	"name": "leave_level_power_tower2",
+	"plugin-id": "Sprite",
+	"sid": 403610076541286,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [
+		{
+			"name": "city_portal_north",
+			"type": "string",
+			"desc": "",
+			"show": true,
+			"sid": 689898824745920
+		},
+		{
+			"name": "farm_portal_south",
+			"type": "string",
+			"desc": "",
+			"show": true,
+			"sid": 101709568724254
+		}
+	],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 115,
+						"height": 109,
+						"originX": -33.3274111963626,
+						"originY": 35.86893840104849,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 5923428,
+						"collisionPoly": {
+							"points": [
+								0,
+								0,
+								1,
+								0,
+								1,
+								0,
+								1,
+								0,
+								1,
+								1,
+								0,
+								1,
+								0,
+								0.8899082568807339,
+								0,
+								0
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 554258999598001,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

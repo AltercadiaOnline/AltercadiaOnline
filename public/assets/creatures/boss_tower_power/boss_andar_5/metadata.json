@@ -1,0 +1,36 @@
+{
+  "group_id": "81a6583b-0420-40f4-9820-bd8fb4657318",
+  "states": [
+    {
+      "character": {
+        "id": "7e993365-6041-443c-a30b-82ee288638ab",
+        "name": "Idle",
+        "prompt": "Pixel art game asset sprite, full-body character portrait of Kuro-Spector synthetic assassin boss, front-facing top-down perspective. Sleek and agile humanoid figure wearing a dark gray techwear high-collar trench coat with tattered, sparking fabric edges. Face covered by a streamlined carbon-fiber tactical mask with a dual optical visor leaving a subtle cyan pixel-art ghosting motion trail. Thin cybernetic arms equipped with extended razor-sharp monomolecular blade weapons glowing in a sharp purple hue. 90s retro anime aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background, isolated sprite, NO background elements, NO walls, NO ground.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "custom",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-07T19:41:00.120658+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-07T19:44:51.201765"
+}

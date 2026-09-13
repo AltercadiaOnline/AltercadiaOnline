@@ -1,0 +1,54 @@
+{
+	"name": "chao_batalha",
+	"plugin-id": "Sprite",
+	"sid": 257597051291644,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 478,
+						"height": 431,
+						"originX": 2.234470550370132,
+						"originY": -1.9380906570086585,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 4539641,
+						"collisionPoly": {
+							"points": [
+								0,
+								0.23929224907098218,
+								0.5682687837499536,
+								0.019180201082753055,
+								0.9308049923112693,
+								0.19613302397525162,
+								0.8868612094553542,
+								0.8478373229207925,
+								0.11418302757214888,
+								0.8197838266085696
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 581594611120507,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

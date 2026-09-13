@@ -12,17 +12,21 @@ export type BattleWorldRestoreInput = {
   readonly endReason?: BattleEndReason;
   /** Duelo do card (sem rating) — derrota real espelha PVE (cidade + HP mínimo). */
   readonly casualPvp?: boolean;
+  /** Derrota na Torre de Poder — restaura no gate, não na cidade. */
+  readonly towerDefeat?: boolean;
 };
 
 /**
  * Derrota PVE (não fuga) → respawn cidade.
  * PVP ranqueado → mesma pose do duelo.
  * PVP casual derrota → mesma política do PVE (cidade + HP mínimo).
+ * Torre derrota → gate (não cidade).
  * Vitória / fuga → mesma posição.
  */
 export function shouldCityRespawnAfterBattle(input: BattleWorldRestoreInput): boolean {
   if (input.victory) return false;
   if (input.endReason === 'FORFEIT') return false;
+  if (input.towerDefeat) return false;
   if (input.battleType === BattleType.PVP) {
     return input.casualPvp === true;
   }

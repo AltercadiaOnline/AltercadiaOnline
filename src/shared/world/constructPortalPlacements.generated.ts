@@ -6,8 +6,10 @@
 import type { ConstructPortalPlacement } from './constructPortalPlacements.js';
 
 export const CONSTRUCT_PORTAL_INSTANCES_GENERATED: readonly ConstructPortalPlacement[] = [
-  { mapId: 'city_01', portalId: 'city_portal_north', constructLayout: 'cidade_01', constructX: 792, constructY: 54, widthPx: 138, heightPx: 130 }, // city_portal_north
+  { mapId: 'city_01', portalId: 'city_portal_north', constructLayout: 'cidade_01', constructX: 789, constructY: 30, widthPx: 138, heightPx: 130 }, // city_portal_north
+  { mapId: 'city_01', portalId: 'city_portal_towerpower', constructLayout: 'cidade_01', constructX: 1257, constructY: 606, widthPx: 138, heightPx: 130 }, // city_portal_towerpower
   { mapId: 'farm_zone_01', portalId: 'farm_portal_south', constructLayout: 'zonabeco1', constructX: 348, constructY: 1566, widthPx: 250, heightPx: 250 }, // farm_portal_south
+  { mapId: 'tower_gate', portalId: 'farm_portal_south2', constructLayout: 'entradatorredopoder', constructX: 42, constructY: 915, widthPx: 250, heightPx: 250 }, // farm_portal_south2
   { mapId: 'farm_zone_01', portalId: 'farm_portal_z1_to_z1a', constructLayout: 'zonabeco1', constructX: 357, constructY: 40, widthPx: 250, heightPx: 250 }, // farm_portal_z1_to_z1a
   { mapId: 'farm_zone_01', portalId: 'farm_portal_z1a_to_z1', constructLayout: 'zonabeco1a', constructX: 1261, constructY: 622, widthPx: 250, heightPx: 250 }, // farm_portal_z1a_to_z1
   { mapId: 'farm_zone_01', portalId: 'farm_portal_z1a_to_z1b', constructLayout: 'zonabeco1a', constructX: 29, constructY: 351, widthPx: 250, heightPx: 250 }, // farm_portal_z1a_to_z1b

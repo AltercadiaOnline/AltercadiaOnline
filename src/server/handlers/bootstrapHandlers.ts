@@ -98,6 +98,18 @@ import {
   getZoneBypassInitHandler,
   getZoneBypassSubmitHandler,
 } from './world/ZoneBypassHandlers.js';
+import {
+  getTowerActivateBossHandler,
+  getTowerAscendHandler,
+  getTowerEnterFloorHandler,
+  getTowerEvacuateHandler,
+  getTowerPartyCreateHandler,
+  getTowerPartyInviteHandler,
+  getTowerPartyLeaveHandler,
+  getTowerPartyReadyHandler,
+  getTowerPartyRespondHandler,
+  getTowerUnlockEntryHandler,
+} from './tower/TowerHandlers.js';
 
 let bootstrapped = false;
 
@@ -123,6 +135,16 @@ function ensureHandlersRegistered(): void {
   registerIntentHandler(getMercenaryQuestInteractHandler());
   registerIntentHandler(getZoneBypassInitHandler());
   registerIntentHandler(getZoneBypassSubmitHandler());
+  registerIntentHandler(getTowerPartyCreateHandler());
+  registerIntentHandler(getTowerPartyInviteHandler());
+  registerIntentHandler(getTowerPartyRespondHandler());
+  registerIntentHandler(getTowerPartyLeaveHandler());
+  registerIntentHandler(getTowerPartyReadyHandler());
+  registerIntentHandler(getTowerUnlockEntryHandler());
+  registerIntentHandler(getTowerEnterFloorHandler());
+  registerIntentHandler(getTowerActivateBossHandler());
+  registerIntentHandler(getTowerAscendHandler());
+  registerIntentHandler(getTowerEvacuateHandler());
   registerIntentHandler(getEquipFromInventoryHandler());
   registerIntentHandler(getUnequipToInventoryHandler());
   registerIntentHandler(getPurchasePetHandler());

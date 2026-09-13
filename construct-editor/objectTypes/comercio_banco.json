@@ -1,0 +1,70 @@
+{
+	"name": "comercio_banco",
+	"plugin-id": "Sprite",
+	"sid": 220031826524138,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 702383289383848
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 962,
+						"height": 1024,
+						"originX": 0.38666430352825,
+						"originY": 0.6206395666921983,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 590018,
+						"collisionPoly": {
+							"points": [
+								0.22644787036933045,
+								0.19302320412517865,
+								0.6558845493534227,
+								0.18333430216654006,
+								0.7718921292936056,
+								0.19427881195973384,
+								0.7743713146860334,
+								0.66139172748959,
+								0.7468315666338214,
+								0.6709885817307693,
+								0.7254432952803644,
+								0.777178485576923,
+								0.27053761916594443,
+								0.777734375,
+								0.2613863445920268,
+								0.7572265625,
+								0.2494802494802497,
+								0.666331342585455,
+								0.22361436774471172,
+								0.6602708002790247
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 407626522602767,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

@@ -141,8 +141,10 @@ applyRendererPolicy(sourceExportDataJson, 'construct-export');
 const dataRaw = readFileSync(dataJsonPath, 'utf8');
 const hasCity = CITY_LAYOUTS.some((n) => dataRaw.includes(n));
 const farmHit = FARM_LAYOUTS.find((n) => dataRaw.includes(n));
+const hasTower = dataRaw.includes('entradatorredopoder');
 if (!hasCity) fail('layout cidade_01 ausente em data.json');
 if (!farmHit) fail('layout do beco ausente (esperava zonabeco1 ou beco_dos_fundos_zona1)');
+if (!hasTower) fail('layout entradatorredopoder ausente em data.json');
 
 const meta = {
   contractVersion: 2,

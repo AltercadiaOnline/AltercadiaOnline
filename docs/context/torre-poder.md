@@ -1,9 +1,10 @@
-# Torre de Poder (futuro)
+# Torre de Poder (raid MVP)
 
-Endgame por shard: lobby social por andar + arenas de combate instanciadas.
-**Não implementado.** Esta ficha é o contrato para quando formos desenvolver.
+Raid por shard: farm de **itens, dinheiro, fama** (+ buff de XP de nível).  
+Contrato **fechado**. **MVP online jogável** (solo end-to-end): mapas, PC, party, Liberar, enter floor, ativador→combate, clear/next/leave, restore gate, buff XP, fama, ranking.  
+Gaps: BattleScreen compartilhada multi-player; mock/local; loot table própria; markers Construct `leave`/`next_level` (alguns coords ruins — fallback no generate).
 
-Combate motor: [combate.md](combate.md). Mundo Construct: [mundo.md](mundo.md). Mundos/shard: [personagem-mundos.md](personagem-mundos.md). Intents: [intents-gateway.md](intents-gateway.md).
+Combate: [combate.md](combate.md) · PVE loot: [combate-pve.md](combate-pve.md) · Mundo: [mundo.md](mundo.md) · Intents: [intents-gateway.md](intents-gateway.md).
 
 ---
 
@@ -11,197 +12,226 @@ Combate motor: [combate.md](combate.md). Mundo Construct: [mundo.md](mundo.md). 
 
 | Decisão | Valor |
 |---------|--------|
-| Escopo | **1 torre por `serverId`** (shard) |
-| Cap lobby | **15** jogadores por andar (mapa físico) |
-| Party | **1–4**; no máx. **1 de cada classe** |
-| Boss | Sempre escala **como se fossem 4** (heroico se incompleto) |
-| Combate real | Só em **arena BattleScreen** (não no lobby Construct) |
-| Relógio de fase | **Só servidor** (nunca cliente) |
-| PVP lobby | **Fase 2** — não MVP |
-| Late join | Entra no **próximo round** (nunca mid-round) |
+| Motivo de entrar | Itens, dinheiro, **fama** (principal), buff XP de nível |
+| Escopo | **1 torre por `serverId`** |
+| Nível mínimo | **10** |
+| Party | **1–4**, classes **livres** (pode repetir) |
+| Solo | **Permitido** |
+| Boss escala | Sempre **como time de 4** (heroico se incompleto) |
+| Combate | Só **BattleScreen** (Construct = mapa / markers) |
+| Hall (`tower_gate`) | **Público** (todo mundo se vê, igual cidade) |
+| Andares 1–N | **Instância privada por party** |
+| Limite de runs | MVP **sem** limite (anti-farm depois) |
+| PVP / lobby 15 / Isolation Pull social | **Fase 2** — fora do MVP |
 
 ---
 
-## Espaço: o que é Construct vs o que não é
-
-### Modelo mental
+## Fluxo do jogador
 
 ```text
-Shard (serverId)
-  └── Torre (1 por shard)          ← lógica / runtime servidor
-        └── Andar N
-              ├── LobbyInstance      ← mapa Construct + cap 15 + peers
-              └── CombatSessions[]   ← BattleScreen (squad / pull)
+city_01 (direita)
+  └─ city_portal_towerpower
+       └─ tower_gate (layout: entradatorredopoder)     ← PÚBLICO
+            ├─ computador_towerpower
+            │     party + Pronto + Liberar entrada
+            │     ranking: máx. andar + vezes vencidas (pessoal + top shard)
+            ├─ spawn (enter_spaw / spaw_enter)         ← abre 5 min após Liberar
+            └─ andares privados
+                 tower_floor_1 … tower_floor_5 (MVP)
+                 → futuro 6–10; leave no 10 igual ao 5
 ```
 
-- **Lobby** = exploração multiplayer (mesmo padrão cidade/farm: Construct layout + overlay + `GameLoop`).
-- **Arena** = combate autoritativo já existente (`CombatGateway` / `CombatDispatchPayload`). **Não** é layout Construct novo por luta.
-- **Instância de lobby** ≠ “copiar o export HTML5 N vezes”. É o **mesmo layout** Construct, com **runtime de presença** separado (`lobbyInstanceId` / `cycleId`) no servidor.
+### Computador + entrada
 
-### Construct — o que precisa existir no editor
+1. Monta time / Pronto no PC → pode **fechar HUD e andar** no hall.
+2. Líder (ou solo) → **Liberar entrada** (botão no PC).
+3. Spawn abre **5 min** só pra esse time; quem não entrar fica de fora.
+4. Primeiro que entra cria instância privada; resto do time vai pro mesmo lugar.
+5. No andar: `ativador_boss` → party sobe pro BattleScreen.
 
-| Peça | Layout Construct | `mapId` Altercadia (sugerido) | Notas |
-|------|------------------|-------------------------------|--------|
-| Acesso / rua da torre | POI na cidade **ou** layout `torre_acesso` | `city_01` portal **ou** `tower_gate` | Entrada social; não precisa cap 15 |
-| Lobby genérico de andar | **`torre_lobby`** (1 layout reutilizável) | `tower_floor` | Skin/atmosfera por `floorIndex` via bridge (tileset tint / props), **sem** 20 layouts no MVP |
-| Portal de registro | marker `portal_tower_party` | — | HUD React ao interagir |
-| Portal de subida | marker `portal_tower_ascend` | — | Só após clear autoritativo |
-| Spawn / safe | `spawn_tower_lobby` | — | placements gerados |
-| Zona do caçador (visual) | marker ou área nomeada | — | só feedback; pull é servidor |
+### Progressão na run
 
-**MVP Construct:** 1 layout `torre_lobby` (+ opcional `torre_acesso`). Andares 1..N = **mesmo layout**, estado `floorIndex` no sync.  
-**Depois:** layouts únicos por boss floor se o art pedir.
-
-### O que NÃO fazer no Construct
-
-- Não criar um layout por combate / por party.
-- Não simular timer de fase, pull ou party no eventsheet.
-- Não abrir BattleScreen por lógica Construct — só via `altercadia:set-mode` / lifecycle de combate já existente.
-- Não tratar “instância” como segundo projeto Construct; instância = **sessão de mundo no servidor** + `altercadia:load-map` com o mesmo `layoutId`.
-
-### Bridge / runtime (quando implementar)
-
-| Mensagem / peça | Uso na torre |
-|-----------------|--------------|
-| `altercadia:load-map` | Carrega `torre_lobby` ao entrar no andar |
-| `altercadia:exploration-frame` | Peers do **mesmo** `lobbyInstanceId` (AOI cap 15) |
-| `altercadia:battle-frame` / set-mode battle | Ao entrar arena (pull ou squad) — Construct pausa como hoje |
-| Overlay | Players do lobby; boss do lobby só se houver **avatar de pressão** (opcional MVP: VFX/aviso, sprite depois) |
-
-Contrato tipado: estender `constructExportContract.ts` + `CONSTRUCT_LAYOUT_BY_MAP_ID` quando o layout existir.
-
-### Capacidade e “instância”
-
-| Conceito | Dono | Regra |
-|----------|------|--------|
-| `towerId` | = `serverId` | 1:1 MVP |
-| `floorIndex` | servidor | 1..F_MAX |
-| `cycleId` | servidor | muda em `CYCLE_END` |
-| `lobbyInstanceId` | servidor | identidade da sala; no MVP pode = `towerId:floorIndex:cycleId` |
-| Cap 15 | `GameLoop` / runtime torre | 16º rejeitado (intent ou enter-floor) |
-| Peers | `nearbyPlayers` filtrado por `lobbyInstanceId` | Não vazar jogadores de outro ciclo/andar |
-
-Jogadores em andares diferentes = **mapas lógicos diferentes** (mesmo layout visual ok).
+| Evento | Efeito |
+|--------|--------|
+| Vitória no boss | Volta ao **mesmo andar**; `next_level` libera |
+| Morte | Jogador → **entrada** (`tower_gate`); vivos continuam; **sem rejoin** na run |
+| Abandonar mid-run | **Proibido** — só morte ou leave no checkpoint |
+| Leave | Só **após matar** boss do checkpoint (**5, 10, …**) → volta ao **gate** |
 
 ---
 
-## Fases do andar (servidor)
+## Construct ↔ mapId
+
+| Layout Construct | `mapId` | Papel |
+|------------------|---------|--------|
+| `cidade_01` | `city_01` | Portal `city_portal_towerpower` |
+| `entradatorredopoder` | `tower_gate` | Hall público + PC + spawn |
+| `andar_1_torre_poder` | `tower_floor_1` | Andar 1 |
+| `andar_2_torre_poder` | `tower_floor_2` | Andar 2 |
+| `andar_3_torre_poder` | `tower_floor_3` | Andar 3 |
+| `andar_4_torre_poder2` | `tower_floor_4` | Andar 4 |
+| `andar_5_torre_poder3` | `tower_floor_5` | Andar 5 + `leave_level_*` |
+
+### Markers
+
+| ObjectType | Papel |
+|------------|--------|
+| `city_portal_towerpower` | Portal cidade → gate |
+| `computador_towerpower` | Terminal party / liberar / ranking |
+| `enter_spaw_towerpower` / `spaw_enter_towerpower` | Spawn raid (alias; unificar depois) |
+| `torre_do_poder` | Prop visual |
+| `ativador_boss` | Qualquer um da party interage → BattleScreen |
+| `spawn_boss_tower_power` | Âncora / “mais perto do boss” |
+| `next_level_power_tower` | Portal N→N+1 (só pós-clear) |
+| `leave_level_power_tower2` | Evacuate no checkpoint (pós-boss) |
+
+Assets boss: `public/assets/creatures/boss_tower_power/` (`floor_01` … `floor_05`).
+
+**Proibido no Construct:** timer, party, unlock, combate, BattleScreen via eventsheet.
+
+---
+
+## Recompensas
+
+| Canal | Quando | Quem |
+|-------|--------|------|
+| Loot boss (itens/dinheiro) | Opt-in **Coletar** (estilo criatura; pool própria) | Só **vivos** na BattleScreen |
+| Buff XP nível | Na **saída** (leave **ou** morte) | `+10% × andares completados` por **1h** |
+| Fama | Só no **leave** do checkpoint | Só quem **usou o leave** |
+
+### Buff XP — regras
+
+- Ex.: chegou no 3 sem matar o 3 → andares 1–2 ok → **+20% / 1h**.
+- Checkpoint 5 completo → **+50% / 1h**.
+- Reentrar **não** acumula sozinho; só **andar novo** completado soma %; **não reinicia** o timer (usa hora restante).
+
+### Ranking no PC
+
+- Pessoal + top shard: **máx. andar alcançado** + **vezes que venceu esse andar**.
+
+---
+
+## Força dos bosses
 
 ```text
-OPEN_ASSEMBLE → PORTAL_LOCK → HUNT → CYCLE_END → (próximo ciclo)
+stats = âncora(Zona2 @ nv10) × mult_andar_1 × (r ^ (andar-1)) × escala_party_4
 ```
 
-| Fase | Portal party | Caçador (pull) | PVP lobby |
-|------|--------------|----------------|-----------|
-| `OPEN_ASSEMBLE` | aberto | off | off (MVP) |
-| `PORTAL_LOCK` | só commit já queued | off | off |
-| `HUNT` | fechado p/ novos | **on** | fase 2 |
-| `CYCLE_END` | fechado | off | off |
+| Âncora | Valor |
+|--------|--------|
+| Base | Criatura **Zona 2 @ nível 10** (não Z1) |
+| Andar 1 | ~**8× HP**, ~**4× ATK/DEF** (+ mecânicas) — duro pra 4× nv10 |
+| Curva | **Exponencial**; `r` no balance |
+| Alvo muro | Andar **5** = **4× nv40 sofrem** |
+| Futuro | 6–10 mesma lógica; muro no **10** |
 
-Cliente só espelha `phase` + `phaseEndsAtServerMs`.
+Escala/party e mecânicas: **só servidor**. Cliente não calcula poder.
 
-Snapshot público (contrato futuro):
-
-```ts
-type TowerFloorPublicState = {
-  towerId: string;
-  floorIndex: number;
-  cycleId: string;
-  phase: 'OPEN_ASSEMBLE' | 'PORTAL_LOCK' | 'HUNT' | 'CYCLE_END';
-  phaseEndsAtServerMs: number;
-  lobbyPlayerCount: number; // 0..15
-  portalOpen: boolean;
-  hunterActive: boolean;
-};
-```
+SSOT: `src/shared/tower/towerPowerScaling.ts`.
 
 ---
 
-## Party e intents (Gateway)
+## Bosses — entrada + estilo (MVP 1–5)
 
-Handlers futuros em `src/server/handlers/tower/`. UI: `ActionGatewayButton` + pending registry.
+| Andar | Entrada | Combate |
+|------:|---------|---------|
+| **1** | Queda → cantos → puxa **mais perto do boss** → **2 turnos solo** | Tank reto; a cada **3** ataques do boss → **40% hit duplo** (2 hits no turno). Puxado morre nos solo → entrada; resto continua |
+| **2** | 1 **marcado** (aleatório) — boss só nele 2 turnos; 1 **travado** (aleatório outro) — entra após **4** turnos. Solo: sem moveset nos **2** primeiros turnos dele | Controle (viés quem buffou / mais recurso; escolha aleatória) |
+| **3** | Todos entram **já com status** (kit **aleatório por jogador**) | DoT / status |
+| **4** | Sem prólogo especial | Enrage degraus **75% / 50% / 25%** HP → ↑ ATK e DEF |
+| **5** | Solo **1 turno** (mais perto) + status aleatório na entrada | Mistura: hit duplo + controle + enrage 75/50/25 |
+
+Catálogo: `src/shared/tower/towerBossCatalog.ts`.
+
+---
+
+## Intents (Gateway)
+
+Handlers em `src/server/handlers/tower/`. UI: `ActionGatewayButton` + pending.
 
 | Intent | Função |
 |--------|--------|
-| `TOWER_ENTER_FLOOR` | Entra no lobby do andar (valida cap / progressão) |
-| `TOWER_PARTY_CREATE` | Abre registro no portal |
-| `TOWER_PARTY_INVITE` / `RESPOND` | Monta time |
-| `TOWER_PARTY_LEAVE` | Sai |
-| `TOWER_PARTY_READY` | Toggle ready |
-| `TOWER_PARTY_COMMIT` | Leader trava → fila de arena |
-| `TOWER_LATE_JOIN` | Entra na sessão pull/squad da party (próximo round) |
-| `TOWER_EVACUATE` | Sai da torre com custo (anti-limbo) |
+| `TOWER_PARTY_CREATE` / `INVITE` / `RESPOND` / `LEAVE` / `READY` | Monta time no PC |
+| `TOWER_UNLOCK_ENTRY` | Líder/solo libera spawn (inicia 5 min) |
+| `TOWER_ENTER_FLOOR` | Entra no spawn → instância privada (valida unlock + timer + nv10) |
+| `TOWER_ACTIVATE_BOSS` | Ativador → inicia `tower_pve_squad` |
+| `TOWER_ASCEND` | `next_level` pós-clear |
+| `TOWER_EVACUATE` | Leave no checkpoint pós-boss → gate + fama + buff |
 
-Proibido: mutar party/moeda/XP no cliente.
+Portal cidade↔gate pode reusar portal world existente + marker.
+
+Proibido: mutar party / moeda / XP / fama / buff no cliente.
 
 ---
 
-## Combate
+## Combate / restore
 
 | Modo | Quem | Restore |
 |------|------|---------|
-| `tower_pve_squad` | 1–4 vs boss escala 4 | Lobby do mesmo andar + portal subida se vitória |
-| `tower_pve_pull` | 1 vs boss escala 4 (+ late join até 4) | Idem |
+| `tower_pve_squad` | Party na luta vs boss (escala×4) | Mesmo andar; `floorCleared` se vitória |
 
-- Reusar `CombatGateway` / engine; finalize dedicado `finalizeTowerBattleEnd`.
-- Estender `battleWorldRestorePolicy` com `towerSquad` / `towerPull`.
-- Isolation Pull: **tick servidor** escolhe alvo (isolado / low HP) → `START_COMBAT`; não é intent do monstro no client.
-- Late join: só no **início do próximo round** (nunca mid-round).
+- Finalize: `finalizeTowerBattleEnd`.
+- Morte mid-fight → restore do morto no **gate**; sessão continua com vivos.
+- Loot: mesmo canal PVE (pending + Coletar) com tabela própria da torre.
 
 ---
 
-## Sync (wire)
+## Persistência / sync
 
-| Canal | Conteúdo |
-|-------|----------|
-| `tower-floor-sync` ou campos no `state-sync` | `TowerFloorPublicState` |
-| `combat-event` | Igual hoje |
-| `full-state-sync` | `towerPresence?` / `highestFloorCleared` no save |
+| Campo | Uso |
+|-------|-----|
+| `towerPresence` / run state | Party, floor, unlock, clears da run |
+| `highestFloorCleared` | Ranking / progressão |
+| `floorClearCounts[floor]` | Vezes que venceu aquele andar |
+| Buff XP | `towerXpBuffPercent` + `towerXpBuffExpiresAtServerMs` |
 
-Tipos futuros: `src/shared/tower/towerTypes.ts`.
+Wire: campos em `state-sync` / `full-state-sync` (ou `tower-run-sync`). Tipos: `src/shared/tower/towerTypes.ts`.
 
 ---
 
-## Módulos alvo (ainda não existem)
+## Módulos
 
-| Camada | Path sugerido |
-|--------|----------------|
-| Shared | `src/shared/tower/` |
-| Server runtime | `src/server/tower/TowerFloorRuntime.ts` |
-| Handlers | `src/server/handlers/tower/` |
+| Camada | Path |
+|--------|------|
+| Shared (contrato) | `src/shared/tower/` |
+| Server runtime | `src/server/tower/` *(criar na fatia runtime)* |
+| Handlers | `src/server/handlers/tower/` *(criar na fatia intents)* |
 | Finalize | `src/server/combat/finalizeTowerBattleEnd.ts` |
-| HUD | `src/client/app/components/world/panels/TowerPortalPanel.tsx` |
-| Construct | layout `torre_lobby` + markers; sync via `npm run sync:construct` |
-| Catalog | `mapId` em catálogo de mapas + `serverInstanceCatalog` (torre permitida no shard) |
+| HUD PC | `src/client/app/components/world/panels/TowerPortalPanel.tsx` |
+| Layouts | Construct já em `construct-editor/layouts/` — `npm run sync:construct` |
+| Assets | `public/assets/creatures/boss_tower_power/` |
 
 ---
 
-## Ordem de implementação (quando for a hora)
+## Ordem de execução (fatias)
 
-1. **Construct:** layout `torre_lobby` + portal markers + `load-map` + enter floor sem party (só presença + cap 15).
-2. **Fases + timer** servidor + UI espelho.
-3. **Party intents** + commit → arena squad.
-4. **Isolation Pull** + late join (próximo round).
-5. **Progressão / loot / evacuate**.
-6. **PVP lobby** (fase 2).
+1. **Wire mundo:** `MapId` + `CONSTRUCT_LAYOUT_BY_MAP_ID` + sync Construct + portais cidade↔gate + andares (sem combate).
+2. **PC + party + Liberar + spawn 5 min** → enter floor privado.
+3. **Ativador → combate** andar 1 (entrada + hit duplo) + restore + next_level.
+4. Bosses **2–5** (catálogo já descreve mecânicas).
+5. Recompensas: loot tabela torre + buff XP + fama no leave + ranking PC.
+6. Andares **6–10** + leave no 10.
+7. Fase 2: lobby social 15 / PVP / Isolation Pull legado.
 
 ---
 
-## Checklist antes de merge (quando existir código)
+## Checklist merge
 
-1. Layout no contrato Construct + audit WebGL?
-2. Cap 15 e filtro de peers por `lobbyInstanceId`?
-3. Fase só no servidor?
-4. Arena só via gateway de combate (sem lógica Construct)?
-5. Economia só `economyGateway`?
+1. Layouts no contrato Construct + `audit:construct`?
+2. Instância de andar filtrada por `partyRunId` (peers não vazam)?
+3. Timer 5 min / unlock / fases de boss só no servidor?
+4. Arena só via gateway de combate?
+5. Economia/loot só `economyGateway`?
 6. WorldMap/BattleScreen sem import cruzado de DOM?
+7. Identidade de classe do hub (sem `classId \|\| 'IMPETUS'`)?
 
 ---
 
 ## Proibido
 
-- Implementar PVP lobby antes do loop PVE da torre estável.
-- Um projeto Construct por instância de combate.
-- Escala de boss no cliente.
-- `classId || 'IMPETUS'` ao montar party — identidade do hub.
-- Cliente avançar fase da torre com timer local.
+- Cliente calcular escala, buff %, fama ou loot.
+- Events Construct liberar spawn ou abrir batalha.
+- Abandon mid-run (exceto morte / leave checkpoint).
+- Rejoin após morte na mesma run.
+- PVP lobby antes do loop PVE estável.
+- Um projeto Construct por combate.

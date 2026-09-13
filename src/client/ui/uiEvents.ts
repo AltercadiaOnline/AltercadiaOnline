@@ -41,6 +41,7 @@ export type UiWindowId =
   | 'petTrainerShop'
   | 'tournamentBet'
   | 'rankingMonitor'
+  | 'towerComputer'
   | 'pvpQueue'
   | 'refractionBooth'
   | 'social'
@@ -63,6 +64,7 @@ export const UIEventType = {
   SHOW_CRAFT_STATION: 'SHOW_CRAFT_STATION',
   SHOW_TOURNAMENT_BET: 'SHOW_TOURNAMENT_BET',
   SHOW_RANKING_MONITOR: 'SHOW_RANKING_MONITOR',
+  SHOW_TOWER_COMPUTER: 'SHOW_TOWER_COMPUTER',
   SHOW_PVP_QUEUE: 'SHOW_PVP_QUEUE',
   SHOW_REFRACTION_BOOTH: 'SHOW_REFRACTION_BOOTH',
   SHOW_MEMORY_TERMINAL: 'SHOW_MEMORY_TERMINAL',
@@ -150,6 +152,10 @@ export type UiEventMap = {
     readonly pulpitName: string;
   };
   readonly SHOW_RANKING_MONITOR: {
+    readonly objectId: string;
+    readonly label: string;
+  };
+  readonly SHOW_TOWER_COMPUTER: {
     readonly objectId: string;
     readonly label: string;
   };

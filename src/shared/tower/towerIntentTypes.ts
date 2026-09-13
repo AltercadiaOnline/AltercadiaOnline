@@ -1,0 +1,19 @@
+/**
+ * Intents da Torre de Poder (nomes canônicos).
+ * Handlers: src/server/handlers/tower/ (fatia intents).
+ */
+
+export const TOWER_INTENT_TYPES = {
+  PARTY_CREATE: 'TOWER_PARTY_CREATE',
+  PARTY_INVITE: 'TOWER_PARTY_INVITE',
+  PARTY_RESPOND: 'TOWER_PARTY_RESPOND',
+  PARTY_LEAVE: 'TOWER_PARTY_LEAVE',
+  PARTY_READY: 'TOWER_PARTY_READY',
+  UNLOCK_ENTRY: 'TOWER_UNLOCK_ENTRY',
+  ENTER_FLOOR: 'TOWER_ENTER_FLOOR',
+  ACTIVATE_BOSS: 'TOWER_ACTIVATE_BOSS',
+  ASCEND: 'TOWER_ASCEND',
+  EVACUATE: 'TOWER_EVACUATE',
+} as const;
+
+export type TowerIntentType = (typeof TOWER_INTENT_TYPES)[keyof typeof TOWER_INTENT_TYPES];

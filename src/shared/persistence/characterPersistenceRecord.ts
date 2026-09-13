@@ -14,6 +14,7 @@ import type { SkinSlotId } from '../character/playerSkin.js';
 import type { ClassType } from '../types/classes.js';
 import type { MercenaryQuestProgress } from '../quests/mercenaryQuestTypes.js';
 import type { FriendListEntry } from '../social/friendListTypes.js';
+import type { TowerPlayerProgress, TowerXpBuffState } from '../tower/towerTypes.js';
 
 /** Versão do schema JSON — incrementar ao mudar formato. */
 export const CHARACTER_PERSISTENCE_SCHEMA_VERSION = 2;
@@ -133,6 +134,10 @@ export type CharacterPersistenceRecord = {
   readonly friends?: readonly FriendListEntry[];
   /** Subzonas liberadas via terminal de domínio (Z1A, Z1B…). */
   readonly zoneBypassUnlocks?: readonly string[];
+  /** Torre de Poder — progresso / ranking (opcional; runtime também hidrata). */
+  readonly towerProgress?: TowerPlayerProgress;
+  readonly towerFame?: number;
+  readonly towerXpBuff?: TowerXpBuffState;
 };
 
 export function characterPersistenceKey(playerId: string, characterId: number): string {

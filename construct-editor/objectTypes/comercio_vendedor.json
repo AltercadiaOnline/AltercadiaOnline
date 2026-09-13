@@ -1,0 +1,70 @@
+{
+	"name": "comercio_vendedor",
+	"plugin-id": "Sprite",
+	"sid": 261085934520982,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 271026762287108
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 519,
+						"height": 518,
+						"originX": 0.38250246747702693,
+						"originY": 0.6307578661774964,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 9054163,
+						"collisionPoly": {
+							"points": [
+								0.4924328956380467,
+								0.01724819719129904,
+								0.8841203562396988,
+								0.019346210669113566,
+								0.8949384468058101,
+								0.5300916645155629,
+								0.9243782534772798,
+								0.7300952187154185,
+								0.9115547150575342,
+								0.9092664092664092,
+								0.6619603672319031,
+								0.9054054054054054,
+								0.30909174819042984,
+								0.9362934362934363,
+								0.12373885964277408,
+								0.8764478764478766,
+								0.1124382868524644,
+								0.7606933844487194,
+								0.122910248866429,
+								0.04427522421832607
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 929186514060539,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

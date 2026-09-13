@@ -1,0 +1,70 @@
+{
+	"name": "comercio_alquimista",
+	"plugin-id": "Sprite",
+	"sid": 295828320650030,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 161973231519224
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 668,
+						"height": 703,
+						"originX": 0.4409363091997822,
+						"originY": 0.566145092460882,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 4287368,
+						"collisionPoly": {
+							"points": [
+								0.3002177463255297,
+								0.3527738264580375,
+								0.7813690800217732,
+								0.3527738264580376,
+								0.9760479041916167,
+								0.34139402560455234,
+								0.9714378062057697,
+								0.5011614485298699,
+								0.9434540010887307,
+								1,
+								0.7505443658138259,
+								1,
+								0.35490099346761045,
+								1,
+								0.05392623843222617,
+								1,
+								0.03062057702776271,
+								0.4951554425238639,
+								0.03592814371257485,
+								0.3300142247510673
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 196612406362739,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

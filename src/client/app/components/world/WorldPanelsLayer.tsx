@@ -62,6 +62,10 @@ function resolveContextDescription(context: WorldPanelContext): string {
 
       return context.label;
 
+    case 'towerComputer':
+
+      return context.label;
+
     case 'pvpQueue':
 
       return context.label;

@@ -220,6 +220,27 @@ export type ClientAction =
     readonly type: 'ZONE_BYPASS_SUBMIT';
     readonly payload: { readonly sessionId: string; readonly inputCode: string };
   }
+  | { readonly type: 'TOWER_PARTY_CREATE'; readonly payload: Record<string, never> }
+  | {
+    readonly type: 'TOWER_PARTY_INVITE';
+    readonly payload: {
+      readonly targetPlayerId: string;
+      readonly targetCharacterId: number;
+      readonly displayName?: string;
+      readonly level?: number;
+    };
+  }
+  | {
+    readonly type: 'TOWER_PARTY_RESPOND';
+    readonly payload: { readonly accept: boolean; readonly partyId?: string };
+  }
+  | { readonly type: 'TOWER_PARTY_LEAVE'; readonly payload: Record<string, never> }
+  | { readonly type: 'TOWER_PARTY_READY'; readonly payload: { readonly ready: boolean } }
+  | { readonly type: 'TOWER_UNLOCK_ENTRY'; readonly payload: Record<string, never> }
+  | { readonly type: 'TOWER_ENTER_FLOOR'; readonly payload: Record<string, never> }
+  | { readonly type: 'TOWER_ACTIVATE_BOSS'; readonly payload: Record<string, never> }
+  | { readonly type: 'TOWER_ASCEND'; readonly payload: Record<string, never> }
+  | { readonly type: 'TOWER_EVACUATE'; readonly payload: Record<string, never> }
   | {
     readonly type: 'CREATE_MARKET_LISTING';
     readonly payload: {
@@ -657,6 +678,17 @@ export class ActionDispatcher {
       return this.dispatchPending(action);
     }
 
+    if (this.isTowerAction(action)) {
+      if (this.mode === 'online') {
+        return this.dispatchPending(action);
+      }
+      // Mock/local: mesma fila pending → MockEconomyService (ou rejeita se sem serviço).
+      if (this.economyService) {
+        return this.dispatchPending(action);
+      }
+      return { ok: false, reason: 'Torre de Poder requer servidor online.' };
+    }
+
     if (
       this.mode === 'online'
       && (action.type === 'CHOOSE_MARCO'
@@ -845,6 +877,24 @@ export class ActionDispatcher {
 
   private isZoneBypassAction(action: ClientAction): boolean {
     return action.type === 'ZONE_BYPASS_INIT' || action.type === 'ZONE_BYPASS_SUBMIT';
+  }
+
+  private isTowerAction(action: ClientAction): boolean {
+    switch (action.type) {
+      case 'TOWER_PARTY_CREATE':
+      case 'TOWER_PARTY_INVITE':
+      case 'TOWER_PARTY_RESPOND':
+      case 'TOWER_PARTY_LEAVE':
+      case 'TOWER_PARTY_READY':
+      case 'TOWER_UNLOCK_ENTRY':
+      case 'TOWER_ENTER_FLOOR':
+      case 'TOWER_ACTIVATE_BOSS':
+      case 'TOWER_ASCEND':
+      case 'TOWER_EVACUATE':
+        return true;
+      default:
+        return false;
+    }
   }
 
   private isDevCheatAction(action: ClientAction): boolean {
@@ -1427,6 +1477,18 @@ export class ActionDispatcher {
       case 'ZONE_BYPASS_INIT':
       case 'ZONE_BYPASS_SUBMIT':
         return { ok: false, reason: 'Terminal de domínio requer servidor online ou mock.' };
+
+      case 'TOWER_PARTY_CREATE':
+      case 'TOWER_PARTY_INVITE':
+      case 'TOWER_PARTY_RESPOND':
+      case 'TOWER_PARTY_LEAVE':
+      case 'TOWER_PARTY_READY':
+      case 'TOWER_UNLOCK_ENTRY':
+      case 'TOWER_ENTER_FLOOR':
+      case 'TOWER_ACTIVATE_BOSS':
+      case 'TOWER_ASCEND':
+      case 'TOWER_EVACUATE':
+        return { ok: false, reason: 'Torre de Poder requer servidor online.' };
 
       case 'STAGE_BATTLE_LOOT':
       case 'COLLECT_BATTLE_LOOT':

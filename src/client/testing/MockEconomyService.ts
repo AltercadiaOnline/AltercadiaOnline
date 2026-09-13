@@ -1249,6 +1249,17 @@ export class MockEconomyService implements IDevMockEconomyService {
       case 'STATIC_FLEX_REACT':
       case 'STATIC_FLEX_SET_HEADLINE':
         return { ok: false, reason: 'STATIC_NOT_LIVE' };
+      case 'TOWER_PARTY_CREATE':
+      case 'TOWER_PARTY_INVITE':
+      case 'TOWER_PARTY_RESPOND':
+      case 'TOWER_PARTY_LEAVE':
+      case 'TOWER_PARTY_READY':
+      case 'TOWER_UNLOCK_ENTRY':
+      case 'TOWER_ENTER_FLOOR':
+      case 'TOWER_ACTIVATE_BOSS':
+      case 'TOWER_ASCEND':
+      case 'TOWER_EVACUATE':
+        return { ok: false, reason: 'Torre de Poder requer servidor online.' };
       default: {
         const _exhaustive: never = action;
         return _exhaustive;

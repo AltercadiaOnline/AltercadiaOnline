@@ -1,0 +1,68 @@
+{
+	"name": "planta_1",
+	"plugin-id": "Sprite",
+	"sid": 700441839973212,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 663124033849141
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 63,
+						"height": 83,
+						"originX": 40.82067038422971,
+						"originY": -17.788786707237545,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 5536236,
+						"collisionPoly": {
+							"points": [
+								0.7380952380952386,
+								0.20180722891566288,
+								0.7738095238095246,
+								0.3493975903614459,
+								0.8730158730158735,
+								0.48192771084337294,
+								0.738095238095239,
+								0.7590361445783125,
+								0.5396825396825411,
+								0.9006024096385546,
+								0.337301587301587,
+								0.8885542168674695,
+								0.23015873015873,
+								0.7769395062934873,
+								0.07142857142857142,
+								0.4578313253012049,
+								0.3145839725674091,
+								0.12349397590361441
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 105945325102148,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

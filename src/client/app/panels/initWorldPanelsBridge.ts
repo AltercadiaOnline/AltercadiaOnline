@@ -85,6 +85,13 @@ export function initWorldPanelsBridge(): void {
         label: payload.label,
       });
     }),
+    uiEvents.on(UIEventType.SHOW_TOWER_COMPUTER, (payload) => {
+      openWorldWindow('towerComputer', {
+        kind: 'towerComputer',
+        objectId: payload.objectId,
+        label: payload.label,
+      });
+    }),
     uiEvents.on(UIEventType.SHOW_PVP_QUEUE, (payload) => {
       openWorldWindow('pvpQueue', {
         kind: 'pvpQueue',

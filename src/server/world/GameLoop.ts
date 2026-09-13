@@ -5,6 +5,7 @@ import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { WorldCreatureSnapshot } from '../../shared/world/worldCreatureSync.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
 import { buildNearbyPlayerSnapshots, type NearbyPlayerPeerInput } from '../../shared/world/buildNearbyPlayerSnapshots.js';
+import { filterTowerPeerVisible } from '../tower/TowerRunRuntime.js';
 import type { Player } from '../models/Player.js';
 import type { MovementIntentHandler } from './MovementIntentHandler.js';
 import { selectPeersInInterestFromCandidates } from './SpatialInterestGrid.js';
@@ -151,9 +152,13 @@ export class GameLoop {
       }
       const nearbyPlayers = observer
         ? buildNearbyPlayerSnapshots(
-          selectPeersInInterestFromCandidates(observer, peersOnMap).map((peer) =>
-            toNearbyPeerInput(peer, appearanceByPeer, tick),
-          ),
+          selectPeersInInterestFromCandidates(observer, peersOnMap)
+            .filter((peer) =>
+              filterTowerPeerVisible(observer.playerId, peer.playerId, profile.currentMapId),
+            )
+            .map((peer) =>
+              toNearbyPeerInput(peer, appearanceByPeer, tick),
+            ),
           envelope.serverTimeMs,
         )
         : [];

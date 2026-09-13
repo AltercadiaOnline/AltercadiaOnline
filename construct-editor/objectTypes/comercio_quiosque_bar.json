@@ -1,0 +1,70 @@
+{
+	"name": "comercio_quiosque_bar",
+	"plugin-id": "Sprite",
+	"sid": 701557815352113,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 642748845410757
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 669,
+						"height": 705,
+						"originX": 0.33029502797144983,
+						"originY": 0.7147461772563919,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 9779702,
+						"collisionPoly": {
+							"points": [
+								0.10870021764394763,
+								0.08510638297872337,
+								0.16292974588938694,
+								0,
+								0.8236173393124046,
+								0.01250193540983838,
+								0.8953662182361727,
+								0.09874823257388388,
+								0.886397608370702,
+								0.7560283687943259,
+								0.8098742500404954,
+								0.9205673758865247,
+								0.49678066032764284,
+								0.9120567375886524,
+								0.34924322779152933,
+								0.9148936170212765,
+								0.16143497757847525,
+								0.9119858520219697,
+								0.11958146487294474,
+								0.7290780141843974
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 406481550716356,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

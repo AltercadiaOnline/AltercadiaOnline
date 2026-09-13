@@ -1,0 +1,70 @@
+{
+	"name": "casanova2",
+	"plugin-id": "Sprite",
+	"sid": 562922342102845,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 421165178326030
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 311,
+						"height": 283,
+						"originX": 31.95115945982443,
+						"originY": 21.151029647827745,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 8855219,
+						"collisionPoly": {
+							"points": [
+								0.49517684887459906,
+								0.15371024734982264,
+								0.9646302250803862,
+								0.1625441696113068,
+								0.9581993569131837,
+								0.9116607773851585,
+								0.8971061093247596,
+								0.9187279151943457,
+								0.8215434083601304,
+								0.9240282685512362,
+								0.7668810289389076,
+								0.9310954063604235,
+								0.5144694533762062,
+								0.9187279151943457,
+								0.06752411575562886,
+								0.9222614840989405,
+								0.054662379421221985,
+								0.019434628975264597,
+								0.46463022508038415,
+								0.02296819787985839
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 670787481803174,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

@@ -142,6 +142,23 @@ import type { StateSyncBody } from '../../shared/sync/syncProtocol.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
 import { getMonsterRegistryEntry, type MonsterRegistryEntry } from '../../shared/world/monsterRegistry.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
+import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { TOWER_GATE_ID } from '../../shared/world/maps/towerMaps.js';
+import { resolveTowerMapIdForFloor } from '../../shared/tower/towerMapCatalog.js';
+import {
+  clearTowerBossPull,
+  createTowerBattleBootstrap,
+  getTowerBossPull,
+  isTowerBossMonsterInstanceId,
+} from '../tower/startTowerBossCombat.js';
+import {
+  eliminateTowerMember,
+  markTowerFloorCleared,
+} from '../tower/TowerRunRuntime.js';
+import { saveWorldProfile } from '../world/worldProfileStore.js';
+import { notifyWorldPositionPersist } from '../world/notifyWorldPositionPersist.js';
+import { ensureWorldCollisionForMap } from '../../shared/world/constructWorldCollision.js';
+import type { MapId } from '../../shared/world/mapRegistry.js';
 import { tickCreatureWanderAi } from '../world/creatureAiTick.js';
 import {
   abandonPveEncounterOnDisconnect,
@@ -747,7 +764,11 @@ export class CombatWsHub implements CombatWsRouteHost {
     if (finalized.victory) {
       this.markPveMonsterDefeated(session);
     } else if (monsterInstanceId) {
-      releasePveMonsterClaim(monsterInstanceId);
+      if (isTowerBossMonsterInstanceId(monsterInstanceId)) {
+        this.finalizeTowerBossDefeat(session, monsterInstanceId);
+      } else {
+        releasePveMonsterClaim(monsterInstanceId);
+      }
     }
 
     this.send(ws, { type: 'BATTLE_ENDED', payload: finalized.battleEnded });
@@ -773,12 +794,59 @@ export class CombatWsHub implements CombatWsRouteHost {
     const monsterInstanceId = session.getMonsterInstanceId();
     if (!monsterInstanceId) return;
 
+    if (isTowerBossMonsterInstanceId(monsterInstanceId)) {
+      const pull = getTowerBossPull(monsterInstanceId);
+      const parts = monsterInstanceId.split(':');
+      const floorIndex = pull?.floorIndex ?? Number(parts[1]);
+      const partyRunId = pull?.partyRunId ?? parts.slice(2).join(':');
+      if (Number.isFinite(floorIndex) && partyRunId) {
+        markTowerFloorCleared(partyRunId, floorIndex);
+      }
+      clearTowerBossPull(monsterInstanceId);
+      console.log('[WS] Boss da Torre derrotado — andar liberado', {
+        playerId: session.getPlayerActorId(),
+        characterId: session.getCharacterId(),
+        monsterInstanceId,
+        floorIndex,
+      });
+      return;
+    }
+
     scheduleWorldMonsterRespawn(monsterInstanceId);
     console.log('[WS] Monstro PVE derrotado — respawn agendado', {
       playerId: session.getPlayerActorId(),
       characterId: session.getCharacterId(),
       monsterInstanceId,
       respawnMs: CREATURE_RESPAWN_MS,
+    });
+  }
+
+  private finalizeTowerBossDefeat(session: CombatSession, monsterInstanceId: string): void {
+    const playerId = session.getPlayerActorId();
+    const characterId = session.getCharacterId();
+    eliminateTowerMember(playerId);
+    clearTowerBossPull(monsterInstanceId);
+
+    const tile = DESIGN_CONFIG.TILE.SIZE;
+    const tileX = 12;
+    const tileY = 20;
+    getZoneLoadGateway().ensure(TOWER_GATE_ID);
+    ensureWorldCollisionForMap(TOWER_GATE_ID as MapId);
+    const existing = getWorldProfile(playerId, characterId);
+    const profile = saveWorldProfile(playerId, characterId, {
+      ...existing,
+      currentMapId: TOWER_GATE_ID,
+      lastPosition: {
+        x: tileX * tile + tile / 2,
+        y: tileY * tile + tile / 2,
+      },
+      facing: existing.facing ?? 'south',
+    });
+    notifyWorldPositionPersist(playerId, characterId, profile);
+    console.log('[WS] Derrota na Torre — jogador eliminado → gate', {
+      playerId,
+      characterId,
+      monsterInstanceId,
     });
   }
 
@@ -2633,6 +2701,32 @@ export class CombatWsHub implements CombatWsRouteHost {
       return { ok: false, reason: 'MISSING_MONSTER_INSTANCE' };
     }
 
+    if (isTowerBossMonsterInstanceId(monsterId)) {
+      const pull = getTowerBossPull(monsterId);
+      if (!pull || !pull.memberPlayerIds.includes(playerId)) {
+        return { ok: false, reason: 'MONSTER_NOT_ACTIVE' };
+      }
+      const profile = getWorldProfile(playerId, characterId);
+      const expectedMapId = resolveTowerMapIdForFloor(pull.floorIndex);
+      if (!expectedMapId || profile.currentMapId !== expectedMapId) {
+        return { ok: false, reason: 'MONSTER_MAP_MISMATCH' };
+      }
+      const player = this.getPlayer(playerId, characterId);
+      if (!player || !player.isExploring()) {
+        return { ok: false, reason: 'PLAYER_NOT_EXPLORING' };
+      }
+      const playerTile = worldPixelToTile(profile.lastPosition.x, profile.lastPosition.y);
+      const synthetic: MonsterRegistryEntry = {
+        id: monsterId,
+        name: `Guardião · Andar ${pull.floorIndex}`,
+        mapId: profile.currentMapId,
+        tileX: playerTile.tileX,
+        tileY: playerTile.tileY,
+        creatureId: `tower_boss_floor_${pull.floorIndex}`,
+      };
+      return { ok: true, monster: synthetic };
+    }
+
     const monster = getMonsterRegistryEntry(monsterId);
     if (!monster) {
       return { ok: false, reason: 'MONSTER_NOT_ACTIVE' };
@@ -2704,7 +2798,26 @@ export class CombatWsHub implements CombatWsRouteHost {
 
       const loadout = resolveAuthoritativeCombatLoadout(playerId, characterId);
 
-      const bootstrap = createPveBattleBootstrap(loadout, monsterInstanceId);
+      const pull = isTowerBossMonsterInstanceId(monsterInstanceId)
+        ? getTowerBossPull(monsterInstanceId)
+        : null;
+      let bootstrap;
+      if (pull) {
+        bootstrap = createTowerBattleBootstrap(loadout, pull.floorIndex, {
+          partySize: pull.memberPlayerIds.length,
+        });
+      } else if (isTowerBossMonsterInstanceId(monsterInstanceId)) {
+        const parts = monsterInstanceId.split(':');
+        const floorIndex = Number(parts[1]);
+        if (!Number.isFinite(floorIndex) || floorIndex < 1) {
+          clearForceJoinInFlight(playerId, characterId);
+          this.send(ws, { type: 'combat-error', payload: { reason: 'MONSTER_NOT_ACTIVE' } });
+          return;
+        }
+        bootstrap = createTowerBattleBootstrap(loadout, floorIndex, { partySize: 1 });
+      } else {
+        bootstrap = createPveBattleBootstrap(loadout, monsterInstanceId);
+      }
       const session = new CombatSession(playerId, bootstrap.state, {
         characterId,
         ruleManifest: bootstrap.ruleManifest,

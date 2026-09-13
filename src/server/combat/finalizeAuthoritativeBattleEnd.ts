@@ -19,6 +19,9 @@ import { progressMarcoAuthoritative } from '../../Economy/progressionGateway.js'
 import { getAuthoritativeProgression } from '../progression/authoritativeProgressionStore.js';
 import { persistWorldVitalsAfterCombat } from '../world/persistWorldVitalsAfterCombat.js';
 import { buildCitySafeSpawnPayload } from '../../shared/world/zoneTransition.js';
+import { DESIGN_CONFIG } from '../../config/designConstants.js';
+import { TOWER_GATE_ID } from '../../shared/world/maps/towerMaps.js';
+import { isTowerBossMonsterInstanceId } from '../tower/startTowerBossCombat.js';
 import { applyAuthoritativeDeathPenalty } from './applyAuthoritativeDeathPenalty.js';
 import { applyAuthoritativePveKillCredit } from './applyAuthoritativePveKillCredit.js';
 import {
@@ -150,6 +153,19 @@ export function finalizeAuthoritativeBattleEnd(
           : victory
             ? undefined
             : (() => {
+                const monsterId = session.getMonsterInstanceId();
+                if (monsterId && isTowerBossMonsterInstanceId(monsterId)) {
+                  const tile = DESIGN_CONFIG.TILE.SIZE;
+                  return {
+                    defeatRespawn: true,
+                    respawn: {
+                      mapId: TOWER_GATE_ID,
+                      x: 12 * tile + tile / 2,
+                      y: 20 * tile + tile / 2,
+                      facing: 'south' as const,
+                    },
+                  };
+                }
                 const spawn = buildCitySafeSpawnPayload();
                 return {
                   defeatRespawn: true,

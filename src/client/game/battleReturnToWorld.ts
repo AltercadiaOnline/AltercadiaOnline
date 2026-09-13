@@ -17,6 +17,8 @@ export type ReturnToExplorationOptions = {
   readonly battleType?: BattleType;
   /** Duelo casual — derrota real espelha PVE (cidade + HP mínimo). */
   readonly casualPvp?: boolean;
+  /** Derrota na Torre — não teleporta para a cidade. */
+  readonly towerDefeat?: boolean;
 };
 
 type ReturnToExplorationFn = (options: ReturnToExplorationOptions) => Promise<void>;

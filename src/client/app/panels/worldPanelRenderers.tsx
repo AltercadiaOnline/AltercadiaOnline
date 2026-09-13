@@ -11,6 +11,7 @@ import { WorldPetTrainerShopPanel } from '../components/world/panels/WorldPetTra
 import { WorldQuestPanel } from '../components/world/panels/WorldQuestPanel.js';
 import { WorldStaticNetworkPanel } from '../components/world/panels/WorldStaticNetworkPanel.js';
 import { WorldRankingMonitorPanel } from '../components/world/panels/WorldRankingMonitorPanel.js';
+import { WorldTowerComputerPanel } from '../components/world/panels/WorldTowerComputerPanel.js';
 import { WorldPvpQueuePanel } from '../components/world/panels/WorldPvpQueuePanel.js';
 import { WorldRefractionBoothPanel } from '../components/world/panels/WorldRefractionBoothPanel.js';
 import { WorldShopPanel } from '../components/world/panels/WorldShopPanel.js';
@@ -103,6 +104,8 @@ function resolvePanelKey(entry: OpenWorldPanelEntry): string {
       return `tournament-${context.kind === 'tournamentBet' ? context.pulpitId : 'default'}`;
     case 'rankingMonitor':
       return `ranking-${context.kind === 'rankingMonitor' ? context.objectId : 'default'}`;
+    case 'towerComputer':
+      return `tower-${context.kind === 'towerComputer' ? context.objectId : 'default'}`;
     case 'pvpQueue':
       return `pvp-queue-${context.kind === 'pvpQueue' ? context.objectId : 'default'}`;
     case 'refractionBooth':
@@ -178,6 +181,14 @@ export const WORLD_PANEL_RENDERERS: Partial<Record<UiWindowId, WorldPanelRendere
   ),
   rankingMonitor: ({ entry, focused }) => (
     <WorldRankingMonitorPanel
+      key={resolvePanelKey(entry)}
+      context={entry.context}
+      zIndex={entry.zIndex}
+      focused={focused}
+    />
+  ),
+  towerComputer: ({ entry, focused }) => (
+    <WorldTowerComputerPanel
       key={resolvePanelKey(entry)}
       context={entry.context}
       zIndex={entry.zIndex}

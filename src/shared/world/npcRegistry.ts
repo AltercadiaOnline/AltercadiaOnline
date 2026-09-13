@@ -5,6 +5,7 @@ import {
 } from './maps/city01LayoutConstants.js';
 import { CITY_01_ID } from './maps/city01.js';
 import { FARM_ZONE_01_ID } from './maps/farm_zone_01.js';
+import { TOWER_GATE_ID, TOWER_FLOOR_1_ID } from './maps/towerMaps.js';
 import type { MapId } from './mapRegistry.js';
 import { getNpcDefinition } from '../../assets/npcs/npcDefinition.js';
 import { resolveNpcRegistryEntries } from './npcBuildingAnchorsResolver.js';
@@ -31,6 +32,11 @@ export const NpcActionType = {
   OPEN_ARENA_COMPUTER: 'OPEN_ARENA_COMPUTER',
   OPEN_PVP_QUEUE: 'OPEN_PVP_QUEUE',
   OPEN_REFRACTION_BOOTH: 'OPEN_REFRACTION_BOOTH',
+  OPEN_TOWER_COMPUTER: 'OPEN_TOWER_COMPUTER',
+  TOWER_ENTER: 'TOWER_ENTER',
+  TOWER_ACTIVATE_BOSS: 'TOWER_ACTIVATE_BOSS',
+  TOWER_ASCEND: 'TOWER_ASCEND',
+  TOWER_EVACUATE: 'TOWER_EVACUATE',
 } as const;
 
 export type NpcActionType = (typeof NpcActionType)[keyof typeof NpcActionType];
@@ -315,6 +321,71 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     ...CONSTRUCT_POS,
     actionType: NpcActionType.DIALOG,
     dialogue: 'Terminal de entrada do Beco — bypass para liberar Z1A.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+    featured: true,
+    collidable: false,
+  },
+  {
+    id: WORLD_TERMINAL_IDS.TOWER,
+    name: 'Computador Torre de Poder',
+    level: 1,
+    sprite: 'terminal',
+    mapId: TOWER_GATE_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.OPEN_TOWER_COMPUTER,
+    dialogue: 'Torre de Poder — party, liberar entrada e ranking do shard.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+    featured: true,
+    collidable: false,
+  },
+  {
+    id: 'enter_spaw_towerpower',
+    name: 'Entrada da Torre',
+    level: 1,
+    sprite: 'terminal',
+    mapId: TOWER_GATE_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.TOWER_ENTER,
+    dialogue: 'Spawn da raid — entre após Liberar entrada.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+    featured: true,
+    collidable: false,
+  },
+  {
+    id: 'ativador_boss',
+    name: 'Ativador do Boss',
+    level: 1,
+    sprite: 'terminal',
+    mapId: TOWER_FLOOR_1_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.TOWER_ACTIVATE_BOSS,
+    dialogue: 'Ativa o guardião deste andar.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+    featured: true,
+    collidable: false,
+  },
+  {
+    id: 'next_level_power_tower',
+    name: 'Próximo Andar',
+    level: 1,
+    sprite: 'terminal',
+    mapId: TOWER_FLOOR_1_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.TOWER_ASCEND,
+    dialogue: 'Sobe para o próximo andar após limpar o boss.',
+    dimensions: DESIGN_NPC_DIMENSIONS,
+    featured: true,
+    collidable: false,
+  },
+  {
+    id: 'leave_level_power_tower2',
+    name: 'Saída da Torre',
+    level: 1,
+    sprite: 'terminal',
+    mapId: TOWER_FLOOR_1_ID,
+    ...CONSTRUCT_POS,
+    actionType: NpcActionType.TOWER_EVACUATE,
+    dialogue: 'Evacua no checkpoint (pós-boss) com fama e buff.',
     dimensions: DESIGN_NPC_DIMENSIONS,
     featured: true,
     collidable: false,

@@ -16,6 +16,8 @@ export const WORLD_TERMINAL_IDS = {
   ZONE_2: 'computador_zona2',
   /** Marketplace P2P (lógica que hoje está no mercado/trocas). */
   MARKETPLACE: 'computador_marketplace',
+  /** Torre de Poder — party / liberar entrada / ranking. */
+  TOWER: 'computador_towerpower',
 } as const;
 
 export type WorldTerminalId = (typeof WORLD_TERMINAL_IDS)[keyof typeof WORLD_TERMINAL_IDS];
@@ -24,7 +26,8 @@ export type WorldTerminalRole =
   | 'pvp_hub'
   | 'pvp_queue'
   | 'zone_domain'
-  | 'marketplace_p2p';
+  | 'marketplace_p2p'
+  | 'tower_hub';
 
 export type WorldTerminalDefinition = {
   readonly id: WorldTerminalId;
@@ -77,6 +80,15 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     constructMarker: WORLD_TERMINAL_IDS.MARKETPLACE,
     status: 'active',
     notes: 'Toda a lógica P2P de venda/troca (ex-terminal_mercado).',
+  },
+  {
+    id: WORLD_TERMINAL_IDS.TOWER,
+    label: 'Computador Torre de Poder',
+    role: 'tower_hub',
+    constructMarker: WORLD_TERMINAL_IDS.TOWER,
+    status: 'active',
+    notes:
+      'Hall tower_gate: party 1–4, Pronto, Liberar entrada (5 min), ranking pessoal + top shard. HUD/handlers na fatia PC.',
   },
 ] as const;
 

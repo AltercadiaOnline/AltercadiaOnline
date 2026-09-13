@@ -38,6 +38,7 @@ import { beginWorldHudInteractionSession } from '../world/worldHudInteractionSes
 import { isWorldHudInteractionLocked } from '../world/worldHudInteractionSession.js';
 import { getActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { uiEvents, UIEventType, type UiWindowId } from '../ui/uiEvents.js';
+import { getActionDispatcher } from '../ActionDispatcher.js';
 import { windowManager } from '../app/panels/worldWindowController.js';
 import { postSystemNotification } from '../ui/logService.js';
 import { hideInteractionCard } from '../world/interactionCardController.js';
@@ -65,6 +66,10 @@ function isPetShopNpcAction(actionType: NpcActionType): boolean {
 
 function isArenaComputerNpcAction(actionType: NpcActionType): boolean {
   return actionType === NpcActionType.OPEN_ARENA_COMPUTER;
+}
+
+function isTowerComputerNpcAction(actionType: NpcActionType): boolean {
+  return actionType === NpcActionType.OPEN_TOWER_COMPUTER;
 }
 
 function isPvpQueueNpcAction(actionType: NpcActionType): boolean {
@@ -262,6 +267,41 @@ export class NPCManager {
         objectId: npc.id,
         label: npc.name,
       });
+      return;
+    }
+
+    if (isTowerComputerNpcAction(npc.actionType)) {
+      windowManager.close('dialogue');
+      hideInteractionCard();
+      windowManager.open('towerComputer', {
+        kind: 'towerComputer',
+        objectId: npc.id,
+        label: npc.name,
+      });
+      uiEvents.emit(UIEventType.SHOW_TOWER_COMPUTER, {
+        objectId: npc.id,
+        label: npc.name,
+      });
+      return;
+    }
+
+    if (
+      npc.actionType === NpcActionType.TOWER_ENTER
+      || npc.actionType === NpcActionType.TOWER_ACTIVATE_BOSS
+      || npc.actionType === NpcActionType.TOWER_ASCEND
+      || npc.actionType === NpcActionType.TOWER_EVACUATE
+    ) {
+      windowManager.close('dialogue');
+      hideInteractionCard();
+      const actionType =
+        npc.actionType === NpcActionType.TOWER_ENTER
+          ? 'TOWER_ENTER_FLOOR'
+          : npc.actionType === NpcActionType.TOWER_ACTIVATE_BOSS
+            ? 'TOWER_ACTIVATE_BOSS'
+            : npc.actionType === NpcActionType.TOWER_ASCEND
+              ? 'TOWER_ASCEND'
+              : 'TOWER_EVACUATE';
+      getActionDispatcher().dispatch({ type: actionType, payload: {} });
       return;
     }
 

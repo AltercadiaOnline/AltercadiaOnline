@@ -1,0 +1,36 @@
+{
+  "group_id": "31e9590f-6ec3-4fde-8410-bb904f526f6c",
+  "states": [
+    {
+      "character": {
+        "id": "ed2fd006-e5a8-4185-99c2-173f599acf0f",
+        "name": "Idle",
+        "prompt": "Pixel art game asset sprite, full-body character portrait of Dr. Malphas modular carnage boss, front-facing top-down perspective. Pale, cadaverous human torso mounted at the center of a circular mechanical chassis, with four articulated robotic arms extending outward armed with giant surgical pincers and laser scalpels. Back entwined with exposed pulsing organic flesh strings and tangled fiber-optic cables acting as tentacles. Hypertrophic augmented reality goggles welded directly to the skull, dripping a small stream of viscous green chemical fluid. 90s retro anime aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background, isolated sprite, NO background elements, NO walls, NO ground.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "custom",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-07T19:45:06.466091+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-07T19:47:57.808517"
+}

@@ -1,0 +1,66 @@
+{
+	"name": "carro1",
+	"plugin-id": "Sprite",
+	"sid": 431015196883892,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 432555754397384
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 407,
+						"height": 296,
+						"originX": 1.1425061425061425,
+						"originY": -0.5489864864864865,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 6341130,
+						"collisionPoly": {
+							"points": [
+								0.0872235872235872,
+								0.20945945945945968,
+								0.7051597051597056,
+								0.1942567567567569,
+								0.9287469287469298,
+								0.3868243243243232,
+								0.9901719901719911,
+								0.527027027027027,
+								0.9606879606879603,
+								0.8766891891891905,
+								0.41400491400491407,
+								0.9020270270270276,
+								0.0343980343980344,
+								0.8716216216216214,
+								0.030712530712530727,
+								0.4391891891891889
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 357692289421370,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

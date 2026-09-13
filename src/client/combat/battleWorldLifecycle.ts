@@ -76,5 +76,6 @@ export function resolveLocalDefeatCityTeleport(
     victory: input.victory,
     ...(input.endReason !== undefined ? { endReason: input.endReason } : {}),
     ...(input.casualPvp === true ? { casualPvp: true } : {}),
+    ...(input.towerDefeat === true ? { towerDefeat: true } : {}),
   });
 }

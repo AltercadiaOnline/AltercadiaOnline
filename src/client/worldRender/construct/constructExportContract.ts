@@ -1,5 +1,9 @@
 import { DESIGN_CONFIG } from '../../../config/designConstants.js';
 import type { MapId } from '../../../shared/world/mapRegistry.js';
+import {
+  TOWER_CONSTRUCT_LAYOUT_BY_MAP_ID,
+  TOWER_MARKER_IDS,
+} from '../../../shared/tower/towerMapCatalog.js';
 import { WORLD_TERMINAL_IDS } from '../../../shared/world/worldTerminalCatalog.js';
 import { CONSTRUCT_LAYOUT_BY_MAP_ID } from './constructMapLayoutAlias.js';
 
@@ -38,15 +42,26 @@ export const CONSTRUCT_REQUIRED_LAYOUTS = [
   CONSTRUCT_LAYOUT_BY_MAP_ID.farm_zone_01,
 ] as const;
 
-/** Aceitos no data.json do export (nome atual + legado). */
+/** Aceitos no data.json do export (nome atual + legado + torre). */
 export const CONSTRUCT_ACCEPTED_LAYOUT_NAMES: Readonly<Record<string, readonly string[]>> = {
   cidade_01: ['cidade_01'],
   zonabeco1: ['zonabeco1', 'beco_dos_fundos_zona1'],
+  entradatorredopoder: ['entradatorredopoder'],
+  andar_1_torre_poder: ['andar_1_torre_poder'],
+  andar_2_torre_poder: ['andar_2_torre_poder'],
+  andar_3_torre_poder: ['andar_3_torre_poder'],
+  andar_4_torre_poder2: ['andar_4_torre_poder2'],
+  andar_5_torre_poder3: ['andar_5_torre_poder3'],
 };
+
+/** Layouts com tamanho oficial (required city/farm + torre). */
+export type ConstructLayoutSizeKey =
+  | (typeof CONSTRUCT_REQUIRED_LAYOUTS)[number]
+  | (typeof TOWER_CONSTRUCT_LAYOUT_BY_MAP_ID)[keyof typeof TOWER_CONSTRUCT_LAYOUT_BY_MAP_ID];
 
 /** Tamanhos oficiais dos layouts (px). Grid snap 32. */
 export const CONSTRUCT_LAYOUT_SIZE_PX: Readonly<
-  Record<(typeof CONSTRUCT_REQUIRED_LAYOUTS)[number], { width: number; height: number }>
+  Record<ConstructLayoutSizeKey, { width: number; height: number }>
 > = {
   cidade_01: {
     width: DESIGN_CONFIG.MAP.WIDTH_PX,
@@ -57,6 +72,15 @@ export const CONSTRUCT_LAYOUT_SIZE_PX: Readonly<
     width: 640,
     height: 1600,
   },
+  entradatorredopoder: {
+    width: DESIGN_CONFIG.MAP.WIDTH_PX,
+    height: DESIGN_CONFIG.MAP.HEIGHT_PX,
+  },
+  andar_1_torre_poder: { width: 640, height: 640 },
+  andar_2_torre_poder: { width: 640, height: 640 },
+  andar_3_torre_poder: { width: 640, height: 640 },
+  andar_4_torre_poder2: { width: 640, height: 640 },
+  andar_5_torre_poder3: { width: 640, height: 640 },
 };
 
 /**
@@ -86,6 +110,15 @@ export const CONSTRUCT_OPTIONAL_MARKERS = [
   'npc_tecnico_manutencao',
   'npc_membro_gang_rosa',
   'npc_cão_robo',
+  TOWER_MARKER_IDS.cityPortal,
+  TOWER_MARKER_IDS.computer,
+  TOWER_MARKER_IDS.enterSpawn,
+  TOWER_MARKER_IDS.enterSpawnAlias,
+  TOWER_MARKER_IDS.towerProp,
+  TOWER_MARKER_IDS.bossActivator,
+  TOWER_MARKER_IDS.bossSpawn,
+  TOWER_MARKER_IDS.nextLevel,
+  TOWER_MARKER_IDS.leaveCheckpoint,
 ] as const;
 
 /**

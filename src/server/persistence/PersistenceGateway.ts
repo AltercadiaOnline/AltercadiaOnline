@@ -54,6 +54,14 @@ import { getActivePersistenceStorage } from './storage/persistenceStorageRegistr
 import { nextMonotonicCharacterId } from '../../shared/characterCreation.js';
 import { isClassType } from '../../shared/progression/movesetMasterySeed.js';
 import { getAuthoritativeZoneBypassGateway } from '../world/AuthoritativeZoneBypassGateway.js';
+import {
+  getTowerFame,
+  getTowerPlayerProgress,
+  getTowerXpBuff,
+  hydrateTowerFame,
+  hydrateTowerPlayerProgress,
+  hydrateTowerXpBuff,
+} from '../tower/TowerRunRuntime.js';
 
 export type PersistCharacterSessionOptions = {
   /** Sempre grava (logout / disconnect / shutdown / login / marketplace). */
@@ -129,6 +137,11 @@ function buildRecordFromRuntime(
     mercenaryQuests: exportMercenaryQuestPersistence(playerId, characterId),
     friends: exportFriendListPersistence(playerId, characterId),
     zoneBypassUnlocks: getAuthoritativeZoneBypassGateway().exportPlayerUnlocks(playerId, characterId),
+    towerProgress: getTowerPlayerProgress(playerId, characterId),
+    towerFame: getTowerFame(playerId, characterId),
+    ...(getTowerXpBuff(playerId, characterId)
+      ? { towerXpBuff: getTowerXpBuff(playerId, characterId)! }
+      : {}),
   };
 }
 
@@ -217,6 +230,9 @@ function applyRecordToRuntime(record: CharacterPersistenceRecord): void {
       record.zoneBypassUnlocks ?? [],
     );
   });
+  hydrateTowerPlayerProgress(record.playerId, record.characterId, record.towerProgress);
+  hydrateTowerFame(record.playerId, record.characterId, record.towerFame);
+  hydrateTowerXpBuff(record.playerId, record.characterId, record.towerXpBuff);
 }
 
 /** Carrega loot pendente (startup) via strategy ativa. */

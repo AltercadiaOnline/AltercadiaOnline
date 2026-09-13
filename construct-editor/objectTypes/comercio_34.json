@@ -1,0 +1,70 @@
+{
+	"name": "comercio_34",
+	"plugin-id": "Sprite",
+	"sid": 692045383545285,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 185236670243784
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 1024,
+						"height": 1024,
+						"originX": -0.17500692268388884,
+						"originY": 1.2226154637178472,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 7048888,
+						"collisionPoly": {
+							"points": [
+								0.49298574325191225,
+								0.4308276016746406,
+								0.7265625,
+								0.4285162480063792,
+								0.7294921875,
+								0.5411657033831669,
+								0.7255859375,
+								0.6669921875,
+								0.724609375,
+								0.712890625,
+								0.6845703125,
+								0.7177734375,
+								0.5166015625,
+								0.7197265625,
+								0.29296875,
+								0.7275390625,
+								0.287109375,
+								0.529296875,
+								0.28648119801293903,
+								0.4299491626794258
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 944851937003780,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}

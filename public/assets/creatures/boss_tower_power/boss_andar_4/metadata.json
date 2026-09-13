@@ -1,0 +1,36 @@
+{
+  "group_id": "54b519a3-8ee5-4b65-b4ef-6a0a5bde46ae",
+  "states": [
+    {
+      "character": {
+        "id": "ae7a1398-bc83-459c-9dcf-b699d500b26f",
+        "name": "Idle",
+        "prompt": "Pixel art game asset sprite, full-body character portrait of Subject-Delta bio-mechanical apex predator boss, top-down tactical perspective. Grotesque quadrupedal monstrosity fused from hardened industrial steel plates and mutated organic muscle tissue. The main body resembles a hunched hound-like beast with exposed spine segments glowing with erratic orange data-pulses, capped with a heavy steel mandible structure instead of a natural jaw. Long metallic tendon whips trail from its hind quarters, and its front paws end in industrial hydraulic pile-driver spikes instead of claws. 90s retro anime bio-punk aesthetic, clean sharp pixel lines, gritty cyberpunk color palette, transparent background, isolated sprite, NO background elements, NO walls, NO ground.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "custom",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-07T19:54:43.649110+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-07T19:57:44.215379"
+}

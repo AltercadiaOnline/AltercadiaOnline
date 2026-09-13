@@ -12,6 +12,8 @@ import {
   patchAuthoritativeProgression,
 } from '../progression/authoritativeProgressionStore.js';
 
+import { getTowerXpBuff } from '../tower/TowerRunRuntime.js';
+
 /** Persiste grant de vitória PVE no store autoritativo do personagem. */
 export function resolveAuthoritativeBattleProgressionGrant(
   playerId: string,
@@ -20,7 +22,12 @@ export function resolveAuthoritativeBattleProgressionGrant(
 ): BattleProgressionGrant {
   const inventory = exportCharacterEconomyPersistence(playerId, characterId).profile.inventory;
   const inheritance = resolvePetInheritanceBonusesFromStacks(inventory);
-  return scaleBattleProgressionXp(grant, inheritance.xpBonusPercent);
+  let scaled = scaleBattleProgressionXp(grant, inheritance.xpBonusPercent);
+  const towerBuff = getTowerXpBuff(playerId, characterId);
+  if (towerBuff && towerBuff.percent > 0 && towerBuff.expiresAtServerMs > Date.now()) {
+    scaled = scaleBattleProgressionXp(scaled, towerBuff.percent);
+  }
+  return scaled;
 }
 
 /** Persiste grant de vitória PVE no store autoritativo do personagem. */

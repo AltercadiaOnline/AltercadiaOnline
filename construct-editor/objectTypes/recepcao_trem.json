@@ -1,0 +1,70 @@
+{
+	"name": "recepcao_trem",
+	"plugin-id": "Sprite",
+	"sid": 391959207341614,
+	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
+	"instanceVariables": [],
+	"behaviorTypes": [
+		{
+			"behaviorId": "solid",
+			"name": "Sólido",
+			"sid": 499392064679546
+		}
+	],
+	"effectTypes": [],
+	"animations": {
+		"items": [
+			{
+				"frames": [
+					{
+						"width": 196,
+						"height": 246,
+						"originX": 10.166807218755272,
+						"originY": 5.942130263999269,
+						"originalSource": "",
+						"exportFormat": "lossless",
+						"exportQuality": 0.8,
+						"fileType": "image/png",
+						"imageSpriteId": 1918095,
+						"collisionPoly": {
+							"points": [
+								0.38265306122449005,
+								0.22669072196339987,
+								0.8903061224489782,
+								0.23278828293900994,
+								0.926020408163266,
+								0.3489997259523171,
+								0.8954081632653071,
+								0.9329268292682921,
+								0.836734693877551,
+								0.9654471544715444,
+								0.7193877551020412,
+								0.9654471544715441,
+								0.5688775510204088,
+								0.9593495934959346,
+								0.2576530612244924,
+								0.963414634146341,
+								0.10881941798247824,
+								0.9532520325203246,
+								0.09527574931615146,
+								0.22296062848269024
+							]
+						},
+						"useCollisionPoly": true,
+						"duration": 1,
+						"tag": ""
+					}
+				],
+				"sid": 256048441845369,
+				"name": "Animation 1",
+				"isLooping": false,
+				"isPingPong": false,
+				"repeatCount": 1,
+				"repeatTo": 0,
+				"speed": 5
+			}
+		],
+		"subfolders": []
+	}
+}
