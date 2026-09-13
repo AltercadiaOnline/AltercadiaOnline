@@ -35,6 +35,9 @@ export function saveWorldProfile(
   const loadout = profile.loadout !== undefined
     ? profile.loadout
     : existing?.loadout;
+  const constructFarmLayout = profile.constructFarmLayout !== undefined
+    ? profile.constructFarmLayout
+    : existing?.constructFarmLayout;
   const normalized: PlayerProfile = {
     currentMapId: mapDef ? profile.currentMapId : createDefaultWorldProfile().currentMapId,
     lastPosition: {
@@ -44,6 +47,7 @@ export function saveWorldProfile(
     facing: profile.facing,
     ...(sessionSync !== undefined ? { sessionSync } : {}),
     ...(loadout !== undefined ? { loadout } : {}),
+    ...(constructFarmLayout !== undefined ? { constructFarmLayout } : {}),
   };
 
   profiles.set(key, normalized);

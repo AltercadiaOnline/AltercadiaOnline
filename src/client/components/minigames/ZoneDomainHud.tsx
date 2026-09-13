@@ -19,6 +19,11 @@ function formatLockdown(ms: number): string {
   return `${Math.ceil(ms / 1000)}s`;
 }
 
+function formatClock(ms: number): string {
+  const date = new Date(ms);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 export const ZoneDomainHud: React.FC<ZoneDomainHudProps> = ({
   zoneName,
   snapshot,
@@ -50,7 +55,7 @@ export const ZoneDomainHud: React.FC<ZoneDomainHudProps> = ({
           <li>Cada terminal libera só a subzona seguinte.</li>
           <li>O código aparece por 2s já embaralhado — pegue os dígitos no flash.</li>
           <li>O teclado também embaralha a cada tentativa.</li>
-          <li>Acerto libera esta trava. Erro ou tempo esgotado: lockdown 10s.</li>
+          <li>Quando a subzona é liberada, ela fica ativa por 1 hora em mundo real; ao expirar, a trava fecha e qualquer player pode tentar novamente.</li>
         </ul>
       </section>
 
@@ -64,6 +69,12 @@ export const ZoneDomainHud: React.FC<ZoneDomainHudProps> = ({
         </div>
         {snapshot.lanes.map((lane) => {
           const isThis = lane.transitionId === boundTransitionId;
+          const expiresLabel = lane.unlocked && lane.expiresAtMs ? ` até ${formatClock(lane.expiresAtMs)}` : '';
+          const holderText = lane.holderName
+            ? `${lane.holderName}${expiresLabel}`
+            : lane.unlocked && lane.expiresAtMs
+              ? `Ativa${expiresLabel}`
+              : '—';
           return (
             <div
               key={lane.transitionId}
@@ -77,7 +88,7 @@ export const ZoneDomainHud: React.FC<ZoneDomainHudProps> = ({
               <span className={lane.unlocked ? 'zone-terminal-hud__ok' : 'zone-terminal-hud__locked'}>
                 {lane.unlocked ? 'Liberada' : 'Travada'}
               </span>
-              <span>{lane.holderName ?? '—'}</span>
+              <span>{holderText}</span>
             </div>
           );
         })}

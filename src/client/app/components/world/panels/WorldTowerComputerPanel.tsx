@@ -41,6 +41,8 @@ export function WorldTowerComputerPanel({
     `Abra o PC e monte o time (nv. mín. ${TOWER_MIN_LEVEL}).`,
   );
 
+  const canEnterTower = Boolean(snapshot?.party?.run?.spawnUnlocked);
+
   useEffect(() => subscribeTowerPanelMirror(() => setSnapshot(getTowerPanelMirror())), []);
 
   useEffect(() => {
@@ -84,7 +86,7 @@ export function WorldTowerComputerPanel({
     idleLabel: 'Liberar entrada',
     pendingLabel: 'Liberando…',
     onClick: () => getActionDispatcher().dispatch({ type: 'TOWER_UNLOCK_ENTRY', payload: {} }),
-    onResolved: () => setStatus('Entrada liberada — spawn aberto por 5 min.'),
+    onResolved: () => setStatus('Entrada liberada — spawn aberto por 5 min. Solo também vale.'),
   });
 
   const enterFloor = useActionGatewaySubmit({
@@ -106,6 +108,9 @@ export function WorldTowerComputerPanel({
   const members = snapshot?.party?.members ?? [];
   const run = snapshot?.party?.run;
   const leaderboard = snapshot?.leaderboard ?? [];
+  const entryNotice = canEnterTower
+    ? 'Entrada liberada — o spawn da torre está ativo.'
+    : 'Ative a entrada no terminal da torre para liberar o spawn.';
 
   return (
     <MovablePanelFrame
@@ -127,6 +132,9 @@ export function WorldTowerComputerPanel({
     >
       <div className="tower-computer" style={{ padding: '0.75rem', color: '#e8e2d6', fontSize: 12 }}>
         <p style={{ margin: '0 0 0.75rem', opacity: 0.85 }}>{status}</p>
+        <p style={{ margin: '0 0 0.75rem', opacity: 0.9, color: canEnterTower ? '#89f0a7' : '#ffd166' }}>
+          {entryNotice}
+        </p>
 
         <section aria-label="Party" style={{ marginBottom: '0.85rem' }}>
           <h3 style={{ margin: '0 0 0.4rem', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
@@ -170,7 +178,7 @@ export function WorldTowerComputerPanel({
             {run?.spawnUnlocked ? ' · spawn aberto (5 min)' : ''}
             {run?.floorCleared ? ' · boss morto' : ''}
           </p>
-          <button type="button" disabled={enterFloor.pending} onClick={enterFloor.submit}>
+          <button type="button" disabled={enterFloor.pending || !canEnterTower} onClick={enterFloor.submit}>
             {enterFloor.buttonLabel}
           </button>
         </section>

@@ -1,10 +1,14 @@
 import { resolveNpcArchetypeId } from '../npc/resolveNpcArchetypeId.js';
-import { getMercenaryQuestById } from './mercenaryQuestCatalog.js';
+import {
+  getMercenaryQuestById,
+  isMercenaryQuestUnlocked,
+} from './mercenaryQuestCatalog.js';
 import { getMercenaryQuestPoiById } from './mercenaryQuestPoiCatalog.js';
 import type { MercenaryQuestProgress } from './mercenaryQuestTypes.js';
 import {
   buildMercenaryQuestTargetKey,
   getMercenaryQuestWorldBinding,
+  MERCENARY_QUEST_WORLD_BINDINGS,
   type MercenaryQuestStepDef,
   type MercenaryQuestStepTarget,
   type MercenaryQuestWorldBinding,
@@ -98,26 +102,61 @@ export function resolveMercenaryQuestNpcOffer(
   progress: MercenaryQuestProgress,
   npcId: string,
   mapId: MercenaryQuestStepTarget['mapId'],
-): { readonly actionLabel: string; readonly objectiveShort: string } | null {
+): {
+  readonly actionLabel: string;
+  readonly objectiveShort: string;
+  readonly questId?: string;
+  readonly mode?: 'accept' | 'advance';
+} | null {
   const step = getActiveMercenaryQuestStep(progress);
-  if (!step) return null;
-  const match = step.targets.find(
+  if (step) {
+    const match = step.targets.find(
+      (target) => target.targetKind === 'npc'
+        && resolveNpcArchetypeId(target.targetId) === resolveNpcArchetypeId(npcId)
+        && target.mapId === mapId,
+    );
+    if (!match) return null;
+    const targetKey = buildMercenaryQuestTargetKey(match.targetKind, match.targetId, match.mapId);
+    if (progress.completedStepTargets.includes(targetKey)) return null;
+    const quest = progress.activeQuestId ? getMercenaryQuestById(progress.activeQuestId) : null;
+    const verb = quest?.interactionType === 'RESCUE_CONTACT'
+      ? 'Resgatar contact'
+      : quest?.interactionType === 'FETCH_WATCH'
+        ? 'Buscar relógio'
+        : quest?.interactionType === 'SCAN_TERMINAL'
+          ? 'Extrair código'
+          : 'Avançar contrato';
+    return {
+      actionLabel: verb,
+      objectiveShort: step.objectiveShort,
+      mode: 'advance',
+      ...(progress.activeQuestId ? { questId: progress.activeQuestId } : {}),
+    };
+  }
+
+  const binding = getMercenaryQuestWorldBindingByNpc(npcId, mapId);
+  if (!binding) return null;
+  if (progress.completedQuestIds.includes(binding.questId)) return null;
+  const quest = getMercenaryQuestById(binding.questId);
+  if (!quest || !isMercenaryQuestUnlocked(quest, progress)) return null;
+
+  return {
+    actionLabel: 'Aceitar contrato',
+    objectiveShort: `Assine o contrato ${quest.title}.`,
+    questId: quest.id,
+    mode: 'accept',
+  };
+}
+
+function getMercenaryQuestWorldBindingByNpc(
+  npcId: string,
+  mapId: MercenaryQuestStepTarget['mapId'],
+): MercenaryQuestWorldBinding | null {
+  return MERCENARY_QUEST_WORLD_BINDINGS.find((binding) => binding.steps.some((step) => step.targets.some(
     (target) => target.targetKind === 'npc'
-      && resolveNpcArchetypeId(target.targetId) === resolveNpcArchetypeId(npcId)
-      && target.mapId === mapId,
-  );
-  if (!match) return null;
-  const targetKey = buildMercenaryQuestTargetKey(match.targetKind, match.targetId, match.mapId);
-  if (progress.completedStepTargets.includes(targetKey)) return null;
-  const quest = progress.activeQuestId ? getMercenaryQuestById(progress.activeQuestId) : null;
-  const verb = quest?.interactionType === 'RESCUE_CONTACT'
-    ? 'Resgatar contact'
-    : quest?.interactionType === 'FETCH_WATCH'
-      ? 'Buscar relógio'
-      : quest?.interactionType === 'SCAN_TERMINAL'
-        ? 'Extrair código'
-        : 'Avançar contrato';
-  return { actionLabel: verb, objectiveShort: step.objectiveShort };
+      && target.mapId === mapId
+      && resolveNpcArchetypeId(target.targetId) === resolveNpcArchetypeId(npcId),
+  ))) ?? null;
 }
 
 export function resolveMercenaryQuestPoiOffer(

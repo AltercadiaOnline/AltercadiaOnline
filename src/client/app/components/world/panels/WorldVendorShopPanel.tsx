@@ -360,7 +360,7 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
       ].filter(Boolean).join(' ')}
       panelStyle={isMercenary
         ? {
-          width: showContractsBody ? 'min(720px, 96vw)' : 'min(980px, 98vw)',
+          width: 'min(980px, 98vw)',
           maxHeight: 'min(92vh, 720px)',
         }
         : { width: 'min(960px, 98vw)', height: 'min(620px, 86vh)', maxHeight: 'min(620px, 86vh)' }}
@@ -419,163 +419,98 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
         ) : null}
 
         {showShopBody ? (
-        <div
-          className={[
-            'vendor-shop__layout',
-            isMercenary ? 'vendor-shop__layout--mercenary' : '',
-          ].filter(Boolean).join(' ')}
-          role={isMercenary ? 'tabpanel' : undefined}
-        >
-          <div className="vendor-shop__lists">
-            <section className="vendor-shop__list-wrap" aria-label="Comprar suprimentos">
-              <h3 className="vendor-shop__section-title">
-                {isMercenary ? 'Spray / Suprimentos' : 'Comprar'}
-              </h3>
-              <div className="vendor-shop__list-head" aria-hidden="true">
-                <span className="vendor-shop__col vendor-shop__col--item">Item</span>
-                <span className="vendor-shop__col vendor-shop__col--buy">Preço Venda</span>
-                <span className="vendor-shop__col vendor-shop__col--sell">Preço Revenda</span>
-              </div>
-              <ul className="vendor-shop__list">
-                {sellsRation && rationQuote ? (
-                  <li>
-                    <button
-                      type="button"
-                      className={[
-                        'vendor-shop__row',
-                        state.tradeMode === 'ration' ? 'is-selected' : '',
-                      ].filter(Boolean).join(' ')}
-                      aria-pressed={state.tradeMode === 'ration'}
-                      onClick={state.selectRation}
-                    >
-                      <span className="vendor-shop__col vendor-shop__col--item">
-                        <span className="vendor-shop__icon" aria-hidden="true">🍖</span>
-                        <span className="vendor-shop__item-text">
-                          <span className="vendor-shop__name">{rationQuote.itemLabel}</span>
-                          <span className="vendor-shop__market-value vendor-shop__market-value--inline">
-                            {rationQuote.chargesPerStack} cargas na HUD Pet Love
-                          </span>
-                        </span>
-                      </span>
-                      <span className="vendor-shop__col vendor-shop__col--buy">
-                        <span className="vendor-shop__price vendor-shop__price--buy">
-                          {formatVoltsShort(rationQuote.priceVolts)}
-                        </span>
-                      </span>
-                      <span className="vendor-shop__col vendor-shop__col--sell">
-                        <span className="vendor-shop__price vendor-shop__price--sell">—</span>
-                      </span>
-                    </button>
-                  </li>
-                ) : null}
-                {state.listings.length === 0 && !sellsRation ? (
-                  <li className="ui-empty">Este vendedor não tem itens no momento.</li>
-                ) : (
-                  state.listings.map((listing) => {
-                    const selected = state.tradeMode === 'catalog'
-                      && state.selectedItemId === listing.itemId;
-                    const kindClass = resolveInventoryItemKindClass(listing.itemId);
-                    const label = resolveInventoryItemLabel(listing.itemId);
-                    const buyUnit = resolveEffectiveNpcBuyUnitPrice(listing.itemId, listing) ?? 0;
-                    const sellUnit = resolveEffectiveNpcSellUnitPrice(listing.itemId, listing) ?? 0;
-
-                    return (
-                      <li key={listing.itemId}>
-                        <button
-                          type="button"
-                          className={[
-                            'vendor-shop__row',
-                            kindClass,
-                            selected ? 'is-selected' : '',
-                          ].filter(Boolean).join(' ')}
-                          aria-pressed={selected}
-                          onClick={() => state.selectCatalogItem(listing.itemId)}
-                          {...bindItemHoverHandlers(listing.itemId)}
-                        >
-                          <span className="vendor-shop__col vendor-shop__col--item">
-                            <span className="vendor-shop__icon" aria-hidden="true">
-                              <ItemSlotIcon itemId={listing.itemId} />
-                            </span>
-                            <span className="vendor-shop__item-text">
-                              <span className="vendor-shop__name">{label}</span>
-                              <span className="vendor-shop__market-value vendor-shop__market-value--inline">
-                                Valor de Mercado: {formatMarketValue(listing.marketValueVolts)}
-                              </span>
-                            </span>
-                          </span>
-                          <span className="vendor-shop__col vendor-shop__col--buy">
-                            <span className="vendor-shop__price vendor-shop__price--buy">
-                              {formatVoltsShort(buyUnit)}
-                            </span>
-                          </span>
-                          <span className="vendor-shop__col vendor-shop__col--sell">
-                            <span className="vendor-shop__price vendor-shop__price--sell">
-                              {formatVoltsShort(sellUnit)}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </section>
-            {/* If vendor is mercenario, we do not show the sell/revenda section */}
-            {vendor.vendorId !== 'mercenario' && (
-              <section
-                className="vendor-shop__list-wrap vendor-shop__list-wrap--inventory"
-                aria-label="Revender drops do inventário"
-              >
-                <h3 className="vendor-shop__section-title">Revender drops</h3>
-                <div className="vendor-shop__list-head vendor-shop__list-head--inventory" aria-hidden="true">
+          <div
+            className={[
+              'vendor-shop__layout',
+              isMercenary ? 'vendor-shop__layout--mercenary' : '',
+            ].filter(Boolean).join(' ')}
+            role={isMercenary ? 'tabpanel' : undefined}
+          >
+            <div className="vendor-shop__lists">
+              <section className="vendor-shop__list-wrap" aria-label="Comprar suprimentos">
+                <h3 className="vendor-shop__section-title">
+                  {isMercenary ? 'Spray / Suprimentos' : 'Comprar'}
+                </h3>
+                <div className="vendor-shop__list-head" aria-hidden="true">
                   <span className="vendor-shop__col vendor-shop__col--item">Item</span>
-                  <span className="vendor-shop__col vendor-shop__col--base">Valor Base</span>
+                  <span className="vendor-shop__col vendor-shop__col--buy">Preço Venda</span>
                   <span className="vendor-shop__col vendor-shop__col--sell">Preço Revenda</span>
                 </div>
                 <ul className="vendor-shop__list">
-                  {state.inventoryRows.length === 0 ? (
-                    <li className="ui-empty">
-                      Nenhum drop revendável. Só materiais Comum/Incomum (ex.: escamas).
+                  {sellsRation && rationQuote ? (
+                    <li>
+                      <button
+                        type="button"
+                        className={[
+                          'vendor-shop__row',
+                          state.tradeMode === 'ration' ? 'is-selected' : '',
+                        ].filter(Boolean).join(' ')}
+                        aria-pressed={state.tradeMode === 'ration'}
+                        onClick={state.selectRation}
+                      >
+                        <span className="vendor-shop__col vendor-shop__col--item">
+                          <span className="vendor-shop__icon" aria-hidden="true">🍖</span>
+                          <span className="vendor-shop__item-text">
+                            <span className="vendor-shop__name">{rationQuote.itemLabel}</span>
+                            <span className="vendor-shop__market-value vendor-shop__market-value--inline">
+                              {rationQuote.chargesPerStack} cargas na HUD Pet Love
+                            </span>
+                          </span>
+                        </span>
+                        <span className="vendor-shop__col vendor-shop__col--buy">
+                          <span className="vendor-shop__price vendor-shop__price--buy">
+                            {formatVoltsShort(rationQuote.priceVolts)}
+                          </span>
+                        </span>
+                        <span className="vendor-shop__col vendor-shop__col--sell">
+                          <span className="vendor-shop__price vendor-shop__price--sell">—</span>
+                        </span>
+                      </button>
                     </li>
+                  ) : null}
+                  {state.listings.length === 0 && !sellsRation ? (
+                    <li className="ui-empty">Este vendedor não tem itens no momento.</li>
                   ) : (
-                    state.inventoryRows.map((row) => {
-                      const selected = state.tradeMode === 'inventory'
-                        && state.selectedItemId === row.itemId;
-                      const kindClass = resolveInventoryItemKindClass(row.itemId);
+                    state.listings.map((listing) => {
+                      const selected = state.tradeMode === 'catalog'
+                        && state.selectedItemId === listing.itemId;
+                      const kindClass = resolveInventoryItemKindClass(listing.itemId);
+                      const label = resolveInventoryItemLabel(listing.itemId);
+                      const buyUnit = resolveEffectiveNpcBuyUnitPrice(listing.itemId, listing) ?? 0;
+                      const sellUnit = resolveEffectiveNpcSellUnitPrice(listing.itemId, listing) ?? 0;
 
                       return (
-                        <li key={row.itemId}>
+                        <li key={listing.itemId}>
                           <button
                             type="button"
                             className={[
                               'vendor-shop__row',
-                              'vendor-shop__row--inventory',
                               kindClass,
                               selected ? 'is-selected' : '',
                             ].filter(Boolean).join(' ')}
                             aria-pressed={selected}
-                            onClick={() => state.selectInventoryItem(row.itemId)}
-                            {...bindItemHoverHandlers(row.itemId)}
+                            onClick={() => state.selectCatalogItem(listing.itemId)}
+                            {...bindItemHoverHandlers(listing.itemId)}
                           >
                             <span className="vendor-shop__col vendor-shop__col--item">
                               <span className="vendor-shop__icon" aria-hidden="true">
-                                <ItemSlotIcon itemId={row.itemId} />
+                                <ItemSlotIcon itemId={listing.itemId} />
                               </span>
                               <span className="vendor-shop__item-text">
-                                <span className="vendor-shop__name">{row.label}</span>
+                                <span className="vendor-shop__name">{label}</span>
                                 <span className="vendor-shop__market-value vendor-shop__market-value--inline">
-                                  ×{row.quantity} no inventário
+                                  Valor de Mercado: {formatMarketValue(listing.marketValueVolts)}
                                 </span>
                               </span>
                             </span>
-                            <span className="vendor-shop__col vendor-shop__col--base">
-                              <span className="vendor-shop__price vendor-shop__price--base">
-                                {formatVoltsShort(row.valorBase)}
+                            <span className="vendor-shop__col vendor-shop__col--buy">
+                              <span className="vendor-shop__price vendor-shop__price--buy">
+                                {formatVoltsShort(buyUnit)}
                               </span>
                             </span>
                             <span className="vendor-shop__col vendor-shop__col--sell">
                               <span className="vendor-shop__price vendor-shop__price--sell">
-                                {formatVoltsShort(row.sellUnitPrice)}
+                                {formatVoltsShort(sellUnit)}
                               </span>
                             </span>
                           </button>
@@ -585,51 +520,116 @@ export function WorldVendorShopPanel({ context, zIndex, focused }: WorldVendorSh
                   )}
                 </ul>
               </section>
-            )}
-          </div>
+              {/* If vendor is mercenario, we do not show the sell/revenda section */}
+              {vendor.vendorId !== 'mercenario' && (
+                <section
+                  className="vendor-shop__list-wrap vendor-shop__list-wrap--inventory"
+                  aria-label="Revender drops do inventário"
+                >
+                  <h3 className="vendor-shop__section-title">Revender drops</h3>
+                  <div className="vendor-shop__list-head vendor-shop__list-head--inventory" aria-hidden="true">
+                    <span className="vendor-shop__col vendor-shop__col--item">Item</span>
+                    <span className="vendor-shop__col vendor-shop__col--base">Valor Base</span>
+                    <span className="vendor-shop__col vendor-shop__col--sell">Preço Revenda</span>
+                  </div>
+                  <ul className="vendor-shop__list">
+                    {state.inventoryRows.length === 0 ? (
+                      <li className="ui-empty">
+                        Nenhum drop revendável. Só materiais Comum/Incomum (ex.: escamas).
+                      </li>
+                    ) : (
+                      state.inventoryRows.map((row) => {
+                        const selected = state.tradeMode === 'inventory'
+                          && state.selectedItemId === row.itemId;
+                        const kindClass = resolveInventoryItemKindClass(row.itemId);
 
-          <aside className="vendor-shop__trade-hub" aria-label="Negociação">
-            {state.tradeMode === 'ration' && sellsRation ? (
-              <RationTradeHub
-                purchasePending={rationGateway.pending}
-                onPurchase={rationGateway.submit}
-                onCancel={state.cancelSelection}
-              />
-            ) : state.selectedListing ? (
-              <CatalogTradeHub
-                listing={state.selectedListing}
-                tradeQuantity={state.tradeQuantity}
-                owned={state.countInventoryItem(state.selectedListing.itemId)}
-                purchasePending={purchaseGateway.pending}
-                sellPending={sellGateway.pending}
-                onQuantityChange={state.setClampedTradeQuantity}
-                onPurchase={purchaseGateway.submit}
-                onSell={sellGateway.submit}
-                onCancel={state.cancelSelection}
-              />
-            ) : state.selectedInventoryRow ? (
-              <InventoryTradeHub
-                row={state.selectedInventoryRow}
-                tradeQuantity={state.tradeQuantity}
-                sellPending={sellGateway.pending}
-                onQuantityChange={state.setClampedTradeQuantity}
-                onSell={sellGateway.submit}
-                onCancel={state.cancelSelection}
-              />
-            ) : (
-              <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--idle">
-                <span className="vendor-shop__trade-tag">NODE::IDLE</span>
-                <p className="vendor-shop__trade-idle">
-                  {isMercenary
-                    ? 'Selecione um spray na lista para comprar aqui.'
-                    : sellsRation
-                      ? 'Selecione a ração especial ou um drop para negociar.'
-                      : 'Selecione um drop na lista e confirme a venda aqui.'}
-                </p>
-              </div>
-            )}
-          </aside>
-        </div>
+                        return (
+                          <li key={row.itemId}>
+                            <button
+                              type="button"
+                              className={[
+                                'vendor-shop__row',
+                                'vendor-shop__row--inventory',
+                                kindClass,
+                                selected ? 'is-selected' : '',
+                              ].filter(Boolean).join(' ')}
+                              aria-pressed={selected}
+                              onClick={() => state.selectInventoryItem(row.itemId)}
+                              {...bindItemHoverHandlers(row.itemId)}
+                            >
+                              <span className="vendor-shop__col vendor-shop__col--item">
+                                <span className="vendor-shop__icon" aria-hidden="true">
+                                  <ItemSlotIcon itemId={row.itemId} />
+                                </span>
+                                <span className="vendor-shop__item-text">
+                                  <span className="vendor-shop__name">{row.label}</span>
+                                  <span className="vendor-shop__market-value vendor-shop__market-value--inline">
+                                    ×{row.quantity} no inventário
+                                  </span>
+                                </span>
+                              </span>
+                              <span className="vendor-shop__col vendor-shop__col--base">
+                                <span className="vendor-shop__price vendor-shop__price--base">
+                                  {formatVoltsShort(row.valorBase)}
+                                </span>
+                              </span>
+                              <span className="vendor-shop__col vendor-shop__col--sell">
+                                <span className="vendor-shop__price vendor-shop__price--sell">
+                                  {formatVoltsShort(row.sellUnitPrice)}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })
+                    )}
+                  </ul>
+                </section>
+              )}
+            </div>
+
+            <aside className="vendor-shop__trade-hub" aria-label="Negociação">
+              {state.tradeMode === 'ration' && sellsRation ? (
+                <RationTradeHub
+                  purchasePending={rationGateway.pending}
+                  onPurchase={rationGateway.submit}
+                  onCancel={state.cancelSelection}
+                />
+              ) : state.selectedListing ? (
+                <CatalogTradeHub
+                  listing={state.selectedListing}
+                  tradeQuantity={state.tradeQuantity}
+                  owned={state.countInventoryItem(state.selectedListing.itemId)}
+                  purchasePending={purchaseGateway.pending}
+                  sellPending={sellGateway.pending}
+                  onQuantityChange={state.setClampedTradeQuantity}
+                  onPurchase={purchaseGateway.submit}
+                  onSell={sellGateway.submit}
+                  onCancel={state.cancelSelection}
+                />
+              ) : state.selectedInventoryRow ? (
+                <InventoryTradeHub
+                  row={state.selectedInventoryRow}
+                  tradeQuantity={state.tradeQuantity}
+                  sellPending={sellGateway.pending}
+                  onQuantityChange={state.setClampedTradeQuantity}
+                  onSell={sellGateway.submit}
+                  onCancel={state.cancelSelection}
+                />
+              ) : (
+                <div className="vendor-shop__trade-hub-inner vendor-shop__trade-hub-inner--idle">
+                  <span className="vendor-shop__trade-tag">NODE::IDLE</span>
+                  <p className="vendor-shop__trade-idle">
+                    {isMercenary
+                      ? 'Selecione um spray na lista para comprar aqui.'
+                      : sellsRation
+                        ? 'Selecione a ração especial ou um drop para negociar.'
+                        : 'Selecione um drop na lista e confirme a venda aqui.'}
+                  </p>
+                </div>
+              )}
+            </aside>
+          </div>
         ) : null}
       </div>
     </MovablePanelFrame>

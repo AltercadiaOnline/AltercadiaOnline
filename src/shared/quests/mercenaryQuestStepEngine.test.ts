@@ -10,6 +10,18 @@ import { EMPTY_MERCENARY_QUEST_PROGRESS } from './mercenaryQuestTypes.js';
 import { CITY_01_ID } from '../world/maps/city01.js';
 
 describe('mercenaryQuestStepEngine', () => {
+  it('Q1 — operador da Linha 4 oferece aceitar o contrato antes do aceite', () => {
+    const offer = resolveMercenaryQuestNpcOffer(
+      EMPTY_MERCENARY_QUEST_PROGRESS,
+      'operario_linha4',
+      CITY_01_ID,
+    );
+
+    expect(offer?.actionLabel).toBe('Aceitar contrato');
+    expect(offer?.mode).toBe('accept');
+    expect(offer?.questId).toBe('quest_01');
+  });
+
   it('Q1 — operário da Linha 4 concede código e libera turn-in', () => {
     const accepted = acceptMercenaryQuest(EMPTY_MERCENARY_QUEST_PROGRESS, 'quest_01');
     expect(accepted.ok).toBe(true);

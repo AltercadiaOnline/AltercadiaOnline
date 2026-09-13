@@ -135,6 +135,7 @@ export interface ZoneDomainLane {
   readonly displayTimeMs: number;
   readonly unlocked: boolean;
   readonly holderName: string | null;
+  readonly expiresAtMs: number | null;
 }
 
 export interface ZoneDomainSnapshot {

@@ -288,7 +288,14 @@ export function unlockTowerEntry(
   const party = getTowerPartyForPlayer(leaderPlayerId);
   if (!party) return { ok: false, error: 'NO_PARTY' };
   if (party.leaderPlayerId !== leaderPlayerId) return { ok: false, error: 'NOT_LEADER' };
-  if (!party.members.every((m) => m.ready)) return { ok: false, error: 'NOT_ALL_READY' };
+
+  const members = party.members.length > 0 ? party.members : [];
+  const hasPartyMembers = members.length >= TOWER_PARTY_SIZE_MIN;
+  if (!hasPartyMembers) return { ok: false, error: 'NO_PARTY' };
+
+  const allReady = members.every((m) => m.ready);
+  if (party.members.length > 1 && !allReady) return { ok: false, error: 'NOT_ALL_READY' };
+
   party.spawnUnlocked = true;
   party.unlockExpiresAtServerMs = Date.now() + TOWER_ENTRY_UNLOCK_MS;
   return { ok: true, party };

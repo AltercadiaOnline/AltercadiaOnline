@@ -285,23 +285,34 @@ export class NPCManager {
       return;
     }
 
-    if (
-      npc.actionType === NpcActionType.TOWER_ENTER
-      || npc.actionType === NpcActionType.TOWER_ACTIVATE_BOSS
+    if (npc.actionType === NpcActionType.TOWER_ACTIVATE_BOSS
       || npc.actionType === NpcActionType.TOWER_ASCEND
       || npc.actionType === NpcActionType.TOWER_EVACUATE
     ) {
       windowManager.close('dialogue');
       hideInteractionCard();
       const actionType =
-        npc.actionType === NpcActionType.TOWER_ENTER
-          ? 'TOWER_ENTER_FLOOR'
-          : npc.actionType === NpcActionType.TOWER_ACTIVATE_BOSS
-            ? 'TOWER_ACTIVATE_BOSS'
-            : npc.actionType === NpcActionType.TOWER_ASCEND
-              ? 'TOWER_ASCEND'
-              : 'TOWER_EVACUATE';
+        npc.actionType === NpcActionType.TOWER_ACTIVATE_BOSS
+          ? 'TOWER_ACTIVATE_BOSS'
+          : npc.actionType === NpcActionType.TOWER_ASCEND
+            ? 'TOWER_ASCEND'
+            : 'TOWER_EVACUATE';
       getActionDispatcher().dispatch({ type: actionType, payload: {} });
+      return;
+    }
+
+    if (npc.actionType === NpcActionType.TOWER_ENTER) {
+      windowManager.close('dialogue');
+      hideInteractionCard();
+      windowManager.open('towerComputer', {
+        kind: 'towerComputer',
+        objectId: npc.id,
+        label: npc.name,
+      });
+      uiEvents.emit(UIEventType.SHOW_TOWER_COMPUTER, {
+        objectId: npc.id,
+        label: npc.name,
+      });
       return;
     }
 

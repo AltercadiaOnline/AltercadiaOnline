@@ -12,6 +12,7 @@ export interface ZoneHolderRecord {
   readonly userId: string;
   readonly displayName: string;
   readonly unlockedAtMs: number;
+  readonly expiresAtMs: number;
 }
 
 interface ActiveTerminalSession {
@@ -23,16 +24,20 @@ interface ActiveTerminalSession {
   readonly isResolved: boolean;
 }
 
+const WORLD_ZONE_ACTIVE_WINDOW_MS = 60 * 60 * 1000;
+
 export class ZoneBypassService {
   private activeSessions = new Map<string, ActiveTerminalSession>();
   private playerLockdowns = new Map<string, number>();
+  /** Compatibilidade de histórico de save: não define mais o estado ativo da zona. */
   private playerUnlocks = new Map<string, Set<string>>();
   /** Primeiro bypass bem-sucedido da subzona — “quem está dominando”. */
   private zoneHolders = new Map<string, ZoneHolderRecord>();
 
-  public isZoneUnlocked(userId: string, targetZone: string): boolean {
-    const unlocks = this.playerUnlocks.get(userId);
-    return unlocks ? unlocks.has(targetZone) : false;
+  public isZoneUnlocked(_userId: string, targetZone: string): boolean {
+    const now = Date.now();
+    const holder = this.zoneHolders.get(targetZone);
+    return Boolean(holder && holder.expiresAtMs > now);
   }
 
   public initTerminalSession(userId: string, transitionId: SubZoneTransitionId): TerminalInitResponse {
@@ -98,19 +103,21 @@ export class ZoneBypassService {
     nowMs: number = Date.now(),
     boundTransitionId?: SubZoneTransitionId,
   ): ZoneDomainSnapshot {
-    const unlocks = this.playerUnlocks.get(userId) ?? new Set<string>();
+    const unlockedZones = this.exportPlayerUnlocks(userId, nowMs);
     const lockdownUntil = this.playerLockdowns.get(userId) ?? 0;
     const lanes = SUB_ZONE_TRANSITION_ORDER.map((transitionId) => {
       const config = ZONE_BYPASS_DIFFICULTIES[transitionId];
       const holder = this.zoneHolders.get(config.toZone);
+      const unlocked = unlockedZones.includes(config.toZone);
       return {
         transitionId,
         fromZone: config.fromZone,
         toZone: config.toZone,
         digitCount: config.digitCount,
         displayTimeMs: config.displayTimeMs,
-        unlocked: unlocks.has(config.toZone),
+        unlocked,
         holderName: holder?.displayName ?? null,
+        expiresAtMs: holder?.expiresAtMs ?? null,
       };
     });
     const nextGlobal = lanes.find((lane) => !lane.unlocked) ?? null;
@@ -121,7 +128,7 @@ export class ZoneBypassService {
     const nextAtTerminal =
       boundLane && !boundLane.unlocked ? boundLane.transitionId : null;
     return {
-      unlockedZones: [...unlocks],
+      unlockedZones,
       lanes,
       nextTransitionId: nextAtTerminal ?? (boundTransitionId ? null : nextGlobal?.transitionId ?? null),
       lockdownRemainingMs: Math.max(0, lockdownUntil - nowMs),
@@ -166,18 +173,13 @@ export class ZoneBypassService {
       };
     }
 
-    if (!this.playerUnlocks.has(userId)) {
-      this.playerUnlocks.set(userId, new Set());
-    }
-    this.playerUnlocks.get(userId)!.add(config.toZone);
-    if (!this.zoneHolders.has(config.toZone)) {
-      const name = holderDisplayName?.trim();
-      this.zoneHolders.set(config.toZone, {
-        userId,
-        displayName: name && name.length > 0 ? name : userId,
-        unlockedAtMs: now,
-      });
-    }
+    const name = holderDisplayName?.trim();
+    this.zoneHolders.set(config.toZone, {
+      userId,
+      displayName: name && name.length > 0 ? name : userId,
+      unlockedAtMs: now,
+      expiresAtMs: now + WORLD_ZONE_ACTIVE_WINDOW_MS,
+    });
     this.activeSessions.delete(sessionId);
 
     return {
@@ -201,9 +203,14 @@ export class ZoneBypassService {
     this.playerUnlocks.set(playerKey, set);
   }
 
-  exportPlayerUnlocks(playerKey: string): readonly string[] {
-    const unlocks = this.playerUnlocks.get(playerKey);
-    return unlocks ? [...unlocks] : [];
+  exportPlayerUnlocks(_playerKey: string, nowMs: number = Date.now()): readonly string[] {
+    const activeZones: string[] = [];
+    for (const [zone, holder] of this.zoneHolders.entries()) {
+      if (holder.expiresAtMs > nowMs) {
+        activeZones.push(zone);
+      }
+    }
+    return activeZones;
   }
 
   hydrateZoneHolders(holders: Readonly<Record<string, ZoneHolderRecord>>): void {
@@ -213,6 +220,7 @@ export class ZoneBypassService {
         userId: holder.userId,
         displayName: holder.displayName,
         unlockedAtMs: holder.unlockedAtMs,
+        expiresAtMs: holder.expiresAtMs ?? holder.unlockedAtMs,
       });
     }
   }

@@ -66,33 +66,44 @@ export async function persistAuthoritativeLoginSnapshot(
     throw new Error(petsResult.message ?? 'Falha ao persistir pets no login.');
   }
 
+  const level = Math.max(1, Math.floor(progression.characterProfile.level ?? 1));
+  const xpCurrent = Math.max(0, Math.floor(progression.characterProfile.xpCurrent ?? 0));
   const displayName = progression.characterProfile.displayName?.trim();
   const classId = isClassType(progression.characterProfile.classId)
     ? progression.characterProfile.classId
     : null;
-  if (displayName || classId) {
+
+  const profilePatch: Record<string, unknown> = {
+    level,
+    xp_current: xpCurrent,
+    ...(displayName ? { display_name: displayName } : {}),
+    ...(classId ? { class_id: classId } : {}),
+  };
+
+  if (Object.keys(profilePatch).length > 0) {
     const { error } = await client
       .from('profiles')
-      .update({
-        ...(displayName ? { display_name: displayName } : {}),
-        ...(classId ? { class_id: classId } : {}),
-      })
+      .update(profilePatch)
       .eq('user_id', scope.userId)
       .eq('character_id', scope.characterId)
       .eq('server_id', serverId);
 
     if (error) {
       if (classId && isMissingClassIdColumnError(error.message, error.code)) {
-        if (displayName) {
-          const retry = await client
-            .from('profiles')
-            .update({ display_name: displayName })
-            .eq('user_id', scope.userId)
-            .eq('character_id', scope.characterId)
-            .eq('server_id', serverId);
-          if (retry.error) {
-            throw new Error(retry.error.message);
-          }
+        const retryPatch: Record<string, unknown> = {
+          level,
+          xp_current: xpCurrent,
+          ...(displayName ? { display_name: displayName } : {}),
+        };
+
+        const retry = await client
+          .from('profiles')
+          .update(retryPatch)
+          .eq('user_id', scope.userId)
+          .eq('character_id', scope.characterId)
+          .eq('server_id', serverId);
+        if (retry.error) {
+          throw new Error(retry.error.message);
         }
       } else {
         throw new Error(error.message);

@@ -38,6 +38,8 @@ import { resolveSceneConfigForMapId } from '../../config/sceneConfig.js';
 import { applyConstructMapLoad } from '../worldRender/applyConstructMapLoad.js';
 import { WORLD_MOUNT_ROOT_ID } from '../worldRender/worldRenderMount.js';
 
+import { getConstructNpcInstance, constructMarkerToLogicalWorld } from '../../shared/world/constructNpcPlacements.js';
+
 import { Player } from '../entities/Player.js';
 
 import { NPCManager } from '../managers/NPCManager.js';
@@ -75,7 +77,7 @@ import {
   enforceFixedGameStagePixels,
   resolveGameUiLayer,
 } from '../layout/gameLayout.js';
-import { setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
+import { getActiveMapTileSize, setActiveMapTileSize } from '../../shared/world/activeMapTileSize.js';
 import { setActiveWorldCollisionMapId } from '../../shared/world/worldCollisionRegistry.js';
 import { worldPixelToTile } from '../../shared/world/portals.js';
 import { publishMinimapSnapshot } from '../world/minimap/minimapState.js';
@@ -111,6 +113,7 @@ import { setWorldCreatureSyncListener } from '../world/worldCreatureSyncBridge.j
 import { scheduleLocalMonsterRespawn } from '../world/localPveEncounterRuntime.js';
 import { getGameMode } from '../runtime/gameMode.js';
 import { CITY_01_ID } from '../../shared/world/maps/city01.js';
+import { TOWER_GATE_ID } from '../../shared/world/maps/towerMaps.js';
 import { isHuntZoneMapId } from '../../shared/world/zoneLoad/zoneLoadTypes.js';
 import {
   ensureClientZone,
@@ -129,6 +132,7 @@ import { moveDirectionToFacing } from '../../shared/world/playerFacing.js';
 import { isAuthoritativeWorldSocket } from '../world/authoritativeWorldSocket.js';
 import { resetInteractionCardController } from '../world/interactionCardController.js';
 import { resetNpcModalController } from '../ui/npcModalController.js';
+import { windowManager } from '../app/panels/worldWindowController.js';
 import type { Disposable } from '../utils/Disposable.js';
 
 export class ExplorationScene implements Disposable {
@@ -191,6 +195,8 @@ export class ExplorationScene implements Disposable {
   private zoneTransitionCleanup: (() => void) | null = null;
 
   private readonly zonePreloader = new ZoneMapPreloader();
+
+  private towerEntryHudAutoOpened = false;
 
   private paused = false;
 
@@ -753,6 +759,7 @@ export class ExplorationScene implements Disposable {
 
     this.npcManager.checkInteraction(this.player);
     InputHandler.setNpcInteractInRange(this.npcManager.getNearestInteractable() !== null);
+    this.syncTowerEntrySpawnHud();
 
     this.worldMap.updateProximity(this.player.x, this.player.y, deltaMs);
 
@@ -803,6 +810,53 @@ export class ExplorationScene implements Disposable {
     this.tickSpeechBubbles();
     this.syncRemotePlayerPicks();
     tickInteractionCardVisibility();
+  }
+
+  private syncTowerEntrySpawnHud(): void {
+    if (this.mapManager.currentMapId !== TOWER_GATE_ID) {
+      if (this.towerEntryHudAutoOpened) {
+        windowManager.close('towerComputer');
+        this.towerEntryHudAutoOpened = false;
+      }
+      return;
+    }
+
+    const triggerPlacement = getConstructNpcInstance('enter_spaw_towerpower');
+    if (!triggerPlacement) {
+      if (this.towerEntryHudAutoOpened) {
+        windowManager.close('towerComputer');
+        this.towerEntryHudAutoOpened = false;
+      }
+      return;
+    }
+
+    const resolved = constructMarkerToLogicalWorld(
+      triggerPlacement.constructX,
+      triggerPlacement.constructY,
+    );
+
+    const tileSize = getActiveMapTileSize();
+    const dx = this.player.x - resolved.worldX;
+    const dy = this.player.y - resolved.worldY;
+    const proximityRadiusTiles = 1.5;
+    const nearTrigger = Math.hypot(dx, dy) <= tileSize * proximityRadiusTiles;
+
+    if (nearTrigger) {
+      if (!this.towerEntryHudAutoOpened) {
+        windowManager.open('towerComputer', {
+          kind: 'towerComputer',
+          objectId: 'enter_spaw_towerpower',
+          label: 'Entrada da Torre de Poder',
+        });
+        this.towerEntryHudAutoOpened = true;
+      }
+      return;
+    }
+
+    if (this.towerEntryHudAutoOpened) {
+      windowManager.close('towerComputer');
+      this.towerEntryHudAutoOpened = false;
+    }
   }
 
   private syncRemotePlayerPicks(): void {
@@ -1074,11 +1128,11 @@ export class ExplorationScene implements Disposable {
       },
       ...(this.navigationDestination
         ? {
-            destination: {
-              tileX: this.navigationDestination.tileX,
-              tileY: this.navigationDestination.tileY,
-            },
-          }
+          destination: {
+            tileX: this.navigationDestination.tileX,
+            tileY: this.navigationDestination.tileY,
+          },
+        }
         : {}),
     });
 

@@ -117,6 +117,12 @@ export function useMercenaryQuestNpcInteract(
       if (!offer || !mapId) {
         return { ok: false as const, reason: 'Alvo indisponível.' };
       }
+      if (offer.mode === 'accept' && offer.questId) {
+        return getActionDispatcher().dispatch({
+          type: 'ACCEPT_MERCENARY_TASK',
+          payload: { taskId: offer.questId },
+        });
+      }
       return getActionDispatcher().dispatch({
         type: 'MERCENARY_QUEST_INTERACT',
         payload: { targetKind: 'npc', targetId: npcId, mapId },

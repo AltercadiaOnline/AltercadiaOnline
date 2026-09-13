@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ZoneBypassService } from './world/zoneBypassStore.js';
 import { TacticalSprayService } from './social/tacticalSprayStore.js';
 import { resolveScrambledMemorizeDigit } from './types/zoneBypass.js';
@@ -11,6 +11,10 @@ describe('Mecânica 1: Bypass de Zona (Escalonamento de Memória)', () => {
 
   beforeEach(() => {
     bypassService = new ZoneBypassService();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('código de memorizar embaralha nas pontas e revela no miolo', () => {
@@ -122,6 +126,30 @@ describe('Mecânica 1: Bypass de Zona (Escalonamento de Memória)', () => {
 
     // Tentar iniciar nova sessão deve ser bloqueado por lockdown
     expect(() => bypassService.initTerminalSession('user_fail', 'Z1_TO_Z1A')).toThrow(/lockdown/i);
+  });
+
+  it('deve relogar o mundo quando a janela de ativação expira e permitir nova tentativa por qualquer player', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'));
+
+    const firstSession = bypassService.initTerminalSession('player_a', 'Z1_TO_Z1A');
+    const firstResult = bypassService.submitTerminalAnswer(
+      firstSession.sessionId,
+      'player_a',
+      firstSession.sequencePreview!,
+      1000,
+      'Alpha',
+    );
+
+    expect(firstResult.success).toBe(true);
+    expect(bypassService.isZoneUnlocked('player_b', 'Z1A')).toBe(true);
+
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+
+    expect(bypassService.isZoneUnlocked('player_b', 'Z1A')).toBe(false);
+
+    const retrySession = bypassService.initTerminalSession('player_b', 'Z1_TO_Z1A');
+    expect(retrySession.isAlreadyUnlocked).toBe(false);
   });
 });
 

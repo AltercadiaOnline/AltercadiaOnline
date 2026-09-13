@@ -60,11 +60,11 @@ body {
   overflow: hidden;
 }
 
-body[data-react-game-hud-ui="1"] #game-ui-overlay > #ui-layer {
+body[data-react-game-hud-ui="1"] #game-ui-overlay>#ui-layer {
   display: none !important;
 }
 
-body[data-react-game-hud-ui="1"] #game-ui-overlay > .portal-modal {
+body[data-react-game-hud-ui="1"] #game-ui-overlay>.portal-modal {
   pointer-events: auto;
   z-index: 50;
 }
@@ -120,11 +120,9 @@ body[data-react-battle-hud-ui="1"] #scene-combat .battle-screen--terminal.battle
   height: min(34%, 152px);
   padding: 0.3rem 0.45rem 0.35rem;
   border-top: 1px solid var(--battle-neon-dim, rgba(222, 255, 154, 0.35));
-  background: linear-gradient(
-    180deg,
-    rgba(6, 8, 6, 0.55) 0%,
-    rgba(6, 8, 6, 0.92) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(6, 8, 6, 0.55) 0%,
+      rgba(6, 8, 6, 0.92) 100%);
   box-sizing: border-box;
 }
 
@@ -244,11 +242,9 @@ body[data-react-battle-hud-ui="1"] #scene-combat .battle-screen--terminal.battle
 #game-react-hud-root .battle-hud-top-chrome {
   flex: 0 0 auto;
   width: 100%;
-  background: linear-gradient(
-    180deg,
-    rgba(6, 8, 6, 0.98) 0%,
-    rgba(6, 8, 6, 0.9) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(6, 8, 6, 0.98) 0%,
+      rgba(6, 8, 6, 0.9) 100%);
   border-bottom: 1px solid var(--battle-neon-dim, rgba(222, 255, 154, 0.35));
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.42);
   box-sizing: border-box;
@@ -368,7 +364,7 @@ body[data-react-battle-hud-ui="1"] #scene-combat .battle-screen--terminal.battle
   z-index: 2;
 }
 
-#game-react-hud-root .battle-vitals-row__foes > .battle-sprite-hud--foe {
+#game-react-hud-root .battle-vitals-row__foes>.battle-sprite-hud--foe {
   display: flex;
   width: 100%;
   flex-direction: column;
@@ -437,7 +433,7 @@ body[data-react-battle-hud-ui="1"] #scene-combat .battle-screen--terminal.battle
   display: block !important;
 }
 
-.screen-react-root.screen-react-root--active > * {
+.screen-react-root.screen-react-root--active>* {
   width: 100%;
   height: 100%;
   max-width: none;
@@ -755,8 +751,13 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 }
 
 @keyframes player-init-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .bootstrap-fatal-overlay__panel {
@@ -985,7 +986,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   text-align: left;
 }
 
-.auth-hud-test__field > span {
+.auth-hud-test__field>span {
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   color: rgba(230, 240, 245, 0.78);
@@ -1116,8 +1117,13 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   color: rgba(230, 240, 245, 0.78);
 }
 
-.auth-hud-test__status.is-error { color: #ff8b82; }
-.auth-hud-test__status.is-success { color: var(--auth-cyan); }
+.auth-hud-test__status.is-error {
+  color: #ff8b82;
+}
+
+.auth-hud-test__status.is-success {
+  color: var(--auth-cyan);
+}
 
 .auth-hud-test__consent {
   display: flex;
@@ -1314,10 +1320,21 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   content: '♛ ';
 }
 
-.auth-hud-test__rank-list li[data-rank='2'] .auth-hud-test__rank-n { color: #ff8a4a; }
-.auth-hud-test__rank-list li[data-rank='3'] .auth-hud-test__rank-n { color: #f0d24a; }
-.auth-hud-test__rank-list li[data-rank='4'] .auth-hud-test__rank-n { color: #6ee08a; }
-.auth-hud-test__rank-list li[data-rank='5'] .auth-hud-test__rank-n { color: #6aa8ff; }
+.auth-hud-test__rank-list li[data-rank='2'] .auth-hud-test__rank-n {
+  color: #ff8a4a;
+}
+
+.auth-hud-test__rank-list li[data-rank='3'] .auth-hud-test__rank-n {
+  color: #f0d24a;
+}
+
+.auth-hud-test__rank-list li[data-rank='4'] .auth-hud-test__rank-n {
+  color: #6ee08a;
+}
+
+.auth-hud-test__rank-list li[data-rank='5'] .auth-hud-test__rank-n {
+  color: #6aa8ff;
+}
 
 .auth-hud-test__rank-avatar {
   width: 1.15rem;
@@ -1329,12 +1346,15 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 .auth-hud-test__rank-list li[data-rank='2'] .auth-hud-test__rank-avatar {
   background: linear-gradient(135deg, #ff8a4a, #c45c2a);
 }
+
 .auth-hud-test__rank-list li[data-rank='3'] .auth-hud-test__rank-avatar {
   background: linear-gradient(135deg, #f0d24a, #b89420);
 }
+
 .auth-hud-test__rank-list li[data-rank='4'] .auth-hud-test__rank-avatar {
   background: linear-gradient(135deg, #6ee08a, #2f8a4a);
 }
+
 .auth-hud-test__rank-list li[data-rank='5'] .auth-hud-test__rank-avatar {
   background: linear-gradient(135deg, #6aa8ff, #3a5ad0);
 }
@@ -1564,7 +1584,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   gap: 0.75rem;
 }
 
-.auth-form > #btn-google {
+.auth-form>#btn-google {
   width: 100%;
 }
 
@@ -1587,7 +1607,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   gap: 1rem;
 }
 
-[data-ui-surface='char-select-screen'] > h1 {
+[data-ui-surface='char-select-screen']>h1 {
   margin: 0 0 0.15rem;
   text-align: center;
   letter-spacing: 0.1em;
@@ -2413,6 +2433,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
  * Respeita pointer fino + prefers-reduced-motion.
  */
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+
   .char-slot,
   .char-class-option,
   .char-skin-option,
@@ -2466,6 +2487,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .char-slot,
   .char-class-option,
   .char-skin-option,
@@ -2494,11 +2516,9 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   pointer-events: none;
   background:
     radial-gradient(ellipse at 50% 42%, rgba(58, 208, 214, 0.08) 0%, transparent 52%),
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 3px,
-      rgba(58, 208, 214, 0.03) 3px 4px
-    ),
+      rgba(58, 208, 214, 0.03) 3px 4px),
     rgba(3, 8, 12, 0.88);
 }
 
@@ -2768,9 +2788,17 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 }
 
 @keyframes combat-impact-flash {
-  0% { opacity: 1; }
-  40% { opacity: 0.72; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  40% {
+    opacity: 0.72;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .battle-arena.combat-hit-stop {
@@ -2812,31 +2840,81 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 }
 
 @keyframes combat-hit-stop-freeze {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(0, 0, 0); }
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 @keyframes combat-camera-shake-low {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  25% { transform: translate3d(-2px, 1px, 0); }
-  75% { transform: translate3d(2px, -1px, 0); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  25% {
+    transform: translate3d(-2px, 1px, 0);
+  }
+
+  75% {
+    transform: translate3d(2px, -1px, 0);
+  }
 }
 
 @keyframes combat-camera-shake-medium {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  20% { transform: translate3d(-4px, 2px, 0); }
-  40% { transform: translate3d(4px, -3px, 0); }
-  60% { transform: translate3d(-3px, 1px, 0); }
-  80% { transform: translate3d(3px, -2px, 0); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  20% {
+    transform: translate3d(-4px, 2px, 0);
+  }
+
+  40% {
+    transform: translate3d(4px, -3px, 0);
+  }
+
+  60% {
+    transform: translate3d(-3px, 1px, 0);
+  }
+
+  80% {
+    transform: translate3d(3px, -2px, 0);
+  }
 }
 
 @keyframes combat-camera-shake-high {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  15% { transform: translate3d(-8px, 4px, 0); }
-  30% { transform: translate3d(8px, -6px, 0); }
-  45% { transform: translate3d(-6px, 3px, 0); }
-  60% { transform: translate3d(6px, -4px, 0); }
-  75% { transform: translate3d(-4px, 2px, 0); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  15% {
+    transform: translate3d(-8px, 4px, 0);
+  }
+
+  30% {
+    transform: translate3d(8px, -6px, 0);
+  }
+
+  45% {
+    transform: translate3d(-6px, 3px, 0);
+  }
+
+  60% {
+    transform: translate3d(6px, -4px, 0);
+  }
+
+  75% {
+    transform: translate3d(-4px, 2px, 0);
+  }
 }
 
 .battle-combat-top {
@@ -2850,12 +2928,10 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   border-bottom: 1px solid var(--battle-neon);
   background:
     linear-gradient(180deg, rgba(222, 255, 154, 0.04) 0%, transparent 40%),
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent,
       transparent 23px,
-      rgba(222, 255, 154, 0.04) 24px
-    ),
+      rgba(222, 255, 154, 0.04) 24px),
     var(--battle-bg);
 }
 
@@ -3124,10 +3200,12 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 }
 
 @keyframes battle-log-alert-pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.72;
   }
@@ -3335,11 +3413,13 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
 }
 
 @keyframes floating-hud-critical-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 0 0 rgba(255, 50, 40, 0.35);
     border-color: rgba(255, 80, 60, 0.45);
   }
+
   50% {
     box-shadow: 0 0 10px 2px rgba(255, 50, 40, 0.65);
     border-color: rgba(255, 120, 90, 0.85);
@@ -4819,20 +4899,16 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   border-radius: 2px;
   border: 2px solid var(--ui-metal-edge);
   background:
-    radial-gradient(
-      circle at 10px 10px,
+    radial-gradient(circle at 10px 10px,
       rgba(210, 220, 230, 0.22) 0 1px,
       #5a6168 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    linear-gradient(
-      125deg,
+      transparent 4.5px),
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.045) 0%,
       transparent 40%,
       transparent 60%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
+      rgba(0, 0, 0, 0.28) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   padding: 0.7rem 0.95rem;
   box-shadow:
@@ -4963,7 +5039,7 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   outline: none;
 }
 
-.exploration-comms-stack > * {
+.exploration-comms-stack>* {
   pointer-events: auto;
 }
 
@@ -4972,13 +5048,11 @@ body[data-react-game-hud-ui='1'] #ui-layer .central-hub-panel {
   isolation: isolate;
   overflow: hidden;
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.04) 0%,
       transparent 40%,
       transparent 60%,
-      rgba(0, 0, 0, 0.25) 100%
-    ),
+      rgba(0, 0, 0, 0.25) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   border: 2px solid var(--ui-metal-edge);
   border-radius: 2px;
@@ -5104,20 +5178,16 @@ body[data-react-game-hud-ui='1'] #game-container {
   isolation: isolate;
   overflow: hidden;
   background:
-    radial-gradient(
-      circle at 12px 12px,
+    radial-gradient(circle at 12px 12px,
       rgba(210, 220, 230, 0.22) 0 1px,
       #5a6168 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    linear-gradient(
-      125deg,
+      transparent 4.5px),
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.04) 0%,
       transparent 36%,
       transparent 64%,
-      rgba(0, 0, 0, 0.3) 100%
-    ),
+      rgba(0, 0, 0, 0.3) 100%),
     linear-gradient(180deg, var(--ui-metal-face-top) 0%, #121416 42%, var(--ui-metal-face-bottom) 100%);
   border-left: 2px solid var(--ui-metal-edge);
   box-shadow:
@@ -5144,16 +5214,14 @@ body[data-react-game-hud-ui='1'] #game-container {
     linear-gradient(var(--ui-holo), var(--ui-holo)) 10px calc(100% - 10px) / 1.5px 14px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 10px) calc(100% - 10px) / 14px 1.5px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 10px) calc(100% - 10px) / 1.5px 14px no-repeat,
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 10px,
-      rgba(58, 208, 214, 0.02) 10px 11px
-    ),
+      rgba(58, 208, 214, 0.02) 10px 11px),
     radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.07) 0%, transparent 42%);
   opacity: 0.95;
 }
 
-.game-hud-sidebar--persistent.ui-skin-hybrid > * {
+.game-hud-sidebar--persistent.ui-skin-hybrid>* {
   position: relative;
   z-index: 1;
 }
@@ -5270,11 +5338,9 @@ body[data-react-game-hud-ui='1'] #game-container {
   bottom: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(58, 208, 214, 0.28) 0%,
-    rgba(58, 208, 214, 0.08) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(58, 208, 214, 0.28) 0%,
+      rgba(58, 208, 214, 0.08) 100%);
   box-shadow: 0 0 10px rgba(58, 208, 214, 0.2);
   transition: height 180ms ease;
 }
@@ -5498,16 +5564,14 @@ body[data-react-game-hud-ui='1'] #game-container {
   box-sizing: border-box;
   align-self: center;
   overflow: hidden;
-  clip-path: polygon(
-    10px 0,
-    calc(100% - 10px) 0,
-    100% 10px,
-    100% calc(100% - 10px),
-    calc(100% - 10px) 100%,
-    10px 100%,
-    0 calc(100% - 10px),
-    0 10px
-  );
+  clip-path: polygon(10px 0,
+      calc(100% - 10px) 0,
+      100% 10px,
+      100% calc(100% - 10px),
+      calc(100% - 10px) 100%,
+      10px 100%,
+      0 calc(100% - 10px),
+      0 10px);
 }
 
 .sidebar-minimap__canvas {
@@ -5867,16 +5931,45 @@ body[data-react-game-hud-ui='1'] #game-container {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.equip-slot[data-equip-slot="amulet"] { grid-area: amulet; }
-.equip-slot[data-equip-slot="helmet"] { grid-area: helmet; }
-.equip-slot[data-equip-slot="card"] { grid-area: card; }
-.equip-slot[data-equip-slot="books"] { grid-area: books; }
-.equip-slot[data-equip-slot="armor"] { grid-area: armor; }
-.equip-slot[data-equip-slot="runes"] { grid-area: runes; }
-.equip-slot[data-equip-slot="ring_left"] { grid-area: ring_left; }
-.equip-slot[data-equip-slot="legs"] { grid-area: legs; }
-.equip-slot[data-equip-slot="ring_right"] { grid-area: ring_right; }
-.equip-slot[data-equip-slot="boots"] { grid-area: boots; }
+.equip-slot[data-equip-slot="amulet"] {
+  grid-area: amulet;
+}
+
+.equip-slot[data-equip-slot="helmet"] {
+  grid-area: helmet;
+}
+
+.equip-slot[data-equip-slot="card"] {
+  grid-area: card;
+}
+
+.equip-slot[data-equip-slot="books"] {
+  grid-area: books;
+}
+
+.equip-slot[data-equip-slot="armor"] {
+  grid-area: armor;
+}
+
+.equip-slot[data-equip-slot="runes"] {
+  grid-area: runes;
+}
+
+.equip-slot[data-equip-slot="ring_left"] {
+  grid-area: ring_left;
+}
+
+.equip-slot[data-equip-slot="legs"] {
+  grid-area: legs;
+}
+
+.equip-slot[data-equip-slot="ring_right"] {
+  grid-area: ring_right;
+}
+
+.equip-slot[data-equip-slot="boots"] {
+  grid-area: boots;
+}
 
 .equip-slot:hover,
 .equip-slot--highlight {
@@ -5921,8 +6014,13 @@ body[data-react-game-hud-ui='1'] #game-container {
 }
 
 @keyframes item-sync-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .equip-slot__placeholder {
@@ -5971,7 +6069,7 @@ body[data-react-game-hud-ui='1'] #game-container {
 }
 
 /* Absolute fill — evita cair no width/height=32 do <img>. */
-.equip-slot__sprite-wrap > img.equip-slot__sprite,
+.equip-slot__sprite-wrap>img.equip-slot__sprite,
 img.equip-slot__icon,
 img.equip-slot__sprite {
   position: absolute;
@@ -6037,13 +6135,11 @@ img.equip-slot__sprite {
 .panel {
   border: 2px solid var(--ui-metal-edge);
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.04) 0%,
       transparent 40%,
       transparent 60%,
-      rgba(0, 0, 0, 0.25) 100%
-    ),
+      rgba(0, 0, 0, 0.25) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -6291,6 +6387,7 @@ img.equip-slot__sprite {
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(-10px);
@@ -6300,6 +6397,7 @@ img.equip-slot__sprite {
 .chat-box.chat-box--react-open {
   overflow: visible;
 }
+
 .combat-grid {
   display: grid;
   grid-template-areas:
@@ -6315,15 +6413,15 @@ img.equip-slot__sprite {
   color: #d4b483;
 }
 
-.combat-grid > .combat-header {
+.combat-grid>.combat-header {
   grid-area: header;
 }
 
-.combat-grid > .combat-left {
+.combat-grid>.combat-left {
   grid-area: left-info;
 }
 
-.combat-grid > .combat-scene {
+.combat-grid>.combat-scene {
   grid-area: scene;
   display: flex;
   flex-direction: column;
@@ -6331,15 +6429,15 @@ img.equip-slot__sprite {
   min-height: 0;
 }
 
-.combat-grid > .combat-right {
+.combat-grid>.combat-right {
   grid-area: right-info;
 }
 
-.combat-grid > .combat-commands {
+.combat-grid>.combat-commands {
   grid-area: commands;
 }
 
-.combat-grid > .combat-footer {
+.combat-grid>.combat-footer {
   grid-area: footer;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -6375,6 +6473,7 @@ img.equip-slot__sprite {
   color: var(--accent);
   font-size: 0.9rem;
 }
+
 .battle-panel {
   flex: 1;
   display: grid;
@@ -6617,13 +6716,11 @@ img.equip-slot__sprite {
   border: 2px solid var(--ui-metal-edge);
   border-radius: 2px;
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.045) 0%,
       transparent 38%,
       transparent 62%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
+      rgba(0, 0, 0, 0.28) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -6808,10 +6905,23 @@ img.equip-slot__sprite {
 }
 
 @keyframes loot-casino-blocked-fade {
-  0% { opacity: 0; transform: translateY(4px); }
-  12% { opacity: 1; transform: translateY(0); }
-  75% { opacity: 1; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  75% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 .loot-reveal {
@@ -6975,24 +7085,56 @@ img.equip-slot__sprite {
 }
 
 @keyframes loot-reveal-shimmer {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.35); }
+
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.35);
+  }
 }
 
 @keyframes loot-reveal-mystery-glow {
-  from { opacity: 0.75; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1.04); }
+  from {
+    opacity: 0.75;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.04);
+  }
 }
 
 @keyframes loot-reveal-pop {
-  0% { opacity: 0; transform: scale(0.5); }
-  70% { opacity: 1; transform: scale(1.08); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes loot-reveal-legendary-pulse {
-  0%, 100% { box-shadow: 0 0 22px rgba(255, 180, 40, 0.45); }
-  50% { box-shadow: 0 0 28px rgba(255, 200, 80, 0.7); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 22px rgba(255, 180, 40, 0.45);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgba(255, 200, 80, 0.7);
+  }
 }
 
 #scene-combat.is-battle-input-frozen .battle-command-bar,
@@ -7141,7 +7283,7 @@ img.equip-slot__sprite {
   cursor: wait;
 }
 
-#game-container > .post-battle-hub.victory-screen-overlay--viewport {
+#game-container>.post-battle-hub.victory-screen-overlay--viewport {
   pointer-events: auto;
 }
 
@@ -7234,13 +7376,11 @@ img.equip-slot__sprite {
   border: 2px solid var(--ui-metal-edge);
   border-radius: 2px;
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.045) 0%,
       transparent 38%,
       transparent 62%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
+      rgba(0, 0, 0, 0.28) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -7435,13 +7575,11 @@ img.equip-slot__sprite {
   border: 2px solid var(--ui-metal-edge);
   border-radius: 2px;
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.045) 0%,
       transparent 38%,
       transparent 62%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
+      rgba(0, 0, 0, 0.28) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -7454,7 +7592,7 @@ img.equip-slot__sprite {
   image-rendering: pixelated;
 }
 
-.player-honor-card > * {
+.player-honor-card>* {
   position: relative;
   z-index: 1;
 }
@@ -7796,13 +7934,11 @@ img.equip-slot__sprite {
   border: 2px solid var(--ui-metal-edge);
   border-radius: 2px;
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.045) 0%,
       transparent 38%,
       transparent 62%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
+      rgba(0, 0, 0, 0.28) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -7811,7 +7947,7 @@ img.equip-slot__sprite {
     0 12px 40px rgba(0, 0, 0, 0.55);
 }
 
-.battle-stats-panel--terminal > * {
+.battle-stats-panel--terminal>* {
   position: relative;
   z-index: 1;
 }
@@ -8114,13 +8250,13 @@ img.equip-slot__sprite {
   0% {
     transform: translate3d(0, var(--reel-stop-y, 0), 0);
   }
+
   42% {
-    transform: translate3d(
-      0,
-      calc(var(--reel-stop-y, 0) + var(--reel-bounce-overshoot, 8px)),
-      0
-    );
+    transform: translate3d(0,
+        calc(var(--reel-stop-y, 0) + var(--reel-bounce-overshoot, 8px)),
+        0);
   }
+
   100% {
     transform: translate3d(0, var(--reel-stop-y, 0), 0);
   }
@@ -8230,7 +8366,7 @@ img.equip-slot__sprite {
     inset 0 2px 4px rgba(255, 255, 255, 0.15);
 }
 
-body > .battle-result-overlay,
+body>.battle-result-overlay,
 .battle-result-overlay--viewport {
   position: fixed;
   inset: 0;
@@ -8252,8 +8388,13 @@ body > .battle-result-overlay,
 }
 
 @keyframes battle-result-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .battle-result-panel {
@@ -8307,8 +8448,7 @@ body > .battle-result-overlay,
   font-weight: 600;
 }
 
-.battle-result-panel__title--defeat + .battle-result-panel__summary
-  .battle-result-panel__summary-line:first-child {
+.battle-result-panel__title--defeat+.battle-result-panel__summary .battle-result-panel__summary-line:first-child {
   color: #ffb4b4;
 }
 
@@ -8378,6 +8518,7 @@ body > .battle-result-overlay,
     opacity: 0;
     transform: translateY(4px) scale(0.94);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -8389,6 +8530,7 @@ body > .battle-result-overlay,
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+
   to {
     opacity: 0;
     transform: translateY(-6px) scale(0.96);
@@ -8484,6 +8626,7 @@ body > .battle-result-overlay,
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -8860,10 +9003,12 @@ body > .battle-result-overlay,
     opacity: 0;
     transform: translateY(6px) scale(0.78);
   }
+
   18% {
     opacity: 1;
     transform: translateY(-8px) scale(1.1);
   }
+
   100% {
     opacity: 0.92;
     transform: translateY(-28px) scale(1);
@@ -9244,20 +9389,20 @@ body > .battle-result-overlay,
     align-items: flex-start;
   }
 
-  .battle-combat-top > .battle-status-row {
+  .battle-combat-top>.battle-status-row {
     grid-template-columns: 1fr;
     justify-items: center;
     gap: 0.5rem;
   }
 
-  .battle-combat-top > .battle-status-row .battle-sprite-hud--ally,
-  .battle-combat-top > .battle-status-row .battle-sprite-hud--foe {
+  .battle-combat-top>.battle-status-row .battle-sprite-hud--ally,
+  .battle-combat-top>.battle-status-row .battle-sprite-hud--foe {
     justify-self: center;
     text-align: center;
     width: min(100%, 280px);
   }
 
-  .battle-combat-top > .battle-status-row .battle-sprite-hud--foe {
+  .battle-combat-top>.battle-status-row .battle-sprite-hud--foe {
     align-items: center;
   }
 
@@ -9316,7 +9461,7 @@ body > .battle-result-overlay,
   opacity: 1 !important;
 }
 
-.ui-hub-social-cluster > * {
+.ui-hub-social-cluster>* {
   pointer-events: auto;
 }
 
@@ -9340,20 +9485,16 @@ body > .battle-result-overlay,
   visibility: visible !important;
   opacity: 1 !important;
   background:
-    radial-gradient(
-      circle at 10px 10px,
+    radial-gradient(circle at 10px 10px,
       rgba(210, 220, 230, 0.2) 0 1px,
       #5a6168 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    linear-gradient(
-      125deg,
+      transparent 4.5px),
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.04) 0%,
       transparent 40%,
       transparent 60%,
-      rgba(0, 0, 0, 0.25) 100%
-    ),
+      rgba(0, 0, 0, 0.25) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -9416,13 +9557,11 @@ body > .battle-result-overlay,
   border-radius: 2px;
   box-sizing: border-box;
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.04) 0%,
       transparent 40%,
       transparent 60%,
-      rgba(0, 0, 0, 0.25) 100%
-    ),
+      rgba(0, 0, 0, 0.25) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   color: var(--ui-text);
   font-family: inherit;
@@ -9454,13 +9593,11 @@ body > .battle-result-overlay,
   max-height: min(70vh, 520px);
   border: 2px solid var(--ui-metal-edge);
   background:
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.04) 0%,
       transparent 40%,
       transparent 60%,
-      rgba(0, 0, 0, 0.25) 100%
-    ),
+      rgba(0, 0, 0, 0.25) 100%),
     linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -9794,7 +9931,7 @@ body > .battle-result-overlay,
   margin: 0;
 }
 
-.cael-panel__chronicle .cael-panel__chronicle-text + .cael-panel__chronicle-text {
+.cael-panel__chronicle .cael-panel__chronicle-text+.cael-panel__chronicle-text {
   margin-top: 0.35rem;
 }
 
@@ -10126,11 +10263,13 @@ body > .battle-result-overlay,
 }
 
 @keyframes marcos-membrane-pulse {
+
   0%,
   100% {
     stroke-opacity: 1;
     filter: drop-shadow(0 0 3px var(--ui-holo-glow));
   }
+
   50% {
     stroke-opacity: 0.82;
     filter: drop-shadow(0 0 6px var(--ui-holo-glow));
@@ -10364,12 +10503,14 @@ body > .battle-result-overlay,
 }
 
 @keyframes marcos-branch-pick-pulse {
+
   0%,
   100% {
     box-shadow:
       0 0 8px rgba(0, 255, 204, 0.28),
       inset 0 0 8px rgba(0, 255, 204, 0.06);
   }
+
   50% {
     box-shadow:
       0 0 14px rgba(0, 255, 204, 0.5),
@@ -10666,7 +10807,7 @@ body > .battle-result-overlay,
   max-height: none !important;
 }
 
-.ui-panel--characters > .ui-panel__content {
+.ui-panel--characters>.ui-panel__content {
   flex: 0 0 auto !important;
   height: auto;
   min-height: 0;
@@ -10755,13 +10896,13 @@ body > .battle-result-overlay,
   overflow: hidden;
 }
 
-.ui-panel--characters .character-sheet__col--stats > [data-level-progression-section],
+.ui-panel--characters .character-sheet__col--stats>[data-level-progression-section],
 .ui-panel--characters .character-progression-wrap,
-.ui-panel--characters .character-sheet__col--stats > .character-stat-points {
+.ui-panel--characters .character-sheet__col--stats>.character-stat-points {
   grid-column: 1 / -1;
 }
 
-.ui-panel--characters .character-sheet__col--stats > [data-pet-section] {
+.ui-panel--characters .character-sheet__col--stats>[data-pet-section] {
   grid-column: 1 / -1;
 }
 
@@ -11279,9 +11420,7 @@ body > .battle-result-overlay,
 /* Hub — grid 3×3 abaixo do cluster relógio + HUB (canto superior direito) */
 .ui-panel--hub.ui-panel--hub-bar {
   position: absolute;
-  top: calc(
-    var(--ui-hub-anchor-top) + var(--ui-hub-cluster-height) + var(--ui-hub-gap-below-launcher)
-  );
+  top: calc(var(--ui-hub-anchor-top) + var(--ui-hub-cluster-height) + var(--ui-hub-gap-below-launcher));
   right: var(--ui-hub-anchor-right, var(--ui-hub-anchor-top));
   left: auto;
   bottom: auto;
@@ -11291,10 +11430,8 @@ body > .battle-result-overlay,
   max-width: min(360px, calc(100% - (var(--ui-hub-anchor-right, var(--ui-hub-anchor-top)) * 2)));
   min-width: 0 !important;
   min-height: 0;
-  max-height: min(
-    calc(100% - var(--ui-hub-anchor-top) - var(--ui-hub-cluster-height) - 28px),
-    624px
-  );
+  max-height: min(calc(100% - var(--ui-hub-anchor-top) - var(--ui-hub-cluster-height) - 28px),
+      624px);
   isolation: isolate;
   overflow: hidden;
 }
@@ -11447,9 +11584,15 @@ body > .battle-result-overlay,
 }
 
 @keyframes static-net-glitch {
+
   0%,
-  100% { transform: translate(0, 0); }
-  50% { transform: translate(0.4px, -0.4px); }
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(0.4px, -0.4px);
+  }
 }
 
 .static-net__tabs {
@@ -11642,12 +11785,10 @@ body > .battle-result-overlay,
   border: 1px solid rgba(58, 63, 68, 0.95);
   border-radius: 2px;
   background:
-    linear-gradient(
-      180deg,
+    linear-gradient(180deg,
       rgba(48, 52, 56, 0.55) 0%,
       rgba(18, 20, 22, 0.96) 42%,
-      #101214 100%
-    );
+      #101214 100%);
   color: #d4dce8;
   font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
   font-size: 0.72rem;
@@ -11685,12 +11826,10 @@ body > .battle-result-overlay,
   border-color: rgba(58, 208, 214, 0.55);
   color: #e8fcfd;
   background:
-    linear-gradient(
-      180deg,
+    linear-gradient(180deg,
       rgba(58, 208, 214, 0.14) 0%,
       rgba(22, 28, 30, 0.96) 45%,
-      #0e1214 100%
-    );
+      #0e1214 100%);
   box-shadow:
     inset 0 1px 0 rgba(160, 240, 245, 0.12),
     inset 0 0 0 1px rgba(58, 208, 214, 0.14),
@@ -11734,11 +11873,9 @@ body > .battle-result-overlay,
   border: 1px solid rgba(58, 208, 214, 0.35);
   border-radius: 2px;
   background:
-    linear-gradient(
-      180deg,
+    linear-gradient(180deg,
       rgba(58, 208, 214, 0.12) 0%,
-      rgba(18, 24, 28, 0.96) 100%
-    );
+      rgba(18, 24, 28, 0.96) 100%);
   color: rgba(158, 232, 236, 0.75);
   font-family: inherit;
   font-size: 1rem;
@@ -11757,6 +11894,7 @@ body > .battle-result-overlay,
 }
 
 @media (max-width: 720px) {
+
   .ui-layer,
   .world-hud-frame {
     --ui-hub-anchor-top: 10px;
@@ -11952,10 +12090,12 @@ body > .battle-result-overlay,
 }
 
 @keyframes character-sync-pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.35;
   }
@@ -13544,7 +13684,7 @@ body > .battle-result-overlay,
   flex-shrink: 0;
 }
 
-.ui-panel--marcos.ui-panel--movable > div:not(.ui-panel__header) {
+.ui-panel--marcos.ui-panel--movable>div:not(.ui-panel__header) {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -14195,6 +14335,7 @@ body > .battle-result-overlay,
     transform: scale(0.82);
     opacity: 0.4;
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -14243,14 +14384,12 @@ body > .battle-result-overlay,
   overflow: hidden;
 }
 
-.ui-bank-items-column__grid-wrap > .slot-grid {
+.ui-bank-items-column__grid-wrap>.slot-grid {
   flex-shrink: 0;
   grid-template-columns: repeat(var(--slot-cols, 8), minmax(0, 1fr));
   grid-template-rows: repeat(var(--slot-rows, 5), var(--slot-size, 40px));
-  width: min(
-    100%,
-    calc(var(--slot-cols, 8) * var(--slot-size, 40px) + (var(--slot-cols, 8) - 1) * var(--slot-gap, 2px))
-  );
+  width: min(100%,
+      calc(var(--slot-cols, 8) * var(--slot-size, 40px) + (var(--slot-cols, 8) - 1) * var(--slot-gap, 2px)));
 }
 
 .ui-panel--bank .slot-item {
@@ -14464,12 +14603,14 @@ body > .battle-result-overlay,
     opacity: 1;
     transform: scale(1);
   }
+
   45% {
     transform: scale(1.45);
     box-shadow:
       0 0 22px rgba(0, 255, 204, 1),
       0 0 8px rgba(255, 255, 255, 1);
   }
+
   100% {
     left: calc(96% - 6px);
     opacity: 0;
@@ -14483,12 +14624,14 @@ body > .battle-result-overlay,
     opacity: 1;
     transform: scale(1);
   }
+
   45% {
     transform: scale(1.45);
     box-shadow:
       0 0 22px rgba(0, 255, 204, 1),
       0 0 8px rgba(255, 255, 255, 1);
   }
+
   100% {
     left: 4%;
     opacity: 0;
@@ -14693,10 +14836,7 @@ body > .battle-result-overlay,
 
 .inventory-grid,
 .slot-grid {
-  --grid-width: calc(
-    var(--slot-cols, 10) * var(--slot-size, 50px) +
-    (var(--slot-cols, 10) - 1) * var(--slot-gap, 2px)
-  );
+  --grid-width: calc(var(--slot-cols, 10) * var(--slot-size, 50px) + (var(--slot-cols, 10) - 1) * var(--slot-gap, 2px));
   display: grid;
   gap: var(--slot-gap, 2px);
   grid-template-columns: repeat(var(--slot-cols, 10), var(--slot-size, 50px));
@@ -14851,13 +14991,33 @@ body > .battle-result-overlay,
   text-transform: uppercase;
 }
 
-.slot-item--kind-equip .slot-item__icon { color: #c5a059; }
-.slot-item--kind-consumable .slot-item__icon { color: #6dff9a; }
-.slot-item--kind-rune .slot-item__icon { color: #b88cff; }
-.slot-item--kind-book .slot-item__icon { color: #6eb5ff; }
-.slot-item--kind-currency .slot-item__icon { color: #ffe066; }
-.slot-item--kind-generic .slot-item__icon { color: #a89b88; }
-.slot-item--kind-unknown .slot-item__icon { color: #888; }
+.slot-item--kind-equip .slot-item__icon {
+  color: #c5a059;
+}
+
+.slot-item--kind-consumable .slot-item__icon {
+  color: #6dff9a;
+}
+
+.slot-item--kind-rune .slot-item__icon {
+  color: #b88cff;
+}
+
+.slot-item--kind-book .slot-item__icon {
+  color: #6eb5ff;
+}
+
+.slot-item--kind-currency .slot-item__icon {
+  color: #ffe066;
+}
+
+.slot-item--kind-generic .slot-item__icon {
+  color: #a89b88;
+}
+
+.slot-item--kind-unknown .slot-item__icon {
+  color: #888;
+}
 
 /* â”€â”€ Tooltip flutuante global (inventÃ¡rio / moveset) â”€â”€ */
 .game-tooltip {
@@ -14894,7 +15054,7 @@ body > .battle-result-overlay,
   margin: 0;
 }
 
-.game-tooltip__line + .game-tooltip__line {
+.game-tooltip__line+.game-tooltip__line {
   margin-top: 0.35rem;
 }
 
@@ -15531,7 +15691,7 @@ body > .battle-result-overlay,
   flex-shrink: 0;
 }
 
-.ui-panel--market-terminal.ui-panel--movable > .min-h-0.flex-1 {
+.ui-panel--market-terminal.ui-panel--movable>.min-h-0.flex-1 {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -16436,8 +16596,8 @@ body > .battle-result-overlay,
   flex-shrink: 0;
 }
 
-.ui-panel--vendor-shop.ui-panel--movable > .ui-panel__content,
-.ui-panel--vendor-shop.ui-panel--movable > div:not(.ui-panel__header) {
+.ui-panel--vendor-shop.ui-panel--movable>.ui-panel__content,
+.ui-panel--vendor-shop.ui-panel--movable>div:not(.ui-panel__header) {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   display: flex !important;
@@ -16446,8 +16606,8 @@ body > .battle-result-overlay,
   padding: 0.55rem 0.7rem 0.65rem;
 }
 
-.ui-panel--vendor-shop--mercenary.ui-panel--movable > .ui-panel__content,
-.ui-panel--vendor-shop--mercenary.ui-panel--movable > div:not(.ui-panel__header) {
+.ui-panel--vendor-shop--mercenary.ui-panel--movable>.ui-panel__content,
+.ui-panel--vendor-shop--mercenary.ui-panel--movable>div:not(.ui-panel__header) {
   overflow: visible !important;
   flex: 0 1 auto !important;
 }
@@ -16656,11 +16816,9 @@ body > .battle-result-overlay,
   flex-direction: column;
   border: 1px solid rgba(58, 63, 68, 0.85);
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.022) 7px 8px
-    ),
+      rgba(58, 208, 214, 0.022) 7px 8px),
     rgba(10, 11, 13, 0.55);
   min-width: 0;
   min-height: 0;
@@ -16805,11 +16963,9 @@ body > .battle-result-overlay,
 .vendor-shop__trade-hub {
   border: 1px solid rgba(58, 63, 68, 0.85);
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.028) 7px 8px
-    ),
+      rgba(58, 208, 214, 0.028) 7px 8px),
     linear-gradient(180deg, rgba(18, 20, 24, 0.92) 0%, rgba(10, 11, 13, 0.96) 100%);
   box-shadow:
     inset 0 0 0 1px rgba(58, 208, 214, 0.06),
@@ -16999,13 +17155,24 @@ body > .battle-result-overlay,
 }
 
 .slot-item--kind-equip .vendor-shop__icon,
-.slot-item--kind-equip .vendor-shop__trade-icon { color: #c5a059; }
+.slot-item--kind-equip .vendor-shop__trade-icon {
+  color: #c5a059;
+}
+
 .slot-item--kind-consumable .vendor-shop__icon,
-.slot-item--kind-consumable .vendor-shop__trade-icon { color: #6dff9a; }
+.slot-item--kind-consumable .vendor-shop__trade-icon {
+  color: #6dff9a;
+}
+
 .slot-item--kind-rune .vendor-shop__icon,
-.slot-item--kind-rune .vendor-shop__trade-icon { color: #b88cff; }
+.slot-item--kind-rune .vendor-shop__trade-icon {
+  color: #b88cff;
+}
+
 .slot-item--kind-book .vendor-shop__icon,
-.slot-item--kind-book .vendor-shop__trade-icon { color: #6eb5ff; }
+.slot-item--kind-book .vendor-shop__trade-icon {
+  color: #6eb5ff;
+}
 
 .vendor-shop__row--blocked {
   opacity: 0.72;
@@ -17122,8 +17289,8 @@ body > .battle-result-overlay,
   flex-shrink: 0;
 }
 
-.ui-panel--laboratory-shop.ui-panel--movable > .ui-panel__content,
-.ui-panel--laboratory-shop.ui-panel--movable > div:not(.ui-panel__header) {
+.ui-panel--laboratory-shop.ui-panel--movable>.ui-panel__content,
+.ui-panel--laboratory-shop.ui-panel--movable>div:not(.ui-panel__header) {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   display: flex !important;
@@ -17236,11 +17403,9 @@ body > .battle-result-overlay,
   flex-direction: column;
   border: 1px solid rgba(58, 63, 68, 0.85);
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.022) 7px 8px
-    ),
+      rgba(58, 208, 214, 0.022) 7px 8px),
     rgba(10, 11, 13, 0.55);
   min-width: 0;
   min-height: 0;
@@ -17359,11 +17524,9 @@ body > .battle-result-overlay,
   flex-direction: column;
   border: 1px solid rgba(58, 63, 68, 0.85);
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.028) 7px 8px
-    ),
+      rgba(58, 208, 214, 0.028) 7px 8px),
     linear-gradient(180deg, rgba(18, 20, 24, 0.92) 0%, rgba(10, 11, 13, 0.96) 100%);
   box-shadow: inset 0 0 0 1px rgba(58, 208, 214, 0.06);
   min-width: 0;
@@ -17569,11 +17732,19 @@ body > .battle-result-overlay,
 }
 
 .slot-item--kind-consumable .laboratory-shop__icon,
-.slot-item--kind-consumable .laboratory-shop__item-icon { color: #6dff9a; }
+.slot-item--kind-consumable .laboratory-shop__item-icon {
+  color: #6dff9a;
+}
+
 .slot-item--kind-rune .laboratory-shop__icon,
-.slot-item--kind-rune .laboratory-shop__item-icon { color: #b88cff; }
+.slot-item--kind-rune .laboratory-shop__item-icon {
+  color: #b88cff;
+}
+
 .slot-item--kind-book .laboratory-shop__icon,
-.slot-item--kind-book .laboratory-shop__item-icon { color: #6eb5ff; }
+.slot-item--kind-book .laboratory-shop__item-icon {
+  color: #6eb5ff;
+}
 
 @media (max-width: 720px) {
   .ui-panel--laboratory-shop.ui-panel--movable {
@@ -17622,8 +17793,8 @@ body > .battle-result-overlay,
   flex-shrink: 0;
 }
 
-.ui-panel--pet-trainer-shop.ui-panel--movable > .ui-panel__content,
-.ui-panel--pet-trainer-shop.ui-panel--movable > div:not(.ui-panel__header) {
+.ui-panel--pet-trainer-shop.ui-panel--movable>.ui-panel__content,
+.ui-panel--pet-trainer-shop.ui-panel--movable>div:not(.ui-panel__header) {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   display: flex !important;
@@ -17888,11 +18059,9 @@ body > .battle-result-overlay,
   padding: 0.55rem;
   border: 1px solid rgba(58, 63, 68, 0.85);
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.022) 7px 8px
-    ),
+      rgba(58, 208, 214, 0.022) 7px 8px),
     rgba(10, 11, 13, 0.55);
   border-radius: 2px;
 }
@@ -18319,13 +18488,11 @@ body > .battle-result-overlay,
   inset: -22% -12%;
   pointer-events: none;
   background:
-    repeating-linear-gradient(
-      180deg,
+    repeating-linear-gradient(180deg,
       rgba(94, 252, 255, 0.3) 0px,
       rgba(94, 252, 255, 0.3) 2px,
       transparent 2px,
-      transparent 7px
-    );
+      transparent 7px);
   mix-blend-mode: screen;
   animation: battle-digital-scan 0.72s ease-out both;
 }
@@ -18336,11 +18503,13 @@ body > .battle-result-overlay,
     transform: translateY(26px) scale(0.78);
     filter: blur(6px) brightness(1.6);
   }
+
   35% {
     opacity: 0.95;
     transform: translateY(6px) scale(1.04);
     filter: blur(1.5px) brightness(1.25);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -18353,10 +18522,12 @@ body > .battle-result-overlay,
     opacity: 0;
     transform: scaleY(0.2);
   }
+
   30% {
     opacity: 0.9;
     transform: scaleY(1);
   }
+
   100% {
     opacity: 0;
     transform: scaleY(1.05);
@@ -18369,6 +18540,7 @@ body > .battle-result-overlay,
     filter: blur(4px);
     transform: scaleX(0.74);
   }
+
   100% {
     opacity: 1;
     filter: none;
@@ -18381,6 +18553,7 @@ body > .battle-result-overlay,
     opacity: 0;
     transform: translateY(-4px) scaleX(0.78);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0) scaleX(1);
@@ -18607,7 +18780,7 @@ body > .battle-result-overlay,
   color: rgba(200, 220, 235, 0.9);
 }
 
-.ranking-monitor__structure-list li + li {
+.ranking-monitor__structure-list li+li {
   margin-top: 0.2rem;
 }
 
@@ -19150,6 +19323,7 @@ body > .battle-result-overlay,
   from {
     box-shadow: 0 0 8px rgba(255, 107, 107, 0.35);
   }
+
   to {
     box-shadow: 0 0 16px rgba(255, 140, 140, 0.65);
   }
@@ -19921,6 +20095,7 @@ body[data-react-game-hud-ui='1'] #scene-combat {
     transform: translateX(-50%) scale(1.08);
     box-shadow: 0 0 16px rgba(200, 24, 24, 0.85);
   }
+
   100% {
     transform: translateX(-50%) scale(1);
   }
@@ -20126,9 +20301,17 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 }
 
 @keyframes battle-portrait-hit-flinch {
-  0% { filter: brightness(2.2) drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55)); }
-  45% { transform: translateX(0) translateY(-4px); }
-  100% { filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55)); }
+  0% {
+    filter: brightness(2.2) drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55));
+  }
+
+  45% {
+    transform: translateX(0) translateY(-4px);
+  }
+
+  100% {
+    filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55));
+  }
 }
 
 .battle-screen--side-view .battle-portrait.is-combat-heal {
@@ -20136,8 +20319,13 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 }
 
 @keyframes battle-portrait-heal-glow {
-  0% { filter: drop-shadow(0 0 14px rgba(126, 249, 216, 0.9)); }
-  100% { filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55)); }
+  0% {
+    filter: drop-shadow(0 0 14px rgba(126, 249, 216, 0.9));
+  }
+
+  100% {
+    filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55));
+  }
 }
 
 /* ── Inventário: híbrido chapa metálica + overlay holográfico (só .ui-panel--inventory) ──
@@ -20162,30 +20350,23 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   border: 3px solid var(--inv-metal-edge) !important;
   background:
     /* rebites TL / TR — hardware da chapa */
-    radial-gradient(
-      circle at 11px 11px,
+    radial-gradient(circle at 11px 11px,
       rgba(210, 220, 230, 0.28) 0 1px,
       #5a6168 1.5px 3.2px,
       #1a1d20 3.5px 4.5px,
-      transparent 5px
-    ),
-    radial-gradient(
-      circle at calc(100% - 11px) 11px,
+      transparent 5px),
+    radial-gradient(circle at calc(100% - 11px) 11px,
       rgba(210, 220, 230, 0.28) 0 1px,
       #5a6168 1.5px 3.2px,
       #1a1d20 3.5px 4.5px,
-      transparent 5px
-    ),
+      transparent 5px),
     /* brilho de chapa */
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.045) 0%,
       transparent 38%,
       transparent 62%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
-    linear-gradient(165deg, var(--inv-metal-face-top) 0%, #121416 48%, var(--inv-metal-face-bottom) 100%)
-    !important;
+      rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(165deg, var(--inv-metal-face-top) 0%, #121416 48%, var(--inv-metal-face-bottom) 100%) !important;
   background-color: #0d0e10 !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
@@ -20221,16 +20402,12 @@ body[data-react-game-hud-ui='1'] #scene-combat {
     linear-gradient(var(--inv-holo), var(--inv-holo)),
     linear-gradient(var(--inv-holo), var(--inv-holo)),
     /* grid holo fino */
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 8px,
-      rgba(58, 208, 214, 0.03) 8px 9px
-    ),
-    repeating-linear-gradient(
-      90deg,
+      rgba(58, 208, 214, 0.03) 8px 9px),
+    repeating-linear-gradient(90deg,
       transparent 0 8px,
-      rgba(58, 208, 214, 0.022) 8px 9px
-    ),
+      rgba(58, 208, 214, 0.022) 8px 9px),
     radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.07) 0%, transparent 50%);
   background-repeat:
     no-repeat,
@@ -20278,20 +20455,18 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   height: 1px;
   transform: translateX(-50%);
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(58, 208, 214, 0.15) 12%,
-    rgba(58, 208, 214, 0.65) 50%,
-    rgba(58, 208, 214, 0.15) 88%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(58, 208, 214, 0.15) 12%,
+      rgba(58, 208, 214, 0.65) 50%,
+      rgba(58, 208, 214, 0.15) 88%,
+      transparent 100%);
   box-shadow: 0 0 8px rgba(58, 208, 214, 0.35);
 }
 
-.ui-panel--inventory > .ui-panel__header,
-.ui-panel--inventory > .ui-panel__body,
-.ui-panel--inventory > * {
+.ui-panel--inventory>.ui-panel__header,
+.ui-panel--inventory>.ui-panel__body,
+.ui-panel--inventory>* {
   position: relative;
   z-index: 1;
 }
@@ -20402,11 +20577,9 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 .ui-panel--inventory .inventory-panel__frame {
   border: 2px solid #3a3f44 !important;
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.028) 7px 8px
-    ),
+      rgba(58, 208, 214, 0.028) 7px 8px),
     linear-gradient(180deg, rgba(58, 208, 214, 0.04) 0%, transparent 35%),
     linear-gradient(180deg, #15171a 0%, #0a0b0d 100%) !important;
   box-shadow:
@@ -20464,29 +20637,22 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   border-radius: 2px !important;
   border-color: var(--ui-metal-edge) !important;
   background:
-    radial-gradient(
-      circle at 10px 10px,
+    radial-gradient(circle at 10px 10px,
       rgba(210, 220, 230, 0.22) 0 1px,
       #5a6168 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    radial-gradient(
-      circle at calc(100% - 10px) 10px,
+      transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) 10px,
       rgba(210, 220, 230, 0.22) 0 1px,
       #5a6168 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    linear-gradient(
-      125deg,
+      transparent 4.5px),
+    linear-gradient(125deg,
       rgba(255, 255, 255, 0.045) 0%,
       transparent 38%,
       transparent 62%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
-    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%)
-    !important;
+      rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(165deg, var(--ui-metal-face-top) 0%, #121416 48%, var(--ui-metal-face-bottom) 100%) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     inset 0 0 0 1px rgba(58, 208, 214, 0.12),
@@ -20521,11 +20687,9 @@ body[data-react-game-hud-ui='1'] #scene-combat {
     linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 1.5px 12px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 12px 1.5px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 1.5px 12px no-repeat,
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 9px,
-      rgba(58, 208, 214, 0.022) 9px 10px
-    );
+      rgba(58, 208, 214, 0.022) 9px 10px);
   opacity: 0.9;
 }
 
@@ -20549,16 +20713,16 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   overflow: visible;
 }
 
-.ui-skin-hybrid > *,
-.login-box.ui-skin-hybrid > *,
-.char-create-box.ui-skin-hybrid > *,
-.pause-menu-panel.ui-skin-hybrid > *,
-.char-slot.ui-skin-hybrid > *,
-.chat-box.ui-skin-hybrid > *,
-.log-service-panel.ui-skin-hybrid > *,
-.player-vitals-strip.ui-skin-hybrid > *,
-.world-game-clock.ui-skin-hybrid > *,
-.hud-overlay-card.ui-skin-hybrid > * {
+.ui-skin-hybrid>*,
+.login-box.ui-skin-hybrid>*,
+.char-create-box.ui-skin-hybrid>*,
+.pause-menu-panel.ui-skin-hybrid>*,
+.char-slot.ui-skin-hybrid>*,
+.chat-box.ui-skin-hybrid>*,
+.log-service-panel.ui-skin-hybrid>*,
+.player-vitals-strip.ui-skin-hybrid>*,
+.world-game-clock.ui-skin-hybrid>*,
+.hud-overlay-card.ui-skin-hybrid>* {
   position: relative;
   z-index: 1;
 }
@@ -20583,7 +20747,7 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 
 .auth-panel-title,
 .login-box h1,
-[data-ui-surface='char-select-screen'] > h1 {
+[data-ui-surface='char-select-screen']>h1 {
   color: var(--ui-text);
   letter-spacing: 0.14em;
   text-shadow: 0 0 12px rgba(58, 208, 214, 0.15);
@@ -20604,22 +20768,17 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   border-bottom: none !important;
   border-left: 2px solid var(--ui-metal-edge) !important;
   background:
-    radial-gradient(
-      circle at 12px 12px,
+    radial-gradient(circle at 12px 12px,
       rgba(210, 220, 230, 0.22) 0 1px,
       #5a6168 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    linear-gradient(
-      180deg,
+      transparent 4.5px),
+    linear-gradient(180deg,
       rgba(255, 255, 255, 0.035) 0%,
       transparent 18%,
       transparent 82%,
-      rgba(0, 0, 0, 0.35) 100%
-    ),
-    linear-gradient(180deg, var(--ui-metal-face-top) 0%, #121416 42%, var(--ui-metal-face-bottom) 100%)
-    !important;
+      rgba(0, 0, 0, 0.35) 100%),
+    linear-gradient(180deg, var(--ui-metal-face-top) 0%, #121416 42%, var(--ui-metal-face-bottom) 100%) !important;
   box-shadow:
     inset 1px 0 0 rgba(58, 208, 214, 0.2),
     inset 0 0 0 1px rgba(58, 208, 214, 0.06),
@@ -20632,30 +20791,23 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 .login-box.ui-skin-hybrid.ui-skin-hybrid--holo-boost {
   border-color: rgba(58, 208, 214, 0.42) !important;
   background:
-    radial-gradient(
-      circle at 10px 10px,
+    radial-gradient(circle at 10px 10px,
       rgba(180, 230, 235, 0.35) 0 1px,
       rgba(58, 208, 214, 0.45) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    radial-gradient(
-      circle at calc(100% - 10px) 10px,
+      transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) 10px,
       rgba(180, 230, 235, 0.35) 0 1px,
       rgba(58, 208, 214, 0.45) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
+      transparent 4.5px),
     radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.16) 0%, transparent 55%),
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(58, 208, 214, 0.08) 0%,
       transparent 36%,
       transparent 64%,
-      rgba(0, 0, 0, 0.32) 100%
-    ),
-    linear-gradient(165deg, #152022 0%, #101416 48%, #0a0c0e 100%)
-    !important;
+      rgba(0, 0, 0, 0.32) 100%),
+    linear-gradient(165deg, #152022 0%, #101416 48%, #0a0c0e 100%) !important;
   box-shadow:
     inset 0 1px 0 rgba(120, 220, 230, 0.14),
     inset 0 0 0 1px rgba(58, 208, 214, 0.28),
@@ -20676,16 +20828,12 @@ body[data-react-game-hud-ui='1'] #scene-combat {
     linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 1.5px 16px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 16px 1.5px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 1.5px 16px no-repeat,
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.055) 7px 8px
-    ),
-    repeating-linear-gradient(
-      90deg,
+      rgba(58, 208, 214, 0.055) 7px 8px),
+    repeating-linear-gradient(90deg,
       transparent 0 10px,
-      rgba(58, 208, 214, 0.03) 10px 11px
-    ),
+      rgba(58, 208, 214, 0.03) 10px 11px),
     radial-gradient(ellipse at 50% 8%, rgba(58, 208, 214, 0.12) 0%, transparent 48%);
   opacity: 1;
   filter: drop-shadow(0 0 4px rgba(58, 208, 214, 0.45));
@@ -20699,14 +20847,12 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(58, 208, 214, 0.07) 48%,
-    rgba(120, 230, 240, 0.12) 50%,
-    rgba(58, 208, 214, 0.05) 52%,
-    transparent 100%
-  );
+  background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(58, 208, 214, 0.07) 48%,
+      rgba(120, 230, 240, 0.12) 50%,
+      rgba(58, 208, 214, 0.05) 52%,
+      transparent 100%);
   background-size: 100% 220%;
   animation: ui-holo-scan-sweep 5.5s ease-in-out infinite;
   opacity: 0.85;
@@ -20714,9 +20860,19 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 }
 
 @keyframes ui-holo-scan-sweep {
-  0% { background-position: 0% -40%; opacity: 0.35; }
-  45% { opacity: 0.9; }
-  100% { background-position: 0% 140%; opacity: 0.3; }
+  0% {
+    background-position: 0% -40%;
+    opacity: 0.35;
+  }
+
+  45% {
+    opacity: 0.9;
+  }
+
+  100% {
+    background-position: 0% 140%;
+    opacity: 0.3;
+  }
 }
 
 [data-ui-surface='auth-screen'] .login-box.ui-skin-hybrid h1,
@@ -20807,44 +20963,33 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 .pause-menu-panel.ui-skin-hybrid.ui-skin-hybrid--holo-boost {
   border-color: rgba(58, 208, 214, 0.5) !important;
   background:
-    radial-gradient(
-      circle at 10px 10px,
+    radial-gradient(circle at 10px 10px,
       rgba(180, 230, 235, 0.4) 0 1px,
       rgba(58, 208, 214, 0.55) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    radial-gradient(
-      circle at calc(100% - 10px) 10px,
+      transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) 10px,
       rgba(180, 230, 235, 0.4) 0 1px,
       rgba(58, 208, 214, 0.55) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    radial-gradient(
-      circle at 10px calc(100% - 10px),
+      transparent 4.5px),
+    radial-gradient(circle at 10px calc(100% - 10px),
       rgba(180, 230, 235, 0.28) 0 1px,
       rgba(58, 208, 214, 0.4) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    radial-gradient(
-      circle at calc(100% - 10px) calc(100% - 10px),
+      transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),
       rgba(180, 230, 235, 0.28) 0 1px,
       rgba(58, 208, 214, 0.4) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
+      transparent 4.5px),
     radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.2) 0%, transparent 52%),
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(58, 208, 214, 0.1) 0%,
       transparent 34%,
       transparent 66%,
-      rgba(0, 0, 0, 0.36) 100%
-    ),
-    linear-gradient(165deg, #152426 0%, #101618 46%, #080a0c 100%)
-    !important;
+      rgba(0, 0, 0, 0.36) 100%),
+    linear-gradient(165deg, #152426 0%, #101618 46%, #080a0c 100%) !important;
   box-shadow:
     inset 0 1px 0 rgba(120, 220, 230, 0.18),
     inset 0 0 0 1px rgba(58, 208, 214, 0.32),
@@ -20864,16 +21009,12 @@ body[data-react-game-hud-ui='1'] #scene-combat {
     linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 2px 18px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 18px 2px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 2px 18px no-repeat,
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 6px,
-      rgba(58, 208, 214, 0.07) 6px 7px
-    ),
-    repeating-linear-gradient(
-      90deg,
+      rgba(58, 208, 214, 0.07) 6px 7px),
+    repeating-linear-gradient(90deg,
       transparent 0 9px,
-      rgba(58, 208, 214, 0.035) 9px 10px
-    ),
+      rgba(58, 208, 214, 0.035) 9px 10px),
     radial-gradient(ellipse at 50% 6%, rgba(58, 208, 214, 0.16) 0%, transparent 46%);
   opacity: 1;
   filter: drop-shadow(0 0 5px rgba(58, 208, 214, 0.55));
@@ -20885,14 +21026,12 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(58, 208, 214, 0.08) 46%,
-    rgba(140, 235, 245, 0.16) 50%,
-    rgba(58, 208, 214, 0.06) 54%,
-    transparent 100%
-  );
+  background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(58, 208, 214, 0.08) 46%,
+      rgba(140, 235, 245, 0.16) 50%,
+      rgba(58, 208, 214, 0.06) 54%,
+      transparent 100%);
   background-size: 100% 220%;
   animation: ui-holo-scan-sweep 4.2s ease-in-out infinite;
   opacity: 0.95;
@@ -20903,7 +21042,7 @@ body[data-react-game-hud-ui='1'] #scene-combat {
    Holo reforçado (--holo-boost) fica só fora do mundo: login / char-select. */
 
 /* ── Char-select: mesmo padrão holo reforçado do login ── */
-[data-ui-surface='char-select-screen'] > h1 {
+[data-ui-surface='char-select-screen']>h1 {
   color: var(--ui-text-holo);
   font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
   text-shadow:
@@ -20922,30 +21061,23 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 [data-ui-surface='char-select-screen'] .char-create-box.ui-skin-hybrid {
   border-color: rgba(58, 208, 214, 0.42) !important;
   background:
-    radial-gradient(
-      circle at 10px 10px,
+    radial-gradient(circle at 10px 10px,
       rgba(180, 230, 235, 0.35) 0 1px,
       rgba(58, 208, 214, 0.45) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
-    radial-gradient(
-      circle at calc(100% - 10px) 10px,
+      transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) 10px,
       rgba(180, 230, 235, 0.35) 0 1px,
       rgba(58, 208, 214, 0.45) 1.5px 2.8px,
       #1a1d20 3px 4px,
-      transparent 4.5px
-    ),
+      transparent 4.5px),
     radial-gradient(ellipse at 50% 0%, rgba(58, 208, 214, 0.16) 0%, transparent 55%),
-    linear-gradient(
-      125deg,
+    linear-gradient(125deg,
       rgba(58, 208, 214, 0.08) 0%,
       transparent 36%,
       transparent 64%,
-      rgba(0, 0, 0, 0.32) 100%
-    ),
-    linear-gradient(165deg, #152022 0%, #101416 48%, #0a0c0e 100%)
-    !important;
+      rgba(0, 0, 0, 0.32) 100%),
+    linear-gradient(165deg, #152022 0%, #101416 48%, #0a0c0e 100%) !important;
   box-shadow:
     inset 0 1px 0 rgba(120, 220, 230, 0.14),
     inset 0 0 0 1px rgba(58, 208, 214, 0.28),
@@ -20967,16 +21099,12 @@ body[data-react-game-hud-ui='1'] #scene-combat {
     linear-gradient(var(--ui-holo), var(--ui-holo)) 8px calc(100% - 8px) / 1.5px 16px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 16px 1.5px no-repeat,
     linear-gradient(var(--ui-holo), var(--ui-holo)) calc(100% - 8px) calc(100% - 8px) / 1.5px 16px no-repeat,
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.055) 7px 8px
-    ),
-    repeating-linear-gradient(
-      90deg,
+      rgba(58, 208, 214, 0.055) 7px 8px),
+    repeating-linear-gradient(90deg,
       transparent 0 10px,
-      rgba(58, 208, 214, 0.03) 10px 11px
-    ),
+      rgba(58, 208, 214, 0.03) 10px 11px),
     radial-gradient(ellipse at 50% 8%, rgba(58, 208, 214, 0.12) 0%, transparent 48%);
   opacity: 1;
   filter: drop-shadow(0 0 4px rgba(58, 208, 214, 0.45));
@@ -20990,14 +21118,12 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(58, 208, 214, 0.07) 48%,
-    rgba(120, 230, 240, 0.12) 50%,
-    rgba(58, 208, 214, 0.05) 52%,
-    transparent 100%
-  );
+  background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(58, 208, 214, 0.07) 48%,
+      rgba(120, 230, 240, 0.12) 50%,
+      rgba(58, 208, 214, 0.05) 52%,
+      transparent 100%);
   background-size: 100% 220%;
   animation: ui-holo-scan-sweep 5.5s ease-in-out infinite;
   opacity: 0.85;
@@ -21239,19 +21365,18 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.05) 0px,
-    rgba(255, 255, 255, 0.05) 1px,
-    transparent 1px,
-    transparent 3px
-  );
+  background: repeating-linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 3px);
 }
 
 @keyframes cyber-void-drift {
   from {
     transform: rotateX(62deg) translateY(0);
   }
+
   to {
     transform: rotateX(62deg) translateY(56px);
   }
@@ -21533,11 +21658,9 @@ body[data-react-game-hud-ui='1'] #scene-combat {
     linear-gradient(var(--hud-holo-cyan), var(--hud-holo-cyan)) 8px calc(100% - 8px) / 1px 12px no-repeat,
     linear-gradient(var(--hud-holo-cyan), var(--hud-holo-cyan)) calc(100% - 8px) calc(100% - 8px) / 12px 1px no-repeat,
     linear-gradient(var(--hud-holo-cyan), var(--hud-holo-cyan)) calc(100% - 8px) calc(100% - 8px) / 1px 12px no-repeat,
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 11px,
-      rgba(0, 212, 255, 0.035) 11px 12px
-    ) !important;
+      rgba(0, 212, 255, 0.035) 11px 12px) !important;
   opacity: 0.85;
 }
 
@@ -21663,18 +21786,22 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 }
 
 @keyframes hud-holo-scan {
+
   0%,
   86% {
     top: -4%;
     opacity: 0;
   }
+
   88% {
     opacity: 0.14;
   }
+
   96% {
     top: 104%;
     opacity: 0.08;
   }
+
   100% {
     top: 104%;
     opacity: 0;
@@ -21753,7 +21880,7 @@ body[data-react-game-hud-ui='1'] #scene-combat {
 
 .mercenary-board__grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 8px;
   min-width: 0;
   overflow: visible;
@@ -21789,6 +21916,11 @@ body[data-react-game-hud-ui='1'] #scene-combat {
   min-height: 0;
   gap: 5px;
   padding: 7px 8px;
+  min-width: 0;
+}
+
+.mercenary-board--compact .mercenary-board__row-head {
+  flex-wrap: wrap;
 }
 
 .mercenary-board--compact .mercenary-board__title {
@@ -22173,11 +22305,9 @@ html[data-perf='lite'] * {
 .ui-panel--pet-love.ui-skin-hybrid .pet-love--standalone {
   border: 1px solid rgba(58, 63, 68, 0.85) !important;
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 7px,
-      rgba(58, 208, 214, 0.028) 7px 8px
-    ),
+      rgba(58, 208, 214, 0.028) 7px 8px),
     linear-gradient(180deg, rgba(18, 20, 24, 0.92) 0%, rgba(10, 11, 13, 0.96) 100%) !important;
   border-radius: 2px;
 }
@@ -22401,11 +22531,9 @@ html[data-perf='lite'] * {
 /* Marcos — reforço holo nos poços internos */
 .ui-panel--marcos.ui-skin-hybrid .marcos-panel__body {
   background:
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent 0 8px,
-      rgba(58, 208, 214, 0.022) 8px 9px
-    ),
+      rgba(58, 208, 214, 0.022) 8px 9px),
     linear-gradient(165deg, rgba(20, 22, 26, 0.72) 0%, rgba(10, 11, 13, 0.88) 100%) !important;
 }
 

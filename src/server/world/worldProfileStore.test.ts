@@ -55,4 +55,27 @@ describe('worldProfileStore sessionSync preserve', () => {
     const profile = getWorldProfile(playerId, characterId);
     expect(profile.sessionSync?.activeMovesets).toEqual(['w', 'x', 'y', 'z']);
   });
+
+  it('preserves current constructFarmLayout when saving world profile', () => {
+    const playerId = 'p3';
+    const characterId = 1;
+
+    saveWorldProfile(playerId, characterId, {
+      currentMapId: 'farm_zone_01',
+      lastPosition: { x: 10, y: 20 },
+      facing: 'south',
+      constructFarmLayout: 'zonabeco1a',
+    });
+
+    saveWorldProfile(playerId, characterId, {
+      currentMapId: 'farm_zone_01',
+      lastPosition: { x: 25, y: 30 },
+      facing: 'east',
+    });
+
+    const profile = getWorldProfile(playerId, characterId);
+    expect(profile.constructFarmLayout).toBe('zonabeco1a');
+    expect(profile.currentMapId).toBe('farm_zone_01');
+    expect(profile.facing).toBe('east');
+  });
 });
