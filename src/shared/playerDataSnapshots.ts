@@ -148,4 +148,6 @@ export type AuthoritativePlayerSnapshot = {
   readonly friends?: readonly import('./social/friendListTypes.js').FriendListViewEntry[];
   /** HP/MP persistidos do mapa — SSOT para HUD e gate de duelo. */
   readonly worldVitals?: PlayerWorldVitals;
+  /** Travas de domínio (Z1A…) — espelho do holder autoritativo para portal/HUD. */
+  readonly zoneDomain?: import('./types/zoneBypass.js').ZoneDomainSnapshot;
 };

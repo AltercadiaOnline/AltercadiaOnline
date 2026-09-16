@@ -44,6 +44,7 @@ import {
   resolveCharacterStatPointsView,
 } from '../../shared/character/characterStatPoints.js';
 import { resolvePlayerSkinBundleId } from '../../shared/character/playerSkinBundle.js';
+import { getAuthoritativeZoneBypassGateway } from '../world/AuthoritativeZoneBypassGateway.js';
 
 /** Monta payload `full-state-sync` a partir do estado autoritativo em memória. */
 export function buildAuthoritativePlayerSnapshot(
@@ -169,6 +170,7 @@ export function buildAuthoritativePlayerSnapshot(
     ...(worldProfile.sessionSync?.worldVitals
       ? { worldVitals: { ...worldProfile.sessionSync.worldVitals } }
       : {}),
+    zoneDomain: getAuthoritativeZoneBypassGateway().getDomainSnapshot(playerId, characterId),
   };
 }
 

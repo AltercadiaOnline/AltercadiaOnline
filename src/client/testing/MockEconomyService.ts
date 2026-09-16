@@ -764,8 +764,9 @@ export class MockEconomyService implements IDevMockEconomyService {
     if (!key) return { ok: false, reason: 'Personagem não ligado ao mock.' };
     try {
       const result = this.zoneBypass.initTerminalSession(key, transitionId);
-      applyZoneDomainSnapshot(this.zoneBypass.getDomainSnapshot(key, Date.now(), transitionId));
-      return { ok: true, data: result };
+      const domain = this.zoneBypass.getDomainSnapshot(key, Date.now(), transitionId);
+      applyZoneDomainSnapshot(domain);
+      return { ok: true, data: { ...result, zoneDomain: domain } };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Falha ao iniciar terminal.';
       return { ok: false, reason: message };

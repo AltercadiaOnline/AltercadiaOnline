@@ -33,7 +33,10 @@ export class ZoneBypassInitHandler extends BaseIntentHandler<ZoneBypassInitPaylo
     try {
       await gateway.ensureBootstrapped();
       const result = gateway.initSession(playerId, characterId, payload.transitionId);
-      session.sendResponse(playerId, intentId, true, result);
+      session.sendResponse(playerId, intentId, true, {
+        ...result,
+        zoneDomain: gateway.getDomainSnapshot(playerId, characterId, payload.transitionId),
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Falha ao iniciar terminal.';
       session.sendResponse(playerId, intentId, false, message);

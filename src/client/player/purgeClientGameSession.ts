@@ -52,6 +52,7 @@ import { clearRemoteEntitySyncBridge } from '../world/remoteEntitySyncBridge.js'
 import { clearWorldPlayerPicks } from '../world/worldPlayerPickRegistry.js';
 import { resetStaticNetworkMirror } from '../world/staticNetworkSyncBridge.js';
 import { resetZoneBypassSyncBridge } from '../world/zoneBypassSyncBridge.js';
+import { resetZoneBypassNotifyBuffer } from '../world/zoneBypassNotify.js';
 import { resetSprayInspectSession } from '../world/sprayInspectStore.js';
 import { resetPlayerInspectSession } from '../world/playerInspectStore.js';
 import { resetCasualDuelSession } from '../world/casualDuelStore.js';
@@ -101,6 +102,7 @@ function purgeSessionState(): void {
   clearWorldPlayerPicks();
   resetStaticNetworkMirror();
   resetZoneBypassSyncBridge();
+  resetZoneBypassNotifyBuffer();
   resetSprayInspectSession();
   resetPlayerInspectSession();
   resetCasualDuelSession();

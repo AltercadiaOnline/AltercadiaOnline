@@ -105,6 +105,8 @@ export interface TerminalInitResponse {
   readonly isAlreadyUnlocked: boolean;
   /** Apenas fornecido ao cliente se for o início legítimo do minigame */
   readonly sequencePreview?: string;
+  /** Espelho autoritativo das travas — UX de portal/HUD sem esperar tick. */
+  readonly zoneDomain?: ZoneDomainSnapshot;
 }
 
 export interface TerminalSubmitRequest {

@@ -107,17 +107,38 @@ export const MemoryTerminalReactBridge: React.FC = () => {
   const [domainRevision, setDomainRevision] = useState(0);
   const overlayRef = useRef<TerminalOverlay | null>(null);
   const pendingInitRef = useRef<TerminalInitResponse | null>(null);
+  const bootTimeoutRef = useRef<number | null>(null);
 
   const commitOverlay = useCallback((next: TerminalOverlay | null) => {
     overlayRef.current = next;
     setOverlay(next);
   }, []);
 
+  const clearBootTimeout = useCallback(() => {
+    if (bootTimeoutRef.current !== null) {
+      window.clearTimeout(bootTimeoutRef.current);
+      bootTimeoutRef.current = null;
+    }
+  }, []);
+
   const closeSession = useCallback(() => {
+    clearBootTimeout();
     pendingInitRef.current = null;
     commitOverlay(null);
     dismissMemoryTerminalHud();
-  }, [commitOverlay]);
+  }, [clearBootTimeout, commitOverlay]);
+
+  const armBootTimeout = useCallback(() => {
+    clearBootTimeout();
+    bootTimeoutRef.current = window.setTimeout(() => {
+      bootTimeoutRef.current = null;
+      postSystemNotification('Terminal não respondeu. Tente novamente.');
+      pendingInitRef.current = null;
+      overlayRef.current = null;
+      setOverlay(null);
+      dismissMemoryTerminalHud();
+    }, PENDING_INTENT_TIMEOUT_MS + 400);
+  }, [clearBootTimeout]);
 
   const applyInitSuccess = useCallback(
     (initData: TerminalInitResponse): boolean => {
@@ -134,16 +155,25 @@ export const MemoryTerminalReactBridge: React.FC = () => {
       if (!gate) {
         postSystemNotification('Terminal de domínio desconhecido.');
         pendingInitRef.current = null;
+        clearBootTimeout();
         commitOverlay(null);
         dismissMemoryTerminalHud();
         return true;
       }
       pendingInitRef.current = null;
+      clearBootTimeout();
       commitOverlay(overlayFromInit(gate, initData));
       return true;
     },
-    [commitOverlay],
+    [clearBootTimeout, commitOverlay],
   );
+
+  const applyInitSuccessRef = useRef(applyInitSuccess);
+  applyInitSuccessRef.current = applyInitSuccess;
+  const clearBootTimeoutRef = useRef(clearBootTimeout);
+  clearBootTimeoutRef.current = clearBootTimeout;
+  const commitOverlayRef = useRef(commitOverlay);
+  commitOverlayRef.current = commitOverlay;
 
   useEffect(() => {
     registerMemoryTerminalHudCloser(overlay ? closeSession : null);
@@ -152,25 +182,18 @@ export const MemoryTerminalReactBridge: React.FC = () => {
     };
   }, [overlay, closeSession]);
 
-  useEffect(() => {
-    if (!overlay || overlay.kind !== 'booting') return;
-    const handle = window.setTimeout(() => {
-      postSystemNotification('Terminal não respondeu. Tente novamente.');
-      closeSession();
-    }, PENDING_INTENT_TIMEOUT_MS + 400);
-    return () => window.clearTimeout(handle);
-  }, [overlay, closeSession]);
-
+  // Listener único — ACK não pode cair no buraco entre re-registros do effect.
   useEffect(() => {
     onZoneBypassInit((payload) => {
       if ('ok' in payload && payload.ok === false) {
         postSystemNotification(payload.reason);
         pendingInitRef.current = null;
-        commitOverlay(null);
+        clearBootTimeoutRef.current();
+        commitOverlayRef.current(null);
         dismissMemoryTerminalHud();
         return;
       }
-      applyInitSuccess(payload as TerminalInitResponse);
+      applyInitSuccessRef.current(payload as TerminalInitResponse);
     });
     onZoneBypassSubmit((payload) => {
       if ('ok' in payload && payload.ok === false) {
@@ -193,8 +216,9 @@ export const MemoryTerminalReactBridge: React.FC = () => {
     return () => {
       onZoneBypassInit(null);
       onZoneBypassSubmit(null);
+      clearBootTimeoutRef.current();
     };
-  }, [applyInitSuccess, commitOverlay]);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = uiEvents.on(
@@ -210,14 +234,15 @@ export const MemoryTerminalReactBridge: React.FC = () => {
         if (!gate) {
           postSystemNotification('Terminal de domínio desconhecido.');
           pendingInitRef.current = null;
+          clearBootTimeout();
           commitOverlay(null);
           dismissMemoryTerminalHud();
           return;
         }
 
         const current = overlayRef.current;
-        // Minigame em andamento — não reinicia. Booting travado pode retentar.
-        if (current && current.kind === 'minigame') {
+        // Minigame / boot em andamento — não reinicia (evita timeout eterno e INIT duplicado).
+        if (current && (current.kind === 'minigame' || current.kind === 'booting')) {
           return;
         }
 
@@ -228,6 +253,7 @@ export const MemoryTerminalReactBridge: React.FC = () => {
           zoneName: gate.label,
         };
         commitOverlay(booting);
+        armBootTimeout();
 
         const pending = pendingInitRef.current;
         if (pending && pending.transitionId === gate.transitionId) {
@@ -239,6 +265,7 @@ export const MemoryTerminalReactBridge: React.FC = () => {
         if (!started) {
           postSystemNotification('Não foi possível iniciar o terminal — tente novamente.');
           pendingInitRef.current = null;
+          clearBootTimeout();
           commitOverlay(null);
           dismissMemoryTerminalHud();
         }
@@ -246,14 +273,25 @@ export const MemoryTerminalReactBridge: React.FC = () => {
     );
 
     return () => unsubscribe();
-  }, [applyInitSuccess, commitOverlay]);
+  }, [applyInitSuccess, armBootTimeout, clearBootTimeout, commitOverlay]);
 
   const handleHackThisGate = useCallback(() => {
     if (!overlay || overlay.kind !== 'domain') return;
+    const booting: TerminalOverlay = {
+      kind: 'booting',
+      transitionId: overlay.transitionId,
+      terminalId: overlay.terminalId,
+      zoneName: overlay.zoneName,
+    };
+    commitOverlay(booting);
+    armBootTimeout();
     if (!requestZoneBypassInit(overlay.transitionId)) {
       postSystemNotification('Não foi possível iniciar o hack desta trava.');
+      clearBootTimeout();
+      commitOverlay(null);
+      dismissMemoryTerminalHud();
     }
-  }, [overlay]);
+  }, [armBootTimeout, clearBootTimeout, commitOverlay, overlay]);
 
   if (!overlay) return null;
 
@@ -297,8 +335,9 @@ export const MemoryTerminalReactBridge: React.FC = () => {
   }
 
   const handleSubmit = (inputCode: string) => {
+    const sessionId = overlay.sessionId;
     closeSession();
-    if (!requestZoneBypassSubmit(overlay.sessionId, inputCode)) {
+    if (!requestZoneBypassSubmit(sessionId, inputCode)) {
       postSystemNotification('Não foi possível enviar o código — tente novamente.');
     }
   };

@@ -27,6 +27,8 @@ export class PortalTransitionGateway {
     playerId: string,
     request: PortalTransitionRequestPayload,
   ): PortalTransitionGatewayResult {
+    // Holders já hidratados em initializePersistence; garante no hot path se boot atrasou.
+    void getAuthoritativeZoneBypassGateway().ensureBootstrapped();
     const unlockedZones = getAuthoritativeZoneBypassGateway().exportPlayerUnlocks(
       playerId,
       request.characterId,

@@ -192,6 +192,10 @@ export class GlobalStateSynchronizer {
     } else if (result === 'applied' && classId) {
       getBattleStore().resyncLoadout();
     }
+    if (result === 'applied' && state.zoneDomain) {
+      const domain = parseZoneDomainSnapshot(state.zoneDomain);
+      if (domain) applyZoneDomainSnapshot(domain);
+    }
     getGameStore().bootstrapFromServerSession();
 
     return result;
