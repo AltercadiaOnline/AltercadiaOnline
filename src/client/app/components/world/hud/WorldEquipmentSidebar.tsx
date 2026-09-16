@@ -47,8 +47,8 @@ import {
 import { ItemSlotIcon } from '../panels/ItemSlotIcon.js';
 import {
   isChargedEquipmentItemId,
+  resolveEquippedStackCharges,
   resolveItemMaxCharges,
-  resolveStackDurabilityCharges,
 } from '../../../../../shared/items/chargedEquipment.js';
 import { buildProgressionTooltipDataAttributes } from './progressionTooltipProps.js';
 
@@ -66,15 +66,8 @@ function EquipSlotButton({
   const displayName = itemId ? displayStore.getItemDisplayName(itemId) : label;
   const pendingClass = pending ? ' equip-slot--pending' : '';
   const contextTarget = JSON.stringify({ slotId });
-  const chargedRow = itemId && isChargedEquipmentItemId(itemId)
-    ? getPlayerItemStore().getItemInSlot(slotId)
-    : null;
-  const chargesCurrent = chargedRow
-    ? resolveStackDurabilityCharges({
-        itemId: chargedRow.itemId,
-        quantity: chargedRow.quantity,
-        ...(chargedRow.charges !== undefined ? { charges: chargedRow.charges } : {}),
-      })
+  const chargesCurrent = itemId && isChargedEquipmentItemId(itemId)
+    ? resolveEquippedStackCharges(getPlayerItemStore().toInventoryStacks(), itemId)
     : null;
   const chargesMax = itemId && isChargedEquipmentItemId(itemId)
     ? resolveItemMaxCharges(itemId)

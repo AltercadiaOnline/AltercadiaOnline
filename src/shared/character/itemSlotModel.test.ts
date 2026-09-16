@@ -135,3 +135,52 @@ describe('cópias extras do mesmo item equipável', () => {
     expect(findDuplicateItemInstanceIds(cloned)).toEqual([items[0]!.instanceId]);
   });
 });
+
+describe('cargas de runa/livro no SET', () => {
+  const RUNE = 'runa_furia';
+  const BOOK = 'livro_forca';
+
+  function equippedChargedGrid() {
+    return {
+      ...createEmptyEquipmentUiGrid(),
+      [EquipmentUiSlotId.Runes]: RUNE,
+      [EquipmentUiSlotId.Books]: BOOK,
+    };
+  }
+
+  it('hidrata cópia do SET com charges do stack autoritativo', () => {
+    const items = buildItemRecordsFromServerBundle(
+      [
+        { itemId: RUNE, quantity: 1, charges: 7 },
+        { itemId: BOOK, quantity: 1, charges: 3 },
+      ],
+      equippedChargedGrid(),
+    );
+
+    const runeEq = filterEquippedItems(items).find((row) => row.slot === EquipmentUiSlotId.Runes);
+    const bookEq = filterEquippedItems(items).find((row) => row.slot === EquipmentUiSlotId.Books);
+    expect(runeEq?.charges).toBe(7);
+    expect(bookEq?.charges).toBe(3);
+  });
+
+  it('coalesce prefere charges do stack após sync (não congela valor antigo do SET)', () => {
+    const withStaleEq = buildItemRecordsFromServerBundle(
+      [
+        { itemId: RUNE, quantity: 1, charges: 8 },
+        { itemId: BOOK, quantity: 1, charges: 8 },
+      ],
+      equippedChargedGrid(),
+    ).map((row) => {
+      if (row.slot === EquipmentUiSlotId.Runes || row.slot === EquipmentUiSlotId.Books) {
+        return { ...row, charges: 9 };
+      }
+      return row;
+    });
+
+    const next = coalescePlayerItemRecords(withStaleEq);
+    const runeEq = filterEquippedItems(next).find((row) => row.slot === EquipmentUiSlotId.Runes);
+    const bookEq = filterEquippedItems(next).find((row) => row.slot === EquipmentUiSlotId.Books);
+    expect(runeEq?.charges).toBe(8);
+    expect(bookEq?.charges).toBe(8);
+  });
+});

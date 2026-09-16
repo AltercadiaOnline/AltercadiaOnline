@@ -100,11 +100,15 @@ export function buildItemRecordsFromServerBundle(
   for (const slotId of EQUIPMENT_UI_SLOT_ORDER) {
     const itemId = grid[slotId];
     if (!itemId) continue;
+    // Runas/livros: durabilidade mora no stack autoritativo — espelhar na cópia do SET
+    // para a sidebar não cair em `charges ?? max` após InventoryUpdated.
+    const invStack = stacks.find((stack) => stack.itemId === itemId && stack.quantity > 0);
     items.push({
       instanceId: nextInstanceId('eq', itemId),
       itemId,
       slot: slotId,
       quantity: 1,
+      ...(invStack?.charges !== undefined ? { charges: invStack.charges } : {}),
     });
   }
 
@@ -154,6 +158,8 @@ export function coalescePlayerItemRecords(items: readonly PlayerItemRecord[]): P
   const coalesced = buildItemRecordsFromServerBundle(stacks, grid);
   return coalesced.map((row) => {
     if (row.slot === ItemLocationSlot.Inventory) return row;
+    // Stack autoritativo já veio em buildItemRecordsFromServerBundle — não sobrescrever.
+    if (row.charges !== undefined) return row;
     const charges = chargesBySlot.get(row.slot);
     return charges !== undefined ? { ...row, charges } : row;
   });
