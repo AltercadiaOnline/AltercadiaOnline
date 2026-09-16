@@ -5,7 +5,7 @@ import type { PlayerFacing } from '../../shared/world/playerFacing.js';
 import type { WorldCreatureSnapshot } from '../../shared/world/worldCreatureSync.js';
 import { isMapId } from '../../shared/world/mapRegistry.js';
 import { buildNearbyPlayerSnapshots, type NearbyPlayerPeerInput } from '../../shared/world/buildNearbyPlayerSnapshots.js';
-import { filterTowerPeerVisible } from '../tower/TowerRunRuntime.js';
+import { filterTowerPeerVisible, touchTowerActivity } from '../tower/TowerRunRuntime.js';
 import type { Player } from '../models/Player.js';
 import type { MovementIntentHandler } from './MovementIntentHandler.js';
 import { selectPeersInInterestFromCandidates } from './SpatialInterestGrid.js';
@@ -116,6 +116,9 @@ export class GameLoop {
         : getWorldProfile(world.playerId, world.characterId);
 
       const standingStill = moveResult?.ok !== true;
+      if (moveResult?.ok && profile.currentMapId.startsWith('tower_floor_')) {
+        touchTowerActivity(world.playerId);
+      }
       tickCityRestRegen({
         playerId: world.playerId,
         characterId: world.characterId,

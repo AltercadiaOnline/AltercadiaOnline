@@ -89,6 +89,10 @@ export type WsOutboundMessage =
       readonly type: 'player-trade-snapshot';
       readonly payload: import('./social/playerTradeTypes.js').TradeSnapshot;
     }
+  | {
+      readonly type: 'tower-run-sync';
+      readonly payload: import('./tower/towerTypes.js').TowerHudPublicSnapshot;
+    }
 
   | { readonly type: 'combat-event'; readonly payload: CombatDispatchPayload }
 

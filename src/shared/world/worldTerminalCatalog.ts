@@ -88,7 +88,7 @@ export const WORLD_TERMINAL_CATALOG: readonly WorldTerminalDefinition[] = [
     constructMarker: WORLD_TERMINAL_IDS.TOWER,
     status: 'active',
     notes:
-      'Hall tower_gate: party 1–4, Pronto, Liberar entrada (5 min), ranking pessoal + top shard. HUD/handlers na fatia PC.',
+      'Hall tower_gate: Ativar party 1–4 (solo OK), ranking. Entrada no spawn (janela 10s). Sem Liberar/timer antigo.',
   },
 ] as const;
 

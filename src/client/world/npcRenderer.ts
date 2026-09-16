@@ -81,6 +81,10 @@ export function renderNpcSprite(
     return;
   }
 
+  if (npc.id === 'computador_towerpower' || npc.id.startsWith('computador_towerpower#')) {
+    return;
+  }
+
   const bounds = resolveNpcVisualBounds(npc);
 
   if (npc.sprite === 'terminal') {
@@ -131,6 +135,11 @@ export function renderWorldNpcSnapshot(
       ctx.restore();
       return;
     }
+  }
+
+  // Terminal da torre: PNG fica no Construct — sem placeholder no overlay.
+  if (snapshot.npcId === 'computador_towerpower' || snapshot.npcId.startsWith('computador_towerpower#')) {
+    return;
   }
 
   const bounds = resolveSnapshotBounds(snapshot);

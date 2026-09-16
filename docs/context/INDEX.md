@@ -22,7 +22,7 @@ Loop que o jogador percorre **toda vez**. Intent e save atravessam tudo. Combate
 | 4 | React HUD, painéis, teclado | [ui-cliente.md](ui-cliente.md) | `src/client/app/` |
 | 5 | Motor, payload, Battle HUD, nomenclatura de move | [combate.md](combate.md) | `src/server/combat/` `src/server/engine/` |
 | 5a | Vitória vs criatura: XP, marcos, loot cassino | [combate-pve.md](combate-pve.md) | `CombatSession.ts` + pending loot |
-| 5b | Púlpito, fila 1x1, match ranqueado, rating | [combate-pvp.md](combate-pvp.md) | `src/server/combat/pvp/` |
+| 5b | Púlpito, fila 1x1, match ranqueado, rating · **próx.: multi 2x2 / party battle** | [combate-pvp.md](combate-pvp.md) | `src/server/combat/pvp/` |
 | 5c | Ordem/setup/finisher por classe (catálogo) | [combate-moveset-dinamica.md](combate-moveset-dinamica.md) | `classMovesetCatalog.ts` + `CombatEngine` |
 | 6 | Itens, loja, banco, market, craft | [economia.md](economia.md) | `src/Economy/` |
 | 7 | Spray / pixo / legado / amigo | [spray-social.md](spray-social.md) | `src/shared/social/` |

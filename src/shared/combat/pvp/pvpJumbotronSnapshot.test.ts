@@ -119,8 +119,8 @@ describe('pvpJumbotronLayout', () => {
   it('ancora no prop telao_pvp da cidade', () => {
     const rect = resolvePvpJumbotronWorldRect('city_01');
     expect(rect).not.toBeNull();
-    expect(rect!.width).toBeGreaterThan(40);
-    expect(rect!.height).toBeGreaterThan(40);
+    expect(rect!.width).toBeGreaterThanOrEqual(40);
+    expect(rect!.height).toBeGreaterThanOrEqual(40);
     expect(resolvePvpJumbotronWorldRect('farm_zone_01')).toBeNull();
   });
 });

@@ -67,3 +67,58 @@ Fim rankeado: HP/MP de **antes** da luta; mesma pose no púlpito.
 ## Proibido
 
 Inventar match no front. Abrir loot cassino PVE nesta ficha. Escrever leaderboard via `economyGateway`.
+
+---
+
+## Próxima fatia — Multi 2x2 / party battle (ADIADO)
+
+**Status:** contrato de produto **rascunho** — implementação **não** iniciada.  
+**Escopo:** motor de combate multi **geral** (não só Torre). Torre ([torre-poder.md](torre-poder.md)) e futuros modos reusam o mesmo `CombatState` / BattleScreen.
+
+### Premissa (intenção fechada na conversa)
+
+| Item | Valor |
+|------|--------|
+| Formato piloto | **2x2** (dois times de 2) |
+| Também cobre | Party PVE (ex. Torre: N players vs 1 boss na **mesma** sessão) |
+| Fora desta fatia | Invite UI da Torre no hall (fatia leve à parte); lobby Isolation Pull legado |
+| Hoje | PvP = **1x1**; Torre boss = pull multi, mas bootstrap ainda **1 player + boss** por sessão |
+
+### O que o motor precisa ganhar
+
+1. **Um** `CombatState` com vários combatants aliados + inimigos (não N sessões 1v1).
+2. Fan-out de `combat-event` / `START_COMBAT` para **todos** os players da luta.
+3. Turnos / targeting com >1 aliado vivo (morte parcial: time continua).
+4. HUD BattleScreen: slots de aliados + inimigos (layout além do espelho 1x1).
+5. Finalize único (vitória/derrota/DC) coerente com restore mundo + progressão.
+
+### Âncoras atuais para estender (não duplicar)
+
+| Peça | Path | Nota |
+|------|------|------|
+| Engine / sessão | `CombatEngine.ts`, `CombatSession.ts` | Pet alliance já é multi-ator no mesmo lado — pista, não solução 2x2 |
+| PvP 1x1 | `RankedPvpCombatSession.ts`, `bindPvpDuel` | Layout / skins a generalizar |
+| Torre pull | `startTowerBossCombat.ts` (`memberPlayerIds`) | Já lista a party; falta sessão compartilhada |
+| Protocolo | `CombatDispatchPayload`, `wsProtocol.ts` | Evitar canal ad-hoc |
+
+### Nós abertos (fechar no kickoff da fatia)
+
+1. 2x2 = só casual, ou também ranked/aposta?
+2. Matchmaking: fila 2 slots×2, convite party, ou ambos?
+3. Pet: 1 por player na arena 2x2?
+4. Rating / XP: por time ou por indivíduo?
+5. Torre: ativador puxa **todos** `membersInRun` pra mesma sessão na hora?
+
+### Ordem sugerida de execução
+
+1. Fechar nós abertos (produto).
+2. Shared session server (2 aliados mínimos vs 1–2 foes) + sync.
+3. HUD mínima multi.
+4. Plug Torre `tower_pve_squad` + piloto 2x2 PvP casual.
+5. Ranked / aposta 2x2 só se o piloto casual estiver estável.
+
+### Proibido nesta fatia
+
+- Inventar match 2x2 só no cliente.
+- Segunda BattleScreen / segundo motor.
+- Misturar com faxina Phaser/Tiled.

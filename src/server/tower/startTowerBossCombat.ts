@@ -58,7 +58,7 @@ export function registerTowerBossPull(party: TowerParty, activatorPlayerId: stri
   const floorIndex = party.floorIndex;
   const monsterInstanceId = `tower_boss:${floorIndex}:${party.partyRunId}`;
   const members = party.members
-    .filter((m) => !party.eliminatedPlayerIds.has(m.playerId))
+    .filter((m) => party.membersInRun.has(m.playerId) && !party.eliminatedPlayerIds.has(m.playerId))
     .map((m) => m.playerId);
   const pull: TowerBossPull = {
     monsterInstanceId,

@@ -3,7 +3,7 @@
 Motor no servidor. Cliente reproduz `CombatDispatchPayload` (events + state + ui).
 
 Vitória vs criatura (XP / loot): [combate-pve.md](combate-pve.md).  
-Fila / match ranqueado: [combate-pvp.md](combate-pvp.md).  
+Fila / match ranqueado + **multi 2x2 / party battle (próxima fatia)**: [combate-pvp.md](combate-pvp.md).  
 Ordem / setup / finisher por classe: [combate-moveset-dinamica.md](combate-moveset-dinamica.md).
 
 ## Arquivos âncora

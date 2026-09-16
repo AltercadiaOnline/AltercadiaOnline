@@ -16,77 +16,57 @@ type WorldTowerComputerPanelProps = {
   focused: boolean;
 };
 
-function resolveTowerComputerFromContext(context: WorldPanelContext): {
+function resolveTowerContext(context: WorldPanelContext): {
   readonly objectId: string;
   readonly label: string;
+  readonly mode: 'computer' | 'spawn';
 } {
   if (context.kind === 'towerComputer') {
-    return { objectId: context.objectId, label: context.label };
+    const isSpawn =
+      context.objectId.startsWith('enter_spaw_towerpower')
+      || context.objectId.startsWith('spaw_enter_towerpower');
+    return {
+      objectId: context.objectId,
+      label: context.label,
+      mode: isSpawn ? 'spawn' : 'computer',
+    };
   }
-  return { objectId: 'computador_towerpower', label: 'Torre de Poder' };
+  return { objectId: 'computador_towerpower', label: 'Torre de Poder', mode: 'computer' };
 }
 
 /**
- * Computador da Torre de Poder — party, Pronto, Liberar entrada, ranking, entrar.
- * Sem trava de movimento (igual rankingMonitor).
+ * PC = ativar party + ranking.
+ * Spawn = HUD de acesso (entrar por conta própria).
  */
 export function WorldTowerComputerPanel({
   context,
   zIndex,
   focused,
 }: WorldTowerComputerPanelProps) {
-  const monitor = useMemo(() => resolveTowerComputerFromContext(context), [context]);
+  const monitor = useMemo(() => resolveTowerContext(context), [context]);
   const [snapshot, setSnapshot] = useState(getTowerPanelMirror);
   const [status, setStatus] = useState(
-    `Abra o PC e monte o time (nv. mín. ${TOWER_MIN_LEVEL}).`,
+    monitor.mode === 'spawn'
+      ? 'Chegue na entrada e confirme para subir.'
+      : `Ative uma party (solo OK · nv. mín. ${TOWER_MIN_LEVEL}).`,
   );
-
-  const canEnterTower = Boolean(snapshot?.party?.run?.spawnUnlocked);
 
   useEffect(() => subscribeTowerPanelMirror(() => setSnapshot(getTowerPanelMirror())), []);
 
-  useEffect(() => {
-    // Boot: tenta criar party solo — se já estiver em party, READY sincroniza snapshot.
-    const result = getActionDispatcher().dispatch({ type: 'TOWER_PARTY_CREATE', payload: {} });
-    if (result.ok && result.status === 'pending') {
-      void getActionDispatcher().waitForIntentResult(result.intentId).then((ok) => {
-        if (ok) {
-          setStatus('Party pronta. Marque Pronto (se preciso) e Liberar entrada.');
-          return;
-        }
-        const ready = getActionDispatcher().dispatch({
-          type: 'TOWER_PARTY_READY',
-          payload: { ready: true },
-        });
-        if (ready.ok && ready.status === 'pending') {
-          void getActionDispatcher().waitForIntentResult(ready.intentId);
-        }
-      });
-    }
-  }, []);
-
   const createParty = useActionGatewaySubmit({
-    idleLabel: 'Criar party (solo OK)',
-    pendingLabel: 'Criando…',
+    idleLabel: 'Ativar party',
+    pendingLabel: 'Ativando…',
     onClick: () => getActionDispatcher().dispatch({ type: 'TOWER_PARTY_CREATE', payload: {} }),
-    onResolved: () => setStatus('Party criada.'),
+    onResolved: () => {
+      setStatus('Party ativa — vá à entrada da torre para subir.');
+    },
   });
 
-  const readyToggle = useActionGatewaySubmit({
-    idleLabel: 'Pronto',
-    pendingLabel: 'Aguardando…',
-    onClick: () =>
-      getActionDispatcher().dispatch({
-        type: 'TOWER_PARTY_READY',
-        payload: { ready: true },
-      }),
-  });
-
-  const unlockEntry = useActionGatewaySubmit({
-    idleLabel: 'Liberar entrada',
-    pendingLabel: 'Liberando…',
-    onClick: () => getActionDispatcher().dispatch({ type: 'TOWER_UNLOCK_ENTRY', payload: {} }),
-    onResolved: () => setStatus('Entrada liberada — spawn aberto por 5 min. Solo também vale.'),
+  const leaveParty = useActionGatewaySubmit({
+    idleLabel: 'Sair da party',
+    pendingLabel: 'Saindo…',
+    onClick: () => getActionDispatcher().dispatch({ type: 'TOWER_PARTY_LEAVE', payload: {} }),
+    onResolved: () => setStatus('Você saiu da party.'),
   });
 
   const enterFloor = useActionGatewaySubmit({
@@ -99,32 +79,47 @@ export function WorldTowerComputerPanel({
     },
   });
 
-  const leaveParty = useActionGatewaySubmit({
-    idleLabel: 'Sair da party',
-    pendingLabel: 'Saindo…',
-    onClick: () => getActionDispatcher().dispatch({ type: 'TOWER_PARTY_LEAVE', payload: {} }),
-  });
-
   const members = snapshot?.party?.members ?? [];
   const run = snapshot?.party?.run;
   const leaderboard = snapshot?.leaderboard ?? [];
-  const entryNotice = canEnterTower
-    ? 'Entrada liberada — o spawn da torre está ativo.'
-    : 'Ative a entrada no terminal da torre para liberar o spawn.';
+  const hasParty = Boolean(snapshot?.party);
+  const inRun = Boolean(
+    snapshot?.party?.members.some((m) => m.inRun && run?.membersInRun.includes(m.playerId)),
+  );
+  const windowOpen =
+    Boolean(run?.entryWindowEndsAtServerMs)
+    && (run?.entryWindowEndsAtServerMs ?? 0) > Date.now()
+    && !run?.rosterLocked;
+  const canEnter =
+    hasParty
+    && !snapshot?.towerBusy
+    && !inRun
+    && (
+      (run?.membersInRun.length ?? 0) === 0
+      || windowOpen
+    );
+  const cooldownMs = snapshot?.partyCreateCooldownEndsAtServerMs ?? null;
+  const cooldownLeft =
+    cooldownMs && cooldownMs > Date.now()
+      ? Math.ceil((cooldownMs - Date.now()) / 1000)
+      : 0;
+
+  const title = monitor.mode === 'spawn' ? 'Entrada da Torre' : monitor.label;
+  const titleMeta = monitor.mode === 'spawn' ? '// ACESSO //' : '// TORRE DE PODER //';
 
   return (
     <MovablePanelFrame
       windowId="towerComputer"
-      title={monitor.label}
-      titleMeta="// TORRE DE PODER //"
+      title={title}
+      titleMeta={titleMeta}
       zIndex={zIndex}
       focused={focused}
       bodyOverflow="auto"
       panelClassName="world-panel--tower-computer ui-panel--npc-hybrid ui-skin-hybrid"
       panelStyle={{
-        width: 'min(480px, 96vw)',
-        minWidth: 'min(320px, 94vw)',
-        height: 'min(540px, 86vh)',
+        width: 'min(420px, 96vw)',
+        minWidth: 'min(300px, 94vw)',
+        height: monitor.mode === 'spawn' ? 'min(320px, 70vh)' : 'min(520px, 86vh)',
         maxHeight: 'min(600px, 90vh)',
       }}
       onFocus={() => tryFocusReactWorldPanel('towerComputer')}
@@ -132,78 +127,132 @@ export function WorldTowerComputerPanel({
     >
       <div className="tower-computer" style={{ padding: '0.75rem', color: '#e8e2d6', fontSize: 12 }}>
         <p style={{ margin: '0 0 0.75rem', opacity: 0.85 }}>{status}</p>
-        <p style={{ margin: '0 0 0.75rem', opacity: 0.9, color: canEnterTower ? '#89f0a7' : '#ffd166' }}>
-          {entryNotice}
-        </p>
 
-        <section aria-label="Party" style={{ marginBottom: '0.85rem' }}>
-          <h3 style={{ margin: '0 0 0.4rem', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Party
-          </h3>
-          {members.length === 0 ? (
-            <p style={{ margin: '0 0 0.5rem', opacity: 0.7 }}>Nenhuma party — crie uma (solo permitido).</p>
-          ) : (
-            <ul style={{ margin: '0 0 0.5rem', paddingLeft: '1.1rem' }}>
-              {members.map((m) => (
-                <li key={`${m.playerId}:${m.characterId}`}>
-                  {m.displayName}
-                  {snapshot?.party?.leaderPlayerId === m.playerId ? ' · líder' : ''}
-                  {m.ready ? ' · pronto' : ''}
-                </li>
-              ))}
-            </ul>
-          )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            <button type="button" disabled={createParty.pending} onClick={createParty.submit}>
-              {createParty.buttonLabel}
+        {monitor.mode === 'spawn' ? (
+          <section aria-label="Acesso">
+            {snapshot?.towerBusy ? (
+              <p style={{ margin: '0 0 0.75rem', color: '#ff8f8f' }}>
+                Torre ocupada — aguarde a party atual sair.
+              </p>
+            ) : !hasParty ? (
+              <p style={{ margin: '0 0 0.75rem', color: '#ffd166' }}>
+                Ative uma party no computador da torre antes de entrar.
+              </p>
+            ) : windowOpen ? (
+              <p style={{ margin: '0 0 0.75rem', color: '#89f0a7' }}>
+                Janela aberta — entre agora ({run?.membersInRun.length ?? 0}/
+                {members.length} dentro).
+              </p>
+            ) : (
+              <p style={{ margin: '0 0 0.75rem', opacity: 0.85 }}>
+                Party ativa. O primeiro a entrar abre 10s para o resto do time.
+              </p>
+            )}
+            <button
+              type="button"
+              className="tower-computer__enter"
+              disabled={enterFloor.pending || !canEnter}
+              onClick={enterFloor.submit}
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.8rem',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                cursor: canEnter ? 'pointer' : 'not-allowed',
+                opacity: canEnter ? 1 : 0.55,
+                background: 'linear-gradient(180deg, #3d5a40 0%, #243528 100%)',
+                border: '1px solid #7ecf8a',
+                color: '#e8ffe8',
+              }}
+            >
+              {enterFloor.buttonLabel}
             </button>
-            <button type="button" disabled={readyToggle.pending || !snapshot?.party} onClick={readyToggle.submit}>
-              {readyToggle.buttonLabel}
-            </button>
-            <button type="button" disabled={unlockEntry.pending || !snapshot?.party} onClick={unlockEntry.submit}>
-              {unlockEntry.buttonLabel}
-            </button>
-            <button type="button" disabled={leaveParty.pending || !snapshot?.party} onClick={leaveParty.submit}>
-              {leaveParty.buttonLabel}
-            </button>
-          </div>
-        </section>
+          </section>
+        ) : (
+          <>
+            <section aria-label="Party" style={{ marginBottom: '0.85rem' }}>
+              <h3
+                style={{
+                  margin: '0 0 0.4rem',
+                  fontSize: 11,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Party
+              </h3>
+              {cooldownLeft > 0 ? (
+                <p style={{ margin: '0 0 0.5rem', color: '#ffd166' }}>
+                  Cooldown após saída: {cooldownLeft}s para ativar party de novo.
+                </p>
+              ) : null}
+              {members.length === 0 ? (
+                <p style={{ margin: '0 0 0.5rem', opacity: 0.7 }}>
+                  Nenhuma party — ative uma (1 jogador já vale).
+                </p>
+              ) : (
+                <ul style={{ margin: '0 0 0.5rem', paddingLeft: '1.1rem' }}>
+                  {members.map((m) => (
+                    <li key={`${m.playerId}:${m.characterId}`}>
+                      {m.displayName}
+                      {snapshot?.party?.leaderPlayerId === m.playerId ? ' · líder' : ''}
+                      {m.inRun ? ' · na torre' : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  disabled={createParty.pending || hasParty || cooldownLeft > 0}
+                  onClick={createParty.submit}
+                >
+                  {createParty.buttonLabel}
+                </button>
+                <button
+                  type="button"
+                  disabled={leaveParty.pending || !hasParty}
+                  onClick={leaveParty.submit}
+                >
+                  {leaveParty.buttonLabel}
+                </button>
+              </div>
+              <p style={{ margin: '0.65rem 0 0', opacity: 0.75, fontSize: 11 }}>
+                Party ativa libera o acesso no spawn em frente à torre. Cada um entra sozinho.
+              </p>
+            </section>
 
-        <section aria-label="Entrada" style={{ marginBottom: '0.85rem' }}>
-          <h3 style={{ margin: '0 0 0.4rem', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Progresso da run
-          </h3>
-          <p style={{ margin: '0 0 0.5rem', opacity: 0.8 }}>
-            Andar: {run?.floorIndex ?? 0}
-            {run?.spawnUnlocked ? ' · spawn aberto (5 min)' : ''}
-            {run?.floorCleared ? ' · boss morto' : ''}
-          </p>
-          <button type="button" disabled={enterFloor.pending || !canEnterTower} onClick={enterFloor.submit}>
-            {enterFloor.buttonLabel}
-          </button>
-        </section>
-
-        <section aria-label="Ranking">
-          <h3 style={{ margin: '0 0 0.4rem', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Ranking do shard
-          </h3>
-          <p style={{ margin: '0 0 0.35rem', opacity: 0.75 }}>
-            Pessoal: andar máx. {snapshot?.progress?.highestFloorCleared ?? 0}
-            {snapshot ? ` · fama ${snapshot.fame}` : ''}
-            {snapshot?.xpBuff ? ` · buff XP +${snapshot.xpBuff.percent}%` : ''}
-          </p>
-          {leaderboard.length === 0 ? (
-            <p style={{ margin: 0, opacity: 0.6 }}>Sem registros ainda.</p>
-          ) : (
-            <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
-              {leaderboard.map((row, i) => (
-                <li key={`${row.displayName}-${i}`}>
-                  {row.displayName} — andar {row.highestFloorCleared} ({row.winsAtHighestFloor}×)
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+            <section aria-label="Ranking">
+              <h3
+                style={{
+                  margin: '0 0 0.4rem',
+                  fontSize: 11,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Ranking do shard
+              </h3>
+              <p style={{ margin: '0 0 0.35rem', opacity: 0.75 }}>
+                Pessoal: andar máx. {snapshot?.progress?.highestFloorCleared ?? 0}
+                {snapshot ? ` · fama ${snapshot.fame}` : ''}
+                {snapshot?.xpBuff ? ` · buff XP +${snapshot.xpBuff.percent}%` : ''}
+              </p>
+              {leaderboard.length === 0 ? (
+                <p style={{ margin: 0, opacity: 0.6 }}>Sem registros ainda.</p>
+              ) : (
+                <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                  {leaderboard.map((row, i) => (
+                    <li key={`${row.displayName}-${i}`}>
+                      {row.displayName} — andar {row.highestFloorCleared} ({row.winsAtHighestFloor}×)
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          </>
+        )}
       </div>
     </MovablePanelFrame>
   );

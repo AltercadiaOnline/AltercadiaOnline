@@ -4,6 +4,7 @@ import { windowManager } from '../../../panels/worldWindowController.js';
 import { subscribeExternalStore } from '../../../hooks/subscribeExternalStore.js';
 import { WorldGameClockWidget } from './WorldGameClockWidget.js';
 import { WorldNetLagWidget } from './WorldNetLagWidget.js';
+import { WorldTowerEntryTimerWidget } from './WorldTowerEntryTimerWidget.js';
 import {
   getMirroredStaticNetwork,
   subscribeStaticNetworkMirror,
@@ -11,7 +12,7 @@ import {
 import { hasStaticHeatAlert } from '../hub/staticNetworkView.js';
 
 /**
- * Canto superior-direito do mapa — relógio + SINAL + HUB (screen-space).
+ * Canto superior-direito do mapa — relógio + timer Torre + SINAL + HUB (screen-space).
  */
 export function WorldHubSocialCluster() {
   const hubOpen = useSyncExternalStore(
@@ -60,6 +61,7 @@ export function WorldHubSocialCluster() {
     >
       <WorldNetLagWidget />
       <WorldGameClockWidget />
+      <WorldTowerEntryTimerWidget />
       <button
         type="button"
         id="ui-static-launcher"

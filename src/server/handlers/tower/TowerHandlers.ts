@@ -7,23 +7,21 @@ import { ensureWorldCollisionForMap } from '../../../shared/world/constructWorld
 import { getZoneLoadGateway } from '../../world/ZoneLoadGateway.js';
 import type { MapId } from '../../../shared/world/mapRegistry.js';
 import { DESIGN_CONFIG } from '../../../config/designConstants.js';
+import type { TowerWorldSpawnMirror } from '../../../shared/tower/towerTypes.js';
 import {
-  buildTowerLeaderboard,
-  buildTowerRunPublicState,
+  ascendTowerFloor,
+  buildTowerHudSnapshot,
   createTowerParty,
   enterTowerFloor1,
   evacuateTowerCheckpoint,
-  getTowerFame,
   getTowerPartyForPlayer,
-  getTowerPlayerProgress,
-  getTowerXpBuff,
   inviteToTowerParty,
   leaveTowerParty,
   setTowerPartyReady,
   unlockTowerEntry,
-  ascendTowerFloor,
 } from '../../tower/TowerRunRuntime.js';
 import { startTowerBossCombatForParty } from '../../tower/startTowerBossCombat.js';
+import { pushTowerRunSyncForParty } from '../../tower/pushTowerRunSync.js';
 
 type EmptyPayload = Record<string, never> | undefined;
 
@@ -31,50 +29,57 @@ function readProfile(playerId: string, characterId: number) {
   return getAuthoritativeProgression(playerId, characterId).characterProfile;
 }
 
-function teleportPlayer(
+export function teleportTowerPlayer(
   playerId: string,
   characterId: number,
   mapId: MapId,
   tileX: number,
   tileY: number,
-): void {
+): TowerWorldSpawnMirror {
   getZoneLoadGateway().ensure(mapId);
   ensureWorldCollisionForMap(mapId);
   const tile = DESIGN_CONFIG.TILE.SIZE;
   const existing = getWorldProfile(playerId, characterId);
+  const facing = existing.facing ?? 'south';
+  const lastPosition = {
+    x: tileX * tile + tile / 2,
+    y: tileY * tile + tile / 2,
+  };
   const profile = saveWorldProfile(playerId, characterId, {
     ...existing,
     currentMapId: mapId,
-    lastPosition: {
-      x: tileX * tile + tile / 2,
-      y: tileY * tile + tile / 2,
-    },
-    facing: existing.facing ?? 'south',
+    lastPosition,
+    facing,
   });
   notifyWorldPositionPersist(playerId, characterId, profile);
+  return {
+    currentMapId: mapId,
+    lastPosition,
+    facing,
+  };
 }
 
 function partySnapshot(playerId: string, characterId: number) {
+  return buildTowerHudSnapshot(playerId, characterId);
+}
+
+function broadcastParty(
+  playerId: string,
+  characterId: number,
+  worldSpawnByPlayer?: ReadonlyMap<string, TowerWorldSpawnMirror>,
+): void {
   const party = getTowerPartyForPlayer(playerId);
-  return {
-    party: party
-      ? {
-          partyId: party.partyId,
-          leaderPlayerId: party.leaderPlayerId,
-          members: party.members.map((m) => ({
-            playerId: m.playerId,
-            characterId: m.characterId,
-            displayName: m.displayName,
-            ready: m.ready,
-          })),
-          run: buildTowerRunPublicState(party),
-        }
-      : null,
-    progress: getTowerPlayerProgress(playerId, characterId),
-    fame: getTowerFame(playerId, characterId),
-    xpBuff: getTowerXpBuff(playerId, characterId),
-    leaderboard: buildTowerLeaderboard(10),
-  };
+  const targets = party
+    ? party.members.map((m) => ({ playerId: m.playerId, characterId: m.characterId }))
+    : [{ playerId, characterId }];
+  for (const t of targets) {
+    const base = partySnapshot(t.playerId, t.characterId);
+    const worldSpawn = worldSpawnByPlayer?.get(t.playerId);
+    pushTowerRunSyncForParty(
+      [t.playerId],
+      worldSpawn ? { ...base, worldSpawn } : base,
+    );
+  }
 }
 
 export class TowerPartyCreateHandler extends BaseIntentHandler<EmptyPayload> {
@@ -98,7 +103,9 @@ export class TowerPartyCreateHandler extends BaseIntentHandler<EmptyPayload> {
       session.sendResponse(playerId, intentId, false, result.error);
       return;
     }
-    session.sendResponse(playerId, intentId, true, partySnapshot(playerId, characterId));
+    const snap = partySnapshot(playerId, characterId);
+    session.sendResponse(playerId, intentId, true, snap);
+    broadcastParty(playerId, characterId);
   }
 }
 
@@ -138,6 +145,7 @@ export class TowerPartyInviteHandler extends BaseIntentHandler<{
       return;
     }
     session.sendResponse(playerId, intentId, true, partySnapshot(playerId, session.characterId));
+    broadcastParty(playerId, session.characterId);
   }
 }
 
@@ -170,9 +178,11 @@ export class TowerPartyReadyHandler extends BaseIntentHandler<{ readonly ready: 
       return;
     }
     session.sendResponse(playerId, intentId, true, partySnapshot(playerId, session.characterId));
+    broadcastParty(playerId, session.characterId);
   }
 }
 
+/** @deprecated Entrada é no spawn — no-op compat. */
 export class TowerUnlockEntryHandler extends BaseIntentHandler<EmptyPayload> {
   readonly actionType = TOWER_INTENT_TYPES.UNLOCK_ENTRY;
 
@@ -198,12 +208,14 @@ export class TowerEnterFloorHandler extends BaseIntentHandler<EmptyPayload> {
       session.sendResponse(playerId, intentId, false, result.error);
       return;
     }
-    // Spawn perto do centro do andar 640×640 (tile ~10,10).
-    teleportPlayer(playerId, characterId, result.mapId as MapId, 10, 10);
-    session.sendResponse(playerId, intentId, true, {
+    const worldSpawn = teleportTowerPlayer(playerId, characterId, result.mapId as MapId, 10, 10);
+    const snap = {
       ...partySnapshot(playerId, characterId),
       mapId: result.mapId,
-    });
+      worldSpawn,
+    };
+    session.sendResponse(playerId, intentId, true, snap);
+    broadcastParty(playerId, characterId, new Map([[playerId, worldSpawn]]));
   }
 }
 
@@ -241,11 +253,13 @@ export class TowerAscendHandler extends BaseIntentHandler<EmptyPayload> {
       session.sendResponse(playerId, intentId, false, result.error);
       return;
     }
-    teleportPlayer(playerId, characterId, result.mapId as MapId, 10, 10);
+    const worldSpawn = teleportTowerPlayer(playerId, characterId, result.mapId as MapId, 10, 10);
     session.sendResponse(playerId, intentId, true, {
       ...partySnapshot(playerId, characterId),
       mapId: result.mapId,
+      worldSpawn,
     });
+    broadcastParty(playerId, characterId, new Map([[playerId, worldSpawn]]));
   }
 }
 
@@ -260,13 +274,15 @@ export class TowerEvacuateHandler extends BaseIntentHandler<EmptyPayload> {
       session.sendResponse(playerId, intentId, false, result.error);
       return;
     }
-    teleportPlayer(playerId, characterId, 'tower_gate', 12, 20);
+    const worldSpawn = teleportTowerPlayer(playerId, characterId, 'tower_gate', 12, 20);
     session.sendResponse(playerId, intentId, true, {
       ...partySnapshot(playerId, characterId),
       fameGain: result.fameGain,
       xpBuff: result.buff,
       mapId: 'tower_gate',
+      worldSpawn,
     });
+    broadcastParty(playerId, characterId, new Map([[playerId, worldSpawn]]));
   }
 }
 
@@ -282,7 +298,6 @@ export class TowerPartyRespondHandler extends BaseIntentHandler<{
     intentId: string,
   ): Promise<void> {
     const session = this.captureSession();
-    // MVP: invite já adiciona direto; respond só sincroniza snapshot / leave.
     if (payload?.accept === false) {
       leaveTowerParty(playerId);
     }

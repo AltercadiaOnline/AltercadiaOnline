@@ -152,9 +152,13 @@ import {
   isTowerBossMonsterInstanceId,
 } from '../tower/startTowerBossCombat.js';
 import {
+  buildTowerHudSnapshot,
   eliminateTowerMember,
   markTowerFloorCleared,
+  tickTowerAfkDeports,
 } from '../tower/TowerRunRuntime.js';
+import { pushTowerRunSyncForParty } from '../tower/pushTowerRunSync.js';
+import { teleportTowerPlayer } from '../handlers/tower/TowerHandlers.js';
 import { saveWorldProfile } from '../world/worldProfileStore.js';
 import { notifyWorldPositionPersist } from '../world/notifyWorldPositionPersist.js';
 import { ensureWorldCollisionForMap } from '../../shared/world/constructWorldCollision.js';
@@ -827,22 +831,14 @@ export class CombatWsHub implements CombatWsRouteHost {
     eliminateTowerMember(playerId);
     clearTowerBossPull(monsterInstanceId);
 
-    const tile = DESIGN_CONFIG.TILE.SIZE;
-    const tileX = 12;
-    const tileY = 20;
-    getZoneLoadGateway().ensure(TOWER_GATE_ID);
-    ensureWorldCollisionForMap(TOWER_GATE_ID as MapId);
-    const existing = getWorldProfile(playerId, characterId);
-    const profile = saveWorldProfile(playerId, characterId, {
-      ...existing,
-      currentMapId: TOWER_GATE_ID,
-      lastPosition: {
-        x: tileX * tile + tile / 2,
-        y: tileY * tile + tile / 2,
+    const worldSpawn = teleportTowerPlayer(playerId, characterId, TOWER_GATE_ID as MapId, 12, 20);
+    pushTowerRunSyncForParty(
+      [playerId],
+      {
+        ...buildTowerHudSnapshot(playerId, characterId),
+        worldSpawn,
       },
-      facing: existing.facing ?? 'south',
-    });
-    notifyWorldPositionPersist(playerId, characterId, profile);
+    );
     console.log('[WS] Derrota na Torre — jogador eliminado → gate', {
       playerId,
       characterId,
@@ -1956,8 +1952,27 @@ export class CombatWsHub implements CombatWsRouteHost {
         this.pruneDeadWorldPresence();
         sweepExpiredInventoryLocks();
         this.tickPveCreaturesAndEncounters();
+        this.tickTowerAfkDeports();
       },
     });
+  }
+
+  private tickTowerAfkDeports(): void {
+    const deports = tickTowerAfkDeports();
+    for (const d of deports) {
+      const worldSpawn = teleportTowerPlayer(d.playerId, d.characterId, TOWER_GATE_ID as MapId, 12, 20);
+      pushTowerRunSyncForParty(
+        [d.playerId],
+        {
+          ...buildTowerHudSnapshot(d.playerId, d.characterId),
+          worldSpawn,
+        },
+      );
+      console.log('[WS] Torre AFK — deportado ao gate', {
+        playerId: d.playerId,
+        characterId: d.characterId,
+      });
+    }
   }
 
   /** Remove presença de WS morto / índice órfão (fantasma no mapa). */

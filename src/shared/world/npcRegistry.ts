@@ -333,7 +333,7 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     mapId: TOWER_GATE_ID,
     ...CONSTRUCT_POS,
     actionType: NpcActionType.OPEN_TOWER_COMPUTER,
-    dialogue: 'Torre de Poder — party, liberar entrada e ranking do shard.',
+    dialogue: 'Torre de Poder — ative a party aqui. Entrada é no spawn em frente à torre.',
     dimensions: DESIGN_NPC_DIMENSIONS,
     featured: true,
     collidable: false,

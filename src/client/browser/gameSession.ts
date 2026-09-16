@@ -66,6 +66,12 @@ import {
   isAuthoritativeWorldSocket,
 } from '../world/authoritativeWorldSocket.js';
 import { getPveEncounterStore } from '../app/panels/pveEncounterStore.js';
+import { tryApplyTowerPanelMirrorFromIntentData } from '../world/towerPanelMirror.js';
+import {
+  applyAuthoritativeWorldMapTransition,
+  bindAuthoritativeWorldMapTransition,
+  tryParseAuthoritativeWorldSpawn,
+} from '../world/authoritativeWorldMapTransition.js';
 import { bindPveEncounterWsSender, sendPveEncounterRequest } from '../app/panels/pveEncounterBridge.js';
 import { bindCombatJoinAbortWsSender } from '../app/panels/combatJoinAbortBridge.js';
 import { formatPvpRankedQueueError } from '../../shared/combat/pvp/pvpRankedQueueErrors.js';
@@ -798,6 +804,12 @@ async function connectSocket(): Promise<void> {
     getPvpQueueStore().applyAuthoritativeSnapshot(raw, localPlayerId, localCharacterId);
   });
 
+  socket.on('tower-run-sync', (raw) => {
+    tryApplyTowerPanelMirrorFromIntentData(raw);
+    const spawn = tryParseAuthoritativeWorldSpawn(raw);
+    if (spawn) applyAuthoritativeWorldMapTransition(spawn);
+  });
+
   socket.on('pvp-ranked-queue-error', (raw) => {
     if (!raw || typeof raw !== 'object') return;
     const reason = (raw as { reason?: unknown }).reason;
@@ -955,6 +967,23 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
     world = new ExplorationScene(mapManager, worldSocket);
     const activeWorld = world;
     activeWorld.resize();
+    bindAuthoritativeWorldMapTransition((spawn) => {
+      getMutableDataStore().applyWorldSpawnFromServer(spawn);
+      if (isAuthoritativeWorldSocket(worldSocket)) {
+        worldSocket.seedPredictedPosition(spawn.lastPosition);
+        worldSocket.applyServerWorldState({
+          currentMapId: spawn.currentMapId,
+          lastPosition: spawn.lastPosition,
+          facing: spawn.facing,
+        });
+      }
+      activeWorld.applyServerWorldSpawn({
+        ok: true,
+        currentMapId: spawn.currentMapId,
+        lastPosition: { ...spawn.lastPosition },
+        facing: spawn.facing,
+      });
+    });
     if (!selected) {
       throw new Error('Entrar no mundo exige personagem selecionado.');
     }
@@ -1244,6 +1273,7 @@ async function enterWorldAfterHudReadyAsync(): Promise<void> {
     teardownGlobalChat = null;
     destroyUiLayer();
     world = null;
+    bindAuthoritativeWorldMapTransition(null);
     worldSocket = null;
     mapManager = null;
     worldStarted = false;
@@ -1314,6 +1344,7 @@ export function clearGameState(): void {
 
   world?.dispose();
   world = null;
+  bindAuthoritativeWorldMapTransition(null);
   resetExplorationRenderBridge();
   shutdownWorldRender();
 

@@ -829,9 +829,13 @@ export function handleIntentResultPayload(raw: unknown): void {
         || pendingIntent?.action.type === 'COMPLETE_MERCENARY_TASK'
         || pendingIntent?.action.type === 'MERCENARY_QUEST_INTERACT'
       );
+    const skipFullStateForZoneBypass =
+      pendingIntent?.action.type === 'ZONE_BYPASS_INIT'
+      || pendingIntent?.action.type === 'ZONE_BYPASS_SUBMIT';
     if (
       !skipFullStateForAllocatedStats
       && !skipFullStateForMercenary
+      && !skipFullStateForZoneBypass
       && (!petRosterApplied || !inventoryApplied)
     ) {
       getGlobalStateSynchronizer().requestFullState();

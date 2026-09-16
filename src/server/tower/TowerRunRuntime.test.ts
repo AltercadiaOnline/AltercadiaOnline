@@ -1,59 +1,61 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import {
-    createTowerParty,
-    enterTowerFloor1,
-    getTowerPartyForPlayer,
-    inviteToTowerParty,
-    setTowerPartyReady,
-    unlockTowerEntry,
+  __resetTowerRuntimeForTests,
+  createTowerParty,
+  enterTowerFloor1,
+  getOccupyingPartyRunId,
+  getTowerPartyForPlayer,
+  inviteToTowerParty,
 } from './TowerRunRuntime.js';
 
-describe('TowerRunRuntime', () => {
-    it('permite entrada solo e avança para o andar 1 após liberar o spawn', () => {
-        const created = createTowerParty('solo-player', 1, 'Solo', 10);
-        expect(created.ok).toBe(true);
-        if (!created.ok) return;
+describe('TowerRunRuntime entry window', () => {
+  beforeEach(() => {
+    __resetTowerRuntimeForTests();
+  });
 
-        const unlocked = unlockTowerEntry('solo-player');
-        expect(unlocked.ok).toBe(true);
-        if (!unlocked.ok) return;
+  it('solo: 1º enter ocupa a torre e trava roster na hora', () => {
+    const created = createTowerParty('solo-player', 1, 'Solo', 10);
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
 
-        const entered = enterTowerFloor1('solo-player');
-        expect(entered.ok).toBe(true);
-        if (!entered.ok) return;
+    const entered = enterTowerFloor1('solo-player');
+    expect(entered.ok).toBe(true);
+    if (!entered.ok) return;
 
-        expect(entered.mapId).toBe('tower_floor_1');
-        expect(getTowerPartyForPlayer('solo-player')?.floorIndex).toBe(1);
-    });
+    expect(entered.mapId).toBe('tower_floor_1');
+    const party = getTowerPartyForPlayer('solo-player');
+    expect(party?.floorIndex).toBe(1);
+    expect(party?.rosterLocked).toBe(true);
+    expect(party?.membersInRun.has('solo-player')).toBe(true);
+    expect(getOccupyingPartyRunId()).toBe(party?.partyRunId);
+  });
 
-    it('bloqueia liberar entrada em party multi quando alguém ainda não confirmou Pronto', () => {
-        const created = createTowerParty('leader-player', 10, 'Líder', 10);
-        expect(created.ok).toBe(true);
-        if (!created.ok) return;
+  it('multi: 1º enter abre janela; segundo entra na mesma run; outra party vê TOWER_BUSY', () => {
+    const a = createTowerParty('leader-a', 10, 'Líder A', 10);
+    expect(a.ok).toBe(true);
+    if (!a.ok) return;
 
-        const invited = inviteToTowerParty(
-            'leader-player',
-            'guest-player',
-            11,
-            'Convidado',
-            10,
-        );
-        expect(invited.ok).toBe(true);
-        if (!invited.ok) return;
+    const invited = inviteToTowerParty('leader-a', 'guest-a', 11, 'Guest A', 10);
+    expect(invited.ok).toBe(true);
 
-        const blocked = unlockTowerEntry('leader-player');
-        expect(blocked.ok).toBe(false);
-        if (blocked.ok) return;
-        expect(blocked.error).toBe('NOT_ALL_READY');
+    const first = enterTowerFloor1('leader-a');
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.party.rosterLocked).toBe(false);
+    expect(first.party.entryWindowEndsAtServerMs).toBeTypeOf('number');
 
-        const markedReady = setTowerPartyReady('guest-player', true);
-        expect(markedReady.ok).toBe(true);
-        if (!markedReady.ok) return;
+    const second = enterTowerFloor1('guest-a');
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.party.rosterLocked).toBe(true);
+    expect(second.party.membersInRun.size).toBe(2);
 
-        const unlocked = unlockTowerEntry('leader-player');
-        expect(unlocked.ok).toBe(true);
-        if (!unlocked.ok) return;
-
-        expect(unlocked.party.members.every((member) => member.ready)).toBe(true);
-    });
+    const b = createTowerParty('leader-b', 20, 'Líder B', 10);
+    expect(b.ok).toBe(true);
+    if (!b.ok) return;
+    const busy = enterTowerFloor1('leader-b');
+    expect(busy.ok).toBe(false);
+    if (busy.ok) return;
+    expect(busy.error).toBe('TOWER_BUSY');
+  });
 });
