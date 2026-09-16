@@ -42,6 +42,10 @@ import {
 } from '../world/zoneBypassNotify.js';
 import { startBattle } from '../game/GameStateProvider.js';
 import { tryApplyTowerPanelMirrorFromIntentData } from '../world/towerPanelMirror.js';
+import {
+  applyAuthoritativeWorldMapTransition,
+  tryParseAuthoritativeWorldSpawn,
+} from '../world/authoritativeWorldMapTransition.js';
 import type {
   TerminalInitResponse,
   TerminalSubmitResponse,
@@ -56,7 +60,7 @@ import type {
   RefractionBoothStarted,
 } from '../../shared/cityMinigames/refractionBoothTypes.js';
 import type { MarcosStateSnapshot } from '../../shared/playerDataSnapshots.js';
-import { getMercenaryQuestStore } from '../ui/quests/mercenaryQuestStore.js';
+import { getMercenaryQuestStore, isMercenaryQuestClientActionType } from '../ui/quests/mercenaryQuestStore.js';
 import { alertSystem } from '../ui/alertSystem.js';
 import { upsertFriend } from '../world/friendListStore.js';
 import { isFriendListViewEntry } from '../../shared/social/friendListTypes.js';
@@ -163,10 +167,7 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
   const pending = getPendingIntentRegistry().get(intentId);
   if (
     !pending
-    || (pending.action.type !== 'ACCEPT_MERCENARY_TASK'
-      && pending.action.type !== 'ABANDON_MERCENARY_TASK'
-      && pending.action.type !== 'COMPLETE_MERCENARY_TASK'
-      && pending.action.type !== 'MERCENARY_QUEST_INTERACT')
+    || !isMercenaryQuestClientActionType(pending.action.type)
   ) {
     return false;
   }
@@ -214,6 +215,27 @@ function tryApplyMercenaryQuestsFromIntentData(intentId: string, data: unknown):
     } else if (typeof record.objectiveShort === 'string' && record.objectiveShort.trim()) {
       alertSystem(record.objectiveShort);
     }
+  }
+  return true;
+}
+
+/** ACK atrasado após economy early-confirm — ainda espelha o slice (sem toast). */
+function tryApplyMercenaryQuestsSliceOnly(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false;
+  const record = data as {
+    mercenaryQuests?: unknown;
+    characterLevel?: { level?: unknown; xpCurrent?: unknown };
+  };
+  if (!record.mercenaryQuests) return false;
+  getMercenaryQuestStore().applyAuthoritative(record.mercenaryQuests);
+  const level = typeof record.characterLevel?.level === 'number'
+    ? Math.max(1, Math.floor(record.characterLevel.level))
+    : null;
+  const xpCurrent = typeof record.characterLevel?.xpCurrent === 'number'
+    ? Math.max(0, Math.floor(record.characterLevel.xpCurrent))
+    : null;
+  if (level !== null && xpCurrent !== null) {
+    getMutableDataStore().applyCharacterLevelState(level, xpCurrent, 'server_sync');
   }
   return true;
 }
@@ -526,6 +548,20 @@ function tryStartTowerBossCombatJoin(intentId: string, data: unknown): void {
   void startBattle(monsterInstanceId);
 }
 
+const TOWER_MAP_TRANSITION_INTENTS = new Set([
+  'TOWER_ENTER_FLOOR',
+  'TOWER_ASCEND',
+  'TOWER_EVACUATE',
+]);
+
+function tryApplyTowerWorldMapTransition(intentId: string, data: unknown): void {
+  const pending = getPendingIntentRegistry().get(intentId);
+  if (!pending || !TOWER_MAP_TRANSITION_INTENTS.has(pending.action.type)) return;
+  const spawn = tryParseAuthoritativeWorldSpawn(data);
+  if (!spawn) return;
+  applyAuthoritativeWorldMapTransition(spawn);
+}
+
 async function playCombatAttackVfx(data: CombatActionIntentResultData): Promise<void> {
   if (!isProjectileCombatAction(data.action)) return;
   // Combate já orquestra VFX via combat-event — evita segundo impacto no oponente.
@@ -796,7 +832,13 @@ export function handleIntentResultPayload(raw: unknown): void {
   const pendingInRegistry = registry.isIntentPending(raw.intentId);
   const pendingInStore = store.hasPendingAction(raw.intentId);
 
-  if (!pendingInRegistry && !pendingInStore) return;
+  if (!pendingInRegistry && !pendingInStore) {
+    // Economy pode ter confirmado cedo; intent-result ainda traz mercenaryQuests.
+    if (raw.success) {
+      tryApplyMercenaryQuestsSliceOnly(raw.data);
+    }
+    return;
+  }
 
   if (raw.success) {
     tryNotifyActivateBookSuccess(raw.intentId, raw.data);
@@ -809,6 +851,7 @@ export function handleIntentResultPayload(raw: unknown): void {
     tryNotifyZoneBypassResult(raw.intentId, true, raw.data);
     tryStartTowerBossCombatJoin(raw.intentId, raw.data);
     tryApplyTowerPanelMirrorFromIntentData(raw.data);
+    tryApplyTowerWorldMapTransition(raw.intentId, raw.data);
     const petRosterApplied = tryApplyPetRosterFromIntentData(raw.intentId, raw.data);
     const inventoryApplied = tryApplyInventoryFromIntentData(raw.intentId, raw.data);
     tryApplyMarcosFromIntentData(raw.intentId, raw.data);
@@ -823,12 +866,8 @@ export function handleIntentResultPayload(raw: unknown): void {
     // requestFullState em seguida pode chegar vazio (race/persist) e apagar o tracker da HUD.
     const skipFullStateForMercenary =
       mercenaryQuestsApplied
-      && (
-        pendingIntent?.action.type === 'ACCEPT_MERCENARY_TASK'
-        || pendingIntent?.action.type === 'ABANDON_MERCENARY_TASK'
-        || pendingIntent?.action.type === 'COMPLETE_MERCENARY_TASK'
-        || pendingIntent?.action.type === 'MERCENARY_QUEST_INTERACT'
-      );
+      && pendingIntent
+      && isMercenaryQuestClientActionType(pendingIntent.action.type);
     const skipFullStateForZoneBypass =
       pendingIntent?.action.type === 'ZONE_BYPASS_INIT'
       || pendingIntent?.action.type === 'ZONE_BYPASS_SUBMIT';

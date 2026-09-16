@@ -555,7 +555,8 @@ export class PlayerDataStore implements IAuthoritativeDataStore {
     }
 
     if (state.mercenaryQuests) {
-      getMercenaryQuestStore().applyAuthoritative(state.mercenaryQuests);
+      // Full-state stale não pode apagar ACK de Aceitar/Extrair/Completar.
+      getMercenaryQuestStore().applyFromFullState(state.mercenaryQuests);
     }
 
     if (state.friends) {

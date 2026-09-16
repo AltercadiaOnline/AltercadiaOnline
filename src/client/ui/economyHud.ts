@@ -14,9 +14,17 @@ import { getMutableDataStore } from '../PlayerDataStore.js';
 import { getGameStore } from '../state/GameStore.js';
 import { getPlayerPetStore } from '../ui/pet/playerPetStore.js';
 import { getPlayerSkinStore } from '../ui/character/playerSkinStore.js';
+import { isMercenaryQuestClientActionType } from '../ui/quests/mercenaryQuestStore.js';
 import { applyMarketplaceOrderBookSnapshot } from '../ui/market/marketplaceOrderBookClient.js';
 import { applyAuthoritativeWorldVitals } from '../world/applyAuthoritativeWorldVitals.js';
 import { uiEvents, UIEventType } from '../ui/uiEvents.js';
+
+/** Extrair/Completar emitem Inventory/Wallet com intentId antes do intent-result — ACK aplica mercenaryQuests. */
+function shouldDeferConfirmForMercenaryQuest(intentId: string): boolean {
+  const pending = getPendingIntentRegistry().get(intentId);
+  return Boolean(pending && isMercenaryQuestClientActionType(pending.action.type));
+}
+
 export function formatDollarVolt(amount: number): string {
   return formatVolts(amount);
 }
@@ -57,10 +65,12 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
     if (event.payload.intentId) {
       // Cura / ração: WalletUpdated chega antes de WorldVitals / PetAffinity —
       // não confirme cedo ou a UI resolve com vitals/cargas ainda desatualizados.
+      // Mercenary Completar: Wallet chega antes do intent-result com mercenaryQuests.
       const pending = getPendingIntentRegistry().get(event.payload.intentId);
       const deferConfirm = pending
         && (pending.action.type === 'HEAL_AT_NPC'
-          || pending.action.type === 'CAEL_BUY_PET_RATION');
+          || pending.action.type === 'CAEL_BUY_PET_RATION'
+          || isMercenaryQuestClientActionType(pending.action.type));
       if (!deferConfirm) {
         dispatcher.confirmIntent(event.payload.intentId);
       }
@@ -97,7 +107,9 @@ export function applyEconomyEventToHud(event: EconomyEvent): void {
     scheduleInventoryUpdatedPayload(event.payload);
     getGameStore().syncPlayerFromDomain();
     if (event.payload.intentId) {
-      dispatcher.confirmIntent(event.payload.intentId);
+      if (!shouldDeferConfirmForMercenaryQuest(event.payload.intentId)) {
+        dispatcher.confirmIntent(event.payload.intentId);
+      }
     }
     return;
   }
